@@ -1,0 +1,44 @@
+.main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  padding: 0 32px;
+}
+
+.title {
+  font-size: 3rem;
+  font-weight: bold;
+  color: #1976d2;
+  margin: 0;
+  margin-bottom: 1rem;
+}
+
+.description {
+  font-size: 1.5rem;
+  color: #4f4f4f;
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+.button {
+  display: inline-block;
+  padding: 12px 24px;
+  font-size: 1.25rem;
+  font-weight: 500;
+  text-decoration: none;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.button-primary {
+  background-color: #1976d2;
+  color: #ffffff;
+}
+
+.button-primary:hover {
+  background-color: #1565c0;
+}
