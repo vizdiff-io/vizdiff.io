@@ -1,5 +1,5 @@
 {
-  "name": "vizdiff-api",
+  "name": "api",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -11,17 +11,20 @@
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx"
   },
   "dependencies": {
+    "cookie-parser": "1.4.6",
     "dotenv-flow": "3.2.0",
     "express": "4.18.2",
+    "express-promise-router": "4.1.1",
     "jsonwebtoken": "9.0.0",
     "pg": "8.10.0",
     "pino": "8.11.0",
-    "pino-http": "^8.3.3",
+    "pino-http": "8.3.3",
     "reflect-metadata": "0.1.13",
     "typeorm": "0.3.12",
     "undici": "5.21.0"
   },
   "devDependencies": {
+    "@types/cookie-parser": "^1.4.3",
     "@types/dotenv-flow": "3.2.0",
     "@types/express": "4.17.17",
     "@types/jest": "29.5.0",
@@ -31,7 +34,7 @@
     "@types/supertest": "2.0.12",
     "eslint": "8.37.0",
     "jest": "29.5.0",
-    "pino-pretty": "^10.0.0",
+    "pino-pretty": "10.0.0",
     "supertest": "6.3.3",
     "ts-jest": "29.0.5",
     "ts-node": "10.9.1",

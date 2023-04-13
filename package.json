@@ -5,13 +5,14 @@
   "workspaces": [
     "frontend",
     "api",
-    "cli",
+    "vizdiff-cli",
     "worker"
   ],
   "scripts": {
-    "frontend": "yarn workspace vizdiff-frontend",
-    "api": "yarn workspace vizdiff-api",
-    "worker": "yarn workspace vizdiff-worker",
+    "cli": "yarn workspace vizdiff-cli",
+    "frontend": "yarn workspace frontend",
+    "api": "yarn workspace api",
+    "worker": "yarn workspace worker",
     "build:all": "yarn workspaces run build",
     "test:all": "yarn workspaces run test",
     "lint:all": "yarn workspaces run lint",

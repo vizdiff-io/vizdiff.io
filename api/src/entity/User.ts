@@ -13,8 +13,8 @@ export class User {
   @PrimaryGeneratedColumn()
   id!: number
 
-  @Column({ name: "github_id", type: "bigint", unique: true, nullable: false })
-  githubId!: bigint
+  @Column({ name: "github_id", type: "varchar", length: 255, unique: true, nullable: false })
+  githubId!: string
 
   @Column({ type: "varchar", length: 255, unique: true, nullable: true })
   email!: string | null

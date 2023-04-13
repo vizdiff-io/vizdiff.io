@@ -4,12 +4,13 @@ import { Database } from "../database"
 import { User } from "../entity/User"
 import { GithubUser } from "../schemas/GithubUser"
 import jwt from "jsonwebtoken"
-import { getCookieString, getQueryString } from "../http"
+import { parseSimpleQueryString, requiredQueryString } from "../http"
 import { DefaultRequest, DefaultResponse } from "../types"
 import { log } from "../log"
 
 const GITHUB_TOKEN_EXCHANGE = "https://github.com/login/oauth/access_token"
 const GITHUB_USER_INFO = "https://api.github.com/user"
+const IS_PRODUCTION = process.env.NODE_ENV === "production"
 
 if (!GITHUB_CLIENT_ID) {
   throw new Error("Missing GITHUB_CLIENT_ID")
@@ -19,23 +20,36 @@ if (!GITHUB_CLIENT_SECRET) {
 }
 
 export async function auth(req: DefaultRequest, res: DefaultResponse): Promise<void> {
-  const code = getQueryString("code", req)
-  const redirectUri = getQueryString("redirect_uri", req)
-  const receivedState = getQueryString("state", req)
-  const storedState = getCookieString("state", req)
-  if (receivedState !== storedState) {
-    throw new Error("Invalid state")
+  const code = requiredQueryString("code", req)
+  const receivedState = requiredQueryString("state", req)
+  // NOTE: The API endpoints and frontend must be served from the same host for this to work
+  // const storedState = requiredCookieString("auth_state", req)
+  // if (receivedState !== storedState) {
+  //   log.error(`Received state "${receivedState}" does not match cookie state "${storedState}"`)
+  //   throw new Error("Invalid state")
+  // }
+  const stateValues = parseSimpleQueryString(receivedState)
+  const finalRedirect = stateValues.get("redirect")
+  if (!finalRedirect) {
+    throw new Error("Missing redirect in state")
   }
 
+  // The request to GITHUB_TOKEN_EXCHANGE requires a `redirect_uri` parameter that matches the
+  // `redirect_uri` parameter used in the initial request to GITHUB_AUTH_URL, i.e. this endpoint
+  const endpointUri = new URL(
+    req.url,
+    `${req.secure ? "https" : "http"}://${req.hostname}`,
+  ).toString()
+
   // Exchange the code for an access token
-  log.debug(`Exchanging GitHub code for access token for ${req.ip}`)
+  log.debug(`Exchanging GitHub code for access token for ${req.ip} (redirect_uri=${endpointUri})`)
   const ghRes = await fetch(GITHUB_TOKEN_EXCHANGE, {
     method: "POST",
     body: new URLSearchParams({
       client_id: GITHUB_CLIENT_ID,
       client_secret: GITHUB_CLIENT_SECRET,
       code,
-      redirect_uri: redirectUri,
+      redirect_uri: endpointUri,
     }),
     headers: {
       Accept: "application/json",
@@ -46,6 +60,8 @@ export async function auth(req: DefaultRequest, res: DefaultResponse): Promise<v
   }
   const ghBody = (await ghRes.json()) as { access_token?: string }
   if (!ghBody.access_token) {
+    const json = JSON.stringify(ghBody)
+    log.error(`Response from ${GITHUB_TOKEN_EXCHANGE} did not contain an access_token: ${json}`)
     throw new Error(`Missing access_token in response from ${GITHUB_TOKEN_EXCHANGE}`)
   }
   const accessToken = ghBody.access_token
@@ -58,22 +74,26 @@ export async function auth(req: DefaultRequest, res: DefaultResponse): Promise<v
     },
   })
   if (!ghUserRes.ok) {
+    log.error(`Failed to GET ${GITHUB_USER_INFO}: ${ghUserRes.status} ${ghUserRes.statusText}`)
     throw new Error(`Failed to GET ${GITHUB_USER_INFO}`)
   }
   const ghUser = (await ghUserRes.json()) as GithubUser
   if (!ghUser.login) {
+    const json = JSON.stringify(ghUser)
+    log.error(`Response from ${GITHUB_USER_INFO} did not contain \"login\": ${json}`)
     throw new Error(`Missing "login" in response from ${GITHUB_USER_INFO}`)
   }
+  const githubId = String(ghUser.id)
 
   // Check if the user already exists
   const db = await Database()
   const userTable = db.getRepository(User)
-  let user = await userTable.findOneBy({ githubId: BigInt(ghUser.id) })
+  let user = await userTable.findOneBy({ githubId })
   if (!user) {
     // Create a new user
     log.info(`Creating new user for GitHub user ${ghUser.login} (${ghUser.id})`)
     user = new User()
-    user.githubId = BigInt(ghUser.id)
+    user.githubId = githubId
   }
 
   // Set or update the user's info retrieved from GitHub
@@ -93,11 +113,12 @@ export async function auth(req: DefaultRequest, res: DefaultResponse): Promise<v
   // Send the token to the client as a secure HttpOnly cookie
   res.cookie("token", token, {
     httpOnly: true,
-    secure: req.secure ? true : undefined,
-    sameSite: "strict",
+    secure: IS_PRODUCTION || req.secure ? true : undefined,
+    sameSite: "lax",
     maxAge: 60 * 60 * 1000, // 1 hour in milliseconds
+    domain: req.hostname,
   })
 
   // Redirect to the original URL
-  res.redirect(redirectUri)
+  res.redirect(finalRedirect)
 }

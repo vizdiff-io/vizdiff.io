@@ -7,10 +7,12 @@ import { log } from "../log"
 export async function user(req: DefaultRequest, res: DefaultResponse): Promise<void> {
   const user = await getUser(req)
   if (!user) {
-    res.status(401).send("Unauthorized")
+    log.error(`getUser() failed to retrieve a user`)
+    res.status(401).json({ error: "Unauthorized" })
     return
   }
-  res.send(user)
+
+  res.json({ ...user, githubProfile: JSON.parse(user.githubProfile), githubAccessToken: undefined })
 }
 
 async function getUser(req: DefaultRequest): Promise<User> {
