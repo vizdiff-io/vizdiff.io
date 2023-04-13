@@ -5,6 +5,7 @@ import { ScreenshotTest } from "./entity/ScreenshotTest"
 import { TestResult } from "./entity/TestResult"
 import { User } from "./entity/User"
 import {
+  IS_PRODUCTION,
   IS_TEST,
   POSTGRES_DATABASE,
   POSTGRES_HOST,
@@ -21,7 +22,8 @@ const database = new DataSource({
   username: POSTGRES_USER,
   password: POSTGRES_PASS,
   database: POSTGRES_DATABASE,
-  synchronize: true,
+  synchronize: !IS_PRODUCTION,
+  dropSchema: IS_TEST,
   logging: !IS_TEST,
   entities: [Project, ScreenshotTest, TestResult, User],
   subscribers: [],
