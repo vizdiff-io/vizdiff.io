@@ -9,14 +9,13 @@ import { pinoHttp } from "pino-http"
 import { authenticateJWT } from "./authenticate"
 import * as Auth from "./endpoints/auth"
 import * as User from "./endpoints/user"
-import { IS_PRODUCTION, IS_TEST } from "./environment"
+import { IS_PRODUCTION, IS_TEST, PORT } from "./environment"
 import { log } from "./log"
 import { DefaultRequest, DefaultResponse } from "./types"
 
 const startTime = new Date().getTime()
 
 const app = Express()
-const port = process.env.PORT ?? 3001
 const router = Router({ caseSensitive: true })
 
 const httpLogger = IS_PRODUCTION
@@ -50,10 +49,10 @@ app.use((err: Error, _req: DefaultRequest, res: DefaultResponse, _next: Express.
   res.status(500).json({ error: err.message })
 })
 
-const server = app.listen(port, () => {
+const server = app.listen(PORT, () => {
   const address = server.address()
   if (!address) {
-    log.error(`Server failed to bind to port ${port}`)
+    log.error(`Server failed to bind to port ${PORT}`)
     process.exit(1)
   }
   const portStr = typeof address === "string" ? address : address.port
