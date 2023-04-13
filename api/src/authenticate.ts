@@ -1,8 +1,7 @@
 import { Request, Response, NextFunction } from "express"
 import jwt, { JwtPayload, VerifyErrors } from "jsonwebtoken"
-
-export type AuthenticatedRequest = Request & { userId: number }
-export type MaybeAuthenticatedRequest = Request & { userId?: number }
+import { AuthenticatedRequest } from "./types"
+import { log } from "./log"
 
 export function authenticateJWT(req: Request, res: Response, next: NextFunction): void {
   const token = req.cookies.token || req.headers.authorization?.split(" ")[1]
@@ -30,6 +29,7 @@ export function authenticateJWT(req: Request, res: Response, next: NextFunction)
       // Set req.userId from the verified JWT payload
       const reqWithUserId = req as AuthenticatedRequest
       reqWithUserId.userId = parseInt(decoded.sub, 10)
+      log.debug(`Request authenticated as user ${reqWithUserId.userId} via JWT`)
       next()
     },
   )

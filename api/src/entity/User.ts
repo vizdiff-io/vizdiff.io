@@ -4,13 +4,11 @@ import {
   Column,
   CreateDateColumn,
   UpdateDateColumn,
-  Unique,
   OneToMany,
 } from "typeorm"
 import { Project } from "./Project"
 
 @Entity("users")
-@Unique(["github_id", "email", "github_username"])
 export class User {
   @PrimaryGeneratedColumn()
   id!: number
@@ -18,7 +16,7 @@ export class User {
   @Column({ name: "github_id", type: "bigint", unique: true, nullable: false })
   githubId!: bigint
 
-  @Column({ type: "varchar", length: 255, nullable: true })
+  @Column({ type: "varchar", length: 255, unique: true, nullable: true })
   email!: string | null
 
   @Column({ name: "github_username", type: "varchar", length: 255, unique: true, nullable: false })

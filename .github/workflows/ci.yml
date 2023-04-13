@@ -16,26 +16,26 @@ jobs:
         node-version: [18.x]
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
-      with:
-        fetch-depth: 0
-        lfs: true
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          lfs: true
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: ${{ matrix.node-version }}
-        cache: 'yarn'
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "yarn"
 
-    - name: Install dependencies
-      run: yarn install:all
+      - name: Install dependencies
+        run: yarn install --immutable
 
-    - name: Build projects
-      run: yarn build:all
+      - name: Build projects
+        run: yarn build:all
 
-    - name: Run tests
-      run: yarn test:all
+      - name: Run tests
+        run: yarn test:all
 
-    - name: Lint projects
-      run: yarn lint:all
+      - name: Lint projects
+        run: yarn lint:all
