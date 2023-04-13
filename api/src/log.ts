@@ -1,6 +1,6 @@
 import { pino } from "pino"
 
-const IS_PRODUCTION = process.env.NODE_ENV === "production"
+import { IS_PRODUCTION, IS_TEST } from "./environment"
 
 export const log = IS_PRODUCTION
   ? pino()
@@ -8,6 +8,6 @@ export const log = IS_PRODUCTION
       level: "debug",
       transport: {
         target: "pino-pretty",
-        options: { colorize: true },
+        options: { colorize: !IS_TEST },
       },
     })

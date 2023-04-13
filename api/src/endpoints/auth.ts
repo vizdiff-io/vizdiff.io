@@ -1,16 +1,16 @@
+import jwt from "jsonwebtoken"
 import { fetch } from "undici"
-import { GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, JWT_SECRET } from "../environment"
+
 import { Database } from "../database"
 import { User } from "../entity/User"
-import { GithubUser } from "../schemas/GithubUser"
-import jwt from "jsonwebtoken"
+import { GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, IS_PRODUCTION, JWT_SECRET } from "../environment"
 import { parseSimpleQueryString, requiredQueryString } from "../http"
-import { DefaultRequest, DefaultResponse } from "../types"
 import { log } from "../log"
+import { GithubUser } from "../schemas/GithubUser"
+import { DefaultRequest, DefaultResponse } from "../types"
 
 const GITHUB_TOKEN_EXCHANGE = "https://github.com/login/oauth/access_token"
 const GITHUB_USER_INFO = "https://api.github.com/user"
-const IS_PRODUCTION = process.env.NODE_ENV === "production"
 
 if (!GITHUB_CLIENT_ID) {
   throw new Error("Missing GITHUB_CLIENT_ID")
@@ -19,7 +19,7 @@ if (!GITHUB_CLIENT_SECRET) {
   throw new Error("Missing GITHUB_CLIENT_SECRET")
 }
 
-export async function auth(req: DefaultRequest, res: DefaultResponse): Promise<void> {
+export async function githubCallback(req: DefaultRequest, res: DefaultResponse): Promise<void> {
   const code = requiredQueryString("code", req)
   const receivedState = requiredQueryString("state", req)
   // NOTE: The API endpoints and frontend must be served from the same host for this to work
@@ -80,7 +80,7 @@ export async function auth(req: DefaultRequest, res: DefaultResponse): Promise<v
   const ghUser = (await ghUserRes.json()) as GithubUser
   if (!ghUser.login) {
     const json = JSON.stringify(ghUser)
-    log.error(`Response from ${GITHUB_USER_INFO} did not contain \"login\": ${json}`)
+    log.error(`Response from ${GITHUB_USER_INFO} did not contain "login": ${json}`)
     throw new Error(`Missing "login" in response from ${GITHUB_USER_INFO}`)
   }
   const githubId = String(ghUser.id)
@@ -104,7 +104,7 @@ export async function auth(req: DefaultRequest, res: DefaultResponse): Promise<v
   user = await userTable.save(user)
 
   // Update or create the user row in the database
-  log.debug(`Saving user ${user.id} to the database`)
+  log.debug(`Writing user info for ${user.id} (${user.githubUsername}) to the database`)
   await userTable.save(user)
 
   // Generate a JWT

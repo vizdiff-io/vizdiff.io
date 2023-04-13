@@ -1,13 +1,16 @@
-import * as path from "path"
 import { config as configEnv } from "dotenv-flow"
+import * as path from "path"
 import { fileURLToPath } from "url"
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
-const envPath = path.join(__dirname, "..")
+const filename = fileURLToPath(import.meta.url)
+const dirname = path.dirname(filename)
+const envPath = path.join(dirname, "..")
 
-// Load the `api/.env` file into process.env
-configEnv({ path: envPath })
+// Load the `api/.env*` file into process.env
+configEnv({ path: envPath, node_env: process.env.NODE_ENV ?? "development" })
+
+export const IS_PRODUCTION = process.env.NODE_ENV === "production"
+export const IS_TEST = process.env.NODE_ENV === "test"
 
 export const GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID ?? ""
 export const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET ?? ""

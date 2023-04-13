@@ -1,6 +1,7 @@
-import { DefaultRequest } from "./types"
+import { parse as parseQs, stringify as stringifyQs } from "qs"
 import { URL } from "url"
-import { parse as parseQs } from "qs"
+
+import { DefaultRequest } from "./types"
 
 const ALLOWED_REDIRECT_DOMAINS = new Set(["localhost", "127.0.0.1", "vizdiff.io"])
 
@@ -10,12 +11,13 @@ export function getQueryString(key: string, req: DefaultRequest): string | undef
 }
 
 export function getCookieString(key: string, req: DefaultRequest): string | undefined {
-  const maybeValue = req.cookies[key]
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+  const maybeValue = req.cookies[key] as string | undefined
   return typeof maybeValue === "string" ? maybeValue : undefined
 }
 
 export function requiredQueryString(key: string, req: DefaultRequest): string {
-  const maybeValue = req.query[key]
+  const maybeValue = req.query[key] as string | undefined
   if (!maybeValue || typeof maybeValue !== "string") {
     throw new Error(`Missing query parameter "${key}"`)
   }
@@ -23,7 +25,8 @@ export function requiredQueryString(key: string, req: DefaultRequest): string {
 }
 
 export function requiredCookieString(key: string, req: DefaultRequest): string {
-  const maybeValue = req.cookies[key]
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+  const maybeValue = req.cookies[key] as string | undefined
   if (!maybeValue || typeof maybeValue !== "string") {
     throw new Error(`Missing cookie "${key}"`)
   }
@@ -63,4 +66,11 @@ export function parseSimpleQueryString(queryString: string): Map<string, string>
     throw new Error(`Invalid query string: "${queryString}"`)
   }
   return result
+}
+
+export function encodeQueryParams(params: Record<string, string>): string {
+  if (Object.entries(params).length === 0) {
+    return ""
+  }
+  return stringifyQs(params, { addQueryPrefix: false })
 }

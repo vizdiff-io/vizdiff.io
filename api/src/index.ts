@@ -1,24 +1,36 @@
+// eslint-disable-next-line filenames/match-exported
 import "reflect-metadata" // For TypeORM
+import cookieParser from "cookie-parser"
 import Express from "express"
 import Router from "express-promise-router"
-import { auth } from "./endpoints/auth"
-import { user } from "./endpoints/user"
-import { DefaultRequest, DefaultResponse } from "./types"
-import { authenticateJWT } from "./authenticate"
+import { pino } from "pino"
 import { pinoHttp } from "pino-http"
-import { log } from "./log"
-import cookieParser from "cookie-parser"
 
-const IS_PRODUCTION = process.env.NODE_ENV === "production"
+import { authenticateJWT } from "./authenticate"
+import * as Auth from "./endpoints/auth"
+import * as User from "./endpoints/user"
+import { IS_PRODUCTION, IS_TEST } from "./environment"
+import { log } from "./log"
+import { DefaultRequest, DefaultResponse } from "./types"
 
 const startTime = new Date().getTime()
 
 const app = Express()
-const port = process.env.PORT || 3001
+const port = process.env.PORT ?? 3001
 const router = Router({ caseSensitive: true })
 
+const httpLogger = IS_PRODUCTION
+  ? pinoHttp({ level: "info" })
+  : pinoHttp(
+      { level: "debug" },
+      pino.transport({
+        target: "pino-http-print",
+        options: { colorize: !IS_TEST, translateTime: "HH:MM:ss.l" },
+      }) as pino.DestinationStream,
+    )
+
 // Register middleware
-app.use(pinoHttp({ level: IS_PRODUCTION ? "info" : "debug" }))
+app.use(httpLogger)
 app.use(cookieParser())
 
 const indexHandler = (_req: DefaultRequest, res: DefaultResponse) => {
@@ -27,8 +39,8 @@ const indexHandler = (_req: DefaultRequest, res: DefaultResponse) => {
 
 // Register routes, middleware, and handlers
 router.get("/", indexHandler)
-router.get("/users/me", authenticateJWT, user)
-router.get("/auth/github/callback", auth)
+router.get("/auth/github/callback", Auth.githubCallback)
+router.get("/users/me", authenticateJWT, User.me)
 app.use(router)
 app.disable("x-powered-by")
 

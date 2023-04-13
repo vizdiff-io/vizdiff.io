@@ -1,9 +1,11 @@
 import { DataSource } from "typeorm"
+
 import { Project } from "./entity/Project"
 import { ScreenshotTest } from "./entity/ScreenshotTest"
 import { TestResult } from "./entity/TestResult"
 import { User } from "./entity/User"
 import {
+  IS_TEST,
   POSTGRES_DATABASE,
   POSTGRES_HOST,
   POSTGRES_PASS,
@@ -20,23 +22,25 @@ const database = new DataSource({
   password: POSTGRES_PASS,
   database: POSTGRES_DATABASE,
   synchronize: true,
-  logging: true,
+  logging: !IS_TEST,
   entities: [Project, ScreenshotTest, TestResult, User],
   subscribers: [],
   migrations: [],
 })
 
-// Initialize the database on import so we catch any errors early
-database
-  .initialize()
-  .then(() => {
-    log.info("Database initialized")
-  })
-  .catch((err) => {
-    log.error(err, `Database failed to initialize: ${err.message}`)
-    process.exit(1)
-  })
+if (!IS_TEST) {
+  // Initialize the database on import so we catch any errors early
+  database
+    .initialize()
+    .then(() => {
+      log.info("Database initialized")
+    })
+    .catch((err) => {
+      log.error(err, `Database failed to initialize: ${(err as Error).message}`)
+      // process.exit(1)
+    })
+}
 
 export async function Database(): Promise<DataSource> {
-  return database.isInitialized ? database : database.initialize()
+  return database.isInitialized ? database : await database.initialize()
 }

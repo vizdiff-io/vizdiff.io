@@ -7,6 +7,7 @@ import {
   UpdateDateColumn,
   OneToMany,
 } from "typeorm"
+
 import { ScreenshotTest } from "./ScreenshotTest"
 import { User } from "./User"
 
@@ -28,7 +29,7 @@ export class Project {
   githubRepoUrl!: string
 
   @Column({ name: "storybook_config", type: "jsonb", nullable: true })
-  storybookConfig!: Record<string, any>
+  storybookConfig!: Record<string, unknown>
 
   @CreateDateColumn({ name: "created_at" })
   createdAt!: Date
