@@ -20,29 +20,11 @@ jobs:
       matrix:
         node-version: [18.x]
 
-    services:
-      postgres:
-        image: postgres
-        env:
-          POSTGRES_PASSWORD: postgres
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
     steps:
-      - name: Install PostgreSQL client
-        run: |
-          apt-get update
-          apt-get install --yes postgresql-client
-
-      - name: Create vizdiff_test database
-        run: psql -h localhost -U postgres -c 'CREATE DATABASE IF NOT EXISTS "vizdiff_test";'
-        env:
-          PGPASSWORD: postgres
+      - name: Setup Postgres
+        uses: ikalnytskyi/action-setup-postgres@v4
+        with:
+          database: vizdiff_test
 
       - name: Checkout repository
         uses: actions/checkout@v3
