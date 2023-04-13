@@ -8,6 +8,10 @@ on:
     branches:
       - main
 
+env:
+  NEXT_PUBLIC_APP_URL: ${{ vars.NEXT_PUBLIC_APP_URL }}
+  NEXT_PUBLIC_GITHUB_CLIENT_ID: ${{ vars.NEXT_PUBLIC_GITHUB_CLIENT_ID }}
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
