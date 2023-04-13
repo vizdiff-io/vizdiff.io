@@ -29,7 +29,9 @@ jobs:
           cache: "yarn"
 
       - name: Install dependencies
-        run: yarn install --immutable
+        run: corepack enable && yarn install --immutable
+
+        run: yarn dedupe --check
 
       - name: Build projects
         run: yarn build:all
