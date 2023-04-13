@@ -37,11 +37,11 @@ jobs:
 
       - run: yarn dedupe --check
 
+      - name: Lint projects
+        run: yarn lint:all
+
       - name: Build projects
         run: yarn build:all
 
       - name: Run tests
         run: yarn test:all
-
-      - name: Lint projects
-        run: yarn lint:all
