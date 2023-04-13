@@ -22,7 +22,7 @@ const database = new DataSource({
   username: POSTGRES_USER,
   password: POSTGRES_PASS,
   database: POSTGRES_DATABASE,
-  synchronize: !IS_PRODUCTION,
+  synchronize: !IS_PRODUCTION && !IS_TEST,
   dropSchema: IS_TEST,
   logging: !IS_TEST,
   entities: [Project, ScreenshotTest, TestResult, User],
