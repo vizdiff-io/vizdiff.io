@@ -30,19 +30,27 @@ const database = new DataSource({
   migrations: [],
 })
 
-if (!IS_TEST) {
-  // Initialize the database on import so we catch any errors early
-  database
-    .initialize()
-    .then(() => {
-      log.info("Database initialized")
-    })
-    .catch((err) => {
-      log.error(err, `Database failed to initialize: ${(err as Error).message}`)
-      // process.exit(1)
-    })
-}
+let databaseInitializationPromise: Promise<DataSource> | undefined
 
 export async function Database(): Promise<DataSource> {
-  return database.isInitialized ? database : await database.initialize()
+  if (database.isInitialized) {
+    return database
+  }
+
+  if (!databaseInitializationPromise) {
+    databaseInitializationPromise = database.initialize()
+  }
+
+  await databaseInitializationPromise
+  return database
 }
+
+// Initialize the database on import so we catch any errors early
+Database()
+  .then((db) => {
+    log.debug(`Database initialized: ${db.isInitialized}`)
+  })
+  .catch((err) => {
+    log.error(`Database initialization failed: ${(err as Error).message}`)
+    setTimeout(() => process.exit(1), 1000).unref()
+  })

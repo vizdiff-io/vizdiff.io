@@ -17,8 +17,9 @@ describe("app", () => {
     expect(response.body.uptime).toBeGreaterThan(0)
   })
 
-  afterAll(() => {
+  afterAll(async () => {
     server.close()
-    void Database().then(async (db) => await db.destroy())
+    const db = await Database()
+    await db.destroy()
   })
 })
