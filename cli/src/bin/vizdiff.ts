@@ -9,7 +9,7 @@ function main(task: Promise<void>): void {
 }
 
 function getToken(options: { token?: string }) {
-  const token = options.token || process.env.VIZDIFF_TOKEN
+  const token = options.token ?? process.env.VIZDIFF_TOKEN
   if (!token) {
     fatal(
       "Missing project token. Please set the VIZDIFF_TOKEN environment variable or use the --token option.",

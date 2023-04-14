@@ -2,23 +2,23 @@
   "name": "vizdiff",
   "version": "0.0.0",
   "private": true,
+  "packageManager": "yarn@3.5.0",
   "workspaces": [
-    "frontend",
     "api",
     "cli",
+    "frontend",
     "worker"
   ],
   "scripts": {
-    "frontend": "yarn workspace frontend",
     "api": "yarn workspace api",
+    "cli": "yarn workspace cli",
+    "frontend": "yarn workspace frontend",
     "worker": "yarn workspace worker",
-    "build:all": "yarn workspaces run build",
-    "test:all": "yarn workspaces run test",
-    "lint:all": "yarn workspaces run lint",
-    "start:all": "yarn workspaces run start"
+    "build:all": "yarn workspaces foreach -p run build",
+    "test:all": "yarn workspaces foreach -p run test",
+    "lint:all": "yarn workspaces foreach -p run lint"
   },
   "devDependencies": {
     "lerna": "^4.0.0"
-  },
-  "dependencies": {}
+  }
 }

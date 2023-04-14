@@ -1,8 +1,9 @@
-import { COMPRESSION_LEVEL, tar } from "zip-a-folder"
-import { fetch } from "undici"
 import * as fs from "fs/promises"
 import * as os from "os"
 import * as path from "path"
+import { fetch } from "undici"
+import { COMPRESSION_LEVEL, tar } from "zip-a-folder"
+
 import { info } from "./log"
 
 /**
@@ -21,7 +22,7 @@ export async function uploadStorybook(storybookDir: string, projectToken: string
   let project: Record<string, unknown> | undefined
   try {
     const json = await fs.readFile(projectJsonPath, "utf8")
-    project = JSON.parse(json)
+    project = JSON.parse(json) as Record<string, unknown>
   } catch (error) {
     throw new Error(`Failed to parse project.json file: ${error}`)
   }
