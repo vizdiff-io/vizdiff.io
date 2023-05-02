@@ -8,6 +8,7 @@ import { pinoHttp } from "pino-http"
 
 import { authenticateJWT } from "./authenticate"
 import * as Auth from "./endpoints/auth"
+import * as Projects from "./endpoints/projects"
 import * as User from "./endpoints/user"
 import { IS_PRODUCTION, IS_TEST, PORT } from "./environment"
 import { log } from "./log"
@@ -29,6 +30,7 @@ const httpLogger = IS_PRODUCTION
     )
 
 // Register middleware
+app.disable("x-powered-by")
 app.use(httpLogger)
 app.use(cookieParser())
 
@@ -39,9 +41,12 @@ const indexHandler = (_req: DefaultRequest, res: DefaultResponse) => {
 // Register routes, middleware, and handlers
 router.get("/", indexHandler)
 router.get("/auth/github/callback", Auth.githubCallback)
+router.get("/projects", authenticateJWT, Projects.list)
+router.post("/projects", authenticateJWT, Projects.create)
+router.get("/projects/:projectId", authenticateJWT, Projects.get)
+router.delete("/projects/:projectId", authenticateJWT, Projects.remove)
 router.get("/users/me", authenticateJWT, User.me)
 app.use(router)
-app.disable("x-powered-by")
 
 // Error handling
 app.use((err: Error, _req: DefaultRequest, res: DefaultResponse, _next: Express.NextFunction) => {

@@ -9,6 +9,9 @@ import {
 
 import { Project } from "./Project"
 
+/**
+ * Represents a registered user of the screenshot testing service.
+ */
 @Entity("users")
 export class User {
   @PrimaryGeneratedColumn()

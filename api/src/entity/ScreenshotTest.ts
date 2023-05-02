@@ -12,6 +12,10 @@ import {
 import { Project } from "./Project"
 import { TestResult } from "./TestResult"
 
+/**
+ * Represents a test run associated with a commit. This test run is made up of any number of test
+ * results, each of which represents a single screenshot.
+ */
 @Entity("screenshot_tests")
 export class ScreenshotTest {
   @PrimaryGeneratedColumn()

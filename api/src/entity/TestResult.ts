@@ -10,6 +10,9 @@ import {
 
 import { ScreenshotTest } from "./ScreenshotTest"
 
+/**
+ * A single test result for a screenshot test. This represents a single screenshot that was tested.
+ */
 @Entity("test_results")
 export class TestResult {
   @PrimaryGeneratedColumn()

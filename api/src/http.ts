@@ -24,11 +24,27 @@ export function requiredQueryString(key: string, req: DefaultRequest): string {
   return maybeValue
 }
 
+export function requiredParamString(key: string, req: DefaultRequest): string {
+  const maybeValue = (req.params as Record<string, string | undefined>)[key]
+  if (!maybeValue || typeof maybeValue !== "string") {
+    throw new Error(`Missing path parameter "${key}"`)
+  }
+  return maybeValue
+}
+
 export function requiredCookieString(key: string, req: DefaultRequest): string {
   // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
   const maybeValue = req.cookies[key] as string | undefined
   if (!maybeValue || typeof maybeValue !== "string") {
     throw new Error(`Missing cookie "${key}"`)
+  }
+  return maybeValue
+}
+
+export function requiredJsonBodyString(key: string, req: DefaultRequest): string {
+  const maybeValue = (req.body as Record<string, unknown>)[key]
+  if (!maybeValue || typeof maybeValue !== "string") {
+    throw new Error(`Missing JSON body parameter "${key}"`)
   }
   return maybeValue
 }
