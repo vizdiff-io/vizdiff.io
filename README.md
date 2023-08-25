@@ -51,6 +51,7 @@ GITHUB_CLIENT_SECRET=<gh_client_secret>
 
 ```
 NEXT_PUBLIC_APP_URL=http://127.0.0.1:3000
+NEXT_PUBLIC_API_URL=http://127.0.0.1:3001
 NEXT_PUBLIC_GITHUB_CLIENT_ID=<gh_client_id>
 ```
 

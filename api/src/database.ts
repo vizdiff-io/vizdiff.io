@@ -51,6 +51,7 @@ Database()
     log.debug(`Database initialized: ${db.isInitialized}`)
   })
   .catch((err) => {
-    log.error(`Database initialization failed: ${(err as Error).message}`)
+    const errWithCode = err as { code?: string }
+    log.error(`Database initialization failed: ${errWithCode.code ?? err}`)
     setTimeout(() => process.exit(1), 1000).unref()
   })
