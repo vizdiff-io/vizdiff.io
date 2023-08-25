@@ -1,5 +1,23 @@
+// In dev mode, proxy API requests to the API server. In production, export the
+// app as static HTML/CSS/JS files
+
+const isDev = process.env.NODE_ENV !== "production"
+
 /** @type {import('next').NextConfig} */
-const nextConfig = {
+const nextConfigDev = {
+  reactStrictMode: true,
+  async rewrites() {
+    return [
+      {
+        source: "/api/:path*",
+        destination: `${process.env.NEXT_PUBLIC_API_URL}/:path*`, // Proxy to API server
+      },
+    ]
+  },
+}
+
+/** @type {import('next').NextConfig} */
+const nextConfigDeploy = {
   reactStrictMode: true,
   output: "export",
   exportPathMap: async function (defaultPathMap) {
@@ -9,4 +27,4 @@ const nextConfig = {
   },
 }
 
-module.exports = nextConfig
+module.exports = isDev ? nextConfigDev : nextConfigDeploy

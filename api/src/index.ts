@@ -1,5 +1,6 @@
 // eslint-disable-next-line filenames/match-exported
 import "reflect-metadata" // For TypeORM
+import bodyParser from "body-parser"
 import cookieParser from "cookie-parser"
 import Express from "express"
 import Router from "express-promise-router"
@@ -8,6 +9,8 @@ import { pinoHttp } from "pino-http"
 
 import { authenticateJWT } from "./authenticate"
 import * as Auth from "./endpoints/auth"
+import * as Github from "./endpoints/github"
+import * as Projects from "./endpoints/projects"
 import * as User from "./endpoints/user"
 import { IS_PRODUCTION, IS_TEST, PORT } from "./environment"
 import { log } from "./log"
@@ -31,20 +34,25 @@ const httpLogger = IS_PRODUCTION
 // Register middleware
 app.use(httpLogger)
 app.use(cookieParser())
+app.use(bodyParser.json())
+app.disable("x-powered-by")
 
-const indexHandler = (_req: DefaultRequest, res: DefaultResponse) => {
+// Register routes
+router.get("/", (_req: DefaultRequest, res: DefaultResponse) => {
   res.json({ uptime: (new Date().getTime() - startTime) / 1000 })
-}
-
-// Register routes, middleware, and handlers
-router.get("/", indexHandler)
+})
 router.get("/auth/github/callback", Auth.githubCallback)
+router.get("/github/orgs", authenticateJWT, Github.orgs)
+router.get("/github/repos", authenticateJWT, Github.repos)
+router.get("/projects", authenticateJWT, Projects.list)
+router.delete("/projects/:id", authenticateJWT, Projects.remove)
+router.post("/projects/create", authenticateJWT, Projects.create)
 router.get("/users/me", authenticateJWT, User.me)
 app.use(router)
-app.disable("x-powered-by")
 
 // Error handling
 app.use((err: Error, _req: DefaultRequest, res: DefaultResponse, _next: Express.NextFunction) => {
+  log.error(err.message)
   res.err = err
   res.status(500).json({ error: err.message })
 })

@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from "express"
+import { Response, NextFunction } from "express"
 import jwt, { JwtPayload, VerifyErrors } from "jsonwebtoken"
 
 import { Database } from "./database"
@@ -8,7 +8,7 @@ import { getCookieString } from "./http"
 import { log } from "./log"
 import { AuthenticatedRequest, DefaultRequest, MaybeAuthenticatedRequest } from "./types"
 
-export function authenticateJWT(req: Request, res: Response, next: NextFunction): void {
+export function authenticateJWT(req: DefaultRequest, res: Response, next: NextFunction): void {
   const token = getCookieString("token", req) ?? req.headers.authorization?.split(" ")[1]
 
   if (!token) {

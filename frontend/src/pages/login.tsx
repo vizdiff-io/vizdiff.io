@@ -2,15 +2,16 @@ import Head from "next/head"
 import { useRouter } from "next/router"
 
 const clientId = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID
-const callbackUri = encodeURIComponent(`${process.env.NEXT_PUBLIC_APP_URL}/auth/github/callback`)
-const scope = "repo"
+const callbackUri = encodeURIComponent(`${process.env.NEXT_PUBLIC_API_URL}/auth/github/callback`)
+const scope = "repo,read:org"
 
 export default function Login() {
   const router = useRouter()
 
   // Get the redirect URL from the query string
   const { redirect } = router.query
-  const redirectUri = typeof redirect === "string" ? redirect : "/"
+  const redirectUri =
+    typeof redirect === "string" ? redirect : String(process.env.NEXT_PUBLIC_APP_URL)
   const state = encodeURIComponent(`redirect=${encodeURIComponent(redirectUri)}`)
 
   const handleConnectToGitHub = () => {

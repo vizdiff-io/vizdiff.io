@@ -12,7 +12,7 @@ configEnv({ path: envPath, node_env: process.env.NODE_ENV ?? "development" })
 export const IS_PRODUCTION = process.env.NODE_ENV === "production"
 export const IS_TEST = process.env.NODE_ENV === "test"
 
-export const PORT = parseInt(process.env.PORT ?? "") || 3001
+export const PORT = parseInt(process.env.PORT ?? "") || (IS_TEST ? 3002 : 3001)
 
 export const GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID ?? ""
 export const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET ?? ""
