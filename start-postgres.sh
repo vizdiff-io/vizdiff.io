@@ -16,7 +16,7 @@ if [ -n "$CONTAINER" ]; then
 fi
 
 # Start the postgres Docker container
-docker run --name postgres-local -e POSTGRES_PASSWORD=postgres -p 5432:5432 -v postgres-data:/var/lib/postgresql/data -d postgres
+docker run --name postgres-local -e POSTGRES_PASSWORD=postgres -p 5432:5432 -v postgres-data:/var/lib/postgresql/data -d postgres:16
 
 # Sleep for a bit to allow postgres to start
 echo "Sleeping for 5 seconds to allow postgres to start..."

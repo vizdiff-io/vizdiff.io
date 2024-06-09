@@ -5,6 +5,18 @@ import { DefaultRequest } from "./types"
 
 const ALLOWED_REDIRECT_DOMAINS = new Set(["localhost", "127.0.0.1", "vizdiff.io"])
 
+export function getParamInt(key: string, req: DefaultRequest): number | undefined {
+  const params = req.params as Record<string, string>
+  const maybeValue = params[key]
+  if (typeof maybeValue === "string") {
+    const value = parseInt(maybeValue)
+    if (!isNaN(value)) {
+      return value
+    }
+  }
+  return undefined
+}
+
 export function getQueryString(key: string, req: DefaultRequest): string | undefined {
   const maybeValue = req.query[key]
   return typeof maybeValue === "string" ? maybeValue : undefined

@@ -122,3 +122,12 @@ export async function githubCallback(req: DefaultRequest, res: DefaultResponse):
   // Redirect to the original URL
   res.redirect(finalRedirect)
 }
+
+export async function logout(req: DefaultRequest, res: DefaultResponse): Promise<void> {
+  res.clearCookie("token", {
+    secure: IS_PRODUCTION || req.secure ? true : undefined,
+    sameSite: "lax",
+    domain: req.hostname,
+  })
+  res.redirect("/")
+}

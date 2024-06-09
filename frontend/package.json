@@ -5,8 +5,11 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build && next export",
+    "chromatic": "chromatic",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build"
   },
   "dependencies": {
     "@emotion/react": "11.11.1",
@@ -25,5 +28,18 @@
     "react-dom": "18.2.0",
     "typescript": "5.0.4",
     "use-async-effect": "2.2.7"
+  },
+  "devDependencies": {
+    "@storybook/addon-essentials": "7.3.2",
+    "@storybook/addon-interactions": "7.3.2",
+    "@storybook/addon-links": "7.3.2",
+    "@storybook/addon-onboarding": "1.0.8",
+    "@storybook/blocks": "7.3.2",
+    "@storybook/nextjs": "7.3.2",
+    "@storybook/react": "7.3.2",
+    "@storybook/testing-library": "0.2.0",
+    "chromatic": "^11.5.1",
+    "eslint-plugin-storybook": "0.6.13",
+    "storybook": "7.3.2"
   }
 }

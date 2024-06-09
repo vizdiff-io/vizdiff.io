@@ -9,7 +9,18 @@ export async function apiGet<T>(endpoint: string): Promise<[T | null, AxiosError
   } catch (err) {
     const axErr = err as AxiosError
     console.error(`Failed to GET ${endpoint}`, axErr)
-    redirectIfUnauthorized(axErr)
+    // redirectIfUnauthorized(axErr)
+    return [null, axErr]
+  }
+}
+
+export async function tryApiGet<T>(endpoint: string): Promise<[T | null, AxiosError | null]> {
+  try {
+    const response = await axios.get<T>(endpoint, { withCredentials: true, timeout: TIMEOUT_MS })
+    return [response.data, null]
+  } catch (err) {
+    const axErr = err as AxiosError
+    console.info(`GET ${endpoint}`, axErr)
     return [null, axErr]
   }
 }

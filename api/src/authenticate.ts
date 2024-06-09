@@ -9,9 +9,14 @@ import { log } from "./log"
 import { AuthenticatedRequest, DefaultRequest, MaybeAuthenticatedRequest } from "./types"
 
 export function authenticateJWT(req: DefaultRequest, res: Response, next: NextFunction): void {
-  const token = getCookieString("token", req) ?? req.headers.authorization?.split(" ")[1]
+  const token = req.headers.authorization?.split(" ")[1] ?? getCookieString("token", req)
 
   if (!token) {
+    log.warn(
+      `No JWT token found in ${req.method} ${req.url} from ${req.ip}, cookies=${JSON.stringify(
+        req.cookies,
+      )}`,
+    )
     res.status(401).json({ error: "Unauthorized" })
     return
   }

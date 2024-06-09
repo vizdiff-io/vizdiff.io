@@ -1,8 +1,8 @@
 import { useState, useEffect, DependencyList } from "react"
 import { AxiosError } from "axios"
-import { apiGet } from "../lib/apiMethods"
+import { tryApiGet } from "../lib/apiMethods"
 
-export default function useApiGet<T>(
+export default function useTryApiGet<T>(
   endpoint: string,
   deps?: DependencyList | undefined,
 ): [T | null, boolean, AxiosError | null] {
@@ -13,7 +13,7 @@ export default function useApiGet<T>(
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true)
-      const [data, err] = await apiGet<T>(endpoint)
+      const [data, err] = await tryApiGet<T>(endpoint)
       setData(data)
       setError(err)
       setIsLoading(false)

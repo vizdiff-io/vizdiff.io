@@ -1,6 +1,7 @@
 import { getUser } from "../authenticate"
 import { Database } from "../database"
 import { Project } from "../entity/Project"
+import { getParamInt } from "../http"
 import { DefaultRequest, DefaultResponse } from "../types"
 
 export async function create(req: DefaultRequest, res: DefaultResponse): Promise<void> {
@@ -19,6 +20,7 @@ export async function create(req: DefaultRequest, res: DefaultResponse): Promise
   project.name = name
   project.githubRepoUrl = githubRepoUrl
   project.user = Promise.resolve(user)
+  project.token = generateProjectToken()
 
   const db = await Database()
   const projectTable = db.getRepository(Project)
@@ -29,9 +31,8 @@ export async function create(req: DefaultRequest, res: DefaultResponse): Promise
 
 export async function remove(req: DefaultRequest, res: DefaultResponse): Promise<void> {
   const user = await getUser(req)
-  const id = parseInt((req.params as Record<string, string>).id!)
-
-  if (isNaN(id) || id < 1) {
+  const id = getParamInt("id", req)
+  if (!id) {
     throw new Error("Missing id")
   }
 
@@ -56,4 +57,48 @@ export async function list(req: DefaultRequest, res: DefaultResponse): Promise<v
   const projects = await projectTable.findBy({ user: { id: user.id } })
 
   res.json(projects)
+}
+
+export async function get(req: DefaultRequest, res: DefaultResponse): Promise<void> {
+  const user = await getUser(req)
+  const id = getParamInt("id", req)
+  if (!id) {
+    throw new Error("Missing id")
+  }
+
+  const db = await Database()
+  const projectTable = db.getRepository(Project)
+  const project = await projectTable.findOneBy({ id, user: { id: user.id } })
+
+  if (!project) {
+    throw new Error("Project not found")
+  }
+
+  res.json(project)
+}
+
+export async function resetToken(req: DefaultRequest, res: DefaultResponse): Promise<void> {
+  const user = await getUser(req)
+  const id = getParamInt("id", req)
+  if (!id) {
+    throw new Error("Missing id")
+  }
+
+  const db = await Database()
+  const projectTable = db.getRepository(Project)
+  const project = await projectTable.findOneBy({ id, user: { id: user.id } })
+
+  if (!project) {
+    throw new Error("Project not found")
+  }
+
+  project.token = generateProjectToken()
+  await projectTable.save(project)
+
+  res.json(project)
+}
+
+/** Generate a random 12-character hex string to use as a project token. */
+function generateProjectToken(): string {
+  return [...Array<undefined>(12)].map(() => Math.floor(Math.random() * 16).toString(16)).join("")
 }

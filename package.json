@@ -12,6 +12,7 @@
   "scripts": {
     "api": "yarn workspace api",
     "cli": "yarn workspace cli",
+    "chromatic": "yarn workspace frontend run chromatic",
     "frontend": "yarn workspace frontend",
     "worker": "yarn workspace worker",
     "build:all": "yarn workspaces foreach -p run build",

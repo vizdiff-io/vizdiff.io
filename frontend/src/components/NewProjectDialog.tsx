@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react"
 import { List, ListItemButton, ListItemText, Divider, CircularProgress } from "@mui/material"
-import useAuthenticatedFetch from "../hooks/useApiGet"
-import { apiGet } from "../lib/apiMethods"
+import useAuthenticatedFetch from "@/hooks/useApiGet"
+import { apiGet, apiPost } from "@/lib/apiMethods"
 import { Endpoints } from "@octokit/types"
 import { IconButton } from "@mui/material"
 import CloseIcon from "@mui/icons-material/Close"
@@ -51,6 +51,20 @@ export default function NewProjectDialog({ onClose }: NewProjectDialogProps) {
     updateLoading()
   }
 
+  const handleRepoClick = async (repo: GithubRepo) => {
+    setLoading(true)
+    // Create the project
+    const [project, projectError] = await apiPost("/api/projects", {
+      name: repo.name,
+      githubRepoUrl: repo.html_url,
+    })
+    updateLoading()
+    if (projectError) {
+      setError(projectError.message)
+    }
+    onClose()
+  }
+
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
       {/* Close button at the top right */}
@@ -78,7 +92,7 @@ export default function NewProjectDialog({ onClose }: NewProjectDialogProps) {
         {repos.length > 0 && (
           <List component="nav">
             {repos.map((repo) => (
-              <ListItemButton key={repo.id}>
+              <ListItemButton key={repo.id} onClick={() => handleRepoClick(repo)}>
                 <ListItemText primary={repo.name} />
               </ListItemButton>
             ))}

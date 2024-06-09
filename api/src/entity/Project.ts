@@ -2,6 +2,7 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
+  JoinColumn,
   ManyToOne,
   CreateDateColumn,
   UpdateDateColumn,
@@ -17,6 +18,7 @@ export class Project {
   id!: number
 
   @ManyToOne(() => User, (user) => user.projects, { onDelete: "CASCADE" })
+  @JoinColumn({ name: "user_id" })
   user!: Promise<User>
 
   @OneToMany(() => ScreenshotTest, (screenshotTest) => screenshotTest.project)
@@ -24,6 +26,9 @@ export class Project {
 
   @Column({ type: "varchar", length: 255 })
   name!: string
+
+  @Column({ type: "char", length: 12, unique: true })
+  token!: string
 
   @Column({ name: "github_repo_url", type: "varchar", length: 2048 })
   githubRepoUrl!: string

@@ -1,4 +1,4 @@
-import Head from "next/head"
+import { NavBody } from "@/components/NavBody"
 import { useRouter } from "next/router"
 
 const clientId = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID
@@ -20,17 +20,9 @@ export default function Login() {
   }
 
   return (
-    <>
-      <Head>
-        <title>VizDiff - Login</title>
-        <meta name="description" content="Login to VizDiff" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <link rel="icon" href="/favicon.ico" />
-      </Head>
-      <main>
-        <h1>Login to VizDiff</h1>
-        <button onClick={handleConnectToGitHub}>Connect to GitHub</button>
-      </main>
-    </>
+    <NavBody>
+      <h1>Login to vizdiff.io</h1>
+      <button onClick={handleConnectToGitHub}>Login with GitHub</button>
+    </NavBody>
   )
 }
