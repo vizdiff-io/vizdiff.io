@@ -1,0 +1,15 @@
+export const emptyContractData = {
+  id: '',
+  created_at: '',
+  updated_at: '',
+  org_id: '',
+  payment_id: '',
+  payment_group_id: '',
+  signature_date: '',
+  download_link: '',
+  signature_request_id: '',
+  title: '',
+  creator_id: '',
+  last_sent: '',
+  status: '',
+};
