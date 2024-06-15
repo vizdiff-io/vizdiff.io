@@ -8,8 +8,7 @@ import { log } from "./log"
 import { AuthenticatedRequest, DefaultRequest, MaybeAuthenticatedRequest } from "./types"
 
 export function authenticateJWT(req: DefaultRequest, res: Response, next: NextFunction): void {
-  console.log(req.headers.jwt)
-  const token: string | undefined = `${req.headers.jwt}`
+  const token = `${req.headers.jwt}`
 
   if (!token) {
     log.warn(

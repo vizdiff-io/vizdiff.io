@@ -140,7 +140,6 @@ function App() {
             <Route
               path="/github-auth"
               component={() => {
-                debugger
                 window.location.href = authUrl
                 return null
               }}
