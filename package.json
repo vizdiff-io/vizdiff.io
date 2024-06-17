@@ -2,7 +2,7 @@
   "name": "vizdiff",
   "version": "0.0.0",
   "private": true,
-  "packageManager": "yarn@3.5.0",
+  "packageManager": "yarn@4.3.0",
   "workspaces": [
     "api",
     "cli",
