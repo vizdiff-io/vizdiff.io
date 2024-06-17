@@ -55,9 +55,8 @@ NEXT_PUBLIC_API_URL=http://127.0.0.1:3001
 NEXT_PUBLIC_GITHUB_CLIENT_ID=<gh_client_id>
 ```
 
-4. Create a Docker volume for Postgres: `docker volume create postgres-data`
-5. Start Postgres and create an empty vizdiff database and test database with the `start-postgres.sh` script
-6. Start the backend: `yarn api dev`
-7. (In another terminal) start the frontend: `yarn frontend dev`
+4. Start Postgres and create an empty vizdiff database and test database with the `start-postgres.sh` script
+5. Start the backend: `yarn api dev`
+6. (In another terminal) start the frontend: `yarn frontend dev`
 
 You can also run `yarn test:all` to run all test suites.

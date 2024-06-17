@@ -44,7 +44,7 @@
     "react-plotly.js": "^2.5.1",
     "react-redux": "^7.2.3",
     "react-router-dom": "^5.2.0",
-    "react-scripts": "4.0.3",
+    "react-scripts": "5.0.1",
     "react-toastify": "^7.0.4",
     "redux-beacon": "^2.1.0",
     "redux-subscribe-action": "^2.1.3",
