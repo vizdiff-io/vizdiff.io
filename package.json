@@ -17,9 +17,9 @@
     "frontend": "yarn workspace frontend",
     "frontend2": "yarn workspace frontend2",
     "worker": "yarn workspace worker",
-    "build:all": "yarn workspaces foreach -p run build",
-    "test:all": "yarn workspaces foreach -p run test",
-    "lint:all": "yarn workspaces foreach -p run lint"
+    "build:all": "yarn workspaces foreach --all -p run build",
+    "test:all": "yarn workspaces foreach --all -p run test",
+    "lint:all": "yarn workspaces foreach --all -p run lint"
   },
   "devDependencies": {
     "lerna": "^4.0.0"

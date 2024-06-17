@@ -19,7 +19,7 @@ export default function useApiGet<T>(
       setIsLoading(false)
     }
     fetchData()
-  }, [endpoint, ...(deps ?? [])])
+  }, [endpoint, ...(deps ?? [])]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return [data, isLoading, error]
 }
