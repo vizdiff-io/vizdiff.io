@@ -1,0 +1,18 @@
+export const emptyPaymentData = {
+  id: '',
+  payment_group_id: '',
+  org_id: '',
+  created_at: '',
+  updated_at: '',
+  recipient: '',
+  status: '',
+  memo: '',
+  amount: 0,
+  date_initiated: null,
+  date_posted: null,
+  date_failed: null,
+  stripe_reference_id: null,
+  is_deleted: null,
+  fee: 0,
+  fee_reference_id: null,
+};

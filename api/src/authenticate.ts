@@ -4,12 +4,11 @@ import jwt, { JwtPayload, VerifyErrors } from "jsonwebtoken"
 import { Database } from "./database"
 import { User } from "./entity/User"
 import { JWT_SECRET } from "./environment"
-import { getCookieString } from "./http"
 import { log } from "./log"
 import { AuthenticatedRequest, DefaultRequest, MaybeAuthenticatedRequest } from "./types"
 
 export function authenticateJWT(req: DefaultRequest, res: Response, next: NextFunction): void {
-  const token = req.headers.authorization?.split(" ")[1] ?? getCookieString("token", req)
+  const token = `${req.headers.jwt}`
 
   if (!token) {
     log.warn(

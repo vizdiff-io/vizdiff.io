@@ -110,9 +110,7 @@ export async function githubCallback(req: DefaultRequest, res: DefaultResponse):
   // Generate a JWT
   const token = jwt.sign({ sub: user.id }, JWT_SECRET, { expiresIn: "1h" })
 
-  // Send the token to the client as a secure HttpOnly cookie
   res.cookie("token", token, {
-    httpOnly: true,
     secure: IS_PRODUCTION || req.secure ? true : undefined,
     sameSite: "lax",
     maxAge: 60 * 60 * 1000, // 1 hour in milliseconds

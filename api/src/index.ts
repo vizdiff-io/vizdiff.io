@@ -2,6 +2,7 @@
 import "reflect-metadata" // For TypeORM
 import bodyParser from "body-parser"
 import cookieParser from "cookie-parser"
+import cors from "cors"
 import Express from "express"
 import Router from "express-promise-router"
 import { pino } from "pino"
@@ -33,6 +34,7 @@ const httpLogger = IS_PRODUCTION
 
 // Register middleware
 app.use(httpLogger)
+app.use(cors())
 app.use(cookieParser())
 app.use(bodyParser.json())
 app.disable("x-powered-by")
