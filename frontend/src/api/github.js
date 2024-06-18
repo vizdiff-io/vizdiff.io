@@ -6,3 +6,9 @@ export const getRepos = async (state) => {
     method: "GET",
   }).then((res) => handleError(res))
 }
+
+export const getOrgs = async (state) => {
+  return createRequest(`/github/orgs`, state, {
+    method: "GET",
+  }).then((res) => handleError(res))
+}

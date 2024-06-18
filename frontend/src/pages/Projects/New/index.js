@@ -1,53 +1,57 @@
-import { useEffect, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { useHistory } from 'react-router-dom';
-import { Grid, Typography } from '@material-ui/core';
-import css from 'classnames';
-import global from 'styles/global';
+import { useEffect, useState } from "react"
+import { useDispatch, useSelector } from "react-redux"
+import { useHistory } from "react-router-dom"
+import { Grid, Typography } from "@material-ui/core"
+import css from "classnames"
+import global from "styles/global"
 
-import Button from 'components/Button';
-import TextField from 'components/TextFieldDark';
-import { setHeaderData } from 'slices/misc';
-import { createProject, createProjectSelector } from 'slices/projects';
-import { getUsers, usersSelector } from 'slices/users';
+import Button from "components/Button"
+import TextField from "components/TextFieldDark"
+import { setHeaderData } from "slices/misc"
+import { createProject, createProjectSelector } from "slices/projects"
+import { getRepos, reposSelector, getOrgs, orgsSelector } from "slices/github"
+import { getMe, meSelector } from "slices/users"
 
 export default function NewProject() {
-  const g = global();
-  const history = useHistory();
-  const [name, setName] = useState('');
-  const [address, setAddress] = useState('');
-  const dispatch = useDispatch();
-  const { loading: isSubmitting } = useSelector(createProjectSelector);
-  const { data: users = [] } = useSelector(usersSelector);
+  const g = global()
+  const history = useHistory()
+  const [name, setName] = useState("")
+  const [address, setAddress] = useState("")
+  const dispatch = useDispatch()
+  const { loading: isSubmitting } = useSelector(createProjectSelector)
+
   const refreshData = () => {
-    dispatch(getUsers());
-  };
+    dispatch(getRepos())
+    dispatch(getOrgs())
+    dispatch(getMe())
+  }
+
+  const me = useSelector(meSelector)
+  const repos = useSelector(reposSelector)
+  const orgs = useSelector(orgsSelector)
 
   useEffect(() => {
     dispatch(
       setHeaderData({
-        title: 'New Project',
-        breadcrumbs: [
-          { label: 'Projects', link: '/projects' },
-          { label: 'New' },
-        ],
-      })
-    );
-    refreshData();
-  }, []);
+        title: "New Project",
+        breadcrumbs: [{ label: "Projects", link: "/projects" }, { label: "New" }],
+      }),
+    )
+    refreshData()
+  }, [])
 
   const handleCreate = async () => {
     await dispatch(
       createProject({
         name,
         address,
-      })
-    );
+      }),
+    )
 
-    history.push('/projects');
-  };
+    history.push("/projects")
+  }
 
-  const isInputInvalid = !name || !address;
+  const isInputInvalid = !name || !address
 
   return (
     <Grid container spacing={2} className={g.full_width}>
@@ -95,5 +99,5 @@ export default function NewProject() {
         </div>
       </Grid>
     </Grid>
-  );
+  )
 }
