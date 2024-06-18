@@ -26,6 +26,7 @@
     "@testing-library/user-event": "^7.1.2",
     "@uiw/react-md-editor": "^3.9.4",
     "classnames": "^2.3.1",
+    "eslint": "8.37.0",
     "hellosign-embedded": "^2.10.0",
     "moment": "^2.29.1",
     "papaparse": "^5.3.1",
