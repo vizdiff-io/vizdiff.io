@@ -38,7 +38,7 @@ export default function Projects() {
         breadcrumbs: [{ label: "Projects" }],
       }),
     )
-  }, [])
+  }, [dispatch])
 
   return (
     <div>

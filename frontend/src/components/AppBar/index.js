@@ -1,12 +1,10 @@
-import React, { useState, useEffect } from "react"
-import { useDispatch, useSelector } from "react-redux"
-import { useHistory, useLocation } from "react-router-dom"
+import React, { useState } from "react"
+import { useSelector } from "react-redux"
+import { useLocation } from "react-router-dom"
 import { makeStyles } from "@material-ui/core/styles"
-import { Badge, IconButton, Typography, Popover } from "@material-ui/core"
+import { IconButton, Popover } from "@material-ui/core"
 import { ListSubheader, Divider, List, AppBar, Toolbar } from "@material-ui/core"
 import css from "classnames"
-import NotificationsIcon from "@mui/icons-material/Notifications"
-import NavigateNextIcon from "@mui/icons-material/NavigateNext"
 
 import global from "styles/global"
 import PageHeader from "components/PageHeader"
@@ -77,9 +75,7 @@ const headerImgs = {
 
 const Header = () => {
   const g = global()
-  const dispatch = useDispatch()
   const classes = useStyles()
-  const history = useHistory()
   const location = useLocation()
 
   const pathTokens = location.pathname.split("/")
@@ -94,7 +90,7 @@ const Header = () => {
     setAnchorEl(event.currentTarget)
   }
 
-  const handleClickNotification = (notification) => {}
+  // const handleClickNotification = (notification) => {}
 
   const handleClose = () => {
     setAnchorEl(null)

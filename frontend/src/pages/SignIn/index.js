@@ -1,36 +1,36 @@
-import React, { useState } from 'react';
-import { connect } from 'react-redux';
-import { ButtonGroup, Grid, Link, Typography } from '@material-ui/core';
-import { useDispatch } from 'react-redux';
-import { useHistory } from 'react-router-dom';
-import { makeStyles } from '@material-ui/core/styles';
-import isEmail from 'validator/lib/isEmail';
-import css from 'classnames';
+import React, { useState } from "react"
+import { connect } from "react-redux"
+import { Grid, Link, Typography } from "@material-ui/core"
+import { useDispatch } from "react-redux"
+import { useHistory } from "react-router-dom"
+import { makeStyles } from "@material-ui/core/styles"
+import isEmail from "validator/lib/isEmail"
+import css from "classnames"
 
 import {
   signinStateSelector,
   sendPasswordReset as sendPasswordResetSlice,
   sendPasswordResetStateSelector,
-} from 'slices/users';
-import global, { colors } from 'styles/global';
-import WelcomeBackground from 'components/WelcomeBackground';
-import { signin as signinSlice } from 'slices/users';
-import TextField from 'components/TextFieldDark';
-import Card from 'components/Card';
-import Button from 'components/Button';
-import { ForgotPasswordModal } from './ForgotPasswordModal';
+} from "slices/users"
+import global, { colors } from "styles/global"
+import WelcomeBackground from "components/WelcomeBackground"
+import { signin as signinSlice } from "slices/users"
+import TextField from "components/TextFieldDark"
+import Card from "components/Card"
+import Button from "components/Button"
+import { ForgotPasswordModal } from "./ForgotPasswordModal"
 
 const useStyles = makeStyles((theme) => ({
   logo: {
-    width: '60%',
-    height: 'auto',
+    width: "60%",
+    height: "auto",
     padding: 0,
   },
   fullHeight: {
-    height: 'calc(100vh - 72px)',
+    height: "calc(100vh - 72px)",
   },
   link: {
-    textDecoration: 'underline',
+    textDecoration: "underline",
   },
   welcomeCard: {
     paddingTop: 32,
@@ -38,45 +38,41 @@ const useStyles = makeStyles((theme) => ({
     paddingLeft: 28,
     paddingRight: 28,
   },
-}));
+}))
 
 function SignIn({ signinState, sendPasswordReset, sendPasswordResetState }) {
-  const classes = useStyles();
-  const g = global();
-  const history = useHistory();
-  const dispatch = useDispatch();
+  const classes = useStyles()
+  const g = global()
+  const history = useHistory()
+  const dispatch = useDispatch()
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
 
-  const { loading: submitting } = signinState;
+  const { loading: submitting } = signinState
 
-  const [forgotPasswordModalOpen, setForgotPasswordModalOpen] = useState(false);
+  const [forgotPasswordModalOpen, setForgotPasswordModalOpen] = useState(false)
 
   const handleSignin = async (evt) => {
-    evt.preventDefault();
+    evt.preventDefault()
     // current not using isTeamMember in sign in, could add later
-    await dispatch(signinSlice({ email, password }, () => history.push('/')));
-  };
+    await dispatch(signinSlice({ email, password }, () => history.push("/")))
+  }
 
   const showForgotPasswordModal = () => {
-    setForgotPasswordModalOpen(true);
-  };
+    setForgotPasswordModalOpen(true)
+  }
 
   const hideForgotPasswordModal = () => {
-    setForgotPasswordModalOpen(false);
-  };
+    setForgotPasswordModalOpen(false)
+  }
 
-  const isInputInvalid = email === '' || !isEmail(email) || password === '';
+  const isInputInvalid = email === "" || !isEmail(email) || password === ""
 
   return (
     <>
       <WelcomeBackground />
-      <Grid
-        container
-        spacing={2}
-        className={css(g.centered, classes.fullHeight)}
-      >
+      <Grid container spacing={2} className={css(g.centered, classes.fullHeight)}>
         <Grid item sm={12} md={4} className={g.z_index_1}>
           <Card bgColor={colors.brand.payBlack} className={classes.welcomeCard}>
             <ForgotPasswordModal
@@ -108,10 +104,7 @@ function SignIn({ signinState, sendPasswordReset, sendPasswordResetState }) {
                   type="password"
                   value={password}
                   formHelperText={
-                    <Link
-                      onClick={showForgotPasswordModal}
-                      className={css(g.white, classes.link)}
-                    >
+                    <Link onClick={showForgotPasswordModal} className={css(g.white, classes.link)}>
                       Forgot password?
                     </Link>
                   }
@@ -140,7 +133,7 @@ function SignIn({ signinState, sendPasswordReset, sendPasswordResetState }) {
                   Don't have an account?
                 </Typography>
                 <Button
-                  onClick={() => history.push('/signup')}
+                  onClick={() => history.push("/signup")}
                   type="submit"
                   variant="outlined"
                   color="primary"
@@ -154,16 +147,16 @@ function SignIn({ signinState, sendPasswordReset, sendPasswordResetState }) {
         </Grid>
       </Grid>
     </>
-  );
+  )
 }
 
 const mapStateToProps = (state) => ({
   signinState: signinStateSelector(state),
   sendPasswordResetState: sendPasswordResetStateSelector(state),
-});
+})
 
 const mapDispatchToProps = (dispatch) => ({
   sendPasswordReset: (data) => dispatch(sendPasswordResetSlice(data)),
-});
+})
 
-export default connect(mapStateToProps, mapDispatchToProps)(SignIn);
+export default connect(mapStateToProps, mapDispatchToProps)(SignIn)

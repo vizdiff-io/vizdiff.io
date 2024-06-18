@@ -1,14 +1,12 @@
-import React, { useEffect, useState } from "react"
-import { useDispatch, connect } from "react-redux"
+import React, { useEffect } from "react"
+import { useDispatch } from "react-redux"
 import { Grid } from "@material-ui/core"
 
 import LoadingOverlay from "components/LoadingOverlay"
-import global from "styles/global"
 import { setHeaderData } from "slices/misc"
 
-function Home() {
+export default function Home() {
   const dispatch = useDispatch()
-  const g = global()
 
   useEffect(() => {
     dispatch(
@@ -17,7 +15,7 @@ function Home() {
         breadcrumbs: [{ label: "VizDiff" }],
       }),
     )
-  }, [])
+  }, [dispatch])
 
   return (
     <div>
@@ -31,9 +29,3 @@ function Home() {
     </div>
   )
 }
-
-const mapStateToProps = (state) => ({})
-
-const mapDispatchToProps = (dispatch) => ({})
-
-export default connect(mapStateToProps, mapDispatchToProps)(Home)

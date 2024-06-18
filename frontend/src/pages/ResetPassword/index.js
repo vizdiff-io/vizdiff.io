@@ -40,13 +40,13 @@ function ResetPassword({
   getExpiringLink,
   expiringLinkState,
 }) {
-  const { loading, error } = expiringLinkState
+  const { loading } = expiringLinkState
 
   const { linkId } = useParams()
 
   useEffect(() => {
     getExpiringLink(linkId)
-  }, [])
+  }, [getExpiringLink, linkId])
 
   const [password, setPassword] = useState("")
 

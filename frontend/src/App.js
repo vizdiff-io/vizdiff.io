@@ -1,5 +1,4 @@
 import React, { useEffect } from "react"
-import { connect, useSelector } from "react-redux"
 import { Switch, Redirect, Route, useLocation } from "react-router-dom"
 import { makeStyles } from "@material-ui/core/styles"
 import CssBaseline from "@material-ui/core/CssBaseline"
@@ -15,8 +14,6 @@ import constants from "constants/index"
 import AppBar from "components/AppBar"
 import NavDrawer from "components/NavDrawer"
 import ProtectedRoute from "components/ProtectedRoute"
-import LoadingOverlay from "components/LoadingOverlay"
-import { currentUserSelector } from "slices/users"
 import Home from "pages/Home"
 import SignUp from "pages/SignUp"
 import SignIn from "pages/SignIn"
@@ -72,7 +69,7 @@ const useStyles = makeStyles((theme) => ({
   },
 }))
 
-function App() {
+export default function App() {
   const location = useLocation()
   const classes = useStyles()
 
@@ -103,7 +100,7 @@ function App() {
     location.pathname.includes("/resetPassword") ||
     location.pathname.includes("/printable")
 
-  const currentUser = useSelector(currentUserSelector)
+  // const currentUser = useSelector(currentUserSelector)
 
   // github auth stuff
   const scope = "repo,read:org"
@@ -202,9 +199,3 @@ function App() {
     </div>
   )
 }
-
-const mapStateToProps = (state) => ({})
-
-const mapDispatchToProps = (dispatch) => ({})
-
-export default connect(mapStateToProps, mapDispatchToProps)(App)

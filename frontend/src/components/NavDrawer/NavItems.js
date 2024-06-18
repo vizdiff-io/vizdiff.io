@@ -1,4 +1,4 @@
-import React, { useState } from "react"
+import React from "react"
 import css from "classnames"
 import { useDispatch, useSelector } from "react-redux"
 import { useHistory, useLocation } from "react-router-dom"
@@ -8,10 +8,7 @@ import HomeIcon from "@mui/icons-material/Home"
 import DollarIcon from "@mui/icons-material/AttachMoney"
 import PeopleIcon from "@mui/icons-material/People"
 import ReceiptIcon from "@mui/icons-material/Receipt"
-import BusinessCenterIcon from "@mui/icons-material/BusinessCenter"
-import SendIcon from "@mui/icons-material/Send"
 import ExitToAppIcon from "@mui/icons-material/ExitToApp"
-import HailIcon from "@mui/icons-material/Hail"
 import BusinessIcon from "@mui/icons-material/Business"
 import SettingsIcon from "@mui/icons-material/Settings"
 import { makeStyles } from "@material-ui/core/styles"
@@ -19,7 +16,6 @@ import AssignmentIcon from "@mui/icons-material/Assignment"
 import ChevronRight from "@mui/icons-material/ChevronRight"
 import ChevronLeft from "@mui/icons-material/ChevronLeft"
 import CodeIcon from "@mui/icons-material/Code"
-import AccountBalanceIcon from "@material-ui/icons/AccountBalance"
 import { logout } from "slices/users"
 import global from "styles/global"
 import { currentUserSelector } from "slices/users"
@@ -91,8 +87,6 @@ const NavItems = ({ setIsExpanded, isExpanded }) => {
   const openDocs = () => {
     window.open("https://docs.vizdiff.io", "_blank")
   }
-
-  const agencyList = <></>
 
   return (
     <div className={classes.container}>

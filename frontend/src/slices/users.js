@@ -1,6 +1,5 @@
 import { createSlice, createSelector } from "@reduxjs/toolkit"
 import { toast } from "react-toastify"
-import { find, propEq } from "ramda"
 
 import {
   signin as signinAPI,
@@ -253,7 +252,6 @@ export const updateUser = (data) => async (dispatch, getState) => {
 
 // selectors
 const selectUsers = (state) => state.users
-const selectId = (_, id) => id
 
 export const currentUserSelector = createSelector(
   selectUsers,
@@ -264,11 +262,6 @@ export const usersSelector = createSelector(
   selectUsers,
   (userState) => userState?.getUsers || getGenericState([]),
 )
-
-export const userDetailsSelector = createSelector([usersSelector, selectId], (userState, id) => {
-  const { data: users = [] } = userState
-  return users.find((user) => user.id == id) || emptyUserData
-})
 
 export const signupStateSelector = createSelector(
   selectUsers,

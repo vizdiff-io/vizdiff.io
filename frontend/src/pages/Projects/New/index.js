@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { useDispatch, useSelector } from "react-redux"
 import { useHistory } from "react-router-dom"
-import { Grid, Typography } from "@material-ui/core"
+import { Typography } from "@material-ui/core"
 import css from "classnames"
 import global from "styles/global"
 
@@ -78,7 +78,7 @@ export default function NewProject() {
       }),
     )
     refreshData()
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (selectedSource && !loading) {
@@ -88,7 +88,7 @@ export default function NewProject() {
         dispatch(getRepos({ org: selectedSource }))
       }
     }
-  }, [selectedSource, orgs, dispatch])
+  }, [selectedSource, orgs, dispatch, loading])
 
   const handleCreate = async (data) => {
     await dispatch(createProject(data))

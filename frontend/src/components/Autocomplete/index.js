@@ -1,11 +1,10 @@
-import React from 'react';
-import { makeStyles } from '@material-ui/core/styles';
-import { InputAdornment } from '@material-ui/core';
-import { default as MUIAutocomplete } from '@material-ui/lab/Autocomplete';
-import SearchIcon from '@mui/icons-material/Search';
+import React from "react"
+import { makeStyles } from "@material-ui/core/styles"
+import { InputAdornment } from "@material-ui/core"
+import { default as MUIAutocomplete } from "@material-ui/lab/Autocomplete"
+import SearchIcon from "@mui/icons-material/Search"
 
-import global from 'styles/global';
-import TextField from 'components/TextField';
+import TextField from "components/TextField"
 
 const useStyles = makeStyles((theme) => ({
   adornedStart: {
@@ -26,16 +25,15 @@ const useStyles = makeStyles((theme) => ({
       color: theme.palette.shades.white,
     },
   },
-  inputAdornment:{
+  inputAdornment: {
     paddingLeft: theme.spacing(1),
-  }
-}));
+  },
+}))
 
 const Autocomplete = ({ ...props }) => {
-  const classes = useStyles();
-  const g = global();
+  const classes = useStyles()
 
-  const { textInputProps } = props;
+  const { textInputProps } = props
   return (
     <MUIAutocomplete
       margin="dense"
@@ -69,7 +67,7 @@ const Autocomplete = ({ ...props }) => {
       )}
       {...props}
     />
-  );
-};
+  )
+}
 
-export default Autocomplete;
+export default Autocomplete

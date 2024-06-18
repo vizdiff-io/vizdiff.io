@@ -1,5 +1,5 @@
-import { withStyles, makeStyles } from '@material-ui/core/styles';
-import CloseIcon from '@mui/icons-material/Close';
+import { withStyles, makeStyles } from "@material-ui/core/styles"
+import CloseIcon from "@mui/icons-material/Close"
 
 import {
   Typography,
@@ -9,63 +9,59 @@ import {
   DialogActions as MuiDialogActions,
   DialogTitle as MuiDialogTitle,
   DialogContentText,
-} from '@material-ui/core';
+} from "@material-ui/core"
 
 const styles = (theme) => ({
   closeButton: {
-    position: 'absolute',
+    position: "absolute",
     right: theme.spacing(1),
     top: theme.spacing(1),
     color: theme.palette.grey[500],
   },
-  title: { display: 'flex' },
+  title: { display: "flex" },
   heading: {
     margin: 0,
     padding: theme.spacing(2, 2, 0, 2),
   },
-});
+})
 
 const useStyles = makeStyles({
   modal: {
     borderRadius: 0,
   },
-});
+})
 
 export const ModalTitle = withStyles(styles)((props) => {
-  const { children, classes, notificationText, onClose, ...other } = props;
+  const { children, classes, onClose } = props
   return (
     <MuiDialogTitle className={classes.heading}>
       <div className={classes.title}>
         <Typography component="h3" variant="h3" />
         {children}
         {onClose ? (
-          <IconButton
-            aria-label="close"
-            className={classes.closeButton}
-            onClick={onClose}
-          >
+          <IconButton aria-label="close" className={classes.closeButton} onClick={onClose}>
             <CloseIcon size="small" />
           </IconButton>
         ) : null}
       </div>
     </MuiDialogTitle>
-  );
-});
+  )
+})
 
 export const ModalContent = withStyles((theme) => ({
   root: {
     padding: theme.spacing(6, 8, 4, 8),
   },
-}))(MuiDialogContent);
+}))(MuiDialogContent)
 
 export const ModalActions = withStyles((theme) => ({
   root: {
     padding: theme.spacing(2),
   },
-}))(MuiDialogActions);
+}))(MuiDialogActions)
 
 export const Modal = (props) => {
-  const classes = useStyles();
+  const classes = useStyles()
   return (
     <Dialog
       {...props}
@@ -75,6 +71,6 @@ export const Modal = (props) => {
         paper: classes.modal,
       }}
     />
-  );
-};
-export const ModalContentText = DialogContentText;
+  )
+}
+export const ModalContentText = DialogContentText

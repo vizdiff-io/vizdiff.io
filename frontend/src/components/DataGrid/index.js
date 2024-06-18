@@ -38,7 +38,7 @@ const DataGrid = ({ ...props }) => {
 
   const memoizedColumns = useMemo(() => {
     return columns
-  }, [rows, ...columnDependencies]) // not including columns is intentional here
+  }, [rows, ...columnDependencies]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const memoizedRows = useMemo(() => {
     return rows

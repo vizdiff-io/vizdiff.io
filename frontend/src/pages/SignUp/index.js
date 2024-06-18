@@ -1,17 +1,12 @@
-import React, { useState } from "react"
-import { connect, useDispatch } from "react-redux"
+import React from "react"
 import { Grid, makeStyles, Typography } from "@material-ui/core"
 import { useHistory } from "react-router-dom"
-import isEmail from "validator/lib/isEmail"
 import css from "classnames"
 
-import { signupStateSelector } from "slices/users"
 import global from "styles/global"
 import WelcomeBackground from "components/WelcomeBackground"
-import { signup as signupSlice } from "slices/users"
 import { colors } from "styles/global"
 import Button from "components/Button"
-import TextField from "components/TextFieldDark"
 import Card from "components/Card"
 
 const useStyles = makeStyles((theme) => ({
@@ -34,41 +29,10 @@ const useStyles = makeStyles((theme) => ({
   },
 }))
 
-function SignUp({ signupState }) {
+export default function SignUp() {
   const g = global()
   const history = useHistory()
   const classes = useStyles()
-  const dispatch = useDispatch()
-
-  const { loading: submitting } = signupState
-
-  const [email, setEmail] = useState({ val: "", dirty: false })
-  const [password, setPassword] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
-  const [passwordIsValid, setPasswordIsValid] = useState(true)
-
-  const handleSignup = async (evt) => {
-    evt.preventDefault()
-
-    const isPasswordValid = true //validatePassword(password);
-    if (!isPasswordValid) {
-      setPasswordIsValid(false)
-      return
-    } else {
-      setPasswordIsValid(true)
-    }
-
-    await dispatch(
-      signupSlice({ email: email.val.toLowerCase(), password }, () => history.push("/")),
-    )
-  }
-
-  const isInputInvalid =
-    email.val === "" ||
-    !isEmail(email.val) ||
-    password === "" ||
-    confirmPassword === "" ||
-    password !== confirmPassword
 
   return (
     <>
@@ -103,11 +67,3 @@ function SignUp({ signupState }) {
     </>
   )
 }
-
-const mapStateToProps = (state) => ({
-  signupState: signupStateSelector(state),
-})
-
-const mapDispatchToProps = (dispatch) => ({})
-
-export default connect(mapStateToProps, mapDispatchToProps)(SignUp)
