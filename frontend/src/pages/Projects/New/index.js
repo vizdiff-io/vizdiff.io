@@ -1,34 +1,74 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useDispatch, useSelector } from "react-redux"
 import { useHistory } from "react-router-dom"
 import { Grid, Typography } from "@material-ui/core"
 import css from "classnames"
 import global from "styles/global"
 
+import LoadingOverlay from "components/LoadingOverlay"
+import RadioDescription from "components/RadioDescription"
 import Button from "components/Button"
-import TextField from "components/TextFieldDark"
+import DataGrid from "components/DataGrid"
+import TableHeader from "components/TableHeader"
 import { setHeaderData } from "slices/misc"
-import { createProject, createProjectSelector } from "slices/projects"
+import {
+  createProject,
+  createProjectSelector,
+  getProjects,
+  projectsSetSelector,
+} from "slices/projects"
 import { getRepos, reposSelector, getOrgs, orgsSelector } from "slices/github"
-import { getMe, meSelector } from "slices/users"
 
 export default function NewProject() {
   const g = global()
   const history = useHistory()
-  const [name, setName] = useState("")
-  const [address, setAddress] = useState("")
+  const [selectedSource, setSelectedSource] = useState("me")
   const dispatch = useDispatch()
   const { loading: isSubmitting } = useSelector(createProjectSelector)
 
   const refreshData = () => {
-    dispatch(getRepos())
     dispatch(getOrgs())
-    dispatch(getMe())
+    dispatch(getRepos())
+    dispatch(getProjects())
   }
 
-  const me = useSelector(meSelector)
-  const repos = useSelector(reposSelector)
-  const orgs = useSelector(orgsSelector)
+  const { data: repos, loading } = useSelector(reposSelector)
+  const { data: orgs } = useSelector(orgsSelector)
+  const projectsSet = useSelector(projectsSetSelector)
+
+  const columns = [
+    {
+      field: "name",
+      headerName: "Name",
+      flex: 2,
+    },
+    {
+      field: " ",
+      headerName: "",
+      flex: 1,
+      sortable: false,
+      renderCell: (params) => {
+        const isDisabled = projectsSet.has(params.row.html_url)
+        return (
+          <Button
+            size="small"
+            variant="contained"
+            className={css(g.ml_xs, isDisabled && g.disabled)}
+            color="primary"
+            onClick={() => {
+              handleCreate({
+                name: params.row.name,
+                githubRepoUrl: params.row.html_url,
+              })
+            }}
+            disabled={isDisabled}
+          >
+            Create Project
+          </Button>
+        )
+      },
+    },
+  ]
 
   useEffect(() => {
     dispatch(
@@ -40,64 +80,39 @@ export default function NewProject() {
     refreshData()
   }, [])
 
-  const handleCreate = async () => {
-    await dispatch(
-      createProject({
-        name,
-        address,
-      }),
-    )
+  useEffect(() => {
+    if (selectedSource && !loading) {
+      if (selectedSource === "me") {
+        dispatch(getRepos())
+      } else {
+        dispatch(getRepos({ org: selectedSource }))
+      }
+    }
+  }, [selectedSource, orgs, dispatch])
 
+  const handleCreate = async (data) => {
+    await dispatch(createProject(data))
     history.push("/projects")
   }
 
-  const isInputInvalid = !name || !address
+  const sourceOptions = useMemo(() => {
+    const options = [{ title: "My Repos", value: "me" }]
+    options.push(...orgs.map((org) => ({ title: org.login, value: org.login })))
+    return options
+  }, [orgs])
 
   return (
-    <Grid container spacing={2} className={g.full_width}>
-      <Grid item xs={12}>
-        <Typography variant="h3">New Project</Typography>
-      </Grid>
-      <Grid item xs={12}>
-        <TextField
-          InputLabelProps={{
-            shrink: true,
-          }}
-          fullWidth
-          type="text"
-          label="Name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
-      </Grid>
-
-      <Grid item xs={12}>
-        <TextField
-          InputLabelProps={{
-            shrink: true,
-          }}
-          fullWidth
-          type="text"
-          label="Address"
-          value={address}
-          onChange={(e) => setAddress(e.target.value)}
-        />
-      </Grid>
-
-      <Grid item xs={12}>
-        <div className={css(g.flexRowEnd)}>
-          <Button
-            onClick={handleCreate}
-            loading={isSubmitting}
-            type="submit"
-            variant="contained"
-            color="primary"
-            disabled={isInputInvalid}
-          >
-            Create
-          </Button>
-        </div>
-      </Grid>
-    </Grid>
+    <div>
+      {isSubmitting && <LoadingOverlay />}
+      <Typography variant="h3">Select a Repo source</Typography>
+      <RadioDescription
+        value={selectedSource}
+        setValue={setSelectedSource}
+        options={sourceOptions}
+      />
+      <div className={g.mb_xl}></div>
+      <TableHeader title="Available Repos" subtitle="Select a Repo to create a Project" />
+      <DataGrid disableSelectionOnClick autoHeight autoPageSize rows={repos} columns={columns} />
+    </div>
   )
 }

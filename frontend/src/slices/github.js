@@ -8,6 +8,7 @@ import {
   getPayloadSuccess,
   getGenericState,
   handleError,
+  ensureData,
 } from "./sliceUtils"
 
 export const initialGithubState = {
@@ -39,15 +40,18 @@ export const {
 
 export default githubSlice.reducer
 
-export const getRepos = () => async (dispatch, getState) => {
-  dispatch(getReposStarted())
-  try {
-    const res = await getReposAPI(getState())
-    dispatch(getReposSuccess(res))
-  } catch (err) {
-    handleError(err, dispatch, getReposFailure, "There was an issue retrieving your Repos")
+export const getRepos =
+  (data = {}) =>
+  async (dispatch, getState) => {
+    const { org } = data
+    dispatch(getReposStarted())
+    try {
+      const res = await getReposAPI(getState(), org)
+      dispatch(getReposSuccess(res))
+    } catch (err) {
+      handleError(err, dispatch, getReposFailure, "There was an issue retrieving your Repos")
+    }
   }
-}
 
 export const getOrgs = () => async (dispatch, getState) => {
   dispatch(getOrgsStarted())
@@ -64,10 +68,9 @@ const selectGithub = (state) => state.github || initialGithubState
 
 export const reposSelector = createSelector(
   selectGithub,
-  (githubState = {}) => githubState.repos || getGenericState(),
+  (githubState = {}) => githubState.repos || getGenericState([]),
 )
 
-export const orgsSelector = createSelector(
-  selectGithub,
-  (githubState = {}) => githubState.orgs || getGenericState(),
+export const orgsSelector = createSelector(selectGithub, (githubState = {}) =>
+  ensureData(githubState, "orgs", []),
 )

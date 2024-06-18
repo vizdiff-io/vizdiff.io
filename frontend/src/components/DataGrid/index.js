@@ -1,6 +1,6 @@
-import React, { useMemo } from 'react';
-import { DataGrid as MuiDataGrid } from '@mui/x-data-grid';
-import { makeStyles } from '@material-ui/core/styles';
+import React, { useMemo } from "react"
+import { DataGrid as MuiDataGrid } from "@mui/x-data-grid"
+import { makeStyles } from "@material-ui/core/styles"
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -8,42 +8,41 @@ const useStyles = makeStyles((theme) => ({
     border: 0,
   },
   cell: {
-    borderBottom: 'none !important',
+    borderBottom: "none !important",
   },
   wrapper: {
     flexGrow: 1,
   },
   columnHeader: {
     color: theme.palette.shades.jetBlack,
-    textTransform: 'uppercase',
-    fontSize: '13px',
+    textTransform: "uppercase",
+    fontSize: "13px",
     // the fontWeight property was not carrying to the columnHeaderTitle component even with !important so I needed to separate it out
-    '& > .MuiDataGrid-columnHeaderDraggableContainer > .MuiDataGrid-columnHeaderTitleContainer  > .MuiDataGrid-columnHeaderTitle':
+    "& > .MuiDataGrid-columnHeaderDraggableContainer > .MuiDataGrid-columnHeaderTitleContainer  > .MuiDataGrid-columnHeaderTitle":
       {
-        fontWeight: '600',
+        fontWeight: "600",
       },
-    '& > .MuiDataGrid-columnHeaderDraggableContainer > .MuiDataGrid-columnHeaderTitleContainer':
-      {
-        padding: 0,
-      },
-    '& > .MuiDataGrid-columnSeparator': {
-      visibility: 'hidden',
+    "& > .MuiDataGrid-columnHeaderDraggableContainer > .MuiDataGrid-columnHeaderTitleContainer": {
+      padding: 0,
+    },
+    "& > .MuiDataGrid-columnSeparator": {
+      visibility: "hidden",
     },
   },
-}));
+}))
 
 const DataGrid = ({ ...props }) => {
-  const classes = useStyles();
+  const classes = useStyles()
 
-  const { columns, rows, suppressMemoization, columnDependencies = [] } = props;
+  const { columns, rows, suppressMemoization, columnDependencies = [] } = props
 
   const memoizedColumns = useMemo(() => {
-    return columns;
-  }, [rows, ...columnDependencies]);
+    return columns
+  }, [rows, ...columnDependencies]) // not including columns is intentional here
 
   const memoizedRows = useMemo(() => {
-    return rows;
-  }, [rows]);
+    return rows
+  }, [rows])
 
   return (
     <MuiDataGrid
@@ -57,7 +56,7 @@ const DataGrid = ({ ...props }) => {
         columnHeader: classes.columnHeader,
       }}
     />
-  );
-};
+  )
+}
 
-export default DataGrid;
+export default DataGrid

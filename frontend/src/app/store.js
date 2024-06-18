@@ -7,6 +7,7 @@ import { loadState, saveState } from "../util/localStorage"
 import projects from "slices/projects"
 import products from "slices/products"
 import misc from "slices/misc"
+import github from "slices/github"
 
 let extraMiddleware = [subscribeActionMiddleware]
 
@@ -17,6 +18,7 @@ const store = configureStore({
     projects,
     products,
     users,
+    github,
     misc,
   },
   preloadedState: persistedState,

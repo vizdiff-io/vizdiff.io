@@ -18,19 +18,14 @@ export default function Projects() {
   const { data: projects } = useSelector(projectsSelector)
   const columns = [
     {
-      field: "id",
-      headerName: "ID",
-      flex: 1,
-    },
-    {
       field: "name",
       headerName: "Name",
-      flex: 1,
+      flex: 2,
     },
     {
-      field: "address",
-      headerName: "Address",
-      flex: 1,
+      field: "githubRepoUrl",
+      headerName: "URL",
+      flex: 3,
     },
   ]
 
@@ -60,7 +55,7 @@ export default function Projects() {
           </Button>
         </div>
       </TableHeader>
-      <DataGrid autoHeight autoPageSize rows={projects} columns={columns} />
+      <DataGrid disableSelectionOnClick autoHeight autoPageSize rows={projects} columns={columns} />
     </div>
   )
 }
