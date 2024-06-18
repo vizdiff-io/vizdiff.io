@@ -2,44 +2,82 @@
   "name": "frontend",
   "version": "0.1.0",
   "private": true,
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build && next export",
-    "chromatic": "chromatic",
-    "start": "next start",
-    "lint": "next lint",
-    "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build"
+  "jest": {
+    "transformIgnorePatterns": [
+      "node_modules/(?!@react-joi)/"
+    ],
+    "moduleNameMapper": {
+      "^(.*)esm/entry.webpack": "<rootDir>/__mocks__/workerMock.js"
+    }
   },
   "dependencies": {
-    "@emotion/react": "11.11.1",
-    "@emotion/styled": "11.11.0",
-    "@mui/icons-material": "5.14.3",
-    "@mui/material": "5.14.5",
-    "@octokit/types": "11.1.0",
-    "@types/node": "18.15.11",
-    "@types/react": "18.0.31",
-    "@types/react-dom": "18.0.11",
-    "axios": "1.4.0",
-    "eslint": "8.37.0",
-    "eslint-config-next": "13.2.4",
-    "next": "13.2.4",
-    "react": "18.2.0",
-    "react-dom": "18.2.0",
-    "typescript": "5.0.4",
-    "use-async-effect": "2.2.7"
+    "@emotion/react": "^11.4.1",
+    "@emotion/styled": "^11.3.0",
+    "@material-ui/core": "^4.12.3",
+    "@material-ui/icons": "^4.11.2",
+    "@material-ui/lab": "^4.0.0-alpha.60",
+    "@mui/icons-material": "^5.0.1",
+    "@mui/material": "^5.0.1",
+    "@mui/x-data-grid": "^4.0.2",
+    "@redux-beacon/google-tag-manager": "^1.0.1",
+    "@reduxjs/toolkit": "^1.5.1",
+    "@testing-library/jest-dom": "^4.2.4",
+    "@testing-library/react": "^9.3.2",
+    "@testing-library/user-event": "^7.1.2",
+    "@uiw/react-md-editor": "^3.9.4",
+    "classnames": "^2.3.1",
+    "hellosign-embedded": "^2.10.0",
+    "moment": "^2.29.1",
+    "papaparse": "^5.3.1",
+    "plotly.js": "^2.12.0",
+    "posthog-js": "^1.16.2",
+    "prettier": "^2.3.2",
+    "query-string": "^4.3.4",
+    "ramda": "^0.27.1",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
+    "react-draggable": "^4.4.4",
+    "react-dropzone": "^11.4.2",
+    "react-number-format": "^4.7.3",
+    "react-pdf": "^5.4.0",
+    "react-plaid-link": "^3.2.1",
+    "react-plotly.js": "^2.5.1",
+    "react-redux": "^7.2.3",
+    "react-router-dom": "^5.2.0",
+    "react-scripts": "5.0.1",
+    "react-toastify": "^7.0.4",
+    "redux-beacon": "^2.1.0",
+    "redux-subscribe-action": "^2.1.3",
+    "tus-js-client": "^2.3.0",
+    "universal-cookie": "^7.1.4",
+    "use-tus": "^0.5.0",
+    "uuid": "^3.4.0",
+    "validator": "^13.6.0",
+    "victory": "^36.2.0"
   },
-  "devDependencies": {
-    "@storybook/addon-essentials": "7.3.2",
-    "@storybook/addon-interactions": "7.3.2",
-    "@storybook/addon-links": "7.3.2",
-    "@storybook/addon-onboarding": "1.0.8",
-    "@storybook/blocks": "7.3.2",
-    "@storybook/nextjs": "7.3.2",
-    "@storybook/react": "7.3.2",
-    "@storybook/testing-library": "0.2.0",
-    "chromatic": "^11.5.1",
-    "eslint-plugin-storybook": "0.6.13",
-    "storybook": "7.3.2"
+  "scripts": {
+    "dev": "REACT_APP_PUBLIC_APP_URL=http://127.0.0.1:3000 REACT_APP_PUBLIC_API_URL=http://127.0.0.1:3001 REACT_APP_PUBLIC_GITHUB_CLIENT_ID=a3b9fd9299a748da3344 react-scripts start",
+    "build": "react-scripts build",
+    "chromatic": "chromatic",
+    "lint": "eslint src",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject",
+    "stage": "REACT_APP_DEMO=true react-scripts start"
+  },
+  "proxy": "http://localhost:3001",
+  "eslintConfig": {
+    "extends": "react-app"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
   }
 }
