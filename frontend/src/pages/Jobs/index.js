@@ -6,65 +6,59 @@ import TableHeader from "components/TableHeader"
 import Button from "components/Button"
 import DataGrid from "components/DataGrid"
 import global from "styles/global"
-import { getProjects, projectsSelector } from "slices/projects"
-import { getRepos } from "slices/github"
+import { getJobs, jobsSelector } from "slices/jobs"
 import { setHeaderData } from "slices/misc"
 
-export default function Projects() {
+export default function Jobs() {
   const dispatch = useDispatch()
   const g = global()
   const history = useHistory()
 
-  const { data: projects } = useSelector(projectsSelector)
+  const { data: jobs } = useSelector(jobsSelector)
   const columns = [
     {
-      field: "name",
-      headerName: "Name",
-      flex: 2,
+      field: "repoName",
+      headerName: "Repo Name",
+      flex: 1,
       renderCell: (params) => (
-        <Button
-          size="small"
-          color="primary"
-          onClick={() => history.push(`/projects/${params.row.id}`)}
-        >
-          {params.row.name}
+        <Button size="small" color="primary" onClick={() => history.push(`/jobs/${params.row.id}`)}>
+          {params.row.repoName}
         </Button>
       ),
     },
     {
-      field: "githubRepoUrl",
-      headerName: "URL",
-      flex: 3,
+      field: "branch",
+      headerName: "Branch",
+      flex: 1,
     },
   ]
 
   useEffect(() => {
-    dispatch(getProjects())
-    dispatch(getRepos())
+    dispatch(getJobs())
     dispatch(
       setHeaderData({
-        title: "Projects",
-        breadcrumbs: [{ label: "Projects" }],
+        title: "Jobs",
+        breadcrumbs: [{ label: "Jobs" }],
       }),
     )
   }, [dispatch])
 
   return (
     <div>
-      <TableHeader title="Projects">
+      <TableHeader title="Jobs">
         <div>
           <Button
             size="small"
             variant="contained"
             className={g.ml_xs}
             color="primary"
-            onClick={() => history.push("/projects/new")}
+            onClick={() => history.push("/jobs/new")}
           >
-            New Project
+            New Job
           </Button>
         </div>
       </TableHeader>
-      <DataGrid disableSelectionOnClick autoHeight autoPageSize rows={projects} columns={columns} />
+      <DataGrid disableSelectionOnClick autoHeight autoPageSize rows={jobs} columns={columns} />
     </div>
   )
 }

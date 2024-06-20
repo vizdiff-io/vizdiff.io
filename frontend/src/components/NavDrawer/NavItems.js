@@ -103,7 +103,6 @@ const NavItems = ({ setIsExpanded, isExpanded }) => {
             )}
           </div>
         </ListItem>
-        {/* <Divider className={classes.divider} /> */}
 
         <ListItem
           button
@@ -121,48 +120,6 @@ const NavItems = ({ setIsExpanded, isExpanded }) => {
           ) : (
             <Typography disableTypography variant="h5" className={classes.label}>
               Home
-            </Typography>
-          )}
-        </ListItem>
-
-        {isOwnerOrAdmin(user) && (
-          <ListItem
-            button
-            selected={location.pathname.includes("/wallets")}
-            onClick={() => history.push("/wallets")}
-            className={classes.navItem}
-            classes={{
-              selected: classes.activeLink,
-            }}
-          >
-            {!isExpanded ? (
-              <div className={classes.iconWrapper}>
-                <DollarIcon className={classes.icon} />
-              </div>
-            ) : (
-              <Typography disableTypography variant="h5" className={classes.label}>
-                Wallets
-              </Typography>
-            )}
-          </ListItem>
-        )}
-
-        <ListItem
-          button
-          selected={location.pathname.includes("/employees")}
-          onClick={() => history.push("/employees")}
-          className={classes.navItem}
-          classes={{
-            selected: classes.activeLink,
-          }}
-        >
-          {!isExpanded ? (
-            <div className={classes.iconWrapper}>
-              <PeopleIcon className={classes.icon} />
-            </div>
-          ) : (
-            <Typography disableTypography variant="h5" className={classes.label}>
-              Employees
             </Typography>
           )}
         </ListItem>
@@ -187,91 +144,22 @@ const NavItems = ({ setIsExpanded, isExpanded }) => {
           )}
         </ListItem>
 
-        {/* <ListItem
-          button
-          selected={location.pathname.includes('/campaigns')}
-          onClick={() => history.push('/campaigns')}
-          className={css(classes.navItem)}
-          classes={{
-            selected: classes.activeLink,
-          }}
-        >
-          {!isExpanded ? (
-            <div className={classes.iconWrapper}>
-              <BusinessCenterIcon className={classes.icon} />
-            </div>
-          ) : (
-            <Typography
-              disableTypography
-              variant="h5"
-              className={classes.label}
-            >
-              Campaigns
-            </Typography>
-          )}
-        </ListItem>
-         */}
-        {/*
         <ListItem
           button
-          selected={location.pathname.includes('/agentsManagers')}
-          onClick={() => history.push('/agentsManagers')}
-          className={css(classes.navItem)}
+          selected={location.pathname.includes("/jobs")}
+          onClick={() => history.push("/jobs")}
+          className={classes.navItem}
           classes={{
             selected: classes.activeLink,
           }}
         >
           {!isExpanded ? (
             <div className={classes.iconWrapper}>
-              <HailIcon className={classes.icon} />
-            </div>
-          ) : (
-            <Typography
-              disableTypography
-              variant="h5"
-              className={classes.label}
-            >
-              Agents/ Managers
-            </Typography>
-          )}
-        </ListItem> */}
-
-        <ListItem
-          button
-          selected={location.pathname.includes("/customers")}
-          onClick={() => history.push("/customers")}
-          className={css(classes.navItem)}
-          classes={{
-            selected: classes.activeLink,
-          }}
-        >
-          {!isExpanded ? (
-            <div className={classes.iconWrapper}>
-              <BusinessIcon className={classes.icon} />
+              <PeopleIcon className={classes.icon} />
             </div>
           ) : (
             <Typography disableTypography variant="h5" className={classes.label}>
-              Customers
-            </Typography>
-          )}
-        </ListItem>
-
-        <ListItem
-          button
-          selected={location.pathname.includes("/invoices")}
-          onClick={() => history.push("/invoices")}
-          className={css(classes.navItem)}
-          classes={{
-            selected: classes.activeLink,
-          }}
-        >
-          {!isExpanded ? (
-            <div className={classes.iconWrapper}>
-              <ReceiptIcon className={classes.icon} />
-            </div>
-          ) : (
-            <Typography disableTypography variant="h5" className={classes.label}>
-              Invoices
+              Jobs
             </Typography>
           )}
         </ListItem>

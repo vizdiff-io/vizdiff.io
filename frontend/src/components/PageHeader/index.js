@@ -1,13 +1,13 @@
-import React from 'react';
-import { Link, Typography, Breadcrumbs } from '@material-ui/core';
-import { useSelector } from 'react-redux';
+import React from "react"
+import { Link, Typography, Breadcrumbs } from "@material-ui/core"
+import { useSelector } from "react-redux"
 
-import { headerDataSelector } from 'slices/misc';
-import global from 'styles/global';
+import { headerDataSelector } from "slices/misc"
+import global from "styles/global"
 
 const PageHeader = () => {
-  const { title, breadcrumbs } = useSelector(headerDataSelector);
-  const g = global();
+  const { breadcrumbs } = useSelector(headerDataSelector)
+  const g = global()
 
   return (
     <div className={g.mb_lg}>
@@ -33,12 +33,10 @@ const PageHeader = () => {
               >
                 {crumb.label}
               </Typography>
-            )
+            ),
           )}
       </Breadcrumbs>
-
-      <Typography variant="h1">{title}</Typography>
     </div>
-  );
-};
-export default PageHeader;
+  )
+}
+export default PageHeader
