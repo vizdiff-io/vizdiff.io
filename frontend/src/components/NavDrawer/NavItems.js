@@ -1,15 +1,12 @@
 import React from "react"
 import css from "classnames"
-import { useDispatch, useSelector } from "react-redux"
+import { useDispatch } from "react-redux"
 import { useHistory, useLocation } from "react-router-dom"
 import ListItem from "@material-ui/core/ListItem"
 import { Typography } from "@material-ui/core"
 import HomeIcon from "@mui/icons-material/Home"
-import DollarIcon from "@mui/icons-material/AttachMoney"
 import PeopleIcon from "@mui/icons-material/People"
-import ReceiptIcon from "@mui/icons-material/Receipt"
 import ExitToAppIcon from "@mui/icons-material/ExitToApp"
-import BusinessIcon from "@mui/icons-material/Business"
 import SettingsIcon from "@mui/icons-material/Settings"
 import { makeStyles } from "@material-ui/core/styles"
 import AssignmentIcon from "@mui/icons-material/Assignment"
@@ -18,8 +15,6 @@ import ChevronLeft from "@mui/icons-material/ChevronLeft"
 import CodeIcon from "@mui/icons-material/Code"
 import { logout } from "slices/users"
 import global from "styles/global"
-import { currentUserSelector } from "slices/users"
-import { isOwnerOrAdmin } from "util/user"
 
 const useStyles = makeStyles((theme) => ({
   container: {
@@ -76,8 +71,6 @@ const NavItems = ({ setIsExpanded, isExpanded }) => {
   const history = useHistory()
   const classes = useStyles()
   const dispatch = useDispatch()
-
-  const { data: user } = useSelector(currentUserSelector)
 
   const signOut = () => {
     dispatch(logout())
