@@ -7,15 +7,15 @@ import Autocomplete from "components/Autocomplete"
 import { setHeaderData } from "slices/misc"
 import { getProjects, projectsSelector } from "slices/projects"
 
-export default function NewJob() {
+export default function NewRun() {
   const dispatch = useDispatch()
   const { data: projects } = useSelector(projectsSelector)
   const [selectedProject, setSelectedProject] = useState(null)
   useEffect(() => {
     dispatch(
       setHeaderData({
-        title: "Jobs",
-        breadcrumbs: [{ label: "Jobs", link: "/jobs" }, { label: "New" }],
+        title: "Runs",
+        breadcrumbs: [{ label: "Runs", link: "/runs" }, { label: "New" }],
       }),
     )
     dispatch(getProjects())
@@ -27,7 +27,7 @@ export default function NewJob() {
 
       <Grid container spacing={3}>
         <Grid item xs={12}>
-          <Typography variant="h5">New Job</Typography>
+          <Typography variant="h5">New Run</Typography>
         </Grid>
 
         <Grid item xs={12} sm={6}>

@@ -20,9 +20,9 @@ import SignIn from "pages/SignIn"
 import Projects from "pages/Projects"
 import NewProject from "pages/Projects/New"
 import ProjectDetail from "pages/Projects/Detail"
-import Jobs from "pages/Jobs"
-import NewJob from "pages/Jobs/New"
-import JobDetail from "pages/Jobs/Detail"
+import Runs from "pages/Runs"
+import NewRun from "pages/Runs/New"
+import RunDetail from "pages/Runs/Detail"
 import ResetPassword from "pages/ResetPassword"
 
 const cookies = new Cookies(null, { path: "/" })
@@ -172,16 +172,16 @@ export default function App() {
               <Projects />
             </ProtectedRoute>
 
-            <ProtectedRoute path="/jobs/new" token={token}>
-              <NewJob />
+            <ProtectedRoute path="/runs/new" token={token}>
+              <NewRun />
             </ProtectedRoute>
 
-            <ProtectedRoute path="/jobs/:jobId" token={token}>
-              <JobDetail />
+            <ProtectedRoute path="/runs/:jobId" token={token}>
+              <RunDetail />
             </ProtectedRoute>
 
-            <ProtectedRoute path="/jobs" token={token}>
-              <Jobs />
+            <ProtectedRoute path="/runs" token={token}>
+              <Runs />
             </ProtectedRoute>
 
             {/* Unprotected routes */}

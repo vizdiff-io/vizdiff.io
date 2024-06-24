@@ -36,7 +36,3 @@ export const Secondary = {
     variant: "outlined",
   },
 }
-
-{
-  /* <Button size="small" onClick={onLogout} label="Log out" /> */
-}

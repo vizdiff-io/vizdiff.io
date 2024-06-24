@@ -139,8 +139,8 @@ const NavItems = ({ setIsExpanded, isExpanded }) => {
 
         <ListItem
           button
-          selected={location.pathname.includes("/jobs")}
-          onClick={() => history.push("/jobs")}
+          selected={location.pathname.includes("/runs")}
+          onClick={() => history.push("/runs")}
           className={classes.navItem}
           classes={{
             selected: classes.activeLink,
@@ -152,7 +152,7 @@ const NavItems = ({ setIsExpanded, isExpanded }) => {
             </div>
           ) : (
             <Typography disableTypography variant="h5" className={classes.label}>
-              Jobs
+              Runs
             </Typography>
           )}
         </ListItem>

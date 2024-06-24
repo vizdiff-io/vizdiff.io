@@ -6,22 +6,22 @@ import TableHeader from "components/TableHeader"
 import Button from "components/Button"
 import DataGrid from "components/DataGrid"
 import global from "styles/global"
-import { getJobs, jobsSelector } from "slices/jobs"
+import { getRuns, runsSelector } from "slices/runs"
 import { setHeaderData } from "slices/misc"
 
-export default function Jobs() {
+export default function Runs() {
   const dispatch = useDispatch()
   const g = global()
   const history = useHistory()
 
-  const { data: jobs } = useSelector(jobsSelector)
+  const { data: runs } = useSelector(runsSelector)
   const columns = [
     {
       field: "repoName",
       headerName: "Repo Name",
       flex: 1,
       renderCell: (params) => (
-        <Button size="small" color="primary" onClick={() => history.push(`/jobs/${params.row.id}`)}>
+        <Button size="small" color="primary" onClick={() => history.push(`/runs/${params.row.id}`)}>
           {params.row.repoName}
         </Button>
       ),
@@ -34,31 +34,31 @@ export default function Jobs() {
   ]
 
   useEffect(() => {
-    dispatch(getJobs())
+    dispatch(getRuns())
     dispatch(
       setHeaderData({
-        title: "Jobs",
-        breadcrumbs: [{ label: "Jobs" }],
+        title: "Runs",
+        breadcrumbs: [{ label: "Runs" }],
       }),
     )
   }, [dispatch])
 
   return (
     <div>
-      <TableHeader title="Jobs">
+      <TableHeader title="Runs">
         <div>
           <Button
             size="small"
             variant="contained"
             className={g.ml_xs}
             color="primary"
-            onClick={() => history.push("/jobs/new")}
+            onClick={() => history.push("/runs/new")}
           >
-            New Job
+            New Run
           </Button>
         </div>
       </TableHeader>
-      <DataGrid disableSelectionOnClick autoHeight autoPageSize rows={jobs} columns={columns} />
+      <DataGrid disableSelectionOnClick autoHeight autoPageSize rows={runs} columns={columns} />
     </div>
   )
 }
