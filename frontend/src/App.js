@@ -20,6 +20,9 @@ import SignIn from "pages/SignIn"
 import Projects from "pages/Projects"
 import NewProject from "pages/Projects/New"
 import ProjectDetail from "pages/Projects/Detail"
+import Runs from "pages/Runs"
+import NewRun from "pages/Runs/New"
+import RunDetail from "pages/Runs/Detail"
 import ResetPassword from "pages/ResetPassword"
 
 const cookies = new Cookies(null, { path: "/" })
@@ -123,7 +126,6 @@ export default function App() {
         draggable={false}
         pauseOnHover
       />
-      {/* <LoadingOverlay open={loading} /> */}
 
       {!hideNavBar && <AppBar />}
 
@@ -170,14 +172,17 @@ export default function App() {
               <Projects />
             </ProtectedRoute>
 
-            {/* <ProtectedRoute
-              path="/campaigns/:groupId"
-              user={user}
+            <ProtectedRoute path="/runs/new" token={token}>
+              <NewRun />
+            </ProtectedRoute>
 
-              exact
-            >
-              <CampaignDetails />
-            </ProtectedRoute> */}
+            <ProtectedRoute path="/runs/:jobId" token={token}>
+              <RunDetail />
+            </ProtectedRoute>
+
+            <ProtectedRoute path="/runs" token={token}>
+              <Runs />
+            </ProtectedRoute>
 
             {/* Unprotected routes */}
             <Route path="/resetPassword/:linkId">

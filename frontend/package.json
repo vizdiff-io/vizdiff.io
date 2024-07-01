@@ -63,11 +63,16 @@
     "lint": "eslint src",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "stage": "REACT_APP_DEMO=true react-scripts start"
+    "stage": "REACT_APP_DEMO=true react-scripts start",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build"
   },
   "proxy": "http://localhost:3001",
   "eslintConfig": {
-    "extends": "react-app"
+    "extends": [
+      "react-app",
+      "plugin:storybook/recommended"
+    ]
   },
   "browserslist": {
     "production": [
@@ -80,5 +85,21 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "@chromatic-com/storybook": "^1.5.0",
+    "@storybook/addon-essentials": "^8.1.10",
+    "@storybook/addon-interactions": "^8.1.10",
+    "@storybook/addon-links": "^8.1.10",
+    "@storybook/addon-onboarding": "^8.1.10",
+    "@storybook/blocks": "^8.1.10",
+    "@storybook/preset-create-react-app": "^8.1.10",
+    "@storybook/react": "^8.1.10",
+    "@storybook/react-webpack5": "^8.1.10",
+    "@storybook/test": "^8.1.10",
+    "eslint-plugin-storybook": "^0.8.0",
+    "prop-types": "^15.8.1",
+    "storybook": "^8.1.10",
+    "webpack": "^5.92.1"
   }
 }

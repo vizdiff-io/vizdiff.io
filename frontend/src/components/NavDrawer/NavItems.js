@@ -1,15 +1,12 @@
 import React from "react"
 import css from "classnames"
-import { useDispatch, useSelector } from "react-redux"
+import { useDispatch } from "react-redux"
 import { useHistory, useLocation } from "react-router-dom"
 import ListItem from "@material-ui/core/ListItem"
 import { Typography } from "@material-ui/core"
 import HomeIcon from "@mui/icons-material/Home"
-import DollarIcon from "@mui/icons-material/AttachMoney"
 import PeopleIcon from "@mui/icons-material/People"
-import ReceiptIcon from "@mui/icons-material/Receipt"
 import ExitToAppIcon from "@mui/icons-material/ExitToApp"
-import BusinessIcon from "@mui/icons-material/Business"
 import SettingsIcon from "@mui/icons-material/Settings"
 import { makeStyles } from "@material-ui/core/styles"
 import AssignmentIcon from "@mui/icons-material/Assignment"
@@ -18,8 +15,6 @@ import ChevronLeft from "@mui/icons-material/ChevronLeft"
 import CodeIcon from "@mui/icons-material/Code"
 import { logout } from "slices/users"
 import global from "styles/global"
-import { currentUserSelector } from "slices/users"
-import { isOwnerOrAdmin } from "util/user"
 
 const useStyles = makeStyles((theme) => ({
   container: {
@@ -77,8 +72,6 @@ const NavItems = ({ setIsExpanded, isExpanded }) => {
   const classes = useStyles()
   const dispatch = useDispatch()
 
-  const { data: user } = useSelector(currentUserSelector)
-
   const signOut = () => {
     dispatch(logout())
     history.push("/signin")
@@ -103,7 +96,6 @@ const NavItems = ({ setIsExpanded, isExpanded }) => {
             )}
           </div>
         </ListItem>
-        {/* <Divider className={classes.divider} /> */}
 
         <ListItem
           button
@@ -121,48 +113,6 @@ const NavItems = ({ setIsExpanded, isExpanded }) => {
           ) : (
             <Typography disableTypography variant="h5" className={classes.label}>
               Home
-            </Typography>
-          )}
-        </ListItem>
-
-        {isOwnerOrAdmin(user) && (
-          <ListItem
-            button
-            selected={location.pathname.includes("/wallets")}
-            onClick={() => history.push("/wallets")}
-            className={classes.navItem}
-            classes={{
-              selected: classes.activeLink,
-            }}
-          >
-            {!isExpanded ? (
-              <div className={classes.iconWrapper}>
-                <DollarIcon className={classes.icon} />
-              </div>
-            ) : (
-              <Typography disableTypography variant="h5" className={classes.label}>
-                Wallets
-              </Typography>
-            )}
-          </ListItem>
-        )}
-
-        <ListItem
-          button
-          selected={location.pathname.includes("/employees")}
-          onClick={() => history.push("/employees")}
-          className={classes.navItem}
-          classes={{
-            selected: classes.activeLink,
-          }}
-        >
-          {!isExpanded ? (
-            <div className={classes.iconWrapper}>
-              <PeopleIcon className={classes.icon} />
-            </div>
-          ) : (
-            <Typography disableTypography variant="h5" className={classes.label}>
-              Employees
             </Typography>
           )}
         </ListItem>
@@ -187,91 +137,22 @@ const NavItems = ({ setIsExpanded, isExpanded }) => {
           )}
         </ListItem>
 
-        {/* <ListItem
-          button
-          selected={location.pathname.includes('/campaigns')}
-          onClick={() => history.push('/campaigns')}
-          className={css(classes.navItem)}
-          classes={{
-            selected: classes.activeLink,
-          }}
-        >
-          {!isExpanded ? (
-            <div className={classes.iconWrapper}>
-              <BusinessCenterIcon className={classes.icon} />
-            </div>
-          ) : (
-            <Typography
-              disableTypography
-              variant="h5"
-              className={classes.label}
-            >
-              Campaigns
-            </Typography>
-          )}
-        </ListItem>
-         */}
-        {/*
         <ListItem
           button
-          selected={location.pathname.includes('/agentsManagers')}
-          onClick={() => history.push('/agentsManagers')}
-          className={css(classes.navItem)}
+          selected={location.pathname.includes("/runs")}
+          onClick={() => history.push("/runs")}
+          className={classes.navItem}
           classes={{
             selected: classes.activeLink,
           }}
         >
           {!isExpanded ? (
             <div className={classes.iconWrapper}>
-              <HailIcon className={classes.icon} />
-            </div>
-          ) : (
-            <Typography
-              disableTypography
-              variant="h5"
-              className={classes.label}
-            >
-              Agents/ Managers
-            </Typography>
-          )}
-        </ListItem> */}
-
-        <ListItem
-          button
-          selected={location.pathname.includes("/customers")}
-          onClick={() => history.push("/customers")}
-          className={css(classes.navItem)}
-          classes={{
-            selected: classes.activeLink,
-          }}
-        >
-          {!isExpanded ? (
-            <div className={classes.iconWrapper}>
-              <BusinessIcon className={classes.icon} />
+              <PeopleIcon className={classes.icon} />
             </div>
           ) : (
             <Typography disableTypography variant="h5" className={classes.label}>
-              Customers
-            </Typography>
-          )}
-        </ListItem>
-
-        <ListItem
-          button
-          selected={location.pathname.includes("/invoices")}
-          onClick={() => history.push("/invoices")}
-          className={css(classes.navItem)}
-          classes={{
-            selected: classes.activeLink,
-          }}
-        >
-          {!isExpanded ? (
-            <div className={classes.iconWrapper}>
-              <ReceiptIcon className={classes.icon} />
-            </div>
-          ) : (
-            <Typography disableTypography variant="h5" className={classes.label}>
-              Invoices
+              Runs
             </Typography>
           )}
         </ListItem>

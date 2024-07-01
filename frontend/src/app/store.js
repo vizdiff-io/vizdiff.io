@@ -5,7 +5,7 @@ import subscribeActionMiddleware from "redux-subscribe-action"
 import users, { usersInitialState } from "slices/users"
 import { loadState, saveState } from "../util/localStorage"
 import projects from "slices/projects"
-import products from "slices/products"
+import runs from "slices/runs"
 import misc from "slices/misc"
 import github from "slices/github"
 
@@ -16,7 +16,7 @@ const store = configureStore({
   middleware: (getDefaultMiddleware) => getDefaultMiddleware().concat(extraMiddleware),
   reducer: {
     projects,
-    products,
+    runs,
     users,
     github,
     misc,

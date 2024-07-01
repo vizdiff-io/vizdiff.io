@@ -117,3 +117,5 @@ dist
 
 # OS files
 .DS_Store
+
+*storybook.log
