@@ -1,3 +1,7 @@
+# vizdiff.io API Server
+
+> The backend server for vizdiff.io
+
 # Developing
 
 1. Run `yarn install` in this directory (`api/`) or the workspace root
@@ -9,3 +13,4 @@ GITHUB_CLIENT_SECRET=<gh_client_secret>
 ```
 
 3. Run `yarn test`
+4. Run `yarn start`

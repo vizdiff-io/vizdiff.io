@@ -4,6 +4,7 @@ import { Project } from "./entity/Project"
 import { ScreenshotTest } from "./entity/ScreenshotTest"
 import { TestResult } from "./entity/TestResult"
 import { User } from "./entity/User"
+import { WorkTask } from "./entity/WorkTask"
 import {
   IS_PRODUCTION,
   IS_TEST,
@@ -25,7 +26,7 @@ const database = new DataSource({
   synchronize: !IS_PRODUCTION,
   dropSchema: IS_TEST,
   logging: !IS_TEST,
-  entities: [Project, ScreenshotTest, TestResult, User],
+  entities: [Project, ScreenshotTest, TestResult, User, WorkTask],
   subscribers: [],
   migrations: [],
 })

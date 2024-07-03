@@ -12,6 +12,7 @@ import { authenticateJWT } from "./authenticate"
 import * as Auth from "./endpoints/auth"
 import * as Github from "./endpoints/github"
 import * as Projects from "./endpoints/projects"
+import * as Upload from "./endpoints/upload"
 import * as User from "./endpoints/user"
 import { IS_PRODUCTION, IS_TEST, PORT } from "./environment"
 import { log } from "./log"
@@ -51,6 +52,7 @@ router.get("/projects", authenticateJWT, Projects.list)
 router.get("/projects/:id", authenticateJWT, Projects.get)
 router.delete("/projects/:id", authenticateJWT, Projects.remove)
 router.post("/projects", authenticateJWT, Projects.create)
+router.post("/upload/storybook", Upload.uploadStorybook)
 router.get("/users/me", authenticateJWT, User.me)
 app.use(router)
 
