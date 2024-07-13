@@ -6,6 +6,7 @@ import users, { usersInitialState } from "slices/users"
 import { loadState, saveState } from "../util/localStorage"
 import projects from "slices/projects"
 import runs from "slices/runs"
+import testResults from "slices/testResults"
 import misc from "slices/misc"
 import github from "slices/github"
 
@@ -17,6 +18,7 @@ const store = configureStore({
   reducer: {
     projects,
     runs,
+    testResults,
     users,
     github,
     misc,

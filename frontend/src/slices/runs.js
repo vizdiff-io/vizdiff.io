@@ -14,6 +14,7 @@ import {
   getPayloadSuccess,
   getGenericState,
   handleError,
+  ensureData,
 } from "./sliceUtils"
 
 export const initialRunsState = {
@@ -124,9 +125,8 @@ export const updateRunSelector = createSelector(
   (runsState = {}) => runsState.updateRun || getGenericState(),
 )
 
-export const runsSelector = createSelector(
-  selectRuns,
-  (runsState = {}) => runsState.runs || getGenericState(),
+export const runsSelector = createSelector(selectRuns, (runsState = {}) =>
+  ensureData(runsState, "runs", []),
 )
 
 export const runsSetSelector = createSelector(runsSelector, (runsState) => {
@@ -141,5 +141,5 @@ export const deleteRunSelector = createSelector(
 
 export const runDetailsSelector = createSelector([runsSelector, selectId], (runsState, id) => {
   const { data: runs } = runsState
-  return runs.find((run) => run.id === id) || emptyRun
+  return runs.find((run) => `${run.id}` === id) || emptyRun
 })

@@ -1,17 +1,12 @@
-import React from 'react';
-import {
-  CardHeader,
-  Card as MuiCard,
-  CardContent,
-  makeStyles,
-} from '@material-ui/core';
-import css from 'classnames';
+import React from "react"
+import { CardHeader, Card as MuiCard, CardContent, makeStyles } from "@material-ui/core"
+import css from "classnames"
 
-import global from 'styles/global';
+import global from "styles/global"
 
 const useStyles = makeStyles((theme) => ({
   card: {
-    boxShadow: 'none',
+    boxShadow: "none",
     padding: 0,
   },
   cardHeaderAction: {
@@ -20,16 +15,16 @@ const useStyles = makeStyles((theme) => ({
     padding: 0,
   },
   cardHeaderContent: {
-    paddingBottom: '5px',
+    paddingBottom: "5px",
   },
   cardContent: {
     paddingTop: 0,
   },
-}));
+}))
 
 function Card({ action, children, noHeader, subheader, title, bgColor, className }) {
-  const g = global();
-  const classes = useStyles();
+  const g = global()
+  const classes = useStyles()
 
   return (
     <MuiCard
@@ -38,7 +33,7 @@ function Card({ action, children, noHeader, subheader, title, bgColor, className
     >
       {!noHeader && (
         <CardHeader
-          titleTypographyProps={{ variant: 'h3' }}
+          titleTypographyProps={{ variant: "h3" }}
           action={action}
           title={title}
           subheader={subheader}
@@ -51,7 +46,7 @@ function Card({ action, children, noHeader, subheader, title, bgColor, className
       )}
       <CardContent className={classes.cardContent}>{children}</CardContent>
     </MuiCard>
-  );
+  )
 }
 
-export default Card;
+export default Card

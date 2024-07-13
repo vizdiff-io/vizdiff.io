@@ -176,7 +176,7 @@ export default function App() {
               <NewRun />
             </ProtectedRoute>
 
-            <ProtectedRoute path="/runs/:jobId" token={token}>
+            <ProtectedRoute path="/runs/:runId" token={token}>
               <RunDetail />
             </ProtectedRoute>
 

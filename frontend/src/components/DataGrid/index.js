@@ -34,8 +34,7 @@ const useStyles = makeStyles((theme) => ({
 const DataGrid = ({ ...props }) => {
   const classes = useStyles()
 
-  const { columns, rows, suppressMemoization, columnDependencies = [] } = props
-
+  const { columns, rows = [], suppressMemoization, columnDependencies = [] } = props
   const memoizedColumns = useMemo(() => {
     return columns
   }, [rows, ...columnDependencies]) // eslint-disable-line react-hooks/exhaustive-deps

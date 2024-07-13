@@ -51,11 +51,9 @@ export async function remove(req: DefaultRequest, res: DefaultResponse): Promise
 
 export async function list(req: DefaultRequest, res: DefaultResponse): Promise<void> {
   const user = await getUser(req)
-
   const db = await Database()
   const projectTable = db.getRepository(Project)
   const projects = await projectTable.findBy({ user: { id: user.id } })
-
   res.json(projects)
 }
 
