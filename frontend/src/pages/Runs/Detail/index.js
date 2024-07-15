@@ -7,7 +7,6 @@ import { setHeaderData } from "slices/misc"
 import LoadingOverlay from "components/LoadingOverlay"
 import Card from "components/Card"
 import KeyValuePair from "components/KeyValuePair"
-import Button from "components/Button"
 import DataGrid from "components/DataGrid"
 import { getRuns } from "slices/runs"
 import { runWithNameSelector } from "slices/multiSliceSelectors"
@@ -44,7 +43,7 @@ export default function RunDetail() {
         breadcrumbs: [{ label: "Runs", to: "/runs" }, { label: "Run Detail" }],
       }),
     )
-  }, [dispatch])
+  }, [dispatch, runId])
 
   const run = useSelector((state) => runWithNameSelector(state, runId))
   const testResultsState = useSelector(testResultsSelector)
