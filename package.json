@@ -20,7 +20,9 @@
     "lint:all": "yarn workspaces foreach --all -p run lint"
   },
   "devDependencies": {
-    "lerna": "^4.0.0"
+    "lerna": "^4.0.0",
+    "prettier": "^3.3.3",
+    "react-syntax-highlighter": "^15.5.0"
   },
   "dependencies": {
     "nodemon": "^3.1.4"
