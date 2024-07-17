@@ -20,6 +20,7 @@
     "lint:all": "yarn workspaces foreach --all -p run lint"
   },
   "devDependencies": {
+    "@foxglove/eslint-plugin": "^1.0.1",
     "husky": "^9.1.0",
     "lerna": "^4.0.0",
     "prettier": "^3.3.3",
