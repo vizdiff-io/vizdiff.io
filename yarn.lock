@@ -15156,6 +15156,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"husky@npm:^9.1.0":
+  version: 9.1.0
+  resolution: "husky@npm:9.1.0"
+  bin:
+    husky: bin.js
+  checksum: 10/961fc8bf0dd0c31ddd77b38a6af1cfd54616ded28bcd95938f061b694b8d5fd520bddfbeebcda685a5d3f40864f0526c8ca389d5dcbc3079cffd0069f207f69c
+  languageName: node
+  linkType: hard
+
 "hyphenate-style-name@npm:^1.0.3":
   version: 1.1.0
   resolution: "hyphenate-style-name@npm:1.1.0"
@@ -28029,6 +28038,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "vizdiff@workspace:."
   dependencies:
+    husky: "npm:^9.1.0"
     lerna: "npm:^4.0.0"
     nodemon: "npm:^3.1.4"
     prettier: "npm:^3.3.3"

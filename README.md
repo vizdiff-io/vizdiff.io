@@ -60,3 +60,5 @@ NEXT_PUBLIC_GITHUB_CLIENT_ID=<gh_client_id>
 6. (In another terminal) start the frontend: `yarn frontend dev`
 
 You can also run `yarn test:all` to run all test suites.
+
+7. To test the webhook locally, go to [smee.io](https://smee.io/) and start a new channel. Then go to github > nav to project > settings > webhooks > add webhook and add the url of the smee channel you just made. Set the events to push-only and disable https, then click add.
