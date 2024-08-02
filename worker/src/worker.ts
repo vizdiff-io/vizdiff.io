@@ -30,9 +30,9 @@ const pool = new Pool({
 
 const subscriber = createPgSubscriber({ connectionString: CONN_STRING })
 
-// FIXME: Periodic sweep to check for new tasks
-// FIXME: Locking mechanism to prevent multiple workers from processing the same task
-// FIXME: Implement ingestStorybook()
+// TASK: Periodic sweep to check for new tasks
+// TASK: Locking mechanism to prevent multiple workers from processing the same task
+// TASK: Implement ingestStorybook()
 
 async function main() {
   subscriber.notifications.on(TASKS_CHANNEL, (payload) => {
