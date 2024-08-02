@@ -1,4 +1,4 @@
-import { Pool } from "pg"
+import pg from "pg"
 import createPgSubscriber from "pg-listen"
 
 import {
@@ -18,7 +18,7 @@ type IngestStorybookPayload = {
 const TASKS_CHANNEL = "task_queue"
 const CONN_STRING = `postgres://${POSTGRES_USER}:${POSTGRES_PASS}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DATABASE}`
 
-const pool = new Pool({
+const pool = new pg.Pool({
   host: POSTGRES_HOST,
   user: POSTGRES_USER,
   password: POSTGRES_PASS,
