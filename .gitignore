@@ -106,7 +106,7 @@ dist
 # local env files
 .env*.local
 
-# Yarn v3
+# Yarn v3+
 .pnp.*
 .yarn/*
 !.yarn/patches
@@ -118,4 +118,6 @@ dist
 # OS files
 .DS_Store
 
+# Storybook
 *storybook.log
+storybook-static/

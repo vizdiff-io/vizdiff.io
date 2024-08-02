@@ -15,8 +15,6 @@ vizdiff/
 │   └── tsconfig.json           # API TypeScript configuration
 ├── worker/
 │   ├── src/
-│   │   ├── tasks/              # Worker tasks
-│   │   ├── utils/              # Utility functions
 │   │   └── worker.ts           # Main worker application file
 │   ├── test/                   # Worker tests
 │   ├── package.json            # Worker dependencies and scripts

@@ -2,6 +2,7 @@ import { Response, NextFunction } from "express"
 import jwt, { JwtPayload, VerifyErrors } from "jsonwebtoken"
 
 import { Database } from "./database"
+import { Project } from "./entity/Project"
 import { User } from "./entity/User"
 import { JWT_SECRET } from "./environment"
 import { log } from "./log"
@@ -63,4 +64,24 @@ export async function getUser(req: DefaultRequest): Promise<User> {
 
   log.debug(`User ${user.id} (${user.githubUsername}) retrieved from the database`)
   return user
+}
+
+export async function getProjectByToken(token: string): Promise<Project> {
+  if (token.length !== 12) {
+    throw new Error("Invalid token")
+  }
+
+  // Look up the project by token
+  const db = await Database()
+  const projectTable = db.getRepository(Project)
+  const project = await projectTable.findOneBy({ token })
+  if (!project) {
+    throw new Error(`Invalid or expired token`)
+  }
+
+  return project
+}
+
+export async function getS3BucketForProject(_project: Project): Promise<string> {
+  return "vizdiff-testing"
 }
