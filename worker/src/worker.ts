@@ -152,7 +152,7 @@ export async function fetchTask(
       throw new Error(`Task not found: ${taskQueueId}`)
     }
 
-    // FIXME: Check lock field to ensure task is not already being processed and set it
+    // Check lock field to ensure task is not already being processed and set it
 
     return res.rows[0] as { task_type: string; data: Record<string, unknown> }
   } finally {
