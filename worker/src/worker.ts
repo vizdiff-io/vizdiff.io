@@ -17,7 +17,9 @@ type IngestStorybookPayload = {
 
 const TASKS_CHANNEL = "task_queue"
 const CONN_STRING = `postgres://${POSTGRES_USER}:${POSTGRES_PASS}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DATABASE}`
+const POLL_INTERVAL_MS = 1000 * 10
 
+// Postgres connection pool
 const pool = new pg.Pool({
   host: POSTGRES_HOST,
   user: POSTGRES_USER,
@@ -27,8 +29,12 @@ const pool = new pg.Pool({
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
 })
-
+// Postgres notification listener
 const subscriber = createPgSubscriber({ connectionString: CONN_STRING })
+// Current task being processed, if any
+let currentTaskId: number | undefined
+// Pending tasks we were notified about or discovered while processing another task
+const pendingTaskIds: number[] = []
 
 // TASK: Periodic sweep to check for new tasks
 // TASK: Locking mechanism to prevent multiple workers from processing the same task
@@ -48,9 +54,7 @@ async function main() {
       return
     }
 
-    fetchTask(taskQueueId)
-      .then(({ task_type, data }) => processTask(task_type, data))
-      .catch((err) => log.error("Error processing task:", err))
+    startTask(taskQueueId).catch((err) => log.error("Error processing task:", err))
   })
 
   subscriber.events.on("error", (error) => {
@@ -62,6 +66,64 @@ async function main() {
 
   await subscriber.connect()
   await subscriber.listenTo(TASKS_CHANNEL)
+
+  pollForNewTasks()
+}
+
+export function pollForNewTasks(): void {
+  // Early return if we're already processing a task
+  if (currentTaskId != undefined) {
+    log.debug("Worker is busy, skipping poll")
+    setTimeout(pollForNewTasks, POLL_INTERVAL_MS)
+    return
+  }
+
+  latestTaskQueueId()
+    .then((taskQueueId) => {
+      if (taskQueueId == undefined) {
+        setTimeout(pollForNewTasks, POLL_INTERVAL_MS)
+        return
+      }
+
+      log.info(`Found new task: ${taskQueueId}`)
+      startTask(taskQueueId)
+        .catch((err) => {
+          log.error(`Error processing task ${taskQueueId}: ${err}`)
+        })
+        .finally(() => {
+          setTimeout(pollForNewTasks, 0)
+        })
+    })
+    .catch((err) => {
+      log.error("Error fetching latest task queue ID:", err)
+      setTimeout(pollForNewTasks, POLL_INTERVAL_MS)
+    })
+}
+
+export async function startTask(taskQueueId: number): Promise<void> {
+  const task = await fetchTask(taskQueueId)
+  if (!task) {
+    log.warn(`Not starting task ${taskQueueId}: fetchTask() failed`)
+    return
+  }
+
+  log.debug(`Fetched task ${taskQueueId} [${task.task_type}]`)
+
+  if (currentTaskId != undefined) {
+    log.info(`Cannot start task ${taskQueueId}: worker is already processing task ${currentTaskId}`)
+    pendingTaskIds.push(taskQueueId)
+    return
+  }
+
+  currentTaskId = taskQueueId
+  await processTask(task.task_type, task.data).finally(async () => {
+    currentTaskId = undefined
+
+    const nextTaskId = pendingTaskIds.shift()
+    if (nextTaskId) {
+      await startTask(nextTaskId)
+    }
+  })
 }
 
 export async function latestTaskQueueId(): Promise<number | undefined> {
@@ -79,7 +141,7 @@ export async function latestTaskQueueId(): Promise<number | undefined> {
 
 export async function fetchTask(
   taskQueueId: number,
-): Promise<{ task_type: string; data: Record<string, unknown> }> {
+): Promise<{ task_type: string; data: Record<string, unknown> } | undefined> {
   // Fetch the task from the database
   const client = await pool.connect()
   try {
@@ -89,19 +151,21 @@ export async function fetchTask(
     if (res.rowCount === 0) {
       throw new Error(`Task not found: ${taskQueueId}`)
     }
+
+    // FIXME: Check lock field to ensure task is not already being processed and set it
+
     return res.rows[0] as { task_type: string; data: Record<string, unknown> }
   } finally {
     client.release()
   }
 }
 
-export function processTask(taskType: string, data: Record<string, unknown>): void {
+export async function processTask(taskType: string, data: Record<string, unknown>): Promise<void> {
+  log.info(`Processing task: [${taskType}] ${data}`)
   switch (taskType) {
     case "ingest_storybook": {
       const { projectId, uploadId } = data as IngestStorybookPayload
-      ingestStorybook(projectId, uploadId).catch((err) => {
-        log.error("Error processing task:", err)
-      })
+      await ingestStorybook(projectId, uploadId)
       break
     }
     default:
