@@ -185,6 +185,5 @@ async function ingestStorybook(projectId: string, uploadId: string): Promise<voi
 }
 
 main().catch((err) => {
-  log.error(err)
-  process.exit(1)
+  log.error(`Fatal error: ${err}`)
 })
