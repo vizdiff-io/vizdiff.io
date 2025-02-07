@@ -142,19 +142,32 @@ export async function latestTaskQueueId(): Promise<number | undefined> {
 export async function fetchTask(
   taskQueueId: number,
 ): Promise<{ task_type: string; data: Record<string, unknown> } | undefined> {
-  // Fetch the task from the database
   const client = await pool.connect()
   try {
-    const res = await client.query("select task_type, data from task_queue where id = $1", [
-      taskQueueId,
-    ])
-    if (res.rowCount === 0) {
-      throw new Error(`Task not found: ${taskQueueId}`)
+    // First try to acquire the lock atomically
+    const lockRes = await client.query(
+      `UPDATE task_queue 
+       SET locked_at = NOW(), locked_by = $1
+       WHERE id = $2 AND locked_at IS NULL
+       RETURNING task_type, data`,
+      [`worker-${process.pid}`, taskQueueId],
+    )
+
+    // If no rows were updated, the task was already locked or doesn't exist
+    if (lockRes.rowCount === 0) {
+      const checkRes = await client.query(
+        "SELECT locked_at, locked_by FROM task_queue WHERE id = $1",
+        [taskQueueId],
+      )
+      if (checkRes.rowCount === 0) {
+        throw new Error(`Task not found: ${taskQueueId}`)
+      }
+      const task = checkRes.rows[0] as { locked_by: string; locked_at: Date }
+      log.warn(`Task ${taskQueueId} is locked by ${task.locked_by} since ${task.locked_at}`)
+      return undefined
     }
 
-    // Check lock field to ensure task is not already being processed and set it
-
-    return res.rows[0] as { task_type: string; data: Record<string, unknown> }
+    return lockRes.rows[0] as { task_type: string; data: Record<string, unknown> }
   } finally {
     client.release()
   }
@@ -162,14 +175,21 @@ export async function fetchTask(
 
 export async function processTask(taskType: string, data: Record<string, unknown>): Promise<void> {
   log.info(`Processing task: [${taskType}] ${data}`)
-  switch (taskType) {
-    case "ingest_storybook": {
-      const { projectId, uploadId } = data as IngestStorybookPayload
-      await ingestStorybook(projectId, uploadId)
-      break
+  try {
+    switch (taskType) {
+      case "ingest_storybook": {
+        const { projectId, uploadId } = data as IngestStorybookPayload
+        await ingestStorybook(projectId, uploadId)
+        break
+      }
+      default:
+        throw new Error(`Unknown task type: ${taskType}`)
     }
-    default:
-      throw new Error(`Unknown task type: ${taskType}`)
+  } finally {
+    // Make sure to release the lock even if there's an error
+    if (currentTaskId) {
+      await releaseLock(currentTaskId)
+    }
   }
 }
 
@@ -182,6 +202,17 @@ export function shutdown(): void {
 
 async function ingestStorybook(projectId: string, uploadId: string): Promise<void> {
   log.info(`Ingesting storybook for project ${projectId}, upload ${uploadId}`)
+}
+
+export async function releaseLock(taskQueueId: number): Promise<void> {
+  const client = await pool.connect()
+  try {
+    await client.query("UPDATE task_queue SET locked_at = NULL, locked_by = NULL WHERE id = $1", [
+      taskQueueId,
+    ])
+  } finally {
+    client.release()
+  }
 }
 
 main().catch((err) => {
