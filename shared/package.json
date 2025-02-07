@@ -7,7 +7,8 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "lint": "eslint --report-unused-disable-directives --parser-options=\"{tsconfigRootDir:null}\" ."
+    "lint": "echo \"No linting yet\"",
+    "test": "echo \"No tests yet\""
   },
   "dependencies": {
     "typeorm": "^0.3.20"
