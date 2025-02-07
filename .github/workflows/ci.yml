@@ -44,11 +44,12 @@ jobs:
 
       - run: yarn dedupe --check
 
-      - name: Lint projects
-        run: yarn lint:all
-
       - name: Build projects
         run: yarn build:all
+
+      # Must run after build so the `shared` package can be imported
+      - name: Lint projects
+        run: yarn lint:all
 
       - name: Run tests
         run: yarn test:all
