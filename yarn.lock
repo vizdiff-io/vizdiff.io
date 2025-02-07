@@ -9126,6 +9126,7 @@ __metadata:
     supertest: "npm:6.3.4"
     ts-jest: "npm:29.2.5"
     ts-node: "npm:10.9.2"
+    tsconfig-paths: "npm:^4.2.0"
     typeorm: "npm:0.3.20"
     typescript: "npm:5.7.3"
     undici: "npm:5.28.5"

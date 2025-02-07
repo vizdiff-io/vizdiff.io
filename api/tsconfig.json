@@ -8,13 +8,14 @@
     "skipLibCheck": true,
     "esModuleInterop": true,
     "module": "es2020",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
     "incremental": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
+    "sourceMap": true,
 
     "strict": true,
     "noFallthroughCasesInSwitch": true,
@@ -23,7 +24,13 @@
     "noUncheckedIndexedAccess": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "baseUrl": ".",
+    "paths": {
+      "shared": ["../shared/src"],
+      "shared/*": ["../shared/src/*"]
+    }
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts"],
+  "references": [{ "path": "../shared" }]
 }
