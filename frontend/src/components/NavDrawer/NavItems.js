@@ -47,7 +47,7 @@ const useStyles = makeStyles((theme) => ({
   activeLink: {
     backgroundColor: `${theme.palette.brand.payBlue} !important`,
 
-    "& $h5": {
+    "& .MuiTypography-h5": {
       fontWeight: "bold",
     },
   },
@@ -111,7 +111,7 @@ const NavItems = ({ setIsExpanded, isExpanded }) => {
               <HomeIcon className={classes.icon} />
             </div>
           ) : (
-            <Typography disableTypography variant="h5" className={classes.label}>
+            <Typography variant="h5" className={classes.label}>
               Home
             </Typography>
           )}
@@ -131,7 +131,7 @@ const NavItems = ({ setIsExpanded, isExpanded }) => {
               <AssignmentIcon className={classes.icon} />
             </div>
           ) : (
-            <Typography disableTypography variant="h5" className={classes.label}>
+            <Typography variant="h5" className={classes.label}>
               Projects
             </Typography>
           )}
@@ -151,7 +151,7 @@ const NavItems = ({ setIsExpanded, isExpanded }) => {
               <PeopleIcon className={classes.icon} />
             </div>
           ) : (
-            <Typography disableTypography variant="h5" className={classes.label}>
+            <Typography variant="h5" className={classes.label}>
               Runs
             </Typography>
           )}
@@ -171,7 +171,7 @@ const NavItems = ({ setIsExpanded, isExpanded }) => {
               <SettingsIcon className={classes.icon} />
             </div>
           ) : (
-            <Typography disableTypography variant="h5" className={classes.label}>
+            <Typography variant="h5" className={classes.label}>
               Settings
             </Typography>
           )}
@@ -184,7 +184,7 @@ const NavItems = ({ setIsExpanded, isExpanded }) => {
               <CodeIcon className={classes.icon} />
             </div>
           ) : (
-            <Typography disableTypography variant="h5" className={classes.label}>
+            <Typography variant="h5" className={classes.label}>
               API Reference
             </Typography>
           )}
@@ -196,7 +196,7 @@ const NavItems = ({ setIsExpanded, isExpanded }) => {
               <ExitToAppIcon className={classes.icon} />
             </div>
           ) : (
-            <Typography disableTypography variant="h5" className={classes.label}>
+            <Typography variant="h5" className={classes.label}>
               Sign out
             </Typography>
           )}
