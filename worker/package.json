@@ -24,7 +24,6 @@
     "webdriverio": "^9.8.0"
   },
   "devDependencies": {
-    "@types/aws-sdk": "^2.7.4",
     "@types/dotenv-flow": "3.3.3",
     "@types/jest": "29.5.14",
     "@types/node": "^20.17.17",
