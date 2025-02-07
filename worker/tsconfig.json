@@ -1,29 +1,18 @@
 {
   "compilerOptions": {
-    "target": "es2020",
-    "lib": ["es2020"],
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
     "outDir": "dist",
     "rootDir": "src",
-    "allowJs": true,
-    "skipLibCheck": true,
-    "esModuleInterop": true,
-    "module": "es2020",
-    "moduleResolution": "node",
-    "allowSyntheticDefaultImports": true,
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "incremental": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
-
-    "strict": true,
-    "noFallthroughCasesInSwitch": true,
-    "noImplicitAny": true,
-    "noImplicitReturns": true,
-    "noUncheckedIndexedAccess": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "forceConsistentCasingInFileNames": true
+    "types": ["@wdio/globals/types", "jest"]
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
 }
