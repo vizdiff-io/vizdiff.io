@@ -11,26 +11,33 @@
     "lint": "eslint --report-unused-disable-directives --parser-options=\"{tsconfigRootDir:null}\" ."
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "3.608.0",
-    "dotenv-flow": "3.2.0",
-    "pg": "8.10.0",
-    "pg-listen": "1.7.0",
-    "pino": "8.11.0",
-    "reflect-metadata": "0.1.13",
-    "typeorm": "0.3.12"
+    "@aws-sdk/client-s3": "^3.743.0",
+    "@wdio/cli": "^9.8.0",
+    "dotenv-flow": "3.3.0",
+    "pg": "^8.13.1",
+    "pg-listen": "^1.7.0",
+    "pino": "8.21.0",
+    "reflect-metadata": "0.1.14",
+    "tar": "^7.4.3",
+    "typeorm": "^0.3.20",
+    "webdriverio": "^9.8.0"
   },
   "devDependencies": {
-    "@types/dotenv-flow": "3.2.0",
-    "@types/jest": "29.5.0",
-    "@types/node": "18.15.11",
-    "@types/pg": "8.6.6",
-    "@types/supertest": "2.0.12",
-    "eslint": "8.37.0",
+    "@types/aws-sdk": "^2.7.4",
+    "@types/dotenv-flow": "3.3.3",
+    "@types/jest": "29.5.14",
+    "@types/node": "^20.17.17",
+    "@types/pg": "^8.11.11",
+    "@types/supertest": "2.0.16",
+    "@types/tar": "^6.1.13",
+    "@wdio/globals": "^9.8.0",
+    "@wdio/types": "^9.6.3",
+    "eslint": "8.57.1",
     "jest": "27.5.1",
-    "pino-pretty": "10.0.0",
-    "supertest": "6.3.3",
-    "ts-jest": "29.1.0",
-    "ts-node": "10.9.1",
-    "typescript": "5.0.4"
+    "pino-pretty": "10.3.1",
+    "supertest": "6.3.4",
+    "ts-jest": "29.2.5",
+    "ts-node": "10.9.2",
+    "typescript": "^5.7.3"
   }
 }
