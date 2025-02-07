@@ -1,8 +1,8 @@
 import jwt from "jsonwebtoken"
+import { User } from "shared"
 import { fetch } from "undici"
 
 import { Database } from "../database"
-import { User } from "../entity/User"
 import { GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, IS_PRODUCTION, JWT_SECRET } from "../environment"
 import { parseSimpleQueryString, requiredQueryString } from "../http"
 import { log } from "../log"

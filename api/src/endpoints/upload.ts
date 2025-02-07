@@ -1,9 +1,9 @@
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3"
+import { ScreenshotTest, WorkTask } from "shared"
 import { uuidv7 } from "uuidv7"
 
 import { getProjectByToken, getS3BucketForProject } from "../authenticate"
 import { Database } from "../database"
-import { ScreenshotTest } from "../entity/ScreenshotTest"
 import { getQueryString } from "../http"
 import { log } from "../log"
 import { DefaultRequest, DefaultResponse } from "../types"
@@ -64,6 +64,20 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
   screenshotTest.uploadId = uploadId
   screenshotTest.status = ""
   await screenshotTestTable.save(screenshotTest)
+
+  // Add a task to the queue to process this screenshot test
+  const task = new WorkTask()
+  task.screenshotTestId = screenshotTest.id
+  task.taskType = "ingest_storybook"
+  task.data = JSON.stringify({ projectId: project.id, uploadId })
+  task.createdAt = new Date()
+  task.updatedAt = task.createdAt
+
+  const tasks = db.getRepository(WorkTask)
+  const savedTask = await tasks.save(task)
+
+  // Use Postgres NOTIFY to wake up the worker
+  await db.query(`NOTIFY task_queue, '${savedTask.id}'`)
 
   res.json({ success: true, uploadId, testId: screenshotTest.id })
 }

@@ -1,9 +1,8 @@
 import { Response, NextFunction } from "express"
 import jwt, { JwtPayload, VerifyErrors } from "jsonwebtoken"
+import { Project, User } from "shared"
 
 import { Database } from "./database"
-import { Project } from "./entity/Project"
-import { User } from "./entity/User"
 import { JWT_SECRET } from "./environment"
 import { log } from "./log"
 import { AuthenticatedRequest, DefaultRequest, MaybeAuthenticatedRequest } from "./types"

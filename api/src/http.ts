@@ -23,7 +23,6 @@ export function getQueryString(key: string, req: DefaultRequest): string | undef
 }
 
 export function getCookieString(key: string, req: DefaultRequest): string | undefined {
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
   const maybeValue = req.cookies[key] as string | undefined
   return typeof maybeValue === "string" ? maybeValue : undefined
 }
@@ -37,7 +36,6 @@ export function requiredQueryString(key: string, req: DefaultRequest): string {
 }
 
 export function requiredCookieString(key: string, req: DefaultRequest): string {
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
   const maybeValue = req.cookies[key] as string | undefined
   if (!maybeValue || typeof maybeValue !== "string") {
     throw new Error(`Missing cookie "${key}"`)

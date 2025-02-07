@@ -1,6 +1,17 @@
+import { S3Client, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3"
+import { WebdriverIOConfig } from "@wdio/types/build/Capabilities"
+import fs, { promises as fsPromises } from "fs"
+import http from "http"
+import os from "os"
+import path from "path"
 import pg from "pg"
 import createPgSubscriber from "pg-listen"
+import { TestResult } from "shared"
+import { Readable } from "stream"
+import { extract } from "tar"
+import { remote } from "webdriverio"
 
+import { Database } from "./database"
 import {
   POSTGRES_USER,
   POSTGRES_HOST,
@@ -15,11 +26,17 @@ type IngestStorybookPayload = {
   uploadId: string
 }
 
+interface Story {
+  id: string
+  name: string
+  importPath: string
+}
+
 const TASKS_CHANNEL = "task_queue"
 const CONN_STRING = `postgres://${POSTGRES_USER}:${POSTGRES_PASS}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DATABASE}`
 const POLL_INTERVAL_MS = 1000 * 10
 
-// Postgres connection pool
+// Postgres connection pool, used for raw SQL queries such as acquiring locks
 const pool = new pg.Pool({
   host: POSTGRES_HOST,
   user: POSTGRES_USER,
@@ -35,10 +52,6 @@ const subscriber = createPgSubscriber({ connectionString: CONN_STRING })
 let currentTaskId: number | undefined
 // Pending tasks we were notified about or discovered while processing another task
 const pendingTaskIds: number[] = []
-
-// TASK: Periodic sweep to check for new tasks
-// TASK: Locking mechanism to prevent multiple workers from processing the same task
-// TASK: Implement ingestStorybook()
 
 async function main() {
   subscriber.notifications.on(TASKS_CHANNEL, (payload) => {
@@ -201,7 +214,188 @@ export function shutdown(): void {
 }
 
 async function ingestStorybook(projectId: string, uploadId: string): Promise<void> {
-  log.info(`Ingesting storybook for project ${projectId}, upload ${uploadId}`)
+  log.info(`Starting storybook ingestion for project ${projectId}, upload ${uploadId}`)
+
+  // Initialize S3 client
+  const s3Client = new S3Client({ region: "us-east-1" })
+  const bucket = "vizdiff-testing" // Hardcoded for now, will be moved to config later
+  const key = `projects/${projectId}/${uploadId}.tar.gz`
+  log.debug(`Using S3 bucket: ${bucket}, key: ${key}`)
+
+  // Create temp directory for extraction
+  const tmpDir = path.join(os.tmpdir(), `storybook-${uploadId}`)
+  log.debug(`Creating temporary directory: ${tmpDir}`)
+  await fsPromises.mkdir(tmpDir, { recursive: true })
+
+  try {
+    // Download the tarball from S3
+    log.info(`Downloading storybook build from S3: ${key}`)
+    const getObjectCommand = new GetObjectCommand({ Bucket: bucket, Key: key })
+    const response = await s3Client.send(getObjectCommand)
+    if (!response.Body) {
+      throw new Error("Empty response body from S3")
+    }
+    log.debug(`Successfully downloaded storybook build from S3`)
+
+    // Save the tarball to disk
+    const tarballPath = path.join(tmpDir, "storybook.tar.gz")
+    log.debug(`Saving tarball to: ${tarballPath}`)
+    const writeStream = fs.createWriteStream(tarballPath)
+    await new Promise<void>((resolve, reject) => {
+      if (response.Body instanceof Readable) {
+        const stream = response.Body.pipe(writeStream)
+        stream.on("finish", () => resolve())
+        stream.on("error", (err: Error) => reject(err))
+      } else {
+        reject(new Error("Response body is not a readable stream"))
+      }
+    })
+    log.debug(`Successfully saved tarball to disk`)
+
+    // Extract the tarball
+    log.info(`Extracting storybook build to: ${tmpDir}`)
+    await extract({ file: tarballPath, cwd: tmpDir })
+    log.debug(`Successfully extracted storybook build`)
+
+    // Initialize WebdriverIO
+    log.info("Initializing WebdriverIO in headless Chrome mode")
+    const config: WebdriverIOConfig = {
+      capabilities: {
+        browserName: "chrome",
+        "goog:chromeOptions": {
+          args: ["--headless", "--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"],
+        },
+      },
+    }
+    const browser = await remote(config)
+    log.debug(
+      `Successfully initialized WebdriverIO [${browser.capabilities.browserName}] ` +
+        `[${browser.capabilities.browserVersion}] [${browser.capabilities.platformName}]`,
+    )
+
+    try {
+      // Start a local server to serve the Storybook files
+      log.info("Starting local HTTP server for Storybook files")
+      const server = http.createServer((req, res) => {
+        const filePath = path.join(tmpDir, req.url ?? "")
+        log.debug(`Serving file: ${filePath}`)
+        fsPromises
+          .readFile(filePath)
+          .then((content) => {
+            const ext = path.extname(filePath)
+            const contentType =
+              {
+                ".html": "text/html",
+                ".js": "text/javascript",
+                ".css": "text/css",
+                ".json": "application/json",
+                ".png": "image/png",
+                ".jpg": "image/jpeg",
+                ".gif": "image/gif",
+                ".svg": "image/svg+xml",
+              }[ext] ?? "application/octet-stream"
+
+            res.writeHead(200, { "Content-Type": contentType })
+            res.end(content)
+            log.debug(`Successfully served file: ${filePath}`)
+          })
+          .catch(() => {
+            log.warn(`File not found: ${filePath}`)
+            res.writeHead(404)
+            res.end()
+          })
+      })
+
+      // Let the OS choose an available port
+      server.listen(0)
+      const address = server.address()
+      if (!address || typeof address === "string") {
+        throw new Error("Failed to get server port")
+      }
+      const port = address.port
+      log.info(`Local server started on port ${port}`)
+
+      try {
+        // Read the Storybook preview file to get the list of stories
+        log.info("Reading Storybook preview file to extract stories")
+        const previewFile = await fsPromises.readFile(path.join(tmpDir, "iframe.html"), "utf8")
+        const storiesMatch = previewFile.match(/window\['STORIES'\] = ({.*?});/s)
+        const storiesJson = storiesMatch?.at(1)
+        if (!storiesJson) {
+          throw new Error("Could not find stories in preview file")
+        }
+        log.debug("Successfully extracted stories from preview file")
+
+        const stories = JSON.parse(storiesJson) as Record<string, Story>
+        log.info(`Found ${Object.keys(stories).length} stories to process`)
+
+        const db = await Database()
+        const testResultTable = db.getRepository(TestResult)
+        log.debug("Successfully connected to database")
+
+        // Process each story
+        for (const [storyId, story] of Object.entries(stories)) {
+          log.info(`Processing story: ${storyId} (${story.name})`)
+
+          // Navigate to the story
+          const storyUrl = `http://localhost:${port}/iframe.html?id=${storyId}`
+          log.debug(`Navigating to story URL: ${storyUrl}`)
+          await browser.url(storyUrl)
+
+          // Wait for the story to load
+          log.debug("Waiting for story to load...")
+          await browser.pause(1000) // Basic wait, could be improved
+
+          // Take a screenshot
+          const screenshotPath = path.join(tmpDir, `${storyId}.png`)
+          log.debug(`Taking screenshot: ${screenshotPath}`)
+          const screenshot = (await browser.saveScreenshot(screenshotPath)) as Buffer
+          log.debug(`Successfully captured screenshot: ${screenshotPath}`)
+
+          // Upload screenshot to S3
+          const screenshotKey = `projects/${projectId}/screenshots/${uploadId}/${storyId}.png`
+          log.debug(`Uploading screenshot to S3: ${screenshotKey}`)
+          await s3Client.send(
+            new PutObjectCommand({
+              Bucket: bucket,
+              Key: screenshotKey,
+              Body: screenshot,
+              ContentType: "image/png",
+            }),
+          )
+          log.debug(`Successfully uploaded screenshot to S3`)
+
+          // TASK: We need to fetch the previous screenshot, compare the new
+          // screenshot with the previous screenshot, and determine the change
+          // status.
+          const changeStatus = "new" // For now assume this is a new screenshot
+
+          // Create test result record
+          log.debug(`Creating test result record for story: ${storyId}`)
+          const testResult = new TestResult()
+          testResult.screenshotTestId = parseInt(uploadId, 10)
+          testResult.storyId = storyId
+          testResult.newImageUrl = `https://${bucket}.s3.amazonaws.com/${screenshotKey}`
+          testResult.changeStatus = changeStatus
+          await testResultTable.save(testResult)
+          log.debug(`Successfully saved test result record`)
+        }
+
+        log.info(`Successfully processed all ${Object.keys(stories).length} stories`)
+      } finally {
+        log.debug("Shutting down local server")
+        server.close()
+      }
+    } finally {
+      log.debug("Closing WebdriverIO browser session")
+      await browser.deleteSession()
+    }
+  } finally {
+    // Cleanup
+    log.debug(`Cleaning up temporary directory: ${tmpDir}`)
+    await fsPromises.rm(tmpDir, { recursive: true, force: true })
+    log.info("Storybook ingestion completed successfully")
+  }
 }
 
 export async function releaseLock(taskQueueId: number): Promise<void> {

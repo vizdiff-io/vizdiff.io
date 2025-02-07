@@ -16,4 +16,4 @@ export const POSTGRES_USER = process.env.POSTGRES_USER ?? "postgres"
 export const POSTGRES_HOST = process.env.POSTGRES_HOST ?? "localhost"
 export const POSTGRES_DATABASE = process.env.POSTGRES_DATABASE ?? "vizdiff"
 export const POSTGRES_PASS = process.env.POSTGRES_PASS ?? "postgres"
-export const POSTGRES_PORT = parseInt(process.env.POSTGRES_PORT ?? "5432")
+export const POSTGRES_PORT = parseInt(process.env.POSTGRES_PORT ?? "5432", 10)

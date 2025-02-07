@@ -1,6 +1,7 @@
+import { Project } from "shared"
+
 import { getUser } from "../authenticate"
 import { Database } from "../database"
-import { Project } from "../entity/Project"
 import { getParamInt } from "../http"
 import { DefaultRequest, DefaultResponse } from "../types"
 
