@@ -1,19 +1,21 @@
-import { Response, NextFunction } from "express"
-import jwt, { JwtPayload, VerifyErrors } from "jsonwebtoken"
+import type { Response, NextFunction } from "express"
+import type { JwtPayload, VerifyErrors } from "jsonwebtoken"
+import jwt from "jsonwebtoken"
+import { Project, User } from "shared"
 
 import { Database } from "./database"
-import { Project } from "./entity/Project"
-import { User } from "./entity/User"
 import { JWT_SECRET } from "./environment"
 import { log } from "./log"
-import { AuthenticatedRequest, DefaultRequest, MaybeAuthenticatedRequest } from "./types"
+import type { AuthenticatedRequest, DefaultRequest, MaybeAuthenticatedRequest } from "./types"
 
 export function authenticateJWT(req: DefaultRequest, res: Response, next: NextFunction): void {
-  const token = `${req.headers.jwt}`
+  const jwtHeader = Array.isArray(req.headers.jwt) ? req.headers.jwt[0] : req.headers.jwt
+  const token = jwtHeader ?? ""
 
   if (!token) {
+    const src = req.ip ?? "unknown"
     log.warn(
-      `No JWT token found in ${req.method} ${req.url} from ${req.ip}, cookies=${JSON.stringify(
+      `No JWT token found in ${req.method} ${req.url} from ${src}, cookies=${JSON.stringify(
         req.cookies,
       )}`,
     )

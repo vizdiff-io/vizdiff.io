@@ -115,8 +115,15 @@ dist
 !.yarn/sdks
 !.yarn/versions
 
+# GnuPG keys
+*.asc
+*.gpg
+
 # OS files
 .DS_Store
+
+# Frontend
+build/
 
 # Storybook
 *storybook.log

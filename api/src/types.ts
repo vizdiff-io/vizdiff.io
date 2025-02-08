@@ -1,5 +1,5 @@
-import { Request, Response } from "express"
-import { ParsedQs } from "qs"
+import type { Request, Response } from "express"
+import type { ParsedQs } from "qs"
 
 type StringRecord = Record<string, unknown>
 

@@ -28,6 +28,12 @@ export class WorkTask {
   @Column({ type: "jsonb", nullable: false })
   data!: string
 
+  @Column({ name: "locked_at", type: "timestamp", nullable: true })
+  lockedAt?: Date
+
+  @Column({ name: "locked_by", type: "varchar", length: 255, nullable: true })
+  lockedBy?: string
+
   @CreateDateColumn({ name: "created_at", type: "timestamp", nullable: false })
   createdAt!: Date
 

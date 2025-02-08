@@ -1,13 +1,13 @@
 import jwt from "jsonwebtoken"
+import { User } from "shared"
 import { fetch } from "undici"
 
 import { Database } from "../database"
-import { User } from "../entity/User"
 import { GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, IS_PRODUCTION, JWT_SECRET } from "../environment"
 import { parseSimpleQueryString, requiredQueryString } from "../http"
 import { log } from "../log"
-import { GithubUser } from "../schemas/GithubUser"
-import { DefaultRequest, DefaultResponse } from "../types"
+import type { GithubUser } from "../schemas/GithubUser"
+import type { DefaultRequest, DefaultResponse } from "../types"
 
 const GITHUB_TOKEN_EXCHANGE = "https://github.com/login/oauth/access_token"
 const GITHUB_USER_INFO = "https://api.github.com/user"

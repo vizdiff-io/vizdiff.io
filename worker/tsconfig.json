@@ -1,29 +1,13 @@
 {
+  "extends": "../tsconfig.options.json",
   "compilerOptions": {
-    "target": "es2020",
-    "lib": ["es2020"],
     "outDir": "dist",
-    "rootDir": "src",
-    "allowJs": true,
-    "skipLibCheck": true,
-    "esModuleInterop": true,
-    "module": "es2020",
-    "moduleResolution": "node",
-    "allowSyntheticDefaultImports": true,
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "incremental": true,
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true,
-
-    "strict": true,
-    "noFallthroughCasesInSwitch": true,
-    "noImplicitAny": true,
-    "noImplicitReturns": true,
-    "noUncheckedIndexedAccess": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "forceConsistentCasingInFileNames": true
+    "types": ["@wdio/globals/types"],
+    "baseUrl": ".",
+    "paths": {
+      "shared": ["../shared/src"]
+    }
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts"],
+  "references": [{ "path": "../shared" }]
 }

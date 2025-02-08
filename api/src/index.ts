@@ -9,6 +9,7 @@ import { pino } from "pino"
 import { pinoHttp } from "pino-http"
 
 import { authenticateJWT } from "./authenticate"
+import { InitializeDatabase } from "./database"
 import * as Auth from "./endpoints/auth"
 import * as Github from "./endpoints/github"
 import * as Projects from "./endpoints/projects"
@@ -16,7 +17,7 @@ import * as Upload from "./endpoints/upload"
 import * as User from "./endpoints/user"
 import { IS_PRODUCTION, IS_TEST, PORT } from "./environment"
 import { log } from "./log"
-import { DefaultRequest, DefaultResponse } from "./types"
+import type { DefaultRequest, DefaultResponse } from "./types"
 
 const startTime = new Date().getTime()
 
@@ -32,6 +33,12 @@ const httpLogger = IS_PRODUCTION
         options: { colorize: !IS_TEST, translateTime: "HH:MM:ss.l" },
       }) as pino.DestinationStream,
     )
+
+if (!IS_TEST) {
+  // Initialize the database asynchronously, this will terminate the process if
+  // the database connection fails
+  void InitializeDatabase()
+}
 
 // Register middleware
 app.use(httpLogger)

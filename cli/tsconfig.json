@@ -1,31 +1,10 @@
 {
-  "include": ["./src/**/*.ts"],
+  "extends": "../tsconfig.options.json",
   "compilerOptions": {
     "module": "commonjs",
-    "target": "es2020",
-    "lib": ["es2020"],
-    "rootDir": "./src",
-    "outDir": "./dist",
-
-    "moduleResolution": "node",
-    "esModuleInterop": true,
-    "isolatedModules": true,
-    "allowJs": false,
-    "newLine": "lf",
-    "resolveJsonModule": true,
-    "skipLibCheck": true,
-
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
-
-    "strict": true,
-    "noFallthroughCasesInSwitch": true,
-    "noImplicitAny": true,
-    "noImplicitReturns": true,
-    "noUncheckedIndexedAccess": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "forceConsistentCasingInFileNames": true
-  }
+    "moduleResolution": "node10",
+    "outDir": "dist",
+    "verbatimModuleSyntax": false
+  },
+  "include": ["./src/**/*.ts"]
 }

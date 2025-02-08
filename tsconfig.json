@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.options.json",
+  "files": [],
+  "references": [
+    { "path": "./shared" },
+    { "path": "./api" },
+    { "path": "./cli" },
+    { "path": "./worker" }
+  ],
+  "include": ["shared/src/**/*.ts"]
+}

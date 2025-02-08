@@ -1,10 +1,6 @@
+import { Project, ScreenshotTest, TestResult, User, WorkTask } from "shared"
 import { DataSource } from "typeorm"
 
-import { Project } from "./entity/Project"
-import { ScreenshotTest } from "./entity/ScreenshotTest"
-import { TestResult } from "./entity/TestResult"
-import { User } from "./entity/User"
-import { WorkTask } from "./entity/WorkTask"
 import {
   IS_PRODUCTION,
   IS_TEST,
@@ -46,13 +42,13 @@ export async function Database(): Promise<DataSource> {
   return database
 }
 
-// Initialize the database on import so we catch any errors early
-Database()
-  .then((db) => {
+export async function InitializeDatabase(): Promise<void> {
+  try {
+    const db = await Database()
     log.debug(`Database initialized: ${db.isInitialized}`)
-  })
-  .catch((err) => {
+  } catch (err) {
     const errWithCode = err as { code?: string }
     log.error(`Database initialization failed: ${errWithCode.code ?? err}`)
     setTimeout(() => process.exit(1), 1000).unref()
-  })
+  }
+}

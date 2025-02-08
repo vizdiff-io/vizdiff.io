@@ -1,6 +1,17 @@
+import { S3Client, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3"
+import type { Capabilities } from "@wdio/types"
+import fs, { promises as fsPromises } from "fs"
+import http from "http"
+import os from "os"
+import path from "path"
 import pg from "pg"
 import createPgSubscriber from "pg-listen"
+import { TestResult } from "shared"
+import { Readable } from "stream"
+import { extract } from "tar"
+import { remote } from "webdriverio"
 
+import { Database } from "./database"
 import {
   POSTGRES_USER,
   POSTGRES_HOST,
@@ -15,9 +26,17 @@ type IngestStorybookPayload = {
   uploadId: string
 }
 
+interface Story {
+  id: string
+  name: string
+  importPath: string
+}
+
 const TASKS_CHANNEL = "task_queue"
 const CONN_STRING = `postgres://${POSTGRES_USER}:${POSTGRES_PASS}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DATABASE}`
+const POLL_INTERVAL_MS = 1000 * 10
 
+// Postgres connection pool, used for raw SQL queries such as acquiring locks
 const pool = new pg.Pool({
   host: POSTGRES_HOST,
   user: POSTGRES_USER,
@@ -27,12 +46,12 @@ const pool = new pg.Pool({
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
 })
-
+// Postgres notification listener
 const subscriber = createPgSubscriber({ connectionString: CONN_STRING })
-
-// TASK: Periodic sweep to check for new tasks
-// TASK: Locking mechanism to prevent multiple workers from processing the same task
-// TASK: Implement ingestStorybook()
+// Current task being processed, if any
+let currentTaskId: number | undefined
+// Pending tasks we were notified about or discovered while processing another task
+const pendingTaskIds: number[] = []
 
 async function main() {
   subscriber.notifications.on(TASKS_CHANNEL, (payload) => {
@@ -48,9 +67,7 @@ async function main() {
       return
     }
 
-    fetchTask(taskQueueId)
-      .then(({ task_type, data }) => processTask(task_type, data))
-      .catch((err) => log.error("Error processing task:", err))
+    startTask(taskQueueId).catch((err: unknown) => log.error("Error processing task:", err))
   })
 
   subscriber.events.on("error", (error) => {
@@ -62,6 +79,64 @@ async function main() {
 
   await subscriber.connect()
   await subscriber.listenTo(TASKS_CHANNEL)
+
+  pollForNewTasks()
+}
+
+export function pollForNewTasks(): void {
+  // Early return if we're already processing a task
+  if (currentTaskId != undefined) {
+    log.debug("Worker is busy, skipping poll")
+    setTimeout(pollForNewTasks, POLL_INTERVAL_MS)
+    return
+  }
+
+  latestTaskQueueId()
+    .then((taskQueueId) => {
+      if (taskQueueId == undefined) {
+        setTimeout(pollForNewTasks, POLL_INTERVAL_MS)
+        return
+      }
+
+      log.info(`Found new task: ${taskQueueId}`)
+      startTask(taskQueueId)
+        .catch((err: unknown) => {
+          log.error(`Error processing task ${taskQueueId}: ${err}`)
+        })
+        .finally(() => {
+          setTimeout(pollForNewTasks, 0)
+        })
+    })
+    .catch((err: unknown) => {
+      log.error("Error fetching latest task queue ID:", err)
+      setTimeout(pollForNewTasks, POLL_INTERVAL_MS)
+    })
+}
+
+export async function startTask(taskQueueId: number): Promise<void> {
+  const task = await fetchTask(taskQueueId)
+  if (!task) {
+    log.warn(`Not starting task ${taskQueueId}: fetchTask() failed`)
+    return
+  }
+
+  log.debug(`Fetched task ${taskQueueId} [${task.task_type}]`)
+
+  if (currentTaskId != undefined) {
+    log.info(`Cannot start task ${taskQueueId}: worker is already processing task ${currentTaskId}`)
+    pendingTaskIds.push(taskQueueId)
+    return
+  }
+
+  currentTaskId = taskQueueId
+  await processTask(task.task_type, task.data).finally(async () => {
+    currentTaskId = undefined
+
+    const nextTaskId = pendingTaskIds.shift()
+    if (nextTaskId) {
+      await startTask(nextTaskId)
+    }
+  })
 }
 
 export async function latestTaskQueueId(): Promise<number | undefined> {
@@ -79,48 +154,261 @@ export async function latestTaskQueueId(): Promise<number | undefined> {
 
 export async function fetchTask(
   taskQueueId: number,
-): Promise<{ task_type: string; data: Record<string, unknown> }> {
-  // Fetch the task from the database
+): Promise<{ task_type: string; data: Record<string, unknown> } | undefined> {
   const client = await pool.connect()
   try {
-    const res = await client.query("select task_type, data from task_queue where id = $1", [
-      taskQueueId,
-    ])
-    if (res.rowCount === 0) {
-      throw new Error(`Task not found: ${taskQueueId}`)
+    // First try to acquire the lock atomically
+    const lockRes = await client.query(
+      `UPDATE task_queue 
+       SET locked_at = NOW(), locked_by = $1
+       WHERE id = $2 AND locked_at IS NULL
+       RETURNING task_type, data`,
+      [`worker-${process.pid}`, taskQueueId],
+    )
+
+    // If no rows were updated, the task was already locked or doesn't exist
+    if (lockRes.rowCount === 0) {
+      const checkRes = await client.query(
+        "SELECT locked_at, locked_by FROM task_queue WHERE id = $1",
+        [taskQueueId],
+      )
+      if (checkRes.rowCount === 0) {
+        throw new Error(`Task not found: ${taskQueueId}`)
+      }
+      const task = checkRes.rows[0] as { locked_by: string; locked_at: Date }
+      log.warn(`Task ${taskQueueId} is locked by ${task.locked_by} since ${task.locked_at}`)
+      return undefined
     }
-    return res.rows[0] as { task_type: string; data: Record<string, unknown> }
+
+    return lockRes.rows[0] as { task_type: string; data: Record<string, unknown> }
   } finally {
     client.release()
   }
 }
 
-export function processTask(taskType: string, data: Record<string, unknown>): void {
-  switch (taskType) {
-    case "ingest_storybook": {
-      const { projectId, uploadId } = data as IngestStorybookPayload
-      ingestStorybook(projectId, uploadId).catch((err) => {
-        log.error("Error processing task:", err)
-      })
-      break
+export async function processTask(taskType: string, data: Record<string, unknown>): Promise<void> {
+  log.info(`Processing task: [${taskType}] ${JSON.stringify(data)}`)
+  try {
+    switch (taskType) {
+      case "ingest_storybook": {
+        const { projectId, uploadId } = data as IngestStorybookPayload
+        await ingestStorybook(projectId, uploadId)
+        break
+      }
+      default:
+        throw new Error(`Unknown task type: ${taskType}`)
     }
-    default:
-      throw new Error(`Unknown task type: ${taskType}`)
+  } finally {
+    // Make sure to release the lock even if there's an error
+    if (currentTaskId) {
+      await releaseLock(currentTaskId)
+    }
   }
 }
 
 export function shutdown(): void {
-  subscriber.close().catch((err) => {
+  subscriber.close().catch((err: unknown) => {
     log.error("Error during shutdown:", err)
     process.exit(1)
   })
 }
 
 async function ingestStorybook(projectId: string, uploadId: string): Promise<void> {
-  log.info(`Ingesting storybook for project ${projectId}, upload ${uploadId}`)
+  log.info(`Starting storybook ingestion for project ${projectId}, upload ${uploadId}`)
+
+  // Initialize S3 client
+  const s3Client = new S3Client({ region: "us-east-1" })
+  const bucket = "vizdiff-testing" // Hardcoded for now, will be moved to config later
+  const key = `projects/${projectId}/${uploadId}.tar.gz`
+  log.debug(`Using S3 bucket: ${bucket}, key: ${key}`)
+
+  // Create temp directory for extraction
+  const tmpDir = path.join(os.tmpdir(), `storybook-${uploadId}`)
+  log.debug(`Creating temporary directory: ${tmpDir}`)
+  await fsPromises.mkdir(tmpDir, { recursive: true })
+
+  try {
+    // Download the tarball from S3
+    log.info(`Downloading storybook build from S3: ${key}`)
+    const getObjectCommand = new GetObjectCommand({ Bucket: bucket, Key: key })
+    const response = await s3Client.send(getObjectCommand)
+    if (!response.Body) {
+      throw new Error("Empty response body from S3")
+    }
+    log.debug(`Successfully downloaded storybook build from S3`)
+
+    // Save the tarball to disk
+    const tarballPath = path.join(tmpDir, "storybook.tar.gz")
+    log.debug(`Saving tarball to: ${tarballPath}`)
+    const writeStream = fs.createWriteStream(tarballPath)
+    await new Promise<void>((resolve, reject) => {
+      if (response.Body instanceof Readable) {
+        const stream = response.Body.pipe(writeStream)
+        stream.on("finish", () => resolve())
+        stream.on("error", (err: Error) => reject(err))
+      } else {
+        reject(new Error("Response body is not a readable stream"))
+      }
+    })
+    log.debug(`Successfully saved tarball to disk`)
+
+    // Extract the tarball
+    log.info(`Extracting storybook build to: ${tmpDir}`)
+    await extract({ file: tarballPath, cwd: tmpDir })
+    log.debug(`Successfully extracted storybook build`)
+
+    // Initialize WebdriverIO
+    log.info("Initializing WebdriverIO in headless Chrome mode")
+    const config: Capabilities.WebdriverIOConfig = {
+      capabilities: {
+        browserName: "chrome",
+        "goog:chromeOptions": {
+          args: ["--headless", "--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"],
+        },
+      },
+    }
+    const browser = await remote(config)
+    log.debug(
+      `Successfully initialized WebdriverIO [${browser.capabilities.browserName}] ` +
+        `[${browser.capabilities.browserVersion}] [${browser.capabilities.platformName}]`,
+    )
+
+    try {
+      // Start a local server to serve the Storybook files
+      log.info("Starting local HTTP server for Storybook files")
+      const server = http.createServer((req, res) => {
+        const filePath = path.join(tmpDir, req.url ?? "")
+        log.debug(`Serving file: ${filePath}`)
+        fsPromises
+          .readFile(filePath)
+          .then((content) => {
+            const ext = path.extname(filePath)
+            const contentType =
+              {
+                ".html": "text/html",
+                ".js": "text/javascript",
+                ".css": "text/css",
+                ".json": "application/json",
+                ".png": "image/png",
+                ".jpg": "image/jpeg",
+                ".gif": "image/gif",
+                ".svg": "image/svg+xml",
+              }[ext] ?? "application/octet-stream"
+
+            res.writeHead(200, { "Content-Type": contentType })
+            res.end(content)
+            log.debug(`Successfully served file: ${filePath}`)
+          })
+          .catch(() => {
+            log.warn(`File not found: ${filePath}`)
+            res.writeHead(404)
+            res.end()
+          })
+      })
+
+      // Let the OS choose an available port
+      server.listen(0)
+      const address = server.address()
+      if (!address || typeof address === "string") {
+        throw new Error("Failed to get server port")
+      }
+      const port = address.port
+      log.info(`Local server started on port ${port}`)
+
+      try {
+        // Read the Storybook preview file to get the list of stories
+        log.info("Reading Storybook preview file to extract stories")
+        const previewFile = await fsPromises.readFile(path.join(tmpDir, "iframe.html"), "utf8")
+        const storiesMatch = /window\['STORIES'\] = ({.*?});/s.exec(previewFile)
+        const storiesJson = storiesMatch?.at(1)
+        if (!storiesJson) {
+          throw new Error("Could not find stories in preview file")
+        }
+        log.debug("Successfully extracted stories from preview file")
+
+        const stories = JSON.parse(storiesJson) as Record<string, Story>
+        log.info(`Found ${Object.keys(stories).length} stories to process`)
+
+        const db = await Database()
+        const testResultTable = db.getRepository(TestResult)
+        log.debug("Successfully connected to database")
+
+        // Process each story
+        for (const [storyId, story] of Object.entries(stories)) {
+          log.info(`Processing story: ${storyId} (${story.name})`)
+
+          // Navigate to the story
+          const storyUrl = `http://localhost:${port}/iframe.html?id=${storyId}`
+          log.debug(`Navigating to story URL: ${storyUrl}`)
+          await browser.url(storyUrl)
+
+          // Wait for the story to load
+          log.debug("Waiting for story to load...")
+          await browser.pause(1000) // Basic wait, could be improved
+
+          // Take a screenshot
+          const screenshotPath = path.join(tmpDir, `${storyId}.png`)
+          log.debug(`Taking screenshot: ${screenshotPath}`)
+          const screenshot = (await browser.saveScreenshot(screenshotPath)) as Buffer
+          log.debug(`Successfully captured screenshot: ${screenshotPath}`)
+
+          // Upload screenshot to S3
+          const screenshotKey = `projects/${projectId}/screenshots/${uploadId}/${storyId}.png`
+          log.debug(`Uploading screenshot to S3: ${screenshotKey}`)
+          await s3Client.send(
+            new PutObjectCommand({
+              Bucket: bucket,
+              Key: screenshotKey,
+              Body: screenshot,
+              ContentType: "image/png",
+            }),
+          )
+          log.debug(`Successfully uploaded screenshot to S3`)
+
+          // TASK: We need to fetch the previous screenshot, compare the new
+          // screenshot with the previous screenshot, and determine the change
+          // status.
+          const changeStatus = "new" // For now assume this is a new screenshot
+
+          // Create test result record
+          log.debug(`Creating test result record for story: ${storyId}`)
+          const testResult = new TestResult()
+          testResult.screenshotTestId = parseInt(uploadId, 10)
+          testResult.storyId = storyId
+          testResult.newImageUrl = `https://${bucket}.s3.amazonaws.com/${screenshotKey}`
+          testResult.changeStatus = changeStatus
+          await testResultTable.save(testResult)
+          log.debug(`Successfully saved test result record`)
+        }
+
+        log.info(`Successfully processed all ${Object.keys(stories).length} stories`)
+      } finally {
+        log.debug("Shutting down local server")
+        server.close()
+      }
+    } finally {
+      log.debug("Closing WebdriverIO browser session")
+      await browser.deleteSession()
+    }
+  } finally {
+    // Cleanup
+    log.debug(`Cleaning up temporary directory: ${tmpDir}`)
+    await fsPromises.rm(tmpDir, { recursive: true, force: true })
+    log.info("Storybook ingestion completed successfully")
+  }
 }
 
-main().catch((err) => {
-  log.error(err)
-  process.exit(1)
+export async function releaseLock(taskQueueId: number): Promise<void> {
+  const client = await pool.connect()
+  try {
+    await client.query("UPDATE task_queue SET locked_at = NULL, locked_by = NULL WHERE id = $1", [
+      taskQueueId,
+    ])
+  } finally {
+    client.release()
+  }
+}
+
+main().catch((err: unknown) => {
+  log.error(`Fatal error: ${err}`)
 })

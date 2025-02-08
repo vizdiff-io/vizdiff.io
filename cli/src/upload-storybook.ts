@@ -33,15 +33,16 @@ export async function uploadStorybook(opts: UploadStorybookOpts): Promise<void> 
   const projectJsonPath = path.join(storybookDir, "project.json")
   try {
     await fs.access(projectJsonPath, fs.constants.R_OK)
-  } catch (error) {
+  } catch (err: unknown) {
+    void err
     throw new Error(`Storybook build manifest does not exist: ${projectJsonPath}`)
   }
 
   // Read and parse the build manifest
-  let project: Record<string, unknown> | undefined
+  let project: Record<string, unknown> | undefined | null
   try {
     const json = await fs.readFile(projectJsonPath, "utf8")
-    project = JSON.parse(json) as Record<string, unknown>
+    project = JSON.parse(json) as Record<string, unknown> | null
   } catch (error) {
     throw new Error(`Failed to parse project.json file: ${error}`)
   }

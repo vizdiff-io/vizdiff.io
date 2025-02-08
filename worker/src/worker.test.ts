@@ -1,3 +1,5 @@
+import { expect, describe, it, afterAll } from "vitest"
+
 import { processTask, shutdown } from "./worker"
 
 describe("worker", () => {
@@ -7,7 +9,14 @@ describe("worker", () => {
 
   describe("processTask", () => {
     it("should fail to process an unknown task", async () => {
-      expect(() => processTask("unknown", {})).toThrow()
+      let error: Error | undefined
+      try {
+        await processTask("unknown", {})
+      } catch (err) {
+        error = err as Error
+      }
+      expect(error).toBeInstanceOf(Error)
+      expect(error!.message).toBe("Unknown task type: unknown")
     })
   })
 

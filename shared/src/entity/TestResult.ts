@@ -15,7 +15,7 @@ export class TestResult {
   @PrimaryGeneratedColumn()
   id!: number
 
-  @Column({ name: "screenshot_test_id" })
+  @Column({ type: "bigint", name: "screenshot_test_id" })
   screenshotTestId!: number
 
   @ManyToOne(() => ScreenshotTest, (screenshotTest) => screenshotTest.testResults, {
