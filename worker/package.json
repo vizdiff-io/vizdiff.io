@@ -7,11 +7,11 @@
     "dev": "yarn node --no-warnings --loader ts-node/esm --experimental-specifier-resolution=node src/worker.ts",
     "start": "yarn dev",
     "build": "tsc",
-    "test": "TS_JEST_DISABLE_VER_CHECKER=true yarn node --no-warnings --experimental-vm-modules $(yarn bin jest)",
-    "lint": "eslint --report-unused-disable-directives --parser-options=\"{tsconfigRootDir:null}\" ."
+    "test": "yarn run vitest --run",
+    "lint": "eslint ."
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.743.0",
+    "@aws-sdk/client-s3": "^3.744.0",
     "@wdio/cli": "^9.8.0",
     "dotenv-flow": "3.3.0",
     "pg": "^8.13.1",
@@ -25,19 +25,17 @@
   },
   "devDependencies": {
     "@types/dotenv-flow": "3.3.3",
-    "@types/jest": "29.5.14",
     "@types/node": "^20.17.17",
     "@types/pg": "^8.11.11",
     "@types/supertest": "2.0.16",
     "@types/tar": "^6.1.13",
     "@wdio/globals": "^9.8.0",
     "@wdio/types": "^9.6.3",
-    "eslint": "8.57.1",
-    "jest": "27.5.1",
+    "eslint": "9.20.0",
     "pino-pretty": "10.3.1",
     "supertest": "6.3.4",
-    "ts-jest": "29.2.5",
     "ts-node": "10.9.2",
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.5"
   }
 }

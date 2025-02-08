@@ -6,7 +6,7 @@ import { getProjectByToken, getS3BucketForProject } from "../authenticate"
 import { Database } from "../database"
 import { getQueryString } from "../http"
 import { log } from "../log"
-import { DefaultRequest, DefaultResponse } from "../types"
+import type { DefaultRequest, DefaultResponse } from "../types"
 
 const AWS_REGION = "us-east-1"
 const MAX_UPLOAD_BYTES = 1024 * 1024 * 100 // 100 MB

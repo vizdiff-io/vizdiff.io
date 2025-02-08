@@ -1,8 +1,10 @@
+import { expect, describe, it, afterAll } from "vitest"
+
 import { processTask, shutdown } from "./worker"
 
 describe("worker", () => {
-  it("should have a correctly configured test environment", async () => {
-    await expect(process.env.NODE_ENV).toBe("test")
+  it("should have a correctly configured test environment", () => {
+    expect(process.env.NODE_ENV).toBe("test")
   })
 
   describe("processTask", () => {
@@ -13,8 +15,8 @@ describe("worker", () => {
       } catch (err) {
         error = err as Error
       }
-      await expect(error).toBeInstanceOf(Error)
-      await expect(error!.message).toBe("Unknown task type: unknown")
+      expect(error).toBeInstanceOf(Error)
+      expect(error!.message).toBe("Unknown task type: unknown")
     })
   })
 

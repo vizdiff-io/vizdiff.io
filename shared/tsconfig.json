@@ -1,19 +1,8 @@
 {
+  "extends": "../tsconfig.options.json",
   "compilerOptions": {
-    "target": "es2020",
-    "lib": ["es2020"],
-    "outDir": "dist",
-    "rootDir": "src",
-    "module": "es2020",
-    "moduleResolution": "bundler",
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "declaration": true,
-    "composite": true,
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true,
-    "strict": true,
-    "sourceMap": true
+    "emitDeclarationOnly": true,
+    "outDir": "dist"
   },
   "include": ["src/**/*.ts"]
 }

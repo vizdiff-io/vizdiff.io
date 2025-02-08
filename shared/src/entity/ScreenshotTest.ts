@@ -1,6 +1,4 @@
 import {
-  AfterInsert,
-  AfterUpdate,
   Column,
   CreateDateColumn,
   Entity,

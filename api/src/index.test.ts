@@ -1,4 +1,5 @@
 import request from "supertest"
+import { expect, describe, it, afterAll } from "vitest"
 
 import { Database } from "./database"
 import server from "./index"
@@ -29,6 +30,7 @@ describe("app", () => {
       }
     } catch (err) {
       // Do nothing
+      void err
     }
   })
 })

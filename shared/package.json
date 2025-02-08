@@ -3,14 +3,16 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "scripts": {
     "build": "tsc",
     "lint": "echo \"No linting yet\"",
     "test": "echo \"No tests yet\""
   },
   "dependencies": {
+    "reflect-metadata": "0.1.14",
     "typeorm": "^0.3.20"
   },
   "devDependencies": {

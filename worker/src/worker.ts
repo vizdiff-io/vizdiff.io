@@ -1,5 +1,5 @@
 import { S3Client, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3"
-import { WebdriverIOConfig } from "@wdio/types/build/Capabilities"
+import type { Capabilities } from "@wdio/types"
 import fs, { promises as fsPromises } from "fs"
 import http from "http"
 import os from "os"
@@ -67,7 +67,7 @@ async function main() {
       return
     }
 
-    startTask(taskQueueId).catch((err) => log.error("Error processing task:", err))
+    startTask(taskQueueId).catch((err: unknown) => log.error("Error processing task:", err))
   })
 
   subscriber.events.on("error", (error) => {
@@ -100,14 +100,14 @@ export function pollForNewTasks(): void {
 
       log.info(`Found new task: ${taskQueueId}`)
       startTask(taskQueueId)
-        .catch((err) => {
+        .catch((err: unknown) => {
           log.error(`Error processing task ${taskQueueId}: ${err}`)
         })
         .finally(() => {
           setTimeout(pollForNewTasks, 0)
         })
     })
-    .catch((err) => {
+    .catch((err: unknown) => {
       log.error("Error fetching latest task queue ID:", err)
       setTimeout(pollForNewTasks, POLL_INTERVAL_MS)
     })
@@ -187,7 +187,7 @@ export async function fetchTask(
 }
 
 export async function processTask(taskType: string, data: Record<string, unknown>): Promise<void> {
-  log.info(`Processing task: [${taskType}] ${data}`)
+  log.info(`Processing task: [${taskType}] ${JSON.stringify(data)}`)
   try {
     switch (taskType) {
       case "ingest_storybook": {
@@ -207,7 +207,7 @@ export async function processTask(taskType: string, data: Record<string, unknown
 }
 
 export function shutdown(): void {
-  subscriber.close().catch((err) => {
+  subscriber.close().catch((err: unknown) => {
     log.error("Error during shutdown:", err)
     process.exit(1)
   })
@@ -259,7 +259,7 @@ async function ingestStorybook(projectId: string, uploadId: string): Promise<voi
 
     // Initialize WebdriverIO
     log.info("Initializing WebdriverIO in headless Chrome mode")
-    const config: WebdriverIOConfig = {
+    const config: Capabilities.WebdriverIOConfig = {
       capabilities: {
         browserName: "chrome",
         "goog:chromeOptions": {
@@ -319,7 +319,7 @@ async function ingestStorybook(projectId: string, uploadId: string): Promise<voi
         // Read the Storybook preview file to get the list of stories
         log.info("Reading Storybook preview file to extract stories")
         const previewFile = await fsPromises.readFile(path.join(tmpDir, "iframe.html"), "utf8")
-        const storiesMatch = previewFile.match(/window\['STORIES'\] = ({.*?});/s)
+        const storiesMatch = /window\['STORIES'\] = ({.*?});/s.exec(previewFile)
         const storiesJson = storiesMatch?.at(1)
         if (!storiesJson) {
           throw new Error("Could not find stories in preview file")
@@ -409,6 +409,6 @@ export async function releaseLock(taskQueueId: number): Promise<void> {
   }
 }
 
-main().catch((err) => {
+main().catch((err: unknown) => {
   log.error(`Fatal error: ${err}`)
 })

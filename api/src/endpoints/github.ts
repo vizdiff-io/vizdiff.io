@@ -2,7 +2,7 @@ import { Octokit } from "@octokit/rest"
 
 import { getUser } from "../authenticate"
 import { log } from "../log"
-import { DefaultRequest, DefaultResponse } from "../types"
+import type { DefaultRequest, DefaultResponse } from "../types"
 
 const GITHUB_HEADERS = { "X-GitHub-Api-Version": "2022-11-28" }
 

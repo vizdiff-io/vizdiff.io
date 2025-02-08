@@ -1,7 +1,7 @@
 import { parse as parseQs, stringify as stringifyQs } from "qs"
 import { URL } from "url"
 
-import { DefaultRequest } from "./types"
+import type { DefaultRequest } from "./types"
 
 const ALLOWED_REDIRECT_DOMAINS = new Set(["localhost", "127.0.0.1", "vizdiff.io"])
 
@@ -54,6 +54,7 @@ export function isValidRedirectUrl(redirectUrl: string): boolean {
     return ALLOWED_REDIRECT_DOMAINS.has(parsedUrl.hostname)
   } catch (err) {
     // If there's an error parsing the URL, it's not valid.
+    void err
     return false
   }
 }
@@ -69,7 +70,10 @@ export function parseSimpleQueryString(queryString: string): Map<string, string>
     if (typeof value === "string") {
       result.set(key, value)
     } else if (Array.isArray(value) && value.length > 0) {
-      result.set(key, String(value[0]))
+      const firstValue = value[0]
+      if (typeof firstValue === "string") {
+        result.set(key, firstValue)
+      }
     }
   }
   if (result.size === 0) {

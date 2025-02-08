@@ -17,7 +17,7 @@ import * as Upload from "./endpoints/upload"
 import * as User from "./endpoints/user"
 import { IS_PRODUCTION, IS_TEST, PORT } from "./environment"
 import { log } from "./log"
-import { DefaultRequest, DefaultResponse } from "./types"
+import type { DefaultRequest, DefaultResponse } from "./types"
 
 const startTime = new Date().getTime()
 

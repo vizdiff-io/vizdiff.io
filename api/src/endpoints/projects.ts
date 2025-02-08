@@ -3,7 +3,7 @@ import { Project } from "shared"
 import { getUser } from "../authenticate"
 import { Database } from "../database"
 import { getParamInt } from "../http"
-import { DefaultRequest, DefaultResponse } from "../types"
+import type { DefaultRequest, DefaultResponse } from "../types"
 
 export async function create(req: DefaultRequest, res: DefaultResponse): Promise<void> {
   const user = await getUser(req)

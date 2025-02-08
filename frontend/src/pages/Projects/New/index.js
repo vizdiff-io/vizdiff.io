@@ -78,7 +78,7 @@ export default function NewProject() {
       }),
     )
     refreshData()
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     if (selectedSource && !loading) {

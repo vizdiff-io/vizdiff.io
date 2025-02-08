@@ -1,3 +1,5 @@
+import "reflect-metadata" // For TypeORM
+
 export * from "./entity/Project"
 export * from "./entity/ScreenshotTest"
 export * from "./entity/TestResult"
