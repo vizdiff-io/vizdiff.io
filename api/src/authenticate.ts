@@ -10,7 +10,7 @@ import type { AuthenticatedRequest, DefaultRequest, MaybeAuthenticatedRequest } 
 
 export function authenticateJWT(req: DefaultRequest, res: Response, next: NextFunction): void {
   const jwtHeader = Array.isArray(req.headers.jwt) ? req.headers.jwt[0] : req.headers.jwt
-  const jwtCookie = String(req.cookies.token)
+  const jwtCookie = req.cookies.token as string | undefined
   const token = (jwtHeader?.length ?? 0) > 0 ? jwtHeader : jwtCookie
 
   if (!token) {
@@ -27,8 +27,8 @@ export function authenticateJWT(req: DefaultRequest, res: Response, next: NextFu
     { complete: false },
     (err: VerifyErrors | null, decoded: JwtPayload | string | undefined) => {
       if (err) {
-        log.warn(`JWT verification failed: ${err.message}`)
-        res.status(403).json({ error: "Forbidden" })
+        log.warn(`JWT verification failed for [${token}]: ${err.message}`)
+        res.status(401).json({ error: "Unauthorized" })
         return
       }
 
@@ -36,7 +36,7 @@ export function authenticateJWT(req: DefaultRequest, res: Response, next: NextFu
         log.warn(
           `JWT verification failed: decoded payload is not an object or does not contain a "sub" field`,
         )
-        res.status(403).json({ error: "Forbidden" })
+        res.status(401).json({ error: "Unauthorized" })
         return
       }
 
