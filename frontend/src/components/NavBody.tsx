@@ -5,6 +5,7 @@ import useTryApiGet from "@/hooks/useTryApiGet"
 const API_ME_URL = "/api/users/me"
 
 const inter = Inter({ subsets: ["latin"] })
+void inter
 
 interface NavBodyProps {
   children: React.ReactNode

@@ -1,6 +1,6 @@
-import { useState, useEffect, DependencyList } from "react"
+import { useState, useEffect, type DependencyList } from "react"
 import { AxiosError } from "axios"
-import { apiGet } from "../lib/apiMethods"
+import { apiGet } from "@/lib/apiMethods"
 
 export default function useApiGet<T>(
   endpoint: string,

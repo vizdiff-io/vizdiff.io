@@ -1,7 +1,7 @@
 import Head from "next/head"
 import { useRouter } from "next/router"
-import useApiGet from "../hooks/useApiGet"
-import { Project as ProjectData } from "../lib/apiTypes"
+import useApiGet from "@/hooks/useApiGet"
+import type { Project as ProjectData } from "@/lib/apiTypes"
 
 export default function Project() {
   const router = useRouter()

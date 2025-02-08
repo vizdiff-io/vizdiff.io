@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react"
 import { List, ListItemButton, ListItemText, Divider, CircularProgress } from "@mui/material"
 import useAuthenticatedFetch from "@/hooks/useApiGet"
 import { apiGet, apiPost } from "@/lib/apiMethods"
-import { Endpoints } from "@octokit/types"
+import type { Endpoints } from "@octokit/types"
 import { IconButton } from "@mui/material"
 import CloseIcon from "@mui/icons-material/Close"
 

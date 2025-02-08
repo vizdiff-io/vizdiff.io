@@ -1,8 +1,8 @@
 import { useState } from "react"
 import { NavBody } from "@/components/NavBody"
-import NewProjectDialog from "../components/NewProjectDialog"
-import useApiGet from "../hooks/useApiGet"
-import { Project } from "../lib/apiTypes"
+import NewProjectDialog from "@/components/NewProjectDialog"
+import useApiGet from "@/hooks/useApiGet"
+import type { Project } from "@/lib/apiTypes"
 import Head from "next/head"
 
 export default function Projects() {
