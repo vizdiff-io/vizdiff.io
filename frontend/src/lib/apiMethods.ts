@@ -8,8 +8,8 @@ export async function apiGet<T>(endpoint: string): Promise<[T | null, AxiosError
     return [response.data, null]
   } catch (err) {
     const axErr = err as AxiosError
-    console.error(`Failed to GET ${endpoint}`, axErr)
-    // redirectIfUnauthorized(axErr)
+    console.warn(`Failed to GET ${endpoint}`, axErr)
+    redirectIfUnauthorized(axErr)
     return [null, axErr]
   }
 }
