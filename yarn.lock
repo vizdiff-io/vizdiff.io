@@ -5412,15 +5412,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/node@npm:18.19.75":
-  version: 18.19.75
-  resolution: "@types/node@npm:18.19.75"
-  dependencies:
-    undici-types: "npm:~5.26.4"
-  checksum: 10/641dc5fa408f1cec66cfa5eef015baf3051a5509ad7ab4b843023ca8b41530d3ef2e798479020d6da20cbe36b3cf150051af2f1786b40bcd2e8dfed1b2fdab9e
-  languageName: node
-  linkType: hard
-
 "@types/node@npm:^20.1.0, @types/node@npm:^20.1.1, @types/node@npm:^20.11.30":
   version: 20.17.17
   resolution: "@types/node@npm:20.17.17"
@@ -10280,7 +10271,7 @@ __metadata:
     "@storybook/nextjs": "npm:8.5.3"
     "@storybook/react": "npm:8.5.3"
     "@storybook/testing-library": "npm:0.2.2"
-    "@types/node": "npm:18.19.75"
+    "@types/node": "npm:22.13.1"
     "@types/react": "npm:18.0.31"
     "@types/react-dom": "npm:19.0.3"
     axios: "npm:1.7.9"
@@ -10292,6 +10283,7 @@ __metadata:
     react: "npm:18.2.0"
     react-dom: "npm:18.2.0"
     storybook: "npm:8.5.3"
+    terser: "npm:^5.38.1"
     typescript: "npm:5.7.3"
     use-async-effect: "npm:2.2.7"
   languageName: unknown
@@ -15929,7 +15921,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"terser@npm:^5.10.0, terser@npm:^5.31.1":
+"terser@npm:^5.10.0, terser@npm:^5.31.1, terser@npm:^5.38.1":
   version: 5.38.1
   resolution: "terser@npm:5.38.1"
   dependencies:
@@ -16462,13 +16454,6 @@ __metadata:
     has-symbols: "npm:^1.1.0"
     which-boxed-primitive: "npm:^1.1.1"
   checksum: 10/fadb347020f66b2c8aeacf8b9a79826fa34cc5e5457af4eb0bbc4e79bd87fed0fa795949825df534320f7c13f199259516ad30abc55a6e7b91d8d996ca069e50
-  languageName: node
-  linkType: hard
-
-"undici-types@npm:~5.26.4":
-  version: 5.26.5
-  resolution: "undici-types@npm:5.26.5"
-  checksum: 10/0097779d94bc0fd26f0418b3a05472410408877279141ded2bd449167be1aed7ea5b76f756562cb3586a07f251b90799bab22d9019ceba49c037c76445f7cddd
   languageName: node
   linkType: hard
 
