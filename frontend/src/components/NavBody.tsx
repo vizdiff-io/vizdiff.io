@@ -15,7 +15,8 @@ interface User {
 }
 
 export const NavBody: React.FC<NavBodyProps> = ({ children }) => {
-  const [me, isMeLoading, meErr] = useTryApiGet<User>(API_ME_URL)
+  const [me, isMeLoading, _] = useTryApiGet<User>(API_ME_URL)
+
   return (
     <>
       <AppBar position="static">
@@ -25,7 +26,7 @@ export const NavBody: React.FC<NavBodyProps> = ({ children }) => {
           {isMeLoading ? (
             <Button disabled>Loading...</Button>
           ) : me ? (
-            <Button href={`${process.env.NEXT_PUBLIC_API_URL}/auth/logout`} color="customColor">
+            <Button href="/api/auth/logout" color="customColor">
               Logout
             </Button>
           ) : (

@@ -6,18 +6,17 @@
   "workspaces": [
     "api",
     "cli",
+    "frontend",
     "shared",
     "worker"
   ],
   "scripts": {
     "api": "yarn workspace api",
     "cli": "yarn workspace cli",
+    "frontend": "yarn workspace frontend",
     "worker": "yarn workspace worker",
     "build:all": "yarn workspace shared build && yarn workspaces foreach --all -p run build",
     "test:all": "yarn workspaces foreach --all -p run test",
     "lint:all": "yarn workspaces foreach --all -p run lint"
-  },
-  "devDependencies": {
-    "lerna": "^4.0.0"
   }
 }

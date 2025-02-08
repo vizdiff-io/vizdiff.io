@@ -1,0 +1,32 @@
+{
+  "extends": "../tsconfig.options.json",
+  "compilerOptions": {
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
+    "jsx": "preserve",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ]
+    },
+    "noEmit": true
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "eslint.config.js",
+    "next-env.d.ts"
+  ],
+  "references": [
+    {
+      "path": "../shared"
+    }
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}

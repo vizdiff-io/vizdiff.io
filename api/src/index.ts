@@ -52,7 +52,7 @@ router.get("/", (_req: DefaultRequest, res: DefaultResponse) => {
   res.json({ uptime: (new Date().getTime() - startTime) / 1000 })
 })
 router.get("/auth/github/callback", Auth.githubCallback)
-router.post("/auth/logout", Auth.logout)
+router.get("/auth/logout", Auth.logout)
 router.get("/github/orgs", authenticateJWT, Github.orgs)
 router.get("/github/repos", authenticateJWT, Github.repos)
 router.get("/projects", authenticateJWT, Projects.list)

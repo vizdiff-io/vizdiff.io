@@ -10,15 +10,13 @@ import type { AuthenticatedRequest, DefaultRequest, MaybeAuthenticatedRequest } 
 
 export function authenticateJWT(req: DefaultRequest, res: Response, next: NextFunction): void {
   const jwtHeader = Array.isArray(req.headers.jwt) ? req.headers.jwt[0] : req.headers.jwt
-  const token = jwtHeader ?? ""
+  const jwtCookie = String(req.cookies.token)
+  const token = (jwtHeader?.length ?? 0) > 0 ? jwtHeader : jwtCookie
 
   if (!token) {
     const src = req.ip ?? "unknown"
-    log.warn(
-      `No JWT token found in ${req.method} ${req.url} from ${src}, cookies=${JSON.stringify(
-        req.cookies,
-      )}`,
-    )
+    const cookies = Object.keys(req.cookies).join(", ")
+    log.warn(`No JWT token found in ${req.method} ${req.url} from ${src}, cookies=${cookies}`)
     res.status(401).json({ error: "Unauthorized" })
     return
   }

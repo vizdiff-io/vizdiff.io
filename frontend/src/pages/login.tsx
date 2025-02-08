@@ -2,7 +2,9 @@ import { NavBody } from "@/components/NavBody"
 import { useRouter } from "next/router"
 
 const clientId = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID
-const callbackUri = encodeURIComponent(`${process.env.NEXT_PUBLIC_API_URL}/auth/github/callback`)
+const callbackUri = encodeURIComponent(
+  `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/github/callback`,
+)
 const scope = "repo,read:org"
 
 export default function Login() {
