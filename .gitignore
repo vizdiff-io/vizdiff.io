@@ -122,6 +122,9 @@ dist
 # OS files
 .DS_Store
 
+# Frontend
+build/
+
 # Storybook
 *storybook.log
 storybook-static/
