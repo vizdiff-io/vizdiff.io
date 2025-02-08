@@ -13,7 +13,7 @@
   ],
   "scripts": {
     "build": "tsc",
-    "lint": "eslint .",
+    "lint": "eslint src",
     "prepack": "yarn build",
     "prepublishOnly": "yarn lint && yarn test",
     "start": "VIZDIFF_API_URL=http://127.0.0.1:3001 ts-node src/bin/vizdiff.ts",
