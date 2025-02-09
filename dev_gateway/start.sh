@@ -12,7 +12,7 @@ fi
 FQDN=$1
 
 # Generate nginx config
-cat > nginx.conf << EOF
+cat > ${SCRIPT_DIR}/nginx.conf << EOF
 server {
     listen 443 ssl;
     server_name ${FQDN};
@@ -22,9 +22,11 @@ server {
 
     location /api/ {
         proxy_pass http://host.docker.internal:3001/;
+        proxy_set_header X-Forwarded-For $remote_addr;
     }
     location / {
         proxy_pass http://host.docker.internal:3000/;
+        proxy_set_header X-Forwarded-For $remote_addr;
     }
 }
 EOF
