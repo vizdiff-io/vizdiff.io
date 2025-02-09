@@ -13,6 +13,10 @@ export const COLORS = {
     light: "#1a1d1e",
     dark: "#ffffff",
   },
+  "text-on-primary": {
+    light: "#000000",
+    dark: "#000000",
+  },
   "seventy-percent-opacity": {
     light: "rgba(0, 0, 0, 0.7)",
     dark: "rgba(255, 255, 255, 0.7)",
@@ -83,7 +87,7 @@ const theme = createTheme({
         },
         containedPrimary: {
           backgroundColor: "#5cc5ff",
-          color: "var(--bg-paper)",
+          color: "var(--text-on-primary)",
           "&:hover": {
             backgroundColor: "#45d3ff",
           },
@@ -107,7 +111,8 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           color: "var(--text-primary)",
-          backgroundColor: "var(--bg-paper)",
+          backgroundColor: "transparent",
+          backgroundImage: "none",
           boxShadow: "none",
           borderBottom: "1px solid var(--twelve-percent-opacity)",
         },
