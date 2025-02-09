@@ -119,13 +119,12 @@ export async function githubCallback(req: DefaultRequest, res: DefaultResponse):
   // Set a secure cookie for the JWT and a JS-accessible cookie to indicate that
   // the user is authenticated
   const domain = new URL(APP_URL).hostname
-  const expires = new Date(Date.now() + 60 * 60 * 1000) // 1 hour in milliseconds
   res.cookie("token", token, {
     domain,
     httpOnly: true,
     secure: IS_PRODUCTION || req.secure ? true : undefined,
     sameSite: "lax",
-    expires,
+    maxAge: 60 * 60 * 1000, // 1 hour in milliseconds
     path: "/",
   })
   res.cookie("authenticated", "true", {
@@ -133,7 +132,7 @@ export async function githubCallback(req: DefaultRequest, res: DefaultResponse):
     httpOnly: false,
     secure: false,
     sameSite: "lax",
-    expires,
+    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days in milliseconds
     path: "/",
   })
 
@@ -147,6 +146,13 @@ export async function logout(req: DefaultRequest, res: DefaultResponse): Promise
     domain,
     httpOnly: true,
     secure: IS_PRODUCTION || req.secure ? true : undefined,
+    sameSite: "lax",
+    path: "/",
+  })
+  res.clearCookie("authenticated", {
+    domain,
+    httpOnly: false,
+    secure: false,
     sameSite: "lax",
     path: "/",
   })

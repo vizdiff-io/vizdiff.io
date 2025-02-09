@@ -25,7 +25,8 @@ export async function approveOrDeny(req: DefaultRequest, res: DefaultResponse): 
 
   const project = await screenshotTest.project
 
-  // TODO: Fall back to asking GitHub if the user (on GitHub) is a collaborator on the repo
+  // TASK(https://github.com/mvi-llc/vizdiff.io/issues/9): Fall back to asking GitHub if the user
+  // (on GitHub) is a collaborator on the repo
   if (project.user.id !== user.id) {
     throw new Error("Access denied")
   }
