@@ -2,7 +2,18 @@ import axios, { AxiosError } from "axios"
 
 const TIMEOUT_MS = 1000 * 30
 
+function isAuthenticated(): boolean {
+  return document.cookie.split("; ").find((row) => row === "authenticated=true") != undefined
+}
+
 export async function apiGet<T>(endpoint: string): Promise<[T | null, AxiosError | null]> {
+  if (!isAuthenticated()) {
+    const error = new AxiosError()
+    error.response = { status: 401 } as any
+    redirectIfUnauthorized(error)
+    return [null, error]
+  }
+
   try {
     const response = await axios.get<T>(endpoint, { withCredentials: true, timeout: TIMEOUT_MS })
     return [response.data, null]
@@ -15,6 +26,12 @@ export async function apiGet<T>(endpoint: string): Promise<[T | null, AxiosError
 }
 
 export async function tryApiGet<T>(endpoint: string): Promise<[T | null, AxiosError | null]> {
+  if (!isAuthenticated()) {
+    const error = new AxiosError()
+    error.response = { status: 401 } as any
+    return [null, error]
+  }
+
   try {
     const response = await axios.get<T>(endpoint, { withCredentials: true, timeout: TIMEOUT_MS })
     return [response.data, null]
@@ -30,6 +47,12 @@ export async function apiPost<T>(
   body: unknown,
   timeoutMs: number = TIMEOUT_MS,
 ): Promise<[T | undefined, AxiosError | undefined]> {
+  if (!isAuthenticated()) {
+    const error = new AxiosError()
+    error.response = { status: 401 } as any
+    return [undefined, error]
+  }
+
   try {
     const response = await axios.post<T>(endpoint, body, {
       headers: { "Content-Type": "application/json" },
@@ -48,6 +71,12 @@ export async function apiPost<T>(
 export async function apiDelete<T>(
   endpoint: string,
 ): Promise<[T | undefined, AxiosError | undefined]> {
+  if (!isAuthenticated()) {
+    const error = new AxiosError()
+    error.response = { status: 401 } as any
+    return [undefined, error]
+  }
+
   try {
     const response = await axios.delete<T>(endpoint, { withCredentials: true, timeout: TIMEOUT_MS })
     return [response.data, undefined]
