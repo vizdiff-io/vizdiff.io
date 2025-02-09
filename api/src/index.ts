@@ -10,6 +10,7 @@ import { pinoHttp } from "pino-http"
 
 import { authenticateJWT } from "./authenticate"
 import { InitializeDatabase } from "./database"
+import * as Approval from "./endpoints/approval"
 import * as Auth from "./endpoints/auth"
 import * as Github from "./endpoints/github"
 import * as Projects from "./endpoints/projects"
@@ -46,6 +47,7 @@ app.use(cors())
 app.use(cookieParser())
 app.use(bodyParser.json())
 app.disable("x-powered-by")
+app.set("trust proxy", ["loopback", "linklocal", "uniquelocal"])
 
 // Register routes
 router.get("/", (_req: DefaultRequest, res: DefaultResponse) => {
@@ -59,6 +61,7 @@ router.get("/projects", authenticateJWT, Projects.list)
 router.get("/projects/:id", authenticateJWT, Projects.get)
 router.delete("/projects/:id", authenticateJWT, Projects.remove)
 router.post("/projects", authenticateJWT, Projects.create)
+router.post("/tests/:id/status/:status", authenticateJWT, Approval.approveOrDeny)
 router.post("/upload/storybook", Upload.uploadStorybook)
 router.get("/users/me", authenticateJWT, User.me)
 app.use(router)
@@ -70,6 +73,7 @@ app.use((err: Error, _req: DefaultRequest, res: DefaultResponse, _next: Express.
   res.status(500).json({ error: err.message })
 })
 
+// Start the server
 const server = app.listen(PORT, () => {
   const address = server.address()
   if (!address) {
