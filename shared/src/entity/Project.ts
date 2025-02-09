@@ -17,9 +17,9 @@ export class Project {
   @PrimaryGeneratedColumn()
   id!: number
 
-  @ManyToOne(() => User, (user) => user.projects, { onDelete: "CASCADE" })
-  @JoinColumn({ name: "user_id" })
-  user!: Promise<User>
+  @ManyToOne(() => User, (user) => user.projects, { onDelete: "CASCADE", nullable: false })
+  @JoinColumn({ name: "user_id", referencedColumnName: "id" })
+  user!: User
 
   @OneToMany(() => ScreenshotTest, (screenshotTest) => screenshotTest.project)
   screenshotTests!: Promise<ScreenshotTest[]>
