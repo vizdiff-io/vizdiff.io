@@ -116,13 +116,24 @@ export async function githubCallback(req: DefaultRequest, res: DefaultResponse):
   // Generate a JWT
   const token = jwt.sign({ sub: user.id }, JWT_SECRET, { expiresIn: "1h" })
 
+  // Set a secure cookie for the JWT and a JS-accessible cookie to indicate that
+  // the user is authenticated
   const domain = new URL(APP_URL).hostname
+  const expires = new Date(Date.now() + 60 * 60 * 1000) // 1 hour in milliseconds
   res.cookie("token", token, {
     domain,
     httpOnly: true,
     secure: IS_PRODUCTION || req.secure ? true : undefined,
     sameSite: "lax",
-    maxAge: 60 * 60 * 1000, // 1 hour in milliseconds
+    expires,
+    path: "/",
+  })
+  res.cookie("authenticated", "true", {
+    domain,
+    httpOnly: false,
+    secure: false,
+    sameSite: "lax",
+    expires,
     path: "/",
   })
 
