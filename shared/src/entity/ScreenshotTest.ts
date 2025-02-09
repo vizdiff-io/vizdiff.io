@@ -22,12 +22,15 @@ export class ScreenshotTest {
   @PrimaryGeneratedColumn()
   id!: number
 
-  @Column({ name: "project_id", type: "integer" })
+  @Column({ name: "project_id", type: "integer", nullable: false })
   projectId!: number
 
-  @ManyToOne(() => Project, { onDelete: "CASCADE" })
-  @JoinColumn({ name: "project_id" })
+  @ManyToOne(() => Project, { onDelete: "CASCADE", nullable: false })
+  @JoinColumn({ name: "project_id", referencedColumnName: "id" })
   project!: Promise<Project>
+
+  @Column({ name: "build_number", type: "integer", nullable: false })
+  buildNumber!: number
 
   @OneToMany(() => TestResult, (testResult) => testResult.screenshotTest)
   testResults!: Promise<TestResult[]>
@@ -35,24 +38,24 @@ export class ScreenshotTest {
   @OneToMany(() => WorkTask, (workTask) => workTask.screenshotTest)
   workTasks!: Promise<WorkTask[]>
 
-  @Column({ name: "commit_sha", type: "varchar", length: 64 })
+  @Column({ name: "commit_sha", type: "varchar", length: 64, nullable: false })
   commitSha!: string
 
-  @Column({ type: "varchar", length: 255 })
+  @Column({ type: "varchar", length: 255, nullable: false })
   branch!: string
 
-  @Column({ name: "upload_id", type: "varchar", length: 36, unique: true })
+  @Column({ name: "upload_id", type: "varchar", length: 36, unique: true, nullable: false })
   uploadId!: string
 
-  @Column({ type: "varchar", length: 255 })
+  @Column({ type: "varchar", length: 255, nullable: false })
   status!: string
 
   @Column({ name: "total_changes", type: "integer", nullable: true })
   totalChanges!: number | undefined
 
-  @CreateDateColumn({ name: "created_at" })
+  @CreateDateColumn({ name: "created_at", nullable: false })
   createdAt!: Date
 
-  @UpdateDateColumn({ name: "updated_at" })
+  @UpdateDateColumn({ name: "updated_at", nullable: false })
   updatedAt!: Date
 }

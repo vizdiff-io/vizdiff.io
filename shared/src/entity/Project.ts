@@ -24,21 +24,21 @@ export class Project {
   @OneToMany(() => ScreenshotTest, (screenshotTest) => screenshotTest.project)
   screenshotTests!: Promise<ScreenshotTest[]>
 
-  @Column({ type: "varchar", length: 255 })
+  @Column({ type: "varchar", length: 255, nullable: false })
   name!: string
 
-  @Column({ type: "char", length: 12, unique: true })
+  @Column({ type: "char", length: 12, unique: true, nullable: false })
   token!: string
 
-  @Column({ name: "github_repo_url", type: "varchar", length: 2048 })
+  @Column({ name: "github_repo_url", type: "varchar", length: 2048, nullable: false })
   githubRepoUrl!: string
 
   @Column({ name: "storybook_config", type: "jsonb", nullable: true })
   storybookConfig!: Record<string, unknown>
 
-  @CreateDateColumn({ name: "created_at" })
+  @CreateDateColumn({ name: "created_at", nullable: false })
   createdAt!: Date
 
-  @UpdateDateColumn({ name: "updated_at" })
+  @UpdateDateColumn({ name: "updated_at", nullable: false })
   updatedAt!: Date
 }
