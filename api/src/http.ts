@@ -22,6 +22,11 @@ export function getQueryString(key: string, req: DefaultRequest): string | undef
   return typeof maybeValue === "string" ? maybeValue : undefined
 }
 
+export function getParamString(key: string, req: DefaultRequest): string | undefined {
+  const maybeValue = (req.params as Record<string, string>)[key]
+  return typeof maybeValue === "string" ? maybeValue : undefined
+}
+
 export function getCookieString(key: string, req: DefaultRequest): string | undefined {
   const maybeValue = req.cookies[key] as string | undefined
   return typeof maybeValue === "string" ? maybeValue : undefined

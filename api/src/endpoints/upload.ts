@@ -1,11 +1,12 @@
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3"
-import { ScreenshotTest, WorkTask } from "shared"
+import { WorkTask } from "shared"
 import { uuidv7 } from "uuidv7"
 
 import { getProjectByToken, getS3BucketForProject } from "../authenticate"
 import { Database } from "../database"
 import { getQueryString } from "../http"
 import { log } from "../log"
+import { createScreenshotTest } from "../screenshot_tests"
 import type { DefaultRequest, DefaultResponse } from "../types"
 
 const AWS_REGION = "us-east-1"
@@ -54,16 +55,8 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
     `Uploaded ${Key} to S3 bucket ${Bucket} (project=${project.id}, upload=${uploadId}, length=${req.readableLength})`,
   )
 
-  // Create or update a row in `screenshot_tests` for this upload
-  const db = await Database()
-  const screenshotTestTable = db.getRepository(ScreenshotTest)
-  const screenshotTest = new ScreenshotTest()
-  screenshotTest.projectId = project.id
-  screenshotTest.commitSha = commitSha
-  screenshotTest.branch = branchName
-  screenshotTest.uploadId = uploadId
-  screenshotTest.status = ""
-  await screenshotTestTable.save(screenshotTest)
+  // Create a row in `screenshot_tests` for this upload
+  const screenshotTest = await createScreenshotTest(project.id, commitSha, branchName, uploadId)
 
   // Add a task to the queue to process this screenshot test
   const task = new WorkTask()
@@ -73,6 +66,7 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
   task.createdAt = new Date()
   task.updatedAt = task.createdAt
 
+  const db = await Database()
   const tasks = db.getRepository(WorkTask)
   const savedTask = await tasks.save(task)
 
