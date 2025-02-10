@@ -9,6 +9,7 @@ type StoryArgs = {
 }
 
 const meta: Meta<typeof HomeComponent> = {
+  title: "stories/pages/Home",
   component: HomeComponent,
   argTypes: {
     mode: {

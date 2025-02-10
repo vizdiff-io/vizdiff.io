@@ -11,6 +11,7 @@ type StoryArgs = {
   mode?: "light" | "dark"
 }
 
+const oneMinuteAgo = Math.floor(Date.now() / 1000) - 60
 const mockData: TestResponse = {
   id: 123,
   projectId: 456,
@@ -19,24 +20,31 @@ const mockData: TestResponse = {
   branch: "main",
   uploadId: "upload-123",
   status: "completed",
-  initiatedStampSec: Math.floor(Date.now() / 1000),
+  initiatedStampSec: oneMinuteAgo,
   testResults: [
     {
       id: 1,
       name: "Homepage Test",
       changeStatus: "changed",
-      screenshotUrl: "https://placecats.com/800/600",
-      ancestorScreenshotUrl: "https://placecats.com/800/600",
-      diffMaskUrl: "https://placecats.com/800/600",
-      createdStampSec: Math.floor(Date.now() / 1000),
+      screenshotUrl: "https://placecats.com/millie/800/600",
+      ancestorScreenshotUrl: "https://placecats.com/neo/800/600",
+      diffMaskUrl: "https://placecats.com/millie_neo/800/600",
+      createdStampSec: oneMinuteAgo,
     },
     {
       id: 2,
       name: "Dashboard Test",
       changeStatus: "unchanged",
-      screenshotUrl: "https://placecats.com/800/600",
-      ancestorScreenshotUrl: "https://placecats.com/800/600",
-      createdStampSec: Math.floor(Date.now() / 1000),
+      screenshotUrl: "https://placecats.com/neo_banana/800/600",
+      ancestorScreenshotUrl: "https://placecats.com/bella/800/600",
+      createdStampSec: oneMinuteAgo,
+    },
+    {
+      id: 3,
+      name: "Login Test",
+      changeStatus: "new",
+      screenshotUrl: "https://placecats.com/poppy/800/600",
+      createdStampSec: oneMinuteAgo,
     },
   ],
   parent: {
@@ -47,12 +55,12 @@ const mockData: TestResponse = {
     commitSha: "def456",
     uploadId: "upload-122",
     status: "completed",
-    initiatedStampSec: Math.floor(Date.now() / 1000) - 3600,
+    initiatedStampSec: oneMinuteAgo - 3600,
   },
 }
 
 const meta: Meta<typeof BuildComponent> = {
-  title: "stories/Build",
+  title: "stories/pages/Build",
   component: BuildComponent,
   argTypes: {
     mode: {
