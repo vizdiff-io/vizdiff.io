@@ -5,7 +5,6 @@ import cookieParser from "cookie-parser"
 import cors from "cors"
 import Express from "express"
 import Router from "express-promise-router"
-import { pino } from "pino"
 import { pinoHttp } from "pino-http"
 
 import { authenticateJWT } from "./authenticate"
@@ -25,15 +24,23 @@ const startTime = new Date().getTime()
 const app = Express()
 const router = Router({ caseSensitive: true })
 
-const httpLogger = IS_PRODUCTION
-  ? pinoHttp({ level: "info" })
-  : pinoHttp(
-      { level: "debug" },
-      pino.transport({
-        target: "pino-http-print",
-        options: { colorize: !IS_TEST, translateTime: "HH:MM:ss.l" },
-      }) as pino.DestinationStream,
-    )
+const httpLoggerConfig = {
+  level: IS_PRODUCTION ? "info" : "debug",
+  customProps: (req: DefaultRequest) => ({
+    realIp: (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0] ?? req.ip,
+  }),
+  transport: {
+    target: "pino-pretty",
+    options: {
+      colorize: !IS_TEST && !IS_PRODUCTION,
+      translateTime: "HH:MM:ss.l",
+      ignore: "pid,hostname,req,res,realIp,err,responseTime",
+      messageFormat: "[{realIp}] {req.method} {req.url} {res.statusCode} {responseTime}ms",
+    },
+  },
+}
+
+const httpLogger = pinoHttp(httpLoggerConfig)
 
 if (!IS_TEST) {
   // Initialize the database asynchronously, this will terminate the process if
@@ -54,7 +61,7 @@ router.get("/", (_req: DefaultRequest, res: DefaultResponse) => {
   res.json({ uptime: (new Date().getTime() - startTime) / 1000 })
 })
 router.get("/auth/github/callback", Auth.githubCallback)
-router.get("/auth/logout", Auth.logout)
+router.get("/auth/logout", Auth.logout) // Clears cookies only, no auth needed
 router.get("/github/orgs", authenticateJWT, Github.orgs)
 router.get("/github/repos", authenticateJWT, Github.repos)
 router.get("/projects", authenticateJWT, Projects.list)
@@ -62,7 +69,7 @@ router.get("/projects/:id", authenticateJWT, Projects.get)
 router.delete("/projects/:id", authenticateJWT, Projects.remove)
 router.post("/projects", authenticateJWT, Projects.create)
 router.post("/tests/:id/status/:status", authenticateJWT, Approval.approveOrDeny)
-router.post("/upload/storybook", Upload.uploadStorybook)
+router.post("/upload/storybook", Upload.uploadStorybook) // ?token=<project_token>
 router.get("/users/me", authenticateJWT, User.me)
 app.use(router)
 
