@@ -7,55 +7,18 @@ import { useRouter } from "next/router"
 
 import { NavBody } from "@/components/NavBody"
 import useApiGet from "@/hooks/useApiGet"
-import type { Project as ProjectData, ScreenshotTestSummaryResponse } from "@/lib/apiTypes"
+import type { ProjectResponse, ScreenshotTestSummaryResponse } from "@/lib/apiTypes"
 
 export default function Project(): JSX.Element {
   const router = useRouter()
   const { id } = router.query
-  const [project, loading, error] = useApiGet<ProjectData>(`/api/projects/${id}`)
+  const [project, projectLoading, projectError] = useApiGet<ProjectResponse>(`/api/projects/${id}`)
+  const [builds, buildsLoading, buildsError] = useApiGet<ScreenshotTestSummaryResponse[]>(
+    `/api/projects/${id}/builds`,
+  )
 
-  // Mock build data - replace with actual API call
-  const builds: ScreenshotTestSummaryResponse[] = [
-    {
-      id: 3,
-      projectId: 1,
-      buildNumber: 3,
-      commitSha: "38c7f9c",
-      branch: "main",
-      uploadId: "123",
-      initiatedStampSec: 1712982000,
-      status: "success",
-      tag: undefined,
-    },
-    {
-      id: 2,
-      projectId: 1,
-      buildNumber: 2,
-      commitSha: "38c7f9c",
-      branch: "main",
-      uploadId: "123",
-      components: 1,
-      stories: 1,
-      changes: 0,
-      initiatedStampSec: 1712982000,
-      status: "success",
-      tag: "Infrastructure upgrade",
-    },
-    {
-      id: 1,
-      projectId: 1,
-      buildNumber: 1,
-      commitSha: "38c7f9c",
-      branch: "main",
-      uploadId: "123",
-      components: 1,
-      stories: 1,
-      changes: 1,
-      initiatedStampSec: 1712982000,
-      status: "success",
-      tag: undefined,
-    },
-  ]
+  const loading = projectLoading || buildsLoading
+  const error = projectError ?? buildsError
 
   return (
     <>
@@ -93,7 +56,7 @@ export default function Project(): JSX.Element {
             <Typography>Loading project...</Typography>
           ) : (
             <Box>
-              {builds.map((build) => (
+              {(builds ?? []).map((build) => (
                 <Paper
                   key={build.id}
                   sx={{
@@ -104,12 +67,13 @@ export default function Project(): JSX.Element {
                     "&:hover": { bgcolor: "action.hover" },
                     cursor: "pointer",
                   }}
+                  onClick={() => void router.push(`/build?id=${build.id}`)}
                 >
                   <CircleIcon
                     sx={{
                       mr: 2,
                       fontSize: 16,
-                      color: build.status === "success" ? "success.main" : "error.main",
+                      color: build.status === "completed" ? "success.main" : "warning.main",
                     }}
                   />
                   <Box sx={{ flex: 1 }}>

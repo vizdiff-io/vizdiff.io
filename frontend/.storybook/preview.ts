@@ -1,6 +1,9 @@
-import type { Preview } from "@storybook/react"
+import { initialize, mswLoader } from "msw-storybook-addon"
 
-const preview: Preview = {
+// Initialize MSW
+initialize()
+
+const preview = {
   parameters: {
     actions: { argTypesRegex: "^on[A-Z].*" },
     controls: {
@@ -10,6 +13,7 @@ const preview: Preview = {
       },
     },
   },
+  loaders: [mswLoader],
 }
 
 export default preview

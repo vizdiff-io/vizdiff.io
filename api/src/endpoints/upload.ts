@@ -6,7 +6,7 @@ import { getProjectByToken, getS3BucketForProject } from "../authenticate"
 import { Database } from "../database"
 import { getQueryString } from "../http"
 import { log } from "../log"
-import { createScreenshotTest } from "../screenshot-tests"
+import { createScreenshotTest } from "../screenshotTests"
 import type { DefaultRequest, DefaultResponse } from "../types"
 
 const AWS_REGION = "us-east-1"

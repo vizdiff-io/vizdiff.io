@@ -91,7 +91,7 @@ export default function Build(): JSX.Element {
                     variant="h6"
                     sx={{
                       fontWeight: 500,
-                      color: data?.status === "success" ? "success.main" : "text.primary",
+                      color: data?.status === "completed" ? "success.main" : "text.primary",
                     }}
                   >
                     {data?.status ?? "…"}

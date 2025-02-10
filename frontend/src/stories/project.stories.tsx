@@ -1,0 +1,109 @@
+import type { Meta, StoryObj, StoryContext } from "@storybook/react"
+import { http, HttpResponse } from "msw"
+import { type ComponentType } from "react"
+
+import type { ProjectResponse, ScreenshotTestSummaryResponse } from "@/lib/apiTypes"
+
+import ThemeWrapper from "./ThemeWrapper"
+import { userHandler } from "./mocks"
+import ProjectComponent from "../pages/project"
+
+type StoryArgs = {
+  mode?: "light" | "dark"
+}
+
+const oneMinuteAgo = Math.floor(Date.now() / 1000) - 60
+const mockProject: ProjectResponse = {
+  id: 456,
+  name: "Example Project",
+  githubRepoUrl: "https://github.com/example/project",
+  token: "abc123def456",
+  createdStampSec: oneMinuteAgo - 3600 * 24, // 1 day ago
+}
+
+const mockBuilds: ScreenshotTestSummaryResponse[] = [
+  {
+    id: 3,
+    projectId: 456,
+    buildNumber: 3,
+    commitSha: "38c7f9c",
+    branch: "main",
+    uploadId: "123",
+    initiatedStampSec: oneMinuteAgo,
+    status: "completed",
+    components: 12,
+    stories: 45,
+    changes: 3,
+  },
+  {
+    id: 2,
+    projectId: 456,
+    buildNumber: 2,
+    commitSha: "d4e5f6a",
+    branch: "main",
+    uploadId: "122",
+    components: 12,
+    stories: 45,
+    changes: 0,
+    initiatedStampSec: oneMinuteAgo - 3600, // 1 hour ago
+    status: "completed",
+    tag: "Infrastructure upgrade",
+  },
+  {
+    id: 1,
+    projectId: 456,
+    buildNumber: 1,
+    commitSha: "1a2b3c4",
+    branch: "main",
+    uploadId: "121",
+    components: 10,
+    stories: 40,
+    changes: 40,
+    initiatedStampSec: oneMinuteAgo - 3600 * 24, // 1 day ago
+    status: "completed",
+  },
+]
+
+const meta: Meta<typeof ProjectComponent> = {
+  title: "stories/pages/Project",
+  component: ProjectComponent,
+  argTypes: {
+    mode: {
+      control: "radio",
+      options: ["light", "dark"],
+      defaultValue: "light",
+    },
+  },
+  decorators: [
+    (Story: ComponentType, context: StoryContext<StoryArgs>): JSX.Element => {
+      // Set authentication cookie for Storybook
+      document.cookie = "authenticated=true; path=/"
+      return (
+        <ThemeWrapper mode={context.args.mode ?? "light"}>
+          <Story />
+        </ThemeWrapper>
+      )
+    },
+  ],
+  parameters: {
+    nextjs: {
+      router: {
+        query: { id: "456" },
+      },
+    },
+    msw: {
+      handlers: [
+        userHandler,
+        http.get("/api/projects/:id", () => HttpResponse.json(mockProject)),
+        http.get("/api/projects/:projectId/builds", () => HttpResponse.json(mockBuilds)),
+      ],
+    },
+  },
+}
+
+export default meta
+type Story = StoryObj<typeof ProjectComponent>
+
+export const Project: Story = {
+  render: () => <ProjectComponent />,
+}

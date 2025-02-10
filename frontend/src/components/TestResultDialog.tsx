@@ -35,9 +35,26 @@ export default function TestResultDialog({
     return null
   }
 
+  // Reset to "new" view if trying to view a mode that requires ancestorScreenshotUrl
+  if (!result.ancestorScreenshotUrl && (viewMode === "old" || viewMode === "split")) {
+    setViewMode("new")
+  }
+
   const handleViewModeChange = (_: React.MouseEvent<HTMLElement>, newMode: ViewMode | null) => {
     if (newMode) {
       setViewMode(newMode)
+    }
+  }
+
+  const getImageUrl = () => {
+    switch (viewMode) {
+      case "old":
+        return result.ancestorScreenshotUrl ?? result.screenshotUrl
+      case "diff":
+      case "split":
+      case "new":
+      default:
+        return result.screenshotUrl
     }
   }
 
@@ -71,19 +88,19 @@ export default function TestResultDialog({
             onChange={handleViewModeChange}
             size="small"
           >
+            <ToggleButton value="old" disabled={!result.ancestorScreenshotUrl}>
+              <LayersIcon sx={{ mr: 1 }} />
+              Old
+            </ToggleButton>
             <ToggleButton value="new">
               <LayersIcon sx={{ mr: 1 }} />
               New
-            </ToggleButton>
-            <ToggleButton value="old">
-              <LayersIcon sx={{ mr: 1 }} />
-              Old
             </ToggleButton>
             <ToggleButton value="diff" disabled={!result.diffMaskUrl}>
               <CompareIcon sx={{ mr: 1 }} />
               Diff
             </ToggleButton>
-            <ToggleButton value="split">
+            <ToggleButton value="split" disabled={!result.ancestorScreenshotUrl}>
               <GridViewIcon sx={{ mr: 1 }} />
               2-up
             </ToggleButton>
@@ -102,7 +119,7 @@ export default function TestResultDialog({
               </Typography>
               <Box sx={{ position: "relative", width: "100%", height: "calc(100% - 28px)" }}>
                 <Image
-                  src={result.screenshotUrl}
+                  src={result.ancestorScreenshotUrl ?? result.screenshotUrl}
                   alt={`Old version of ${result.name}`}
                   layout="fill"
                   objectFit="contain"
@@ -126,7 +143,7 @@ export default function TestResultDialog({
         ) : (
           <Box sx={{ position: "relative", width: "100%", height: "100%", p: 2 }}>
             <Image
-              src={result.screenshotUrl}
+              src={getImageUrl()}
               alt={`Screenshot for ${result.name}`}
               layout="fill"
               objectFit="contain"

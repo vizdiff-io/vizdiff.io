@@ -2,16 +2,15 @@ import type { Meta, StoryObj, StoryContext } from "@storybook/react"
 import { type ComponentType } from "react"
 
 import ThemeWrapper from "./ThemeWrapper"
-import { userHandler } from "./mocks"
-import HomeComponent from "../pages/index"
+import LoginComponent from "../pages/login"
 
 type StoryArgs = {
   mode?: "light" | "dark"
 }
 
-const meta: Meta<typeof HomeComponent> = {
-  title: "stories/pages/Home",
-  component: HomeComponent,
+const meta: Meta<typeof LoginComponent> = {
+  title: "stories/pages/Login",
+  component: LoginComponent,
   argTypes: {
     mode: {
       control: "radio",
@@ -27,15 +26,17 @@ const meta: Meta<typeof HomeComponent> = {
     ),
   ],
   parameters: {
-    msw: {
-      handlers: [userHandler],
+    nextjs: {
+      router: {
+        query: { redirect: "https://vizdiff.io/projects" },
+      },
     },
   },
 }
 
 export default meta
-type Story = StoryObj<typeof HomeComponent>
+type Story = StoryObj<typeof LoginComponent>
 
-export const Home: Story = {
-  render: () => <HomeComponent />,
+export const Login: Story = {
+  render: () => <LoginComponent />,
 }

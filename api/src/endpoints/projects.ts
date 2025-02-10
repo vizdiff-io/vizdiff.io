@@ -1,5 +1,6 @@
 import { Project } from "shared"
 
+import type { ProjectResponse } from "../apiTypes"
 import { getUser } from "../authenticate"
 import { Database } from "../database"
 import { getParamInt } from "../http"
@@ -27,7 +28,14 @@ export async function create(req: DefaultRequest, res: DefaultResponse): Promise
   const projectTable = db.getRepository(Project)
   await projectTable.save(project)
 
-  res.json(project)
+  const response: ProjectResponse = {
+    id: project.id,
+    name: project.name,
+    githubRepoUrl: project.githubRepoUrl,
+    token: project.token,
+    createdStampSec: project.createdAt.getTime() / 1000,
+  }
+  res.json(response)
 }
 
 export async function remove(req: DefaultRequest, res: DefaultResponse): Promise<void> {
