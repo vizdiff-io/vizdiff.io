@@ -13,7 +13,7 @@ export type ScreenshotTestResponse = {
   baseCommitSha?: string
   baseBranch?: string
   uploadId: string
-  status: string
+  status: "pending" | "running" | "completed"
   tag?: string
   initiatedStampSec: number
   buildDurationSec?: number
@@ -74,7 +74,7 @@ async function screenshotTestToResponse(
     commitSha: screenshotTest.commitSha,
     branch: screenshotTest.branch,
     uploadId: screenshotTest.uploadId,
-    status: screenshotTest.status,
+    status: screenshotTest.status as "pending" | "running" | "completed",
     tag: undefined,
     initiatedStampSec: screenshotTest.createdAt.getTime() / 1000,
     buildDurationSec: screenshotTest.buildDurationSec,

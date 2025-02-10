@@ -3,6 +3,11 @@
   "version": "0.2.0",
   "private": true,
   "type": "module",
+  "msw": {
+    "workerDirectory": [
+      "public"
+    ]
+  },
   "scripts": {
     "dev": "next dev",
     "build": "NODE_ENV=production next build",
@@ -38,6 +43,8 @@
     "eslint": "9.20.0",
     "eslint-config-next": "15.1.6",
     "eslint-plugin-storybook": "0.11.2",
+    "msw": "^2.7.0",
+    "msw-storybook-addon": "^2.0.4",
     "next": "15.1.6",
     "react": "18.2.0",
     "react-dom": "18.2.0",
