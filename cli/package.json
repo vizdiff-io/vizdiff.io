@@ -12,7 +12,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsc --build",
     "lint": "eslint src",
     "prepack": "yarn build",
     "prepublishOnly": "yarn lint && yarn test",
