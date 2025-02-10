@@ -5,6 +5,7 @@ import { type ComponentType } from "react"
 import type { ProjectResponse } from "@/lib/apiTypes"
 
 import ThemeWrapper from "./ThemeWrapper"
+import { userHandler } from "./mocks"
 import ProjectsComponent from "../pages/projects"
 
 type StoryArgs = {
@@ -59,7 +60,7 @@ const meta: Meta<typeof ProjectsComponent> = {
   ],
   parameters: {
     msw: {
-      handlers: [http.get("/api/projects", () => HttpResponse.json(mockProjects))],
+      handlers: [userHandler, http.get("/api/projects", () => HttpResponse.json(mockProjects))],
     },
   },
 }

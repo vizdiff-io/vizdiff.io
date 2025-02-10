@@ -1,3 +1,15 @@
+import type { GithubUser } from "./schemas/GithubUser"
+
+export type UserResponse = {
+  id: number
+  githubId: string
+  email: string | null
+  githubUsername: string
+  githubProfile: GithubUser
+  createdStampSec: number
+  updatedStampSec: number
+}
+
 export type ProjectResponse = {
   id: number
   name: string

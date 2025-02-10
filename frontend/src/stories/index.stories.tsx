@@ -2,6 +2,7 @@ import type { Meta, StoryObj, StoryContext } from "@storybook/react"
 import { type ComponentType } from "react"
 
 import ThemeWrapper from "./ThemeWrapper"
+import { userHandler } from "./mocks"
 import HomeComponent from "../pages/index"
 
 type StoryArgs = {
@@ -25,6 +26,11 @@ const meta: Meta<typeof HomeComponent> = {
       </ThemeWrapper>
     ),
   ],
+  parameters: {
+    msw: {
+      handlers: [userHandler],
+    },
+  },
 }
 
 export default meta

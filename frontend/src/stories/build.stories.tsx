@@ -5,6 +5,7 @@ import { type ComponentType } from "react"
 import type { TestResponse } from "@/lib/apiTypes"
 
 import ThemeWrapper from "./ThemeWrapper"
+import { userHandler } from "./mocks"
 import BuildComponent from "../pages/build"
 
 type StoryArgs = {
@@ -87,7 +88,7 @@ const meta: Meta<typeof BuildComponent> = {
       },
     },
     msw: {
-      handlers: [http.get("/api/tests/:id", () => HttpResponse.json(mockData))],
+      handlers: [userHandler, http.get("/api/tests/:id", () => HttpResponse.json(mockData))],
     },
   },
 }
