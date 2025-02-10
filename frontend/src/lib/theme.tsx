@@ -1,6 +1,6 @@
 import { createTheme, type Theme } from "@mui/material"
 
-export const COLORS = {
+export const COLORS: Record<string, { light: string; dark: string }> = {
   "bg-primary": {
     light: "#fefefe",
     dark: "#1a1d1e",
