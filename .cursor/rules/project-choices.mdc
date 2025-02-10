@@ -1,0 +1,14 @@
+---
+description: framework versions and coding rules for the vizdiff.io repo
+globs: *.ts, *.tsx
+---
+
+# Software Versions
+
+- TypeScript 5.7
+- React 18
+
+# TypeScript/React Notes
+
+- Strict tsc and eslint settings are enforced
+- Create storybooks for all components and pages
