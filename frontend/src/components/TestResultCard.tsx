@@ -1,11 +1,12 @@
-import type { TestResult } from "@/lib/apiTypes"
+import type { TestResultResponse } from "@/lib/apiTypes"
 import { Box, Paper, Typography, IconButton } from "@mui/material"
 import Image from "next/image"
 import OpenInFullIcon from "@mui/icons-material/OpenInFull"
+import { changeStatusColor, changeStatusMessage } from "@/lib/changeStatus"
 
 interface TestResultCardProps {
-  result: TestResult
-  onOpenFullscreen: (result: TestResult) => void
+  result: TestResultResponse
+  onOpenFullscreen: (result: TestResultResponse) => void
 }
 
 export default function TestResultCard({ result, onOpenFullscreen }: TestResultCardProps) {
@@ -71,11 +72,11 @@ export default function TestResultCard({ result, onOpenFullscreen }: TestResultC
             width: 8,
             height: 8,
             borderRadius: "50%",
-            bgcolor: result.hasDiff ? "error.main" : "success.main",
+            bgcolor: changeStatusColor(result.changeStatus),
           }}
         />
         <Typography variant="body2" color="text.secondary">
-          {result.hasDiff ? "Changes detected" : "No changes"}
+          {changeStatusMessage(result.changeStatus)}
         </Typography>
       </Box>
     </Paper>

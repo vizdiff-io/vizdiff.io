@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { NavBody } from "@/components/NavBody"
 import useApiGet from "@/hooks/useApiGet"
-import type { TestResult } from "@/lib/apiTypes"
+import type { TestResponse, TestResultResponse } from "@/lib/apiTypes"
 import Head from "next/head"
 import { useRouter } from "next/router"
 import {
@@ -18,36 +18,11 @@ import CancelIcon from "@mui/icons-material/Cancel"
 import TestResultCard from "@/components/TestResultCard"
 import TestResultDialog from "@/components/TestResultDialog"
 
-type TestResponse = {
-  id: number
-  projectId: number
-  buildNumber: number
-  testResults: TestResult[]
-  commitSha: string
-  branch: string
-  uploadId: string
-  status: string
-  totalChanges?: number
-  createdAt: Date
-  updatedAt: Date
-  ancestorBuild?: {
-    id: number
-    buildNumber: number
-    commitSha: string
-    branch: string
-    uploadId: string
-    status: string
-    totalChanges?: number
-    createdAt: Date
-    updatedAt: Date
-  }
-}
-
 export default function Build() {
   const router = useRouter()
   const { id } = router.query
   const [data, loading, error] = useApiGet<TestResponse>(`/api/tests/${id}`)
-  const [selectedResult, setSelectedResult] = useState<TestResult | null>(null)
+  const [selectedResult, setSelectedResult] = useState<TestResultResponse | null>(null)
 
   const handleApprove = async () => {
     // TODO: Implement approve API call
@@ -58,6 +33,9 @@ export default function Build() {
     // TODO: Implement deny API call
     console.log("Deny build", id)
   }
+
+  const tests = data?.testResults?.length
+  const changes = data?.testResults.filter((result) => result.changeStatus !== "unchanged").length
 
   return (
     <>
@@ -85,16 +63,15 @@ export default function Build() {
               <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
                 {data?.commitSha} on {data?.branch}
               </Typography>
-              {data?.ancestorBuild && (
+              {data?.parent && (
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  Comparing with Build {data.ancestorBuild.buildNumber} (
-                  {data.ancestorBuild.commitSha})
+                  Comparing with Build {data.parent.buildNumber} ({data.parent.commitSha})
                 </Typography>
               )}
               <Box sx={{ display: "flex", gap: 3 }}>
                 <Box>
                   <Typography variant="h6" sx={{ fontWeight: 500 }}>
-                    {data?.testResults?.length || 0}
+                    {tests ?? "…"}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
                     Tests
@@ -102,7 +79,7 @@ export default function Build() {
                 </Box>
                 <Box>
                   <Typography variant="h6" sx={{ fontWeight: 500 }}>
-                    {data?.totalChanges || 0}
+                    {changes ?? "…"}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
                     Changes
@@ -116,7 +93,7 @@ export default function Build() {
                       color: data?.status === "success" ? "success.main" : "text.primary",
                     }}
                   >
-                    {data?.status}
+                    {data?.status ?? "…"}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
                     Status

@@ -1,7 +1,7 @@
 import Head from "next/head"
 import { useRouter } from "next/router"
 import useApiGet from "@/hooks/useApiGet"
-import type { Project as ProjectData, ScreenshotTest } from "@/lib/apiTypes"
+import type { Project as ProjectData, ScreenshotTestSummaryResponse } from "@/lib/apiTypes"
 import { NavBody } from "@/components/NavBody"
 import { Box, Button, Typography, Paper } from "@mui/material"
 import CircleIcon from "@mui/icons-material/Circle"
@@ -14,7 +14,7 @@ export default function Project() {
   const [project, loading, error] = useApiGet<ProjectData>(`/api/projects/${id}`)
 
   // Mock build data - replace with actual API call
-  const builds: ScreenshotTest[] = [
+  const builds: ScreenshotTestSummaryResponse[] = [
     {
       id: 3,
       projectId: 1,
@@ -23,9 +23,6 @@ export default function Project() {
       branch: "main",
       uploadId: "123",
       initiatedStampSec: 1712982000,
-      components: 1,
-      stories: 1,
-      changes: 0,
       status: "success",
       tag: undefined,
     },
@@ -36,10 +33,10 @@ export default function Project() {
       commitSha: "38c7f9c",
       branch: "main",
       uploadId: "123",
-      initiatedStampSec: 1712982000,
       components: 1,
       stories: 1,
       changes: 0,
+      initiatedStampSec: 1712982000,
       status: "success",
       tag: "Infrastructure upgrade",
     },
@@ -50,10 +47,10 @@ export default function Project() {
       commitSha: "38c7f9c",
       branch: "main",
       uploadId: "123",
-      initiatedStampSec: 1712982000,
       components: 1,
       stories: 1,
-      changes: 0,
+      changes: 1,
+      initiatedStampSec: 1712982000,
       status: "success",
       tag: undefined,
     },
@@ -140,19 +137,19 @@ export default function Project() {
                   </Box>
                   <Box sx={{ display: "flex", gap: 4, ml: 2 }}>
                     <Box sx={{ textAlign: "center" }}>
-                      <Typography variant="h6">{build.components}</Typography>
+                      <Typography variant="h6">{build.components ?? "…"}</Typography>
                       <Typography variant="caption" color="text.secondary">
-                        Component
+                        Components
                       </Typography>
                     </Box>
                     <Box sx={{ textAlign: "center" }}>
-                      <Typography variant="h6">{build.stories}</Typography>
+                      <Typography variant="h6">{build.stories ?? "…"}</Typography>
                       <Typography variant="caption" color="text.secondary">
-                        Story
+                        Stories
                       </Typography>
                     </Box>
                     <Box sx={{ textAlign: "center" }}>
-                      <Typography variant="h6">{build.changes}</Typography>
+                      <Typography variant="h6">{build.changes ?? "…"}</Typography>
                       <Typography variant="caption" color="text.secondary">
                         Changes
                       </Typography>

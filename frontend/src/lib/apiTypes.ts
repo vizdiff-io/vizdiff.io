@@ -6,7 +6,7 @@ export type Project = {
   createdStampSec: number
 }
 
-export type ScreenshotTest = {
+export type ScreenshotTestResponse = {
   id: number
   projectId: number
   buildNumber: number
@@ -16,25 +16,28 @@ export type ScreenshotTest = {
   baseBranch?: string
   uploadId: string
   status: string
-  components: number
-  stories: number
-  changes?: number
   tag?: string
   initiatedStampSec: number
-  buildTimeSec?: number
+  buildDurationSec?: number
 }
 
-export type TestResult = {
+export type ScreenshotTestSummaryResponse = ScreenshotTestResponse & {
+  components?: number
+  stories?: number
+  changes?: number
+}
+
+export type TestResultResponse = {
   id: number
   name: string
+  changeStatus: "new" | "unchanged" | "changed"
   screenshotUrl: string
   ancestorScreenshotUrl?: string
   diffMaskUrl?: string
-  hasDiff: boolean
   createdStampSec: number
 }
 
-export type TestResponse = ScreenshotTest & {
-  parent?: ScreenshotTest
-  testResults: TestResult[]
+export type TestResponse = ScreenshotTestResponse & {
+  parent?: ScreenshotTestResponse
+  testResults: TestResultResponse[]
 }

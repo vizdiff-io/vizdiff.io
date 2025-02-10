@@ -6,6 +6,9 @@ const isDev = process.env.NODE_ENV !== "production"
 /** @type {import('next').NextConfig} */
 const nextConfigDev = {
   reactStrictMode: true,
+  images: {
+    unoptimized: true,
+  },
   async rewrites() {
     return [
       {
@@ -19,6 +22,9 @@ const nextConfigDev = {
 /** @type {import('next').NextConfig} */
 const nextConfigDeploy = {
   reactStrictMode: true,
+  images: {
+    unoptimized: true,
+  },
   output: "export",
   exportPathMap: async function (defaultPathMap) {
     return {

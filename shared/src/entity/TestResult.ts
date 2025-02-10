@@ -15,6 +15,9 @@ export class TestResult {
   @PrimaryGeneratedColumn()
   id!: number
 
+  @Column({ type: "varchar", length: 255, name: "name", nullable: false })
+  name!: string
+
   @Column({ type: "integer", name: "screenshot_test_id" })
   screenshotTestId!: number
 

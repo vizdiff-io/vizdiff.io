@@ -401,6 +401,7 @@ async function ingestStorybook(
           // Create test result record
           log.debug(`Creating test result record for story: ${storyId}`)
           const testResult = new TestResult()
+          testResult.name = story.name.substring(0, 255)
           testResult.screenshotTestId = parseInt(uploadId, 10)
           testResult.storyId = storyId
           testResult.newImageUrl = `https://${bucket}.s3.amazonaws.com/${screenshotKey}`

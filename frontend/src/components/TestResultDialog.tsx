@@ -1,5 +1,5 @@
 import { useState } from "react"
-import type { TestResult } from "@/lib/apiTypes"
+import type { TestResultResponse } from "@/lib/apiTypes"
 import {
   Box,
   Dialog,
@@ -15,11 +15,12 @@ import CloseIcon from "@mui/icons-material/Close"
 import CompareIcon from "@mui/icons-material/Compare"
 import GridViewIcon from "@mui/icons-material/GridView"
 import LayersIcon from "@mui/icons-material/Layers"
+import { changeStatusColor, changeStatusMessage } from "@/lib/changeStatus"
 
 type ViewMode = "new" | "old" | "diff" | "split"
 
 interface TestResultDialogProps {
-  result: TestResult | null
+  result: TestResultResponse | null
   onClose: () => void
 }
 
@@ -53,8 +54,8 @@ export default function TestResultDialog({ result, onClose }: TestResultDialogPr
           <Typography variant="h6" component="div">
             {result.name}
           </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {result.hasDiff ? "Changes detected" : "No changes"}
+          <Typography variant="body2" color={changeStatusColor(result.changeStatus)}>
+            {changeStatusMessage(result.changeStatus)}
           </Typography>
         </Box>
         <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
