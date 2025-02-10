@@ -1,9 +1,10 @@
-import Head from "next/head"
-import { NavBody } from "@/components/NavBody"
 import { Typography, Box, Button, Container } from "@mui/material"
+import Head from "next/head"
+
+import { NavBody } from "@/components/NavBody"
 import { useDarkMode } from "@/hooks/useDarkMode"
 
-export default function Home() {
+export default function Home(): JSX.Element {
   const isDarkMode = useDarkMode()
 
   return (

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 
-export const useDarkMode = () => {
+export const useDarkMode = (): boolean => {
   const [isDarkMode, setIsDarkMode] = useState(false)
 
   useEffect(() => {

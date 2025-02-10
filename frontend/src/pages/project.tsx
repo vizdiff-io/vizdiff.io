@@ -1,14 +1,15 @@
-import Head from "next/head"
-import { useRouter } from "next/router"
-import useApiGet from "@/hooks/useApiGet"
-import type { Project as ProjectData, ScreenshotTestSummaryResponse } from "@/lib/apiTypes"
-import { NavBody } from "@/components/NavBody"
-import { Box, Button, Typography, Paper } from "@mui/material"
 import CircleIcon from "@mui/icons-material/Circle"
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown"
+import { Box, Button, Typography, Paper } from "@mui/material"
 import { formatDistanceToNow } from "date-fns"
+import Head from "next/head"
+import { useRouter } from "next/router"
 
-export default function Project() {
+import { NavBody } from "@/components/NavBody"
+import useApiGet from "@/hooks/useApiGet"
+import type { Project as ProjectData, ScreenshotTestSummaryResponse } from "@/lib/apiTypes"
+
+export default function Project(): JSX.Element {
   const router = useRouter()
   const { id } = router.query
   const [project, loading, error] = useApiGet<ProjectData>(`/api/projects/${id}`)

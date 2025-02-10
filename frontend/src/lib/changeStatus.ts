@@ -1,4 +1,4 @@
-export function changeStatusMessage(changeStatus: string) {
+export function changeStatusMessage(changeStatus: string): string {
   switch (changeStatus) {
     case "new":
       return "New"
@@ -11,7 +11,7 @@ export function changeStatusMessage(changeStatus: string) {
   }
 }
 
-export function changeStatusColor(changeStatus: string) {
+export function changeStatusColor(changeStatus: string): string {
   switch (changeStatus) {
     case "unchanged":
       return "success.main"

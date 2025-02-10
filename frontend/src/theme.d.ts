@@ -1,5 +1,3 @@
-import { PaletteOptions } from "@mui/material/styles"
-
 declare module "@mui/material/styles" {
   interface Palette {
     customColor: Palette["primary"]

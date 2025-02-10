@@ -1,5 +1,7 @@
-import { useState } from "react"
-import type { TestResultResponse } from "@/lib/apiTypes"
+import CloseIcon from "@mui/icons-material/Close"
+import CompareIcon from "@mui/icons-material/Compare"
+import GridViewIcon from "@mui/icons-material/GridView"
+import LayersIcon from "@mui/icons-material/Layers"
 import {
   Box,
   Dialog,
@@ -11,10 +13,9 @@ import {
   Typography,
 } from "@mui/material"
 import Image from "next/image"
-import CloseIcon from "@mui/icons-material/Close"
-import CompareIcon from "@mui/icons-material/Compare"
-import GridViewIcon from "@mui/icons-material/GridView"
-import LayersIcon from "@mui/icons-material/Layers"
+import { useState } from "react"
+
+import type { TestResultResponse } from "@/lib/apiTypes"
 import { changeStatusColor, changeStatusMessage } from "@/lib/changeStatus"
 
 type ViewMode = "new" | "old" | "diff" | "split"
@@ -24,13 +25,18 @@ interface TestResultDialogProps {
   onClose: () => void
 }
 
-export default function TestResultDialog({ result, onClose }: TestResultDialogProps) {
+export default function TestResultDialog({
+  result,
+  onClose,
+}: TestResultDialogProps): JSX.Element | null {
   const [viewMode, setViewMode] = useState<ViewMode>("new")
 
-  if (!result) return null
+  if (!result) {
+    return null
+  }
 
   const handleViewModeChange = (_: React.MouseEvent<HTMLElement>, newMode: ViewMode | null) => {
-    if (newMode !== null) {
+    if (newMode) {
       setViewMode(newMode)
     }
   }

@@ -1,7 +1,8 @@
-import type { TestResultResponse } from "@/lib/apiTypes"
+import OpenInFullIcon from "@mui/icons-material/OpenInFull"
 import { Box, Paper, Typography, IconButton } from "@mui/material"
 import Image from "next/image"
-import OpenInFullIcon from "@mui/icons-material/OpenInFull"
+
+import type { TestResultResponse } from "@/lib/apiTypes"
 import { changeStatusColor, changeStatusMessage } from "@/lib/changeStatus"
 
 interface TestResultCardProps {
@@ -9,7 +10,10 @@ interface TestResultCardProps {
   onOpenFullscreen: (result: TestResultResponse) => void
 }
 
-export default function TestResultCard({ result, onOpenFullscreen }: TestResultCardProps) {
+export default function TestResultCard({
+  result,
+  onOpenFullscreen,
+}: TestResultCardProps): JSX.Element {
   return (
     <Paper
       sx={{

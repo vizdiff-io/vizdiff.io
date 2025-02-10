@@ -1,4 +1,4 @@
-import { createTheme } from "@mui/material/styles"
+import { createTheme, type Theme } from "@mui/material"
 
 export const COLORS = {
   "bg-primary": {
@@ -35,7 +35,7 @@ export const COLORS = {
   },
 }
 
-const theme = createTheme({
+const theme: Theme = createTheme({
   palette: {
     primary: {
       main: "#5cc5ff",

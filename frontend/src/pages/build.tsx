@@ -1,9 +1,5 @@
-import { useState } from "react"
-import { NavBody } from "@/components/NavBody"
-import useApiGet from "@/hooks/useApiGet"
-import type { TestResponse, TestResultResponse } from "@/lib/apiTypes"
-import Head from "next/head"
-import { useRouter } from "next/router"
+import CancelIcon from "@mui/icons-material/Cancel"
+import CheckCircleIcon from "@mui/icons-material/CheckCircle"
 import {
   Box,
   Button,
@@ -13,28 +9,33 @@ import {
   ImageList,
   ImageListItem,
 } from "@mui/material"
-import CheckCircleIcon from "@mui/icons-material/CheckCircle"
-import CancelIcon from "@mui/icons-material/Cancel"
+import Head from "next/head"
+import { useRouter } from "next/router"
+import { useState } from "react"
+
+import { NavBody } from "@/components/NavBody"
 import TestResultCard from "@/components/TestResultCard"
 import TestResultDialog from "@/components/TestResultDialog"
+import useApiGet from "@/hooks/useApiGet"
+import type { TestResponse, TestResultResponse } from "@/lib/apiTypes"
 
-export default function Build() {
+export default function Build(): JSX.Element {
   const router = useRouter()
   const { id } = router.query
   const [data, loading, error] = useApiGet<TestResponse>(`/api/tests/${id}`)
   const [selectedResult, setSelectedResult] = useState<TestResultResponse | null>(null)
 
   const handleApprove = async () => {
-    // TODO: Implement approve API call
+    // TASK: Implement approve API call
     console.log("Approve build", id)
   }
 
   const handleDeny = async () => {
-    // TODO: Implement deny API call
+    // TASK: Implement deny API call
     console.log("Deny build", id)
   }
 
-  const tests = data?.testResults?.length
+  const tests = data?.testResults.length
   const changes = data?.testResults.filter((result) => result.changeStatus !== "unchanged").length
 
   return (
@@ -130,7 +131,7 @@ export default function Build() {
             <Box>
               {/* Test Results Grid */}
               <ImageList sx={{ width: "100%", height: "100%" }} cols={3} gap={16}>
-                {(data?.testResults || []).map((result) => (
+                {(data?.testResults ?? []).map((result) => (
                   <ImageListItem key={result.id}>
                     <TestResultCard result={result} onOpenFullscreen={setSelectedResult} />
                   </ImageListItem>

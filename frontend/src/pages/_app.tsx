@@ -1,12 +1,13 @@
 import "@/styles/globals.css"
 import "@/styles/theme.css"
+import { createTheme, CssBaseline, type ThemeOptions } from "@mui/material"
+import { ThemeProvider } from "@mui/material"
 import type { AppProps } from "next/app"
 import { Inter } from "next/font/google"
-import { ThemeProvider } from "@mui/material/styles"
-import baseTheme, { COLORS } from "@/components/Theme"
-import { createTheme, CssBaseline } from "@mui/material"
-import { useDarkMode } from "@/hooks/useDarkMode"
 import { useEffect, useMemo } from "react"
+
+import { useDarkMode } from "@/hooks/useDarkMode"
+import baseTheme, { COLORS } from "@/lib/theme"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -32,12 +33,15 @@ function DarkMode({ children }: { children: React.ReactNode }): JSX.Element {
   return <>{children}</>
 }
 
-export default function App({ Component, pageProps }: AppProps) {
+export default function App({ Component, pageProps }: AppProps): JSX.Element {
   const isDarkMode = useDarkMode()
-  const theme = useMemo(
-    () => createTheme({ ...baseTheme, palette: { mode: isDarkMode ? "dark" : "light" } }),
-    [isDarkMode],
-  )
+  const theme = useMemo(() => {
+    const themeOptions: ThemeOptions = {
+      ...baseTheme,
+      palette: { mode: isDarkMode ? "dark" : "light" },
+    }
+    return createTheme(themeOptions)
+  }, [isDarkMode])
 
   return (
     <DarkMode>

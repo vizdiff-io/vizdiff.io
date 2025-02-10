@@ -1,7 +1,8 @@
 import { Html, Head, Main, NextScript } from "next/document"
+
 import { FallbackStyles, MagicScriptTag } from "@/components/InlineCssVariables"
 
-export default function Document() {
+export default function Document(): JSX.Element {
   return (
     <Html lang="en">
       <Head>

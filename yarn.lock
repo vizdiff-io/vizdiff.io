@@ -2513,7 +2513,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@foxglove/eslint-plugin@npm:2.0.0":
+"@foxglove/eslint-plugin@npm:2.0.0, @foxglove/eslint-plugin@npm:^2.0.0":
   version: 2.0.0
   resolution: "@foxglove/eslint-plugin@npm:2.0.0"
   dependencies:
@@ -10201,6 +10201,8 @@ __metadata:
   dependencies:
     "@emotion/react": "npm:11.14.0"
     "@emotion/styled": "npm:11.14.0"
+    "@eslint/eslintrc": "npm:^3.2.0"
+    "@foxglove/eslint-plugin": "npm:^2.0.0"
     "@mui/icons-material": "npm:5.16.14"
     "@mui/material": "npm:5.16.14"
     "@octokit/rest": "npm:^21.1.0"

@@ -9,7 +9,7 @@ function isAuthenticated(): boolean {
 export async function apiGet<T>(endpoint: string): Promise<[T | null, AxiosError | null]> {
   if (!isAuthenticated()) {
     const error = new AxiosError()
-    error.response = { status: 401 } as any
+    error.response = { status: 401 } as AxiosError["response"]
     redirectIfUnauthorized(error)
     return [null, error]
   }
@@ -28,7 +28,7 @@ export async function apiGet<T>(endpoint: string): Promise<[T | null, AxiosError
 export async function tryApiGet<T>(endpoint: string): Promise<[T | null, AxiosError | null]> {
   if (!isAuthenticated()) {
     const error = new AxiosError()
-    error.response = { status: 401 } as any
+    error.response = { status: 401 } as AxiosError["response"]
     return [null, error]
   }
 
@@ -49,7 +49,7 @@ export async function apiPost<T>(
 ): Promise<[T | undefined, AxiosError | undefined]> {
   if (!isAuthenticated()) {
     const error = new AxiosError()
-    error.response = { status: 401 } as any
+    error.response = { status: 401 } as AxiosError["response"]
     return [undefined, error]
   }
 
@@ -73,7 +73,7 @@ export async function apiDelete<T>(
 ): Promise<[T | undefined, AxiosError | undefined]> {
   if (!isAuthenticated()) {
     const error = new AxiosError()
-    error.response = { status: 401 } as any
+    error.response = { status: 401 } as AxiosError["response"]
     return [undefined, error]
   }
 

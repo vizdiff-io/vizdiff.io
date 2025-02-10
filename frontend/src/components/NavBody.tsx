@@ -1,7 +1,8 @@
-import { Inter } from "next/font/google"
 import { Container, Typography, AppBar, Toolbar, Button, Box } from "@mui/material"
+import { Inter } from "next/font/google"
+
 import useTryApiGet from "@/hooks/useTryApiGet"
-import theme from "@/components/Theme"
+import theme from "@/lib/theme"
 
 const API_ME_URL = "/api/users/me"
 

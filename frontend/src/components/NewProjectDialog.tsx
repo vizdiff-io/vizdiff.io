@@ -1,10 +1,17 @@
+import CloseIcon from "@mui/icons-material/Close"
+import {
+  List,
+  ListItemButton,
+  ListItemText,
+  Divider,
+  CircularProgress,
+  IconButton,
+} from "@mui/material"
+import type { Endpoints } from "@octokit/types"
 import React, { useState, useEffect, useCallback } from "react"
-import { List, ListItemButton, ListItemText, Divider, CircularProgress } from "@mui/material"
+
 import useAuthenticatedFetch from "@/hooks/useApiGet"
 import { apiGet, apiPost } from "@/lib/apiMethods"
-import type { Endpoints } from "@octokit/types"
-import { IconButton } from "@mui/material"
-import CloseIcon from "@mui/icons-material/Close"
 
 type NewProjectDialogProps = {
   onClose: () => void
@@ -21,7 +28,7 @@ interface User {
   githubUsername: string
 }
 
-export default function NewProjectDialog({ onClose }: NewProjectDialogProps) {
+export default function NewProjectDialog({ onClose }: NewProjectDialogProps): JSX.Element {
   const [repos, setRepos] = useState<GithubRepo[]>([])
   const [loading, setLoading] = useState(true)
   const [_error, setError] = useState<string | null>(null)

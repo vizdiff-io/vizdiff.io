@@ -1,9 +1,8 @@
-import { useState } from "react"
-import { NavBody } from "@/components/NavBody"
-import NewProjectDialog from "@/components/NewProjectDialog"
-import useApiGet from "@/hooks/useApiGet"
-import type { Project } from "@/lib/apiTypes"
-import Head from "next/head"
+import AddIcon from "@mui/icons-material/Add"
+import CircleIcon from "@mui/icons-material/Circle"
+import FolderIcon from "@mui/icons-material/Folder"
+import ReceiptIcon from "@mui/icons-material/Receipt"
+import SettingsIcon from "@mui/icons-material/Settings"
 import {
   Box,
   Button,
@@ -11,16 +10,19 @@ import {
   Paper,
   List,
   ListItem,
+  ListItemButton,
   ListItemText,
   ListItemIcon,
 } from "@mui/material"
-import FolderIcon from "@mui/icons-material/Folder"
-import ReceiptIcon from "@mui/icons-material/Receipt"
-import SettingsIcon from "@mui/icons-material/Settings"
-import AddIcon from "@mui/icons-material/Add"
-import CircleIcon from "@mui/icons-material/Circle"
+import Head from "next/head"
+import { useState } from "react"
 
-export default function Projects() {
+import { NavBody } from "@/components/NavBody"
+import NewProjectDialog from "@/components/NewProjectDialog"
+import useApiGet from "@/hooks/useApiGet"
+import type { Project } from "@/lib/apiTypes"
+
+export default function Projects(): JSX.Element {
   const [showModal, setShowModal] = useState(false)
   const [projects, loading, error] = useApiGet<Project[]>("/api/projects", [showModal])
 
@@ -36,24 +38,24 @@ export default function Projects() {
           {/* Left Sidebar */}
           <Box sx={{ width: 200, flexShrink: 0 }}>
             <List>
-              <ListItem button selected>
+              <ListItemButton selected>
                 <ListItemIcon>
                   <FolderIcon />
                 </ListItemIcon>
                 <ListItemText primary="Projects" />
-              </ListItem>
-              <ListItem button>
+              </ListItemButton>
+              <ListItemButton>
                 <ListItemIcon>
                   <ReceiptIcon />
                 </ListItemIcon>
                 <ListItemText primary="Billing" />
-              </ListItem>
-              <ListItem button>
+              </ListItemButton>
+              <ListItemButton>
                 <ListItemIcon>
                   <SettingsIcon />
                 </ListItemIcon>
                 <ListItemText primary="Settings" />
-              </ListItem>
+              </ListItemButton>
             </List>
           </Box>
 

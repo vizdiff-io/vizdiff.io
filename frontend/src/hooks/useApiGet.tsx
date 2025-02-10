@@ -1,10 +1,11 @@
-import { useState, useEffect, type DependencyList } from "react"
 import { AxiosError } from "axios"
+import { useState, useEffect, type DependencyList } from "react"
+
 import { apiGet } from "@/lib/apiMethods"
 
 export default function useApiGet<T>(
   endpoint: string,
-  deps?: DependencyList | undefined,
+  deps?: DependencyList,
 ): [T | null, boolean, AxiosError | null] {
   const [data, setData] = useState<T | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(false)
@@ -13,12 +14,12 @@ export default function useApiGet<T>(
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true)
-      const [data, err] = await apiGet<T>(endpoint)
-      setData(data)
+      const [fetchedData, err] = await apiGet<T>(endpoint)
+      setData(fetchedData)
       setError(err)
       setIsLoading(false)
     }
-    fetchData()
+    fetchData().catch(setError)
   }, [endpoint, ...(deps ?? [])]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return [data, isLoading, error]

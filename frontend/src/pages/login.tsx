@@ -1,9 +1,10 @@
-import { NavBody } from "@/components/NavBody"
-import { useRouter } from "next/router"
-import { Typography, Box, Button, Container } from "@mui/material"
-import { useDarkMode } from "@/hooks/useDarkMode"
-import Head from "next/head"
 import GitHubIcon from "@mui/icons-material/GitHub"
+import { Typography, Box, Button, Container } from "@mui/material"
+import Head from "next/head"
+import { useRouter } from "next/router"
+
+import { NavBody } from "@/components/NavBody"
+import { useDarkMode } from "@/hooks/useDarkMode"
 
 const clientId = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID
 const callbackUri = encodeURIComponent(
@@ -11,7 +12,7 @@ const callbackUri = encodeURIComponent(
 )
 const scope = "repo,read:org"
 
-export default function Login() {
+export default function Login(): JSX.Element {
   const router = useRouter()
   const isDarkMode = useDarkMode()
 
@@ -23,7 +24,7 @@ export default function Login() {
 
   const handleConnectToGitHub = () => {
     const authUrl = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${callbackUri}&scope=${scope}&state=${state}`
-    router.push(authUrl)
+    void router.push(authUrl)
   }
 
   return (

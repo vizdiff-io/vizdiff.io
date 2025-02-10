@@ -33,4 +33,4 @@ const nextConfigDeploy = {
   },
 }
 
-module.exports = isDev ? nextConfigDev : nextConfigDeploy
+export default isDev ? nextConfigDev : nextConfigDeploy
