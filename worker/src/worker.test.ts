@@ -11,12 +11,12 @@ describe("worker", () => {
     it("should fail to process an unknown task", async () => {
       let error: Error | undefined
       try {
-        await processTask("unknown", {})
+        await processTask("unknown_task_type", 0, {})
       } catch (err) {
         error = err as Error
       }
       expect(error).toBeInstanceOf(Error)
-      expect(error!.message).toBe("Unknown task type: unknown")
+      expect(error!.message).toBe("Unknown task type: unknown_task_type")
     })
   })
 
