@@ -1,6 +1,6 @@
 import CircleIcon from "@mui/icons-material/Circle"
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown"
-import { Box, Button, Typography, Paper } from "@mui/material"
+import { Box, Button, Typography, Paper, useTheme } from "@mui/material"
 import { formatDistanceToNow } from "date-fns"
 import Head from "next/head"
 import { useRouter } from "next/router"
@@ -8,10 +8,12 @@ import { useRouter } from "next/router"
 import { NavBody } from "@/components/NavBody"
 import useApiGet from "@/hooks/useApiGet"
 import type { ProjectResponse, ScreenshotTestSummaryResponse } from "@/lib/apiTypes"
+import { getStatusColor } from "@/lib/colors"
 
 export default function Project(): JSX.Element {
   const router = useRouter()
   const { id } = router.query
+  const theme = useTheme()
   const [project, projectLoading, projectError] = useApiGet<ProjectResponse>(`/api/projects/${id}`)
   const [builds, buildsLoading, buildsError] = useApiGet<ScreenshotTestSummaryResponse[]>(
     `/api/projects/${id}/builds`,
@@ -73,7 +75,7 @@ export default function Project(): JSX.Element {
                     sx={{
                       mr: 2,
                       fontSize: 16,
-                      color: build.status === "completed" ? "success.main" : "warning.main",
+                      color: getStatusColor(theme, build.status),
                     }}
                   />
                   <Box sx={{ flex: 1 }}>
