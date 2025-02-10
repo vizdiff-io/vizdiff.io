@@ -1,3 +1,4 @@
+import { Octokit } from "@octokit/rest"
 import type { Response, NextFunction } from "express"
 import type { JwtPayload, VerifyErrors } from "jsonwebtoken"
 import jwt from "jsonwebtoken"
@@ -8,17 +9,60 @@ import { JWT_SECRET } from "./environment"
 import { log } from "./log"
 import type { AuthenticatedRequest, DefaultRequest, MaybeAuthenticatedRequest } from "./types"
 
+async function validateGitHubToken(githubAccessToken: string): Promise<boolean> {
+  try {
+    const octokit = new Octokit({ auth: githubAccessToken })
+    await octokit.rest.users.getAuthenticated()
+    return true
+  } catch (err) {
+    log.warn(`GitHub token validation failed: ${err}`)
+    return false
+  }
+}
+
+async function refreshJWT(userId: number, res: Response): Promise<boolean> {
+  try {
+    // Get the user from the database to check their GitHub token
+    const db = await Database()
+    const user = await db.manager.findOneBy(User, { id: userId })
+    if (!user?.githubAccessToken) {
+      return false
+    }
+
+    // Validate the GitHub token
+    const isValid = await validateGitHubToken(user.githubAccessToken)
+    if (!isValid) {
+      return false
+    }
+
+    // Generate a new JWT token
+    const token = jwt.sign({ sub: user.id }, JWT_SECRET, { expiresIn: "1h" })
+
+    // Set the new token in a cookie
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "lax",
+      maxAge: 60 * 60 * 1000, // 1 hour in milliseconds
+      path: "/",
+    })
+
+    return true
+  } catch (err) {
+    log.error(`Failed to refresh JWT: ${err}`)
+    return false
+  }
+}
+
 export function authenticateJWT(req: DefaultRequest, res: Response, next: NextFunction): void {
   const jwtHeader = Array.isArray(req.headers.jwt) ? req.headers.jwt[0] : req.headers.jwt
-  const token = jwtHeader ?? ""
+  const jwtCookie = req.cookies.token as string | undefined
+  const token = (jwtHeader?.length ?? 0) > 0 ? jwtHeader : jwtCookie
 
   if (!token) {
     const src = req.ip ?? "unknown"
-    log.warn(
-      `No JWT token found in ${req.method} ${req.url} from ${src}, cookies=${JSON.stringify(
-        req.cookies,
-      )}`,
-    )
+    const cookies = Object.keys(req.cookies).join(", ")
+    log.warn(`No JWT token found in ${req.method} ${req.url} from ${src}, cookies=${cookies}`)
     res.status(401).json({ error: "Unauthorized" })
     return
   }
@@ -27,10 +71,24 @@ export function authenticateJWT(req: DefaultRequest, res: Response, next: NextFu
     token,
     JWT_SECRET,
     { complete: false },
-    (err: VerifyErrors | null, decoded: JwtPayload | string | undefined) => {
+    async (err: VerifyErrors | null, decoded: JwtPayload | string | undefined) => {
       if (err) {
-        log.warn(`JWT verification failed: ${err.message}`)
-        res.status(403).json({ error: "Forbidden" })
+        // If the token is expired, try to refresh it
+        if (err.name === "TokenExpiredError" && typeof decoded === "object" && decoded.sub) {
+          const userId = parseInt(decoded.sub, 10)
+          const refreshed = await refreshJWT(userId, res)
+          if (refreshed) {
+            // Set req.userId from the verified JWT payload and continue
+            const reqWithUserId = req as AuthenticatedRequest
+            reqWithUserId.userId = userId
+            log.debug(`Request authenticated as user ${reqWithUserId.userId} via refreshed JWT`)
+            next()
+            return
+          }
+        }
+
+        log.warn(`JWT verification failed for [${token}]: ${err.message}`)
+        res.status(401).json({ error: "Unauthorized" })
         return
       }
 
@@ -38,7 +96,7 @@ export function authenticateJWT(req: DefaultRequest, res: Response, next: NextFu
         log.warn(
           `JWT verification failed: decoded payload is not an object or does not contain a "sub" field`,
         )
-        res.status(403).json({ error: "Forbidden" })
+        res.status(401).json({ error: "Unauthorized" })
         return
       }
 

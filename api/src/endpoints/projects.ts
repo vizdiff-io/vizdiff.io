@@ -20,7 +20,7 @@ export async function create(req: DefaultRequest, res: DefaultResponse): Promise
   const project = new Project()
   project.name = name
   project.githubRepoUrl = githubRepoUrl
-  project.user = Promise.resolve(user)
+  project.user = user
   project.token = generateProjectToken()
 
   const db = await Database()

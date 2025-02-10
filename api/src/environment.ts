@@ -17,6 +17,9 @@ export const PORT = parseInt(process.env.PORT ?? "") || (IS_TEST ? 3002 : 3001)
 export const GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID ?? ""
 export const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET ?? ""
 
+export const APP_URL =
+  process.env.APP_URL ?? (IS_PRODUCTION ? "https://vizdiff.io" : "http://127.0.0.1:3000")
+
 export const POSTGRES_USER = process.env.POSTGRES_USER ?? "postgres"
 export const POSTGRES_HOST = process.env.POSTGRES_HOST ?? "localhost"
 export const POSTGRES_DATABASE = process.env.POSTGRES_DATABASE ?? "vizdiff"

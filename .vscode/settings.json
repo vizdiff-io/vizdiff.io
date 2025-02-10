@@ -8,6 +8,7 @@
   "files.eol": "\n",
   "prettier.prettierPath": "./node_modules/prettier",
   "search.exclude": {
+    "archive/**": true,
     "**/node_modules": true,
     ".yarn/**": true,
     "yarn.lock": true

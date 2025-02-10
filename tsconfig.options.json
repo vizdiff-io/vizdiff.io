@@ -19,7 +19,7 @@
     "incremental": true,
     "isolatedModules": true,
     "newLine": "lf",
-    "noEmitOnError": true,
+    "noEmitOnError": false,
     "noFallthroughCasesInSwitch": true,
     "noImplicitOverride": true,
     "noImplicitReturns": true,

@@ -18,8 +18,8 @@ export class WorkTask {
   @Column({ name: "screenshot_test_id", type: "integer" })
   screenshotTestId!: number
 
-  @ManyToOne(() => ScreenshotTest, { onDelete: "CASCADE" })
-  @JoinColumn({ name: "screenshot_test_id" })
+  @ManyToOne(() => ScreenshotTest, { onDelete: "CASCADE", nullable: false })
+  @JoinColumn({ name: "screenshot_test_id", referencedColumnName: "id" })
   screenshotTest!: Promise<ScreenshotTest>
 
   @Column({ name: "task_type", type: "varchar", length: 255, nullable: false })

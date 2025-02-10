@@ -2,10 +2,11 @@
   "extends": "./tsconfig.options.json",
   "files": [],
   "references": [
-    { "path": "./shared" },
     { "path": "./api" },
     { "path": "./cli" },
+    { "path": "./frontend" },
+    { "path": "./shared" },
     { "path": "./worker" }
   ],
-  "include": ["shared/src/**/*.ts"]
+  "include": ["shared/src/index.ts"]
 }

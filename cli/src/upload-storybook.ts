@@ -9,8 +9,10 @@ import { info } from "./log"
 export type UploadStorybookOpts = {
   storybookDir: string
   commitSha: string
-  branchName: string
+  branch: string
   projectToken: string
+  baseCommitSha?: string
+  baseBranch?: string
 }
 
 type UploadResponse = { success: boolean; testId?: string; uploadId?: string; error?: string }
@@ -19,14 +21,14 @@ type UploadResponse = { success: boolean; testId?: string; uploadId?: string; er
  * Packages a storybook build folder and uploads it to the vizdiff CDN.
  */
 export async function uploadStorybook(opts: UploadStorybookOpts): Promise<void> {
-  const { storybookDir, commitSha, branchName, projectToken } = opts
+  const { storybookDir, commitSha, branch, projectToken, baseCommitSha, baseBranch } = opts
 
   // Sanity check input params
   if (!isValidGitCommitHash(commitSha)) {
     throw new Error(`Invalid commit SHA: "${commitSha}"`)
   }
-  if (!branchName || branchName.length > 255) {
-    throw new Error(`Invalid branch name: "${branchName}"`)
+  if (!branch || branch.length > 255) {
+    throw new Error(`Invalid branch name: "${branch}"`)
   }
 
   // Check that the storybook build manifest exists
@@ -67,14 +69,16 @@ export async function uploadStorybook(opts: UploadStorybookOpts): Promise<void> 
   info(
     `Uploading ${formatBytes(
       body.byteLength,
-    )} for commit ${commitSha} on branch ${branchName} to ${baseUrl}`,
+    )} for commit ${commitSha} on branch ${branch} to ${baseUrl}`,
   )
   const response = await fetch(url, {
     method: "POST",
     headers: {
       "Content-Type": "application/gzip",
       "X-Vizdiff-Commit-Sha": commitSha,
-      "X-Vizdiff-Branch-Name": branchName,
+      "X-Vizdiff-Branch": branch,
+      ...(baseCommitSha && { "X-Vizdiff-Base-Commit-Sha": baseCommitSha }),
+      ...(baseBranch && { "X-Vizdiff-Base-Branch": baseBranch }),
     },
     body: await fs.readFile(tarballFilename),
   })

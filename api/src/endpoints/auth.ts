@@ -3,7 +3,13 @@ import { User } from "shared"
 import { fetch } from "undici"
 
 import { Database } from "../database"
-import { GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, IS_PRODUCTION, JWT_SECRET } from "../environment"
+import {
+  APP_URL,
+  GITHUB_CLIENT_ID,
+  GITHUB_CLIENT_SECRET,
+  IS_PRODUCTION,
+  JWT_SECRET,
+} from "../environment"
 import { parseSimpleQueryString, requiredQueryString } from "../http"
 import { log } from "../log"
 import type { GithubUser } from "../schemas/GithubUser"
@@ -17,6 +23,9 @@ if (!GITHUB_CLIENT_ID) {
 }
 if (!GITHUB_CLIENT_SECRET) {
   throw new Error("Missing GITHUB_CLIENT_SECRET")
+}
+if (!APP_URL) {
+  throw new Error("Missing APP_URL")
 }
 
 export async function githubCallback(req: DefaultRequest, res: DefaultResponse): Promise<void> {
@@ -36,20 +45,17 @@ export async function githubCallback(req: DefaultRequest, res: DefaultResponse):
 
   // The request to GITHUB_TOKEN_EXCHANGE requires a `redirect_uri` parameter that matches the
   // `redirect_uri` parameter used in the initial request to GITHUB_AUTH_URL, i.e. this endpoint
-  const endpointUri = new URL(
-    req.url,
-    `${req.secure ? "https" : "http"}://${req.hostname}`,
-  ).toString()
+  const callbackUri = `${APP_URL}/api/auth/github/callback`
 
   // Exchange the code for an access token
-  log.debug(`Exchanging GitHub code for access token for ${req.ip} (redirect_uri=${endpointUri})`)
+  log.debug(`Exchanging GitHub code for access token for ${req.ip} (redirect_uri=${callbackUri})`)
   const ghRes = await fetch(GITHUB_TOKEN_EXCHANGE, {
     method: "POST",
     body: new URLSearchParams({
       client_id: GITHUB_CLIENT_ID,
       client_secret: GITHUB_CLIENT_SECRET,
       code,
-      redirect_uri: endpointUri,
+      redirect_uri: callbackUri,
     }),
     headers: {
       Accept: "application/json",
@@ -110,11 +116,24 @@ export async function githubCallback(req: DefaultRequest, res: DefaultResponse):
   // Generate a JWT
   const token = jwt.sign({ sub: user.id }, JWT_SECRET, { expiresIn: "1h" })
 
+  // Set a secure cookie for the JWT and a JS-accessible cookie to indicate that
+  // the user is authenticated
+  const domain = new URL(APP_URL).hostname
   res.cookie("token", token, {
+    domain,
+    httpOnly: true,
     secure: IS_PRODUCTION || req.secure ? true : undefined,
     sameSite: "lax",
     maxAge: 60 * 60 * 1000, // 1 hour in milliseconds
-    domain: req.hostname,
+    path: "/",
+  })
+  res.cookie("authenticated", "true", {
+    domain,
+    httpOnly: false,
+    secure: false,
+    sameSite: "lax",
+    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days in milliseconds
+    path: "/",
   })
 
   // Redirect to the original URL
@@ -122,10 +141,20 @@ export async function githubCallback(req: DefaultRequest, res: DefaultResponse):
 }
 
 export async function logout(req: DefaultRequest, res: DefaultResponse): Promise<void> {
+  const domain = new URL(APP_URL).hostname
   res.clearCookie("token", {
+    domain,
+    httpOnly: true,
     secure: IS_PRODUCTION || req.secure ? true : undefined,
     sameSite: "lax",
-    domain: req.hostname,
+    path: "/",
   })
-  res.redirect("/")
+  res.clearCookie("authenticated", {
+    domain,
+    httpOnly: false,
+    secure: false,
+    sameSite: "lax",
+    path: "/",
+  })
+  res.redirect(APP_URL)
 }

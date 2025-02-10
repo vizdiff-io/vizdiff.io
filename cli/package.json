@@ -12,7 +12,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsc --build",
     "lint": "eslint src",
     "prepack": "yarn build",
     "prepublishOnly": "yarn lint && yarn test",
@@ -21,7 +21,7 @@
   },
   "devDependencies": {
     "@foxglove/eslint-plugin": "2.0.0",
-    "@types/node": "18.19.75",
+    "@types/node": "22.13.1",
     "@typescript-eslint/eslint-plugin": "8.23.0",
     "@typescript-eslint/parser": "8.23.0",
     "eslint": "9.20.0",
@@ -35,7 +35,7 @@
     "typescript": "5.7.3"
   },
   "dependencies": {
-    "commander": "10.0.1",
+    "commander": "13.1.0",
     "simple-git": "^3.27.0",
     "undici": "5.28.5",
     "zip-a-folder": "1.1.7"

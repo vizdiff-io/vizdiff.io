@@ -1,15 +1,17 @@
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3"
-import { ScreenshotTest, WorkTask } from "shared"
+import { WorkTask } from "shared"
 import { uuidv7 } from "uuidv7"
 
 import { getProjectByToken, getS3BucketForProject } from "../authenticate"
 import { Database } from "../database"
 import { getQueryString } from "../http"
 import { log } from "../log"
+import { createScreenshotTest } from "../screenshot-tests"
 import type { DefaultRequest, DefaultResponse } from "../types"
 
 const AWS_REGION = "us-east-1"
 const MAX_UPLOAD_BYTES = 1024 * 1024 * 100 // 100 MB
+const MAX_BRANCH_LENGTH = 1024
 
 export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse): Promise<void> {
   const length = parseInt(req.header("content-length") ?? "")
@@ -30,9 +32,27 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
     throw new Error(`Invalid commit SHA: "${commitSha}"`)
   }
 
-  const branchName = req.header("x-vizdiff-branch-name") ?? ""
-  if (!branchName || branchName.length > 255) {
-    throw new Error(`Invalid branch name: "${branchName}"`)
+  const branch = req.header("x-vizdiff-branch") ?? ""
+  if (!branch || branch.length > MAX_BRANCH_LENGTH) {
+    throw new Error(`Invalid branch name: "${branch}"`)
+  }
+
+  const baseCommitSha = req.header("x-vizdiff-base-commit-sha")
+  const baseBranch = req.header("x-vizdiff-base-branch")
+  if (baseCommitSha || baseBranch) {
+    if (!baseCommitSha) {
+      throw new Error("Missing base commit SHA")
+    }
+    if (!baseBranch) {
+      throw new Error("Missing base branch name")
+    }
+
+    if (!isValidGitCommitHash(baseCommitSha)) {
+      throw new Error(`Invalid base commit SHA: "${baseCommitSha}"`)
+    }
+    if (baseBranch.length > MAX_BRANCH_LENGTH) {
+      throw new Error(`Invalid base branch name: "${baseBranch}"`)
+    }
   }
 
   const uploadId = uuidv7()
@@ -54,16 +74,15 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
     `Uploaded ${Key} to S3 bucket ${Bucket} (project=${project.id}, upload=${uploadId}, length=${req.readableLength})`,
   )
 
-  // Create or update a row in `screenshot_tests` for this upload
-  const db = await Database()
-  const screenshotTestTable = db.getRepository(ScreenshotTest)
-  const screenshotTest = new ScreenshotTest()
-  screenshotTest.projectId = project.id
-  screenshotTest.commitSha = commitSha
-  screenshotTest.branch = branchName
-  screenshotTest.uploadId = uploadId
-  screenshotTest.status = ""
-  await screenshotTestTable.save(screenshotTest)
+  // Create a row in `screenshot_tests` for this upload
+  const screenshotTest = await createScreenshotTest(
+    project.id,
+    commitSha,
+    branch,
+    uploadId,
+    baseCommitSha,
+    baseBranch,
+  )
 
   // Add a task to the queue to process this screenshot test
   const task = new WorkTask()
@@ -73,6 +92,7 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
   task.createdAt = new Date()
   task.updatedAt = task.createdAt
 
+  const db = await Database()
   const tasks = db.getRepository(WorkTask)
   const savedTask = await tasks.save(task)
 
