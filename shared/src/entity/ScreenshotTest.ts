@@ -41,8 +41,14 @@ export class ScreenshotTest {
   @Column({ name: "commit_sha", type: "varchar", length: 64, nullable: false })
   commitSha!: string
 
-  @Column({ type: "varchar", length: 255, nullable: false })
+  @Column({ type: "varchar", length: 1024, nullable: false })
   branch!: string
+
+  @Column({ name: "base_commit_sha", type: "varchar", length: 64, nullable: true })
+  baseCommitSha!: string | undefined
+
+  @Column({ name: "base_branch", type: "varchar", length: 1024, nullable: true })
+  baseBranch!: string | undefined
 
   @Column({ name: "upload_id", type: "varchar", length: 36, unique: true, nullable: false })
   uploadId!: string

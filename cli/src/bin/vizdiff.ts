@@ -38,9 +38,21 @@ function main(): void {
 async function vizdiff(storybookDir: string, options: CommandArgs): Promise<void> {
   const projectToken = getToken(options)
   const commitSha = await getCommitSha(storybookDir, options)
-  const branchName = await getBranchName(storybookDir, options)
+  const branch = await getBranch(storybookDir, options)
+  const [baseCommitSha, baseBranch] = await getBaseCommitShaAndBranch(
+    storybookDir,
+    commitSha,
+    branch,
+  )
 
-  await uploadStorybook({ storybookDir, commitSha, branchName, projectToken })
+  await uploadStorybook({
+    storybookDir,
+    commitSha,
+    branch,
+    projectToken,
+    baseCommitSha,
+    baseBranch,
+  })
 }
 
 function getToken(options: { token?: string }) {
@@ -76,10 +88,9 @@ async function getCommitSha(storybookDir: string, options: { commit?: string }):
   return log.latest.hash
 }
 
-async function getBranchName(storybookDir: string, options: { branch?: string }): Promise<string> {
-  const branchName = options.branch
-  if (branchName) {
-    return branchName
+async function getBranch(storybookDir: string, options: { branch?: string }): Promise<string> {
+  if (options.branch) {
+    return options.branch
   }
 
   const gitDir = findGitRoot(storybookDir)
@@ -94,6 +105,52 @@ async function getBranchName(storybookDir: string, options: { branch?: string })
   }
 
   return status.current
+}
+
+/**
+ * Returns the base commit SHA and base branch name for the given commit and branch.
+ * If the base commit SHA is not found, it returns [undefined, undefined].
+ */
+async function getBaseCommitShaAndBranch(
+  storybookDir: string,
+  commitSha: string,
+  branch: string,
+): Promise<[string | undefined, string | undefined]> {
+  const gitDir = findGitRoot(storybookDir)
+  if (!gitDir) {
+    return [undefined, undefined]
+  }
+
+  const git = simpleGit(gitDir)
+  const log = await git.log()
+  if (!log.latest) {
+    return [undefined, undefined]
+  }
+
+  // Get the default branch (usually main or master)
+  const remotes = await git.getRemotes(true)
+  const defaultRemote = remotes.find((r) => r.name === "origin")
+  if (!defaultRemote) {
+    return [undefined, undefined]
+  }
+
+  // Get the default branch name
+  const defaultBranch = await git.revparse(["--abbrev-ref", `${defaultRemote.name}/HEAD`])
+  const baseBranch = defaultBranch.replace("origin/", "")
+
+  if (branch === baseBranch) {
+    // If we're on the default branch, use the previous commit as the base commit
+    const baseCommit = await git.revparse([`${commitSha}~1`])
+    return [baseCommit, baseBranch]
+  }
+
+  // Find merge base between current branch and default branch
+  try {
+    const mergeBase = await git.raw(["merge-base", branch, baseBranch])
+    return [mergeBase.trim(), baseBranch]
+  } catch (err: unknown) {
+    throw new Error(`Failed to find merge base between ${branch} and ${baseBranch}: ${err}`)
+  }
 }
 
 // Search for the first parent directory that contains a `.git` folder
