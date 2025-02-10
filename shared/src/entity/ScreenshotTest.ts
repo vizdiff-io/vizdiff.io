@@ -32,6 +32,9 @@ export class ScreenshotTest {
   @Column({ name: "build_number", type: "integer", nullable: false })
   buildNumber!: number
 
+  @Column({ name: "build_duration_sec", type: "double", nullable: true })
+  buildDurationSec!: number | undefined
+
   @OneToMany(() => TestResult, (testResult) => testResult.screenshotTest)
   testResults!: Promise<TestResult[]>
 

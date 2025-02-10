@@ -6,7 +6,7 @@ import os from "os"
 import path from "path"
 import pg from "pg"
 import createPgSubscriber from "pg-listen"
-import { TestResult } from "shared"
+import { ScreenshotTest, TestResult } from "shared"
 import { Readable } from "stream"
 import { extract } from "tar"
 import { remote } from "webdriverio"
@@ -24,6 +24,12 @@ import { log } from "./log"
 type IngestStorybookPayload = {
   projectId: string
   uploadId: string
+}
+
+type Task = {
+  task_type: string
+  screenshot_test_id: number
+  data: Record<string, unknown>
 }
 
 interface Story {
@@ -129,7 +135,7 @@ export async function startTask(taskQueueId: number): Promise<void> {
   }
 
   currentTaskId = taskQueueId
-  await processTask(task.task_type, task.data).finally(async () => {
+  await processTask(task.task_type, task.screenshot_test_id, task.data).finally(async () => {
     currentTaskId = undefined
 
     const nextTaskId = pendingTaskIds.shift()
@@ -152,9 +158,7 @@ export async function latestTaskQueueId(): Promise<number | undefined> {
   }
 }
 
-export async function fetchTask(
-  taskQueueId: number,
-): Promise<{ task_type: string; data: Record<string, unknown> } | undefined> {
+export async function fetchTask(taskQueueId: number): Promise<Task | undefined> {
   const client = await pool.connect()
   try {
     // First try to acquire the lock atomically
@@ -162,7 +166,7 @@ export async function fetchTask(
       `UPDATE task_queue 
        SET locked_at = NOW(), locked_by = $1
        WHERE id = $2 AND locked_at IS NULL
-       RETURNING task_type, data`,
+       RETURNING task_type, screenshot_test_id, data`,
       [`worker-${process.pid}`, taskQueueId],
     )
 
@@ -180,19 +184,27 @@ export async function fetchTask(
       return undefined
     }
 
-    return lockRes.rows[0] as { task_type: string; data: Record<string, unknown> }
+    return lockRes.rows[0] as {
+      task_type: string
+      screenshot_test_id: number
+      data: Record<string, unknown>
+    }
   } finally {
     client.release()
   }
 }
 
-export async function processTask(taskType: string, data: Record<string, unknown>): Promise<void> {
+export async function processTask(
+  taskType: string,
+  screenshotTestId: number,
+  data: Record<string, unknown>,
+): Promise<void> {
   log.info(`Processing task: [${taskType}] ${JSON.stringify(data)}`)
   try {
     switch (taskType) {
       case "ingest_storybook": {
         const { projectId, uploadId } = data as IngestStorybookPayload
-        await ingestStorybook(projectId, uploadId)
+        await ingestStorybook(projectId, screenshotTestId, uploadId)
         break
       }
       default:
@@ -213,8 +225,20 @@ export function shutdown(): void {
   })
 }
 
-async function ingestStorybook(projectId: string, uploadId: string): Promise<void> {
+async function ingestStorybook(
+  projectId: string,
+  screenshotTestId: number,
+  uploadId: string,
+): Promise<void> {
   log.info(`Starting storybook ingestion for project ${projectId}, upload ${uploadId}`)
+
+  // Fetch the screenshot test record
+  const db = await Database()
+  const screenshotTestRepo = db.getRepository(ScreenshotTest)
+  const screenshotTest = await screenshotTestRepo.findOneBy({ id: screenshotTestId })
+  if (!screenshotTest) {
+    throw new Error(`Screenshot test not found: ${screenshotTestId}`)
+  }
 
   // Initialize S3 client
   const s3Client = new S3Client({ region: "us-east-1" })
@@ -226,6 +250,10 @@ async function ingestStorybook(projectId: string, uploadId: string): Promise<voi
   const tmpDir = path.join(os.tmpdir(), `storybook-${uploadId}`)
   log.debug(`Creating temporary directory: ${tmpDir}`)
   await fsPromises.mkdir(tmpDir, { recursive: true })
+
+  // Update the screenshot test status to running
+  screenshotTest.status = "running"
+  await screenshotTestRepo.save(screenshotTest)
 
   try {
     // Download the tarball from S3
@@ -329,9 +357,7 @@ async function ingestStorybook(projectId: string, uploadId: string): Promise<voi
         const stories = JSON.parse(storiesJson) as Record<string, Story>
         log.info(`Found ${Object.keys(stories).length} stories to process`)
 
-        const db = await Database()
         const testResultTable = db.getRepository(TestResult)
-        log.debug("Successfully connected to database")
 
         // Process each story
         for (const [storyId, story] of Object.entries(stories)) {
@@ -350,7 +376,7 @@ async function ingestStorybook(projectId: string, uploadId: string): Promise<voi
           const screenshotPath = path.join(tmpDir, `${storyId}.png`)
           log.debug(`Taking screenshot: ${screenshotPath}`)
           const screenshot = (await browser.saveScreenshot(screenshotPath)) as Buffer
-          log.debug(`Successfully captured screenshot: ${screenshotPath}`)
+          log.debug(`Successfully captured ${screenshot.length} byte screenshot: ${screenshotPath}`)
 
           // Upload screenshot to S3
           const screenshotKey = `projects/${projectId}/screenshots/${uploadId}/${storyId}.png`
@@ -363,7 +389,9 @@ async function ingestStorybook(projectId: string, uploadId: string): Promise<voi
               ContentType: "image/png",
             }),
           )
-          log.debug(`Successfully uploaded screenshot to S3`)
+          log.info(
+            `Successfully uploaded screenshot ${screenshotKey} to S3 (${screenshot.length} bytes)`,
+          )
 
           // TASK: We need to fetch the previous screenshot, compare the new
           // screenshot with the previous screenshot, and determine the change
@@ -394,6 +422,13 @@ async function ingestStorybook(projectId: string, uploadId: string): Promise<voi
     // Cleanup
     log.debug(`Cleaning up temporary directory: ${tmpDir}`)
     await fsPromises.rm(tmpDir, { recursive: true, force: true })
+
+    // Update the screenshot test status to completed
+    const startedSec = screenshotTest.createdAt.getTime() / 1000
+    screenshotTest.status = "completed"
+    screenshotTest.buildDurationSec = Date.now() / 1000 - startedSec
+    await screenshotTestRepo.save(screenshotTest)
+
     log.info("Storybook ingestion completed successfully")
   }
 }

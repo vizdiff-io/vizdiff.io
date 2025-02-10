@@ -24,10 +24,10 @@ interface User {
 export default function NewProjectDialog({ onClose }: NewProjectDialogProps) {
   const [repos, setRepos] = useState<GithubRepo[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [_error, setError] = useState<string | null>(null)
 
-  const [me, isMeLoading, meErr] = useAuthenticatedFetch<User>(API_ME_URL)
-  const [orgs, isOrgsLoading, orgsErr] = useAuthenticatedFetch<GithubOrg[]>(API_ORGS_URL)
+  const [me, isMeLoading, _meErr] = useAuthenticatedFetch<User>(API_ME_URL)
+  const [orgs, isOrgsLoading, _orgsErr] = useAuthenticatedFetch<GithubOrg[]>(API_ORGS_URL)
 
   const updateLoading = useCallback(() => {
     if (!isMeLoading && !isOrgsLoading) {
@@ -39,14 +39,14 @@ export default function NewProjectDialog({ onClose }: NewProjectDialogProps) {
 
   const handleMeClick = async () => {
     setLoading(true)
-    const [meRepos, meReposError] = await apiGet(API_REPOS_URL)
+    const [meRepos, _meReposError] = await apiGet(API_REPOS_URL)
     setRepos((meRepos as [] | null) ?? [])
     updateLoading()
   }
 
   const handleOrgClick = async (org: string) => {
     setLoading(true)
-    const [orgRepos, orgReposError] = await apiGet(`${API_REPOS_URL}?org=${org}`)
+    const [orgRepos, _orgReposError] = await apiGet(`${API_REPOS_URL}?org=${org}`)
     setRepos((orgRepos as [] | null) ?? [])
     updateLoading()
   }
@@ -54,7 +54,7 @@ export default function NewProjectDialog({ onClose }: NewProjectDialogProps) {
   const handleRepoClick = async (repo: GithubRepo) => {
     setLoading(true)
     // Create the project
-    const [project, projectError] = await apiPost("/api/projects", {
+    const [_project, projectError] = await apiPost("/api/projects", {
       name: repo.name,
       githubRepoUrl: repo.html_url,
     })

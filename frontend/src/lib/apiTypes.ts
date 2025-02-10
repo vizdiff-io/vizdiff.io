@@ -3,28 +3,38 @@ export type Project = {
   name: string
   githubRepoUrl: string
   token: string
-  createdAt: Date
-  updatedAt: Date
+  createdStampSec: number
 }
 
-export type BuildInfo = {
+export type ScreenshotTest = {
+  id: number
+  projectId: number
   buildNumber: number
-  initiatedStampSec: string
-  buildTimeSec: number
+  commitSha: string
+  branch: string
+  baseCommitSha?: string
+  baseBranch?: string
+  uploadId: string
+  status: string
   components: number
   stories: number
-  browsers: string[]
-  uiReviews: string
-  commit: string
-  repository: string
-  branch: string
-  tests: {
-    visual: number
-    changes: number
-    ancestor: boolean
-    buildNumber: number
-    accepted: number
-    denied: number
-    unreviewed: number
-  }
+  changes?: number
+  tag?: string
+  initiatedStampSec: number
+  buildTimeSec?: number
+}
+
+export type TestResult = {
+  id: number
+  name: string
+  screenshotUrl: string
+  ancestorScreenshotUrl?: string
+  diffMaskUrl?: string
+  hasDiff: boolean
+  createdStampSec: number
+}
+
+export type TestResponse = ScreenshotTest & {
+  parent?: ScreenshotTest
+  testResults: TestResult[]
 }

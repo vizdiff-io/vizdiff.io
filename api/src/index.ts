@@ -13,6 +13,7 @@ import * as Approval from "./endpoints/approval"
 import * as Auth from "./endpoints/auth"
 import * as Github from "./endpoints/github"
 import * as Projects from "./endpoints/projects"
+import * as ScreenshotTests from "./endpoints/screenshot-tests"
 import * as Upload from "./endpoints/upload"
 import * as User from "./endpoints/user"
 import { IS_PRODUCTION, IS_TEST, PORT } from "./environment"
@@ -60,17 +61,25 @@ app.set("trust proxy", ["loopback", "linklocal", "uniquelocal"])
 router.get("/", (_req: DefaultRequest, res: DefaultResponse) => {
   res.json({ uptime: (new Date().getTime() - startTime) / 1000 })
 })
+
 router.get("/auth/github/callback", Auth.githubCallback)
 router.get("/auth/logout", Auth.logout) // Clears cookies only, no auth needed
+
 router.get("/github/orgs", authenticateJWT, Github.orgs)
 router.get("/github/repos", authenticateJWT, Github.repos)
+
 router.get("/projects", authenticateJWT, Projects.list)
 router.get("/projects/:id", authenticateJWT, Projects.get)
 router.delete("/projects/:id", authenticateJWT, Projects.remove)
 router.post("/projects", authenticateJWT, Projects.create)
+
+router.get("/tests/:id", authenticateJWT, ScreenshotTests.get)
 router.post("/tests/:id/status/:status", authenticateJWT, Approval.approveOrDeny)
+
 router.post("/upload/storybook", Upload.uploadStorybook) // ?token=<project_token>
+
 router.get("/users/me", authenticateJWT, User.me)
+
 app.use(router)
 
 // Error handling
