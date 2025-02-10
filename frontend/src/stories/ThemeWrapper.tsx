@@ -1,11 +1,11 @@
-import { createTheme, CssBaseline, type ThemeOptions } from "@mui/material"
-import { ThemeProvider } from "@mui/material"
+import { CssBaseline, ThemeProvider } from "@mui/material"
 import { Inter } from "next/font/google"
-import { useEffect, useState, useMemo } from "react"
+import { useEffect, useState } from "react"
 
 import DarkMode from "@/components/DarkMode"
+import useAppTheme from "@/hooks/useAppTheme"
 import { DarkModeContext } from "@/hooks/useDarkMode"
-import baseTheme, { COLORS } from "@/lib/theme"
+import { COLORS } from "@/lib/theme"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -18,11 +18,7 @@ export default function ThemeWrapper({
 }): JSX.Element {
   const [isThemeReady, setIsThemeReady] = useState(false)
   const isDarkMode = mode === "dark"
-
-  const theme = useMemo(() => {
-    const themeOptions: ThemeOptions = { ...baseTheme, palette: { mode } }
-    return createTheme(themeOptions)
-  }, [mode])
+  const theme = useAppTheme()
 
   useEffect(() => {
     // Set CSS variables in the document root

@@ -2,11 +2,8 @@ import { Typography, Box, Button, Container } from "@mui/material"
 import Head from "next/head"
 
 import { NavBody } from "@/components/NavBody"
-import { useDarkMode } from "@/hooks/useDarkMode"
 
 export default function Home(): JSX.Element {
-  const isDarkMode = useDarkMode()
-
   return (
     <>
       <Head>
@@ -28,9 +25,7 @@ export default function Home(): JSX.Element {
               variant="h1"
               sx={{
                 mb: 2,
-                background: isDarkMode
-                  ? "linear-gradient(to right, #fff 60%, rgba(255,255,255,0.5))"
-                  : "linear-gradient(to right, #000 60%, rgba(0,0,0,0.5))",
+                background: "var(--gradient-text)",
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
               }}
@@ -44,7 +39,6 @@ export default function Home(): JSX.Element {
               variant="h6"
               sx={{
                 mb: 4,
-                color: "text.secondary",
                 fontWeight: "normal",
                 lineHeight: 1.6,
               }}

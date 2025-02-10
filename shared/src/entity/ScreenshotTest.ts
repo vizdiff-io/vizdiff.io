@@ -56,6 +56,7 @@ export class ScreenshotTest {
   @Column({ name: "upload_id", type: "varchar", length: 36, unique: true, nullable: false })
   uploadId!: string
 
+  // "pending" | "running" | "no_changes" | "unapproved" | "approved" | "denied" | "failed"
   @Column({ type: "varchar", length: 255, nullable: false })
   status!: string
 

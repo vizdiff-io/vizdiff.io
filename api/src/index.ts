@@ -68,6 +68,8 @@ router.get("/auth/logout", Auth.logout) // Clears cookies only, no auth needed
 router.get("/github/orgs", authenticateJWT, Github.orgs)
 router.get("/github/repos", authenticateJWT, Github.repos)
 
+router.get("/activity", authenticateJWT, ScreenshotTests.listActivity)
+
 router.get("/projects", authenticateJWT, Projects.list)
 router.get("/projects/:id", authenticateJWT, Projects.get)
 router.delete("/projects/:id", authenticateJWT, Projects.remove)

@@ -4,7 +4,6 @@
   "references": [
     { "path": "./api" },
     { "path": "./cli" },
-    { "path": "./frontend" },
     { "path": "./shared" },
     { "path": "./worker" }
   ],

@@ -4741,15 +4741,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@storybook/addon-onboarding@npm:8.5.3":
-  version: 8.5.3
-  resolution: "@storybook/addon-onboarding@npm:8.5.3"
-  peerDependencies:
-    storybook: ^8.5.3
-  checksum: 10/465c5cecbd8583ce0f7e6be8f2892f7ed25770f992a949a68a9593abb93e8ec596556d22203ec53c73571976b1309eeec173e19627ac21a245aa6b0e1a2661ff
-  languageName: node
-  linkType: hard
-
 "@storybook/addon-outline@npm:8.5.3":
   version: 8.5.3
   resolution: "@storybook/addon-outline@npm:8.5.3"
@@ -10345,7 +10336,6 @@ __metadata:
     "@storybook/addon-essentials": "npm:8.5.3"
     "@storybook/addon-interactions": "npm:8.5.3"
     "@storybook/addon-links": "npm:8.5.3"
-    "@storybook/addon-onboarding": "npm:8.5.3"
     "@storybook/blocks": "npm:8.5.3"
     "@storybook/nextjs": "npm:8.5.3"
     "@storybook/react": "npm:8.5.3"

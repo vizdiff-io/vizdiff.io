@@ -2,7 +2,6 @@ import { Container, Typography, AppBar, Toolbar, Button, Box } from "@mui/materi
 import { Inter } from "next/font/google"
 
 import useTryApiGet from "@/hooks/useTryApiGet"
-import theme from "@/lib/theme"
 
 const API_ME_URL = "/api/users/me"
 
@@ -24,7 +23,6 @@ export const NavBody: React.FC<NavBodyProps> = ({ children }) => {
     <Box
       sx={{
         minHeight: "100vh",
-        bgcolor: theme.palette.background.default,
         display: "flex",
         flexDirection: "column",
         transition: "background-color 0.2s ease",
@@ -41,7 +39,6 @@ export const NavBody: React.FC<NavBodyProps> = ({ children }) => {
               sx={{
                 fontWeight: 600,
                 fontSize: "1.25rem",
-                color: theme.palette.text.primary,
                 textDecoration: "none",
                 mr: 4,
               }}
@@ -93,7 +90,6 @@ export const NavBody: React.FC<NavBodyProps> = ({ children }) => {
       <Box
         sx={{
           flex: 1,
-          bgcolor: theme.palette.background.default,
           transition: "background-color 0.2s ease",
         }}
       >

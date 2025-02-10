@@ -20,7 +20,7 @@ const mockData: TestResponse = {
   commitSha: "abc123",
   branch: "main",
   uploadId: "upload-123",
-  status: "completed",
+  status: "approved",
   initiatedStampSec: oneMinuteAgo,
   testResults: [
     {
@@ -55,7 +55,7 @@ const mockData: TestResponse = {
     branch: "main",
     commitSha: "def456",
     uploadId: "upload-122",
-    status: "completed",
+    status: "no_changes",
     initiatedStampSec: oneMinuteAgo - 3600,
   },
 }

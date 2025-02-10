@@ -25,7 +25,7 @@ export type ScreenshotTestResponse = {
   baseCommitSha?: string
   baseBranch?: string
   uploadId: string
-  status: "pending" | "running" | "completed"
+  status: "pending" | "running" | "no_changes" | "unapproved" | "approved" | "denied" | "failed"
   tag?: string
   initiatedStampSec: number
   buildDurationSec?: number

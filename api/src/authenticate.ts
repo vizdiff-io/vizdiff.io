@@ -109,6 +109,14 @@ export function authenticateJWT(req: DefaultRequest, res: Response, next: NextFu
   )
 }
 
+export function getUserId(req: DefaultRequest): number {
+  const maybeAuthedReq = req as MaybeAuthenticatedRequest
+  if (maybeAuthedReq.userId == undefined) {
+    throw new Error(`Request is not authenticated`)
+  }
+  return maybeAuthedReq.userId
+}
+
 export async function getUser(req: DefaultRequest): Promise<User> {
   const maybeAuthedReq = req as MaybeAuthenticatedRequest
   if (maybeAuthedReq.userId == undefined) {

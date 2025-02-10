@@ -17,13 +17,16 @@ import { NavBody } from "@/components/NavBody"
 import TestResultCard from "@/components/TestResultCard"
 import TestResultDialog from "@/components/TestResultDialog"
 import useApiGet from "@/hooks/useApiGet"
+import useAppTheme from "@/hooks/useAppTheme"
 import type { TestResponse, TestResultResponse } from "@/lib/apiTypes"
+import { getStatusColor } from "@/lib/colors"
 
 export default function Build(): JSX.Element {
   const router = useRouter()
   const { id } = router.query
   const [data, loading, error] = useApiGet<TestResponse>(`/api/tests/${id}`)
   const [selectedResult, setSelectedResult] = useState<TestResultResponse | null>(null)
+  const theme = useAppTheme()
 
   const handleApprove = async () => {
     // TASK: Implement approve API call
@@ -91,7 +94,7 @@ export default function Build(): JSX.Element {
                     variant="h6"
                     sx={{
                       fontWeight: 500,
-                      color: data?.status === "completed" ? "success.main" : "text.primary",
+                      color: getStatusColor(theme, data?.status ?? "pending"),
                     }}
                   >
                     {data?.status ?? "…"}
