@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "yarn node --no-warnings --loader ts-node/esm --experimental-specifier-resolution=node src/worker.ts",
     "start": "yarn dev",
-    "build": "tsc",
+    "build": "tsc --build",
     "test": "yarn run vitest --run",
     "lint": "eslint src"
   },
