@@ -13,7 +13,7 @@ import * as Approval from "./endpoints/approval"
 import * as Auth from "./endpoints/auth"
 import * as Github from "./endpoints/github"
 import * as Projects from "./endpoints/projects"
-import * as ScreenshotTests from "./endpoints/screenshot-tests"
+import * as ScreenshotTests from "./endpoints/screenshotTests"
 import * as Upload from "./endpoints/upload"
 import * as User from "./endpoints/user"
 import { IS_PRODUCTION, IS_TEST, PORT } from "./environment"
@@ -72,6 +72,7 @@ router.get("/projects", authenticateJWT, Projects.list)
 router.get("/projects/:id", authenticateJWT, Projects.get)
 router.delete("/projects/:id", authenticateJWT, Projects.remove)
 router.post("/projects", authenticateJWT, Projects.create)
+router.get("/projects/:projectId/builds", authenticateJWT, ScreenshotTests.list)
 
 router.get("/tests/:id", authenticateJWT, ScreenshotTests.get)
 router.post("/tests/:id/status/:status", authenticateJWT, Approval.approveOrDeny)

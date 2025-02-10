@@ -1,37 +1,27 @@
 import { ScreenshotTest, TestResult } from "shared"
 
+import type { ScreenshotTestResponse, TestResultResponse } from "../apiTypes"
 import { Database } from "../database"
 import { getParamInt } from "../http"
 import type { DefaultRequest, DefaultResponse } from "../types"
 
-export type ScreenshotTestResponse = {
-  id: number
-  projectId: number
-  buildNumber: number
-  commitSha: string
-  branch: string
-  baseCommitSha?: string
-  baseBranch?: string
-  uploadId: string
-  status: "pending" | "running" | "completed"
-  tag?: string
-  initiatedStampSec: number
-  buildDurationSec?: number
-}
+export async function list(req: DefaultRequest, res: DefaultResponse): Promise<void> {
+  const projectId = getParamInt("projectId", req)
+  if (!projectId) {
+    throw new Error("Missing projectId")
+  }
 
-export type TestResultResponse = {
-  id: number
-  name: string
-  changeStatus: "new" | "unchanged" | "changed"
-  screenshotUrl: string
-  ancestorScreenshotUrl?: string
-  diffMaskUrl?: string
-  createdStampSec: number
-}
+  const db = await Database()
+  const screenshotTestRepo = db.getRepository(ScreenshotTest)
 
-export type TestResponse = ScreenshotTestResponse & {
-  parent?: ScreenshotTestResponse
-  testResults: TestResultResponse[]
+  const screenshotTests = await screenshotTestRepo.find({
+    where: { projectId },
+    order: { buildNumber: "DESC" },
+    take: 10,
+  })
+
+  const responses = await Promise.all(screenshotTests.map(screenshotTestToResponse))
+  res.json(responses)
 }
 
 export async function get(req: DefaultRequest, res: DefaultResponse): Promise<void> {

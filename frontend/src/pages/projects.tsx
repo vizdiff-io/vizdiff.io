@@ -20,11 +20,11 @@ import { useState } from "react"
 import { NavBody } from "@/components/NavBody"
 import NewProjectDialog from "@/components/NewProjectDialog"
 import useApiGet from "@/hooks/useApiGet"
-import type { Project } from "@/lib/apiTypes"
+import type { ProjectResponse } from "@/lib/apiTypes"
 
 export default function Projects(): JSX.Element {
   const [showModal, setShowModal] = useState(false)
-  const [projects, loading, error] = useApiGet<Project[]>("/api/projects", [showModal])
+  const [projects, loading, error] = useApiGet<ProjectResponse[]>("/api/projects", [showModal])
 
   return (
     <>
