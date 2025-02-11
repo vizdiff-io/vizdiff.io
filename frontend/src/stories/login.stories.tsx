@@ -1,4 +1,5 @@
 import type { Meta, StoryObj, StoryContext } from "@storybook/react"
+import { HttpResponse, http } from "msw"
 import { type ComponentType } from "react"
 
 import ThemeWrapper from "./ThemeWrapper"
@@ -30,6 +31,9 @@ const meta: Meta<typeof LoginComponent> = {
       router: {
         query: { redirect: "https://vizdiff.io/projects" },
       },
+    },
+    msw: {
+      handlers: [http.get("/api/users/me", () => new HttpResponse(null, { status: 401 }))],
     },
   },
 }
