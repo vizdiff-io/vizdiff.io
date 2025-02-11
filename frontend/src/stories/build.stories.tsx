@@ -1,6 +1,5 @@
 import type { Meta, StoryObj, StoryContext } from "@storybook/react"
 import { http, HttpResponse } from "msw"
-import { mock } from "node:test"
 import { type ComponentType } from "react"
 
 import type { TestResponse } from "@/lib/apiTypes"
