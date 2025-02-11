@@ -94,6 +94,7 @@ function testResultToResponse(testResult: TestResult): TestResultResponse {
     screenshotUrl: testResult.newImageUrl,
     ancestorScreenshotUrl: testResult.baselineImageUrl,
     diffMaskUrl: testResult.diffImageUrl,
+    diffRatio: testResult.diffRatio,
     createdStampSec: testResult.createdAt.getTime() / 1000,
   }
 }
