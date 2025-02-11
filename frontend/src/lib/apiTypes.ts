@@ -47,6 +47,7 @@ export type TestResultResponse = {
   screenshotUrl: string
   ancestorScreenshotUrl?: string
   diffMaskUrl?: string
+  diffRatio?: number
   createdStampSec: number
 }
 

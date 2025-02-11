@@ -10,6 +10,8 @@ import {
 
 import { ScreenshotTest } from "./ScreenshotTest"
 
+export type TestResultStatus = "new" | "unchanged" | "changed" | "failed"
+
 @Entity("test_results")
 export class TestResult {
   @PrimaryGeneratedColumn()
@@ -37,8 +39,11 @@ export class TestResult {
   @Column({ type: "varchar", length: 2048, name: "new_image_url", nullable: false })
   newImageUrl!: string
 
-  @Column({ type: "varchar", length: 2048, name: "diff_image_url", nullable: false })
-  diffImageUrl!: string
+  @Column({ nullable: true })
+  diffImageUrl?: string
+
+  @Column({ type: "double precision", nullable: true })
+  diffRatio?: number
 
   // Can be "new", "unchanged", or "changed"
   @Column({ type: "varchar", length: 255, name: "change_status", nullable: false })

@@ -15,6 +15,7 @@ import {
   ListItemIcon,
 } from "@mui/material"
 import Head from "next/head"
+import Link from "next/link"
 import { useState } from "react"
 
 import { AppLayout } from "@/components/AppLayout"
@@ -153,22 +154,30 @@ export default function Projects(): JSX.Element {
                 <Typography variant="body2">No recent builds</Typography>
               ) : (
                 activity.map((test) => (
-                  <ListItem key={test.id} sx={{ px: 0, py: 1 }}>
-                    <ListItemIcon sx={{ minWidth: 32 }}>
-                      <CircleIcon
-                        sx={{
-                          fontSize: 12,
-                          color: getStatusColor(theme, test.status),
-                        }}
+                  <Link
+                    key={test.id}
+                    href={`/build?id=${test.id}`}
+                    style={{ textDecoration: "none", color: "inherit" }}
+                  >
+                    <ListItem
+                      sx={{ px: 0, py: 1, "&:hover": { bgcolor: "var(--five-percent-opacity)" } }}
+                    >
+                      <ListItemIcon sx={{ minWidth: 32 }}>
+                        <CircleIcon
+                          sx={{
+                            fontSize: 12,
+                            color: getStatusColor(theme, test.status),
+                          }}
+                        />
+                      </ListItemIcon>
+                      <ListItemText
+                        primary={`Build #${test.buildNumber}`}
+                        secondary={formatTimeAgo(test.initiatedStampSec * 1000)}
+                        primaryTypographyProps={{ variant: "body2" }}
+                        secondaryTypographyProps={{ variant: "caption" }}
                       />
-                    </ListItemIcon>
-                    <ListItemText
-                      primary={`Build #${test.buildNumber}`}
-                      secondary={formatTimeAgo(test.initiatedStampSec * 1000)}
-                      primaryTypographyProps={{ variant: "body2" }}
-                      secondaryTypographyProps={{ variant: "caption" }}
-                    />
-                  </ListItem>
+                    </ListItem>
+                  </Link>
                 ))
               )}
             </List>

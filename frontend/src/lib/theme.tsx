@@ -165,6 +165,9 @@ export function createAppTheme(mode: "dark" | "light"): Theme {
         styleOverrides: {
           root: {
             color: "var(--text-primary)",
+            "&.Mui-disabled": {
+              color: "var(--text-secondary)",
+            },
           },
         },
       },

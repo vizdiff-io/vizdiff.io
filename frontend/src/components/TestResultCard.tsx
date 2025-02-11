@@ -1,5 +1,4 @@
-import OpenInFullIcon from "@mui/icons-material/OpenInFull"
-import { Box, Paper, Typography, IconButton } from "@mui/material"
+import { Box, Paper, Typography } from "@mui/material"
 import Image from "next/image"
 
 import type { TestResultResponse } from "@/lib/apiTypes"
@@ -16,6 +15,7 @@ export default function TestResultCard({
 }: TestResultCardProps): JSX.Element {
   return (
     <Paper
+      onClick={() => onOpenFullscreen(result)}
       sx={{
         p: 2,
         height: "100%",
@@ -23,15 +23,14 @@ export default function TestResultCard({
         flexDirection: "column",
         gap: 1,
         position: "relative",
+        cursor: "pointer",
+        "&:hover": { bgcolor: "var(--five-percent-opacity)" },
       }}
     >
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
           {result.name}
         </Typography>
-        <IconButton size="small" onClick={() => onOpenFullscreen(result)}>
-          <OpenInFullIcon />
-        </IconButton>
       </Box>
 
       {/* Screenshot container */}
