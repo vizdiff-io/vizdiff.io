@@ -26,8 +26,8 @@ const mockProjects: ProjectResponse[] = [
   },
   {
     id: 2,
-    name: "Example Project",
-    githubRepoUrl: "https://github.com/example/project",
+    name: "example-project",
+    githubRepoUrl: "https://github.com/example/example-project",
     token: "def456ghi789",
     createdStampSec: oneMinuteAgo - 3600 * 24 * 7, // 1 week ago
     lastBuildStampSec: oneMinuteAgo - 3600 * 24, // 1 day ago
@@ -36,8 +36,8 @@ const mockProjects: ProjectResponse[] = [
   },
   {
     id: 3,
-    name: "Test Project",
-    githubRepoUrl: "https://github.com/test/project",
+    name: "MyAwesomeProject",
+    githubRepoUrl: "https://github.com/test/MyAwesomeProject",
     token: "ghi789jkl012",
     createdStampSec: oneMinuteAgo - 3600, // 1 hour ago
     lastBuildStampSec: oneMinuteAgo, // just now
