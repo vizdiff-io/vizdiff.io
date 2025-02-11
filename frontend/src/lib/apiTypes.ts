@@ -14,6 +14,9 @@ export type ProjectResponse = {
   githubRepoUrl: string
   token: string
   createdStampSec: number
+  lastBuildStampSec: number
+  builds: number
+  tests: number
 }
 
 export type ScreenshotTestResponse = {

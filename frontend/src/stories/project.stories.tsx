@@ -19,6 +19,9 @@ const mockProject: ProjectResponse = {
   githubRepoUrl: "https://github.com/example/project",
   token: "abc123def456",
   createdStampSec: oneMinuteAgo - 3600 * 24, // 1 day ago
+  lastBuildStampSec: oneMinuteAgo,
+  builds: 15,
+  tests: 45,
 }
 
 const mockBuilds: ScreenshotTestSummaryResponse[] = [
@@ -117,6 +120,14 @@ const meta: Meta<typeof ProjectComponent> = {
 export default meta
 type Story = StoryObj<typeof ProjectComponent>
 
-export const Project: Story = {
-  render: () => <ProjectComponent />,
+export const Light: Story = {
+  args: {
+    mode: "light",
+  },
+}
+
+export const Dark: Story = {
+  args: {
+    mode: "dark",
+  },
 }

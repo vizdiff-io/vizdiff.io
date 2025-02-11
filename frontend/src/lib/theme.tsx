@@ -1,5 +1,8 @@
 import { createTheme, type Theme } from "@mui/material"
 
+// Each key in this object is converted into a CSS variable with a `--` prefix,
+// such as `--bg-primary`. The CSS variable values are updated when the theme
+// mode changes.
 export const COLORS: Record<string, { light: string; dark: string }> = {
   "bg-primary": {
     light: "#fefefe",
@@ -7,7 +10,7 @@ export const COLORS: Record<string, { light: string; dark: string }> = {
   },
   "bg-paper": {
     light: "#f8f9fa",
-    dark: "#242728",
+    dark: "#181919",
   },
   "text-primary": {
     light: "#1a1d1e",
@@ -16,6 +19,10 @@ export const COLORS: Record<string, { light: string; dark: string }> = {
   "text-on-primary": {
     light: "#000000",
     dark: "#000000",
+  },
+  "text-secondary": {
+    light: "#6c757d",
+    dark: "#6c757d",
   },
   "gradient-text": {
     light: "linear-gradient(to right, #000 60%, rgba(0,0,0,0.5))",
@@ -146,6 +153,9 @@ export function createAppTheme(mode: "dark" | "light"): Theme {
         styleOverrides: {
           root: {
             color: "var(--text-primary)",
+          },
+          body2: {
+            color: "var(--text-secondary)",
           },
         },
       },

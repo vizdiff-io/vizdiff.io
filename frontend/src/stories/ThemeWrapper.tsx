@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 
 import DarkMode from "@/components/DarkMode"
 import useAppTheme from "@/hooks/useAppTheme"
+import { AuthProvider } from "@/hooks/useAuth"
 import { DarkModeContext } from "@/hooks/useDarkMode"
 import { COLORS } from "@/lib/theme"
 
@@ -35,13 +36,15 @@ export default function ThemeWrapper({
   }
 
   return (
-    <DarkModeContext.Provider value={{ isDarkMode }}>
-      <DarkMode mode={mode}>
-        <ThemeProvider theme={theme}>
-          <CssBaseline />
-          <div className={inter.className}>{children}</div>
-        </ThemeProvider>
-      </DarkMode>
-    </DarkModeContext.Provider>
+    <AuthProvider>
+      <DarkModeContext.Provider value={{ isDarkMode }}>
+        <DarkMode mode={mode}>
+          <ThemeProvider theme={theme}>
+            <CssBaseline />
+            <div className={inter.className}>{children}</div>
+          </ThemeProvider>
+        </DarkMode>
+      </DarkModeContext.Provider>
+    </AuthProvider>
   )
 }

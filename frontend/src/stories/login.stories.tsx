@@ -37,6 +37,14 @@ const meta: Meta<typeof LoginComponent> = {
 export default meta
 type Story = StoryObj<typeof LoginComponent>
 
-export const Login: Story = {
-  render: () => <LoginComponent />,
+export const Light: Story = {
+  args: {
+    mode: "light",
+  },
+}
+
+export const Dark: Story = {
+  args: {
+    mode: "dark",
+  },
 }

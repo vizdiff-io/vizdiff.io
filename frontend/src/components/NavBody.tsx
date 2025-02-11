@@ -1,9 +1,7 @@
 import { Container, Typography, AppBar, Toolbar, Button, Box } from "@mui/material"
 import { Inter } from "next/font/google"
 
-import useTryApiGet from "@/hooks/useTryApiGet"
-
-const API_ME_URL = "/api/users/me"
+import useAuth from "@/hooks/useAuth"
 
 const inter = Inter({ subsets: ["latin"] })
 void inter
@@ -12,12 +10,8 @@ interface NavBodyProps {
   children: React.ReactNode
 }
 
-interface User {
-  githubUsername: string
-}
-
 export const NavBody: React.FC<NavBodyProps> = ({ children }) => {
-  const [me, isMeLoading, _] = useTryApiGet<User>(API_ME_URL)
+  const { user, isLoading } = useAuth()
 
   return (
     <Box
@@ -66,11 +60,11 @@ export const NavBody: React.FC<NavBodyProps> = ({ children }) => {
                 Documentation
               </Button> */}
             </Box>
-            {isMeLoading ? (
+            {isLoading ? (
               <Button disabled variant="text">
                 Loading...
               </Button>
-            ) : me ? (
+            ) : user ? (
               <Button href="/api/auth/logout" variant="outlined">
                 Logout
               </Button>

@@ -36,6 +36,14 @@ const meta: Meta<typeof HomeComponent> = {
 export default meta
 type Story = StoryObj<typeof HomeComponent>
 
-export const Home: Story = {
-  render: () => <HomeComponent />,
+export const Light: Story = {
+  args: {
+    mode: "light",
+  },
+}
+
+export const Dark: Story = {
+  args: {
+    mode: "dark",
+  },
 }

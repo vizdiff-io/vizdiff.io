@@ -15,16 +15,19 @@ import {
   ListItemIcon,
 } from "@mui/material"
 import Head from "next/head"
-import { useState, useMemo } from "react"
+import { useState } from "react"
 
 import { NavBody } from "@/components/NavBody"
 import NewProjectDialog from "@/components/NewProjectDialog"
 import useApiGet from "@/hooks/useApiGet"
-import { useDarkMode } from "@/hooks/useDarkMode"
+import useAppTheme from "@/hooks/useAppTheme"
 import type { ProjectResponse, ScreenshotTestResponse } from "@/lib/apiTypes"
 import { getStatusColor } from "@/lib/colors"
-import { createAppTheme } from "@/lib/theme"
 import { formatTimeAgo } from "@/lib/time"
+
+function plural(count: number): string {
+  return count === 1 ? "" : "s"
+}
 
 export default function Projects(): JSX.Element {
   const [showModal, setShowModal] = useState(false)
@@ -32,8 +35,7 @@ export default function Projects(): JSX.Element {
     showModal,
   ])
   const [activity, activityLoading] = useApiGet<ScreenshotTestResponse[]>("/api/activity")
-  const isDarkMode = useDarkMode()
-  const theme = useMemo(() => createAppTheme(isDarkMode ? "dark" : "light"), [isDarkMode])
+  const theme = useAppTheme()
 
   return (
     <>
@@ -97,27 +99,34 @@ export default function Projects(): JSX.Element {
             ) : (
               <Box>
                 {projects?.map((project) => (
-                  <Paper
+                  <a
                     key={project.id}
-                    sx={{
-                      p: 3,
-                      mb: 2,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "space-between",
-                      "&:hover": { bgcolor: "action.hover" },
-                    }}
+                    href={`/project?id=${project.id}`}
+                    style={{ textDecoration: "none" }}
                   >
-                    <Box>
-                      <Typography variant="h6" component="h2" sx={{ mb: 1 }}>
-                        {project.name}
-                      </Typography>
-                      <Typography variant="body2" color="var(--text-primary)">
-                        Last build 8mo ago • 4 Builds • 1 Component
-                      </Typography>
-                    </Box>
-                    <Box>{/* Add any project actions here */}</Box>
-                  </Paper>
+                    <Paper
+                      sx={{
+                        p: 3,
+                        mb: 2,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        "&:hover": { bgcolor: "action.hover", cursor: "pointer" },
+                      }}
+                    >
+                      <Box>
+                        <Typography variant="h6" component="h2" sx={{ mb: 1 }}>
+                          {project.name}
+                        </Typography>
+                        <Typography variant="body2" color="var(--text-primary)">
+                          Last build {formatTimeAgo(project.lastBuildStampSec * 1000)} •{" "}
+                          {project.builds} Build{plural(project.builds)} • {project.tests} Test
+                          {plural(project.tests)}
+                        </Typography>
+                      </Box>
+                      <Box>{/* Add any project actions here */}</Box>
+                    </Paper>
+                  </a>
                 ))}
               </Box>
             )}
@@ -154,7 +163,7 @@ export default function Projects(): JSX.Element {
                 ))
               ) : (
                 <Typography variant="body2" color="text.secondary" sx={{ px: 2 }}>
-                  No recent activity
+                  No recent builds
                 </Typography>
               )}
             </List>

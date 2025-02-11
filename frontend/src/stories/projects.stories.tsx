@@ -20,6 +20,9 @@ const mockProjects: ProjectResponse[] = [
     githubRepoUrl: "https://github.com/MetaverseIndustries/vizdiff.io",
     token: "abc123def456",
     createdStampSec: oneMinuteAgo - 3600 * 24 * 30, // 1 month ago
+    lastBuildStampSec: oneMinuteAgo - 3600, // 1 hour ago
+    builds: 42,
+    tests: 156,
   },
   {
     id: 2,
@@ -27,6 +30,9 @@ const mockProjects: ProjectResponse[] = [
     githubRepoUrl: "https://github.com/example/project",
     token: "def456ghi789",
     createdStampSec: oneMinuteAgo - 3600 * 24 * 7, // 1 week ago
+    lastBuildStampSec: oneMinuteAgo - 3600 * 24, // 1 day ago
+    builds: 15,
+    tests: 45,
   },
   {
     id: 3,
@@ -34,6 +40,9 @@ const mockProjects: ProjectResponse[] = [
     githubRepoUrl: "https://github.com/test/project",
     token: "ghi789jkl012",
     createdStampSec: oneMinuteAgo - 3600, // 1 hour ago
+    lastBuildStampSec: oneMinuteAgo, // just now
+    builds: 3,
+    tests: 12,
   },
 ]
 const mockActivity: ScreenshotTestResponse[] = [
@@ -143,6 +152,14 @@ const meta: Meta<typeof ProjectsComponent> = {
 export default meta
 type Story = StoryObj<typeof ProjectsComponent>
 
-export const Projects: Story = {
-  render: () => <ProjectsComponent />,
+export const Light: Story = {
+  args: {
+    mode: "light",
+  },
+}
+
+export const Dark: Story = {
+  args: {
+    mode: "dark",
+  },
 }

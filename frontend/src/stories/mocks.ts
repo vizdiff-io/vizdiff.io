@@ -16,4 +16,4 @@ const mockUser: UserResponse = {
   updatedStampSec: oneMinuteAgo,
 }
 
-export const userHandler = http.get("/api/users/me", () => HttpResponse.json({ mockUser }))
+export const userHandler = http.get("/api/users/me", () => HttpResponse.json(mockUser))
