@@ -122,6 +122,7 @@ export default function Projects(): JSX.Element {
                           <Typography variant="body2" color="var(--text-primary)">
                             Last build {formatTimeAgo(project.lastBuildStampSec * 1000)} •{" "}
                             {project.builds} Build{plural(project.builds)} • {project.tests} Test
+                            {plural(project.tests)}
                           </Typography>
                         ) : (
                           <Typography variant="body2" color="var(--text-primary)">
