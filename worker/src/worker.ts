@@ -231,7 +231,7 @@ async function getS3BucketForProjectId(_projectId: string): Promise<string> {
   return "vizdiff-testing"
 }
 
-async function ingestStorybook(
+export async function ingestStorybook(
   projectId: string,
   screenshotTestId: number,
   uploadId: string,
