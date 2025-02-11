@@ -18,8 +18,29 @@ import TestResultCard from "@/components/TestResultCard"
 import TestResultDialog from "@/components/TestResultDialog"
 import useApiGet from "@/hooks/useApiGet"
 import useAppTheme from "@/hooks/useAppTheme"
-import type { TestResponse, TestResultResponse } from "@/lib/apiTypes"
+import type { ScreenshotTestResponse, TestResponse, TestResultResponse } from "@/lib/apiTypes"
 import { getStatusColor } from "@/lib/colors"
+
+function getStatusText(status: ScreenshotTestResponse["status"]): string {
+  switch (status) {
+    case "pending":
+      return "Pending"
+    case "running":
+      return "Running"
+    case "no_changes":
+      return "No changes"
+    case "unapproved":
+      return "Unapproved"
+    case "approved":
+      return "Approved"
+    case "denied":
+      return "Denied"
+    case "failed":
+      return "Failed"
+    default:
+      return "Unknown"
+  }
+}
 
 export default function Build(): JSX.Element {
   const router = useRouter()
@@ -61,6 +82,9 @@ export default function Build(): JSX.Element {
 
   const tests = data?.testResults.length
   const changes = data?.testResults.filter((result) => result.changeStatus !== "unchanged").length
+  const status = data?.status
+  const approveEnabled = status === "unapproved" || status === "denied"
+  const denyEnabled = status === "unapproved" || status === "approved"
 
   return (
     <>
@@ -125,7 +149,7 @@ export default function Build(): JSX.Element {
                         color: getStatusColor(theme, data.status),
                       }}
                     >
-                      {data.status.charAt(0).toUpperCase() + data.status.slice(1)}
+                      {getStatusText(data.status)}
                     </Typography>
                     <Typography variant="body2">Status</Typography>
                   </Box>
@@ -137,6 +161,7 @@ export default function Build(): JSX.Element {
                   color="success"
                   startIcon={<CheckCircleIcon />}
                   onClick={handleApprove}
+                  disabled={!approveEnabled}
                 >
                   Approve
                 </Button>
@@ -145,6 +170,7 @@ export default function Build(): JSX.Element {
                   color="error"
                   startIcon={<CancelIcon />}
                   onClick={handleDeny}
+                  disabled={!denyEnabled}
                 >
                   Deny
                 </Button>

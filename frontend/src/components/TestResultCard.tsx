@@ -29,11 +29,7 @@ export default function TestResultCard({
         <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
           {result.name}
         </Typography>
-        <IconButton
-          size="small"
-          onClick={() => onOpenFullscreen(result)}
-          sx={{ color: "text.secondary" }}
-        >
+        <IconButton size="small" onClick={() => onOpenFullscreen(result)}>
           <OpenInFullIcon />
         </IconButton>
       </Box>
@@ -79,9 +75,7 @@ export default function TestResultCard({
             bgcolor: changeStatusColor(result.changeStatus),
           }}
         />
-        <Typography variant="body2" color="text.secondary">
-          {changeStatusMessage(result.changeStatus)}
-        </Typography>
+        <Typography variant="body2">{changeStatusMessage(result.changeStatus)}</Typography>
       </Box>
     </Paper>
   )

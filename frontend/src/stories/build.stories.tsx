@@ -1,5 +1,6 @@
 import type { Meta, StoryObj, StoryContext } from "@storybook/react"
 import { http, HttpResponse } from "msw"
+import { mock } from "node:test"
 import { type ComponentType } from "react"
 
 import type { TestResponse } from "@/lib/apiTypes"
@@ -105,5 +106,101 @@ export const Light: Story = {
 export const Dark: Story = {
   args: {
     mode: "dark",
+  },
+}
+
+export const Pending: Story = {
+  args: {
+    mode: "light",
+  },
+  parameters: {
+    msw: {
+      handlers: [
+        userHandler,
+        http.get("/api/tests/:id", () =>
+          HttpResponse.json({ ...mockBuildData, status: "pending", testResults: [] }),
+        ),
+      ],
+    },
+  },
+}
+
+export const Running: Story = {
+  args: {
+    mode: "light",
+  },
+  parameters: {
+    msw: {
+      handlers: [
+        userHandler,
+        http.get("/api/tests/:id", () =>
+          HttpResponse.json({
+            ...mockBuildData,
+            status: "running",
+            testResults: mockBuildData.testResults.slice(0, 1),
+          }),
+        ),
+      ],
+    },
+  },
+}
+
+export const NoChanges: Story = {
+  args: {
+    mode: "light",
+  },
+  parameters: {
+    msw: {
+      handlers: [
+        userHandler,
+        http.get("/api/tests/:id", () =>
+          HttpResponse.json({ ...mockBuildData, status: "no_changes" }),
+        ),
+      ],
+    },
+  },
+}
+
+export const Unapproved: Story = {
+  args: {
+    mode: "light",
+  },
+  parameters: {
+    msw: {
+      handlers: [
+        userHandler,
+        http.get("/api/tests/:id", () =>
+          HttpResponse.json({ ...mockBuildData, status: "unapproved" }),
+        ),
+      ],
+    },
+  },
+}
+
+export const Denied: Story = {
+  args: {
+    mode: "light",
+  },
+  parameters: {
+    msw: {
+      handlers: [
+        userHandler,
+        http.get("/api/tests/:id", () => HttpResponse.json({ ...mockBuildData, status: "denied" })),
+      ],
+    },
+  },
+}
+
+export const Failed: Story = {
+  args: {
+    mode: "light",
+  },
+  parameters: {
+    msw: {
+      handlers: [
+        userHandler,
+        http.get("/api/tests/:id", () => HttpResponse.json({ ...mockBuildData, status: "failed" })),
+      ],
+    },
   },
 }

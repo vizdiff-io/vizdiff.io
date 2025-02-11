@@ -59,9 +59,9 @@ const mockBuilds: ScreenshotTestSummaryResponse[] = [
     commitSha: "1a2b3c4",
     branch: "main",
     uploadId: "121",
-    components: 10,
-    stories: 40,
-    changes: 40,
+    components: 1,
+    stories: 1,
+    changes: 1,
     initiatedStampSec: oneMinuteAgo - 3600 * 24, // 1 day ago
     status: "unapproved",
   },

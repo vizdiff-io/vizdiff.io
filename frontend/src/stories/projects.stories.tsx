@@ -31,8 +31,8 @@ const mockProjects: ProjectResponse[] = [
     token: "def456ghi789",
     createdStampSec: oneMinuteAgo - 3600 * 24 * 7, // 1 week ago
     lastBuildStampSec: oneMinuteAgo - 3600 * 24, // 1 day ago
-    builds: 15,
-    tests: 45,
+    builds: 1,
+    tests: 1,
   },
   {
     id: 3,
@@ -152,14 +152,16 @@ const meta: Meta<typeof ProjectsComponent> = {
 export default meta
 type Story = StoryObj<typeof ProjectsComponent>
 
-export const Light: Story = {
-  args: {
-    mode: "light",
-  },
-}
+export const Light: Story = { args: { mode: "light" } }
 
-export const Dark: Story = {
-  args: {
-    mode: "dark",
+export const Dark: Story = { args: { mode: "dark" } }
+
+export const EmptyProjects: Story = {
+  args: { mode: "light" },
+  parameters: {
+    msw: {
+      handlers: [userHandler, http.get("/api/projects", () => HttpResponse.json([]))],
+    },
   },
+  render: () => <ProjectsComponent />,
 }

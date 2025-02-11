@@ -23,19 +23,18 @@ import useApiGet from "@/hooks/useApiGet"
 import useAppTheme from "@/hooks/useAppTheme"
 import type { ProjectResponse, ScreenshotTestResponse } from "@/lib/apiTypes"
 import { getStatusColor } from "@/lib/colors"
+import { plural } from "@/lib/text"
 import { formatTimeAgo } from "@/lib/time"
-
-function plural(count: number): string {
-  return count === 1 ? "" : "s"
-}
 
 export default function Projects(): JSX.Element {
   const [showModal, setShowModal] = useState(false)
-  const [projects, loading, projectError] = useApiGet<ProjectResponse[]>("/api/projects", [
+  const [projectsResponse, loading, projectError] = useApiGet<ProjectResponse[]>("/api/projects", [
     showModal,
   ])
-  const [activity, activityLoading] = useApiGet<ScreenshotTestResponse[]>("/api/activity")
+  const [activityResponse, activityLoading] = useApiGet<ScreenshotTestResponse[]>("/api/activity")
   const theme = useAppTheme()
+  const projects = projectsResponse ?? []
+  const activity = activityResponse ?? []
 
   return (
     <>
@@ -96,9 +95,11 @@ export default function Projects(): JSX.Element {
 
             {loading ? (
               <Typography>Loading projects...</Typography>
+            ) : projects.length === 0 ? (
+              <Typography>No projects yet</Typography>
             ) : (
               <Box>
-                {projects?.map((project) => (
+                {projects.map((project) => (
                   <a
                     key={project.id}
                     href={`/project?id=${project.id}`}
@@ -148,7 +149,9 @@ export default function Projects(): JSX.Element {
                 <Typography variant="body2" color="var(--text-primary)" sx={{ px: 2 }}>
                   Loading activity...
                 </Typography>
-              ) : activity?.length ? (
+              ) : activity.length === 0 ? (
+                <Typography variant="body2">No recent builds</Typography>
+              ) : (
                 activity.map((test) => (
                   <ListItem key={test.id} sx={{ px: 0, py: 1 }}>
                     <ListItemIcon sx={{ minWidth: 32 }}>
@@ -167,10 +170,6 @@ export default function Projects(): JSX.Element {
                     />
                   </ListItem>
                 ))
-              ) : (
-                <Typography variant="body2" color="text.secondary" sx={{ px: 2 }}>
-                  No recent builds
-                </Typography>
               )}
             </List>
           </Box>

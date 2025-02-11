@@ -18,6 +18,6 @@ export function changeStatusColor(changeStatus: string): string {
     case "new":
     case "changed":
     default:
-      return "error.main"
+      return "warning.main"
   }
 }

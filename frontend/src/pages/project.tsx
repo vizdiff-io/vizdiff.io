@@ -1,6 +1,5 @@
 import CircleIcon from "@mui/icons-material/Circle"
-import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown"
-import { Box, Button, Typography, Paper, useTheme } from "@mui/material"
+import { Box, Typography, Paper, useTheme } from "@mui/material"
 import { formatDistanceToNow } from "date-fns"
 import Head from "next/head"
 import { useRouter } from "next/router"
@@ -9,6 +8,7 @@ import { NavBody } from "@/components/NavBody"
 import useApiGet from "@/hooks/useApiGet"
 import type { ProjectResponse, ScreenshotTestSummaryResponse } from "@/lib/apiTypes"
 import { getStatusColor } from "@/lib/colors"
+import { plural } from "@/lib/text"
 
 export default function Project(): JSX.Element {
   const router = useRouter()
@@ -47,11 +47,11 @@ export default function Project(): JSX.Element {
             <Typography variant="h4" component="h1" sx={{ fontWeight: 600 }}>
               Builds
             </Typography>
-            <Box sx={{ display: "flex", gap: 1 }}>
+            {/* <Box sx={{ display: "flex", gap: 1 }}>
               <Button variant="outlined" endIcon={<KeyboardArrowDownIcon />}>
                 All branches
               </Button>
-            </Box>
+            </Box> */}
           </Box>
 
           {loading ? (
@@ -108,15 +108,19 @@ export default function Project(): JSX.Element {
                   <Box sx={{ display: "flex", gap: 4, ml: 2 }}>
                     <Box sx={{ textAlign: "center" }}>
                       <Typography variant="h6">{build.components ?? "…"}</Typography>
-                      <Typography variant="caption">Components</Typography>
+                      <Typography variant="caption">
+                        Component{plural(build.components ?? 0)}
+                      </Typography>
                     </Box>
                     <Box sx={{ textAlign: "center" }}>
                       <Typography variant="h6">{build.stories ?? "…"}</Typography>
-                      <Typography variant="caption">Stories</Typography>
+                      <Typography variant="caption">
+                        {build.stories === 1 ? "Story" : "Stories"}
+                      </Typography>
                     </Box>
                     <Box sx={{ textAlign: "center" }}>
                       <Typography variant="h6">{build.changes ?? "…"}</Typography>
-                      <Typography variant="caption">Changes</Typography>
+                      <Typography variant="caption">Change{plural(build.changes ?? 0)}</Typography>
                     </Box>
                   </Box>
                 </Paper>
