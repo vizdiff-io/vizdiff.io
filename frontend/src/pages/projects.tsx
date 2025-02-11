@@ -17,7 +17,7 @@ import {
 import Head from "next/head"
 import { useState } from "react"
 
-import { NavBody } from "@/components/NavBody"
+import { AppLayout } from "@/components/AppLayout"
 import NewProjectDialog from "@/components/NewProjectDialog"
 import useApiGet from "@/hooks/useApiGet"
 import useAppTheme from "@/hooks/useAppTheme"
@@ -43,7 +43,7 @@ export default function Projects(): JSX.Element {
         <meta name="description" content="Project listing" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
-      <NavBody>
+      <AppLayout>
         <Box sx={{ display: "flex", gap: 3, px: 3, py: 4, minHeight: "calc(100vh - 64px)" }}>
           {/* Left Sidebar */}
           <Box sx={{ width: 200, flexShrink: 0 }}>
@@ -177,7 +177,7 @@ export default function Projects(): JSX.Element {
 
         {/* New Project Modal */}
         {showModal && <NewProjectDialog onClose={() => setShowModal(false)} />}
-      </NavBody>
+      </AppLayout>
     </>
   )
 }

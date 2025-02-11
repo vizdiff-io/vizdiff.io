@@ -4,7 +4,7 @@ import Head from "next/head"
 import { useRouter } from "next/router"
 import { useEffect } from "react"
 
-import { NavBody } from "@/components/NavBody"
+import { MarketingLayout } from "@/components/NavBody"
 import useAuth from "@/hooks/useAuth"
 
 const clientId = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID
@@ -45,7 +45,7 @@ export default function Login(): JSX.Element {
           <title>Login - vizdiff.io</title>
           <meta name="description" content="Login to vizdiff.io" />
         </Head>
-        <NavBody>
+        <MarketingLayout>
           <Container maxWidth="lg">
             <Box
               sx={{
@@ -58,7 +58,7 @@ export default function Login(): JSX.Element {
               <Typography variant="h6">Redirecting...</Typography>
             </Box>
           </Container>
-        </NavBody>
+        </MarketingLayout>
       </>
     )
   }
@@ -69,7 +69,7 @@ export default function Login(): JSX.Element {
         <title>Login - vizdiff.io</title>
         <meta name="description" content="Login to vizdiff.io" />
       </Head>
-      <NavBody>
+      <MarketingLayout>
         <Container maxWidth="lg">
           <Box
             sx={{
@@ -125,7 +125,7 @@ export default function Login(): JSX.Element {
             </Box>
           </Box>
         </Container>
-      </NavBody>
+      </MarketingLayout>
     </>
   )
 }

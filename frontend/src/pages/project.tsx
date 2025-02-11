@@ -4,7 +4,7 @@ import { formatDistanceToNow } from "date-fns"
 import Head from "next/head"
 import { useRouter } from "next/router"
 
-import { NavBody } from "@/components/NavBody"
+import { AppLayout } from "@/components/AppLayout"
 import useApiGet from "@/hooks/useApiGet"
 import type { ProjectResponse, ScreenshotTestSummaryResponse } from "@/lib/apiTypes"
 import { getStatusColor } from "@/lib/colors"
@@ -33,7 +33,7 @@ export default function Project(): JSX.Element {
         <meta name="description" content="Project builds and details" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
-      <NavBody>
+      <AppLayout>
         <Box sx={{ px: 3, py: 4 }}>
           {error && (
             <Paper sx={{ p: 2, mb: 3, bgcolor: "error.light", color: "error.contrastText" }}>
@@ -128,7 +128,7 @@ export default function Project(): JSX.Element {
             </Box>
           )}
         </Box>
-      </NavBody>
+      </AppLayout>
     </>
   )
 }

@@ -6,11 +6,11 @@ import useAuth from "@/hooks/useAuth"
 const inter = Inter({ subsets: ["latin"] })
 void inter
 
-interface NavBodyProps {
+interface MarketingLayoutProps {
   children: React.ReactNode
 }
 
-export const NavBody: React.FC<NavBodyProps> = ({ children }) => {
+export const MarketingLayout: React.FC<MarketingLayoutProps> = ({ children }) => {
   const { user, isLoading } = useAuth()
 
   return (
