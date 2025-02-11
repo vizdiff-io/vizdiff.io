@@ -118,11 +118,16 @@ export default function Projects(): JSX.Element {
                         <Typography variant="h6" component="h2" sx={{ mb: 1 }}>
                           {project.name}
                         </Typography>
-                        <Typography variant="body2" color="var(--text-primary)">
-                          Last build {formatTimeAgo(project.lastBuildStampSec * 1000)} •{" "}
-                          {project.builds} Build{plural(project.builds)} • {project.tests} Test
-                          {plural(project.tests)}
-                        </Typography>
+                        {project.lastBuildStampSec > 0 ? (
+                          <Typography variant="body2" color="var(--text-primary)">
+                            Last build {formatTimeAgo(project.lastBuildStampSec * 1000)} •{" "}
+                            {project.builds} Build{plural(project.builds)} • {project.tests} Test
+                          </Typography>
+                        ) : (
+                          <Typography variant="body2" color="var(--text-primary)">
+                            No builds yet
+                          </Typography>
+                        )}
                       </Box>
                       <Box>{/* Add any project actions here */}</Box>
                     </Paper>
