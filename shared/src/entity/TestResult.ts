@@ -39,7 +39,7 @@ export class TestResult {
   @Column({ type: "varchar", length: 2048, name: "new_image_url", nullable: false })
   newImageUrl!: string
 
-  @Column({ nullable: true })
+  @Column({ type: "varchar", length: 2048, name: "diff_image_url", nullable: true })
   diffImageUrl?: string
 
   @Column({ type: "double precision", nullable: true })
