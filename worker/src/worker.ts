@@ -432,12 +432,25 @@ export async function ingestStorybook(
       log.debug("Closing WebdriverIO browser session")
       await browser.deleteSession()
     }
+  } catch (error) {
+    log.error(
+      `Failed to process storybook: ${error instanceof Error ? error.message : String(error)}`,
+    )
+    screenshotTest.status = "failed"
+    await screenshotTestRepo.save(screenshotTest)
+    throw error
   } finally {
     // Cleanup
     log.debug(`Cleaning up temporary directory: ${tmpDir}`)
     await fsPromises.rm(tmpDir, { recursive: true, force: true })
 
-    log.info("Storybook ingestion completed successfully")
+    // If status is still "running", something went wrong without throwing an error
+    if (screenshotTest.status === "running") {
+      screenshotTest.status = "failed"
+      await screenshotTestRepo.save(screenshotTest)
+    }
+
+    log.info(`Storybook ingestion completed with status: ${screenshotTest.status}`)
   }
 }
 

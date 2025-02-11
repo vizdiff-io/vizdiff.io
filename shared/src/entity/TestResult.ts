@@ -45,7 +45,7 @@ export class TestResult {
   @Column({ type: "double precision", nullable: true })
   diffRatio?: number
 
-  // Can be "new", "unchanged", or "changed"
+  // Can be "new", "unchanged", "changed", or "failed"
   @Column({ type: "varchar", length: 255, name: "change_status", nullable: false })
   changeStatus!: string
 

@@ -413,12 +413,15 @@ describe("worker", () => {
 
       await expect(ingestStorybook("test-project", 123, "test-upload")).rejects.toThrow("S3 error")
 
-      // Verify screenshot test is not marked as completed on failure
-      expect(mockScreenshotTestSave).not.toHaveBeenCalledWith(
+      // Verify screenshot test is marked as failed
+      expect(mockScreenshotTestSave).toHaveBeenCalledWith(
         expect.objectContaining({
-          status: expect.stringMatching(/^(no_changes|unapproved)$/),
+          status: "failed",
         }),
       )
+
+      // Verify no test results were created since we couldn't get the stories list
+      expect(mockTestResultSave).not.toHaveBeenCalled()
     })
   })
 })

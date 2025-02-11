@@ -1,4 +1,6 @@
-export function changeStatusMessage(changeStatus: string): string {
+import type { TestResultStatus } from "../../../shared/src/entity/TestResult"
+
+export function changeStatusMessage(changeStatus: TestResultStatus): string {
   switch (changeStatus) {
     case "new":
       return "New"
@@ -6,18 +8,22 @@ export function changeStatusMessage(changeStatus: string): string {
       return "Unchanged"
     case "changed":
       return "Changed"
+    case "failed":
+      return "Failed"
     default:
-      return changeStatus
+      return String(changeStatus)
   }
 }
 
-export function changeStatusColor(changeStatus: string): string {
+export function changeStatusColor(changeStatus: TestResultStatus): string {
   switch (changeStatus) {
     case "unchanged":
       return "success.main"
     case "new":
     case "changed":
-    default:
       return "warning.main"
+    case "failed":
+    default:
+      return "error.main"
   }
 }
