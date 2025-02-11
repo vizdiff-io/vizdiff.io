@@ -1,6 +1,6 @@
 import CircleIcon from "@mui/icons-material/Circle"
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown"
-import { Box, Button, Typography, Paper } from "@mui/material"
+import { Box, Button, Typography, Paper, useTheme } from "@mui/material"
 import { formatDistanceToNow } from "date-fns"
 import Head from "next/head"
 import { useRouter } from "next/router"
@@ -8,14 +8,20 @@ import { useRouter } from "next/router"
 import { NavBody } from "@/components/NavBody"
 import useApiGet from "@/hooks/useApiGet"
 import type { ProjectResponse, ScreenshotTestSummaryResponse } from "@/lib/apiTypes"
+import { getStatusColor } from "@/lib/colors"
 
 export default function Project(): JSX.Element {
   const router = useRouter()
+  const theme = useTheme()
   const { id } = router.query
-  const [project, projectLoading, projectError] = useApiGet<ProjectResponse>(`/api/projects/${id}`)
-  const [builds, buildsLoading, buildsError] = useApiGet<ScreenshotTestSummaryResponse[]>(
-    `/api/projects/${id}/builds`,
+  const isValidId = typeof id === "string" && /^\d+$/.test(id)
+  const [project, projectLoading, projectError] = useApiGet<ProjectResponse>(
+    isValidId ? `/api/projects/${id}` : undefined,
   )
+  const [buildsResponse, buildsLoading, buildsError] = useApiGet<ScreenshotTestSummaryResponse[]>(
+    isValidId ? `/api/projects/${id}/builds` : undefined,
+  )
+  const builds = buildsResponse ?? []
 
   const loading = projectLoading || buildsLoading
   const error = projectError ?? buildsError
@@ -23,7 +29,7 @@ export default function Project(): JSX.Element {
   return (
     <>
       <Head>
-        <title>{project?.name ?? "Project"} - vizdiff.io</title>
+        <title>{project?.name ? `${project.name} - vizdiff.io` : "vizdiff.io"}</title>
         <meta name="description" content="Project builds and details" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
@@ -42,11 +48,7 @@ export default function Project(): JSX.Element {
               Builds
             </Typography>
             <Box sx={{ display: "flex", gap: 1 }}>
-              <Button
-                variant="outlined"
-                endIcon={<KeyboardArrowDownIcon />}
-                sx={{ color: "text.secondary" }}
-              >
+              <Button variant="outlined" endIcon={<KeyboardArrowDownIcon />}>
                 All branches
               </Button>
             </Box>
@@ -54,9 +56,11 @@ export default function Project(): JSX.Element {
 
           {loading ? (
             <Typography>Loading project...</Typography>
+          ) : builds.length === 0 ? (
+            <Typography>No builds for {project?.name ?? "this project"} yet</Typography>
           ) : (
             <Box>
-              {(builds ?? []).map((build) => (
+              {builds.map((build) => (
                 <Paper
                   key={build.id}
                   sx={{
@@ -73,7 +77,7 @@ export default function Project(): JSX.Element {
                     sx={{
                       mr: 2,
                       fontSize: 16,
-                      color: build.status === "completed" ? "success.main" : "warning.main",
+                      color: getStatusColor(theme, build.status),
                     }}
                   />
                   <Box sx={{ flex: 1 }}>
@@ -87,15 +91,16 @@ export default function Project(): JSX.Element {
                             px: 1.5,
                             py: 0.5,
                             bgcolor: "success.light",
-                            color: "success.dark",
                             borderRadius: 2,
                           }}
                         >
-                          <Typography variant="caption">{build.tag}</Typography>
+                          <Typography variant="caption" sx={{ color: "black" }}>
+                            {build.tag}
+                          </Typography>
                         </Paper>
                       )}
                     </Box>
-                    <Typography variant="body2" color="text.secondary">
+                    <Typography variant="body2">
                       Created {formatDistanceToNow(build.initiatedStampSec * 1000)} ago •{" "}
                       {build.commitSha} on {build.branch}
                     </Typography>
@@ -103,21 +108,15 @@ export default function Project(): JSX.Element {
                   <Box sx={{ display: "flex", gap: 4, ml: 2 }}>
                     <Box sx={{ textAlign: "center" }}>
                       <Typography variant="h6">{build.components ?? "…"}</Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Components
-                      </Typography>
+                      <Typography variant="caption">Components</Typography>
                     </Box>
                     <Box sx={{ textAlign: "center" }}>
                       <Typography variant="h6">{build.stories ?? "…"}</Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Stories
-                      </Typography>
+                      <Typography variant="caption">Stories</Typography>
                     </Box>
                     <Box sx={{ textAlign: "center" }}>
                       <Typography variant="h6">{build.changes ?? "…"}</Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        Changes
-                      </Typography>
+                      <Typography variant="caption">Changes</Typography>
                     </Box>
                   </Box>
                 </Paper>

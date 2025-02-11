@@ -1,5 +1,8 @@
 import { createTheme, type Theme } from "@mui/material"
 
+// Each key in this object is converted into a CSS variable with a `--` prefix,
+// such as `--bg-primary`. The CSS variable values are updated when the theme
+// mode changes.
 export const COLORS: Record<string, { light: string; dark: string }> = {
   "bg-primary": {
     light: "#fefefe",
@@ -7,7 +10,7 @@ export const COLORS: Record<string, { light: string; dark: string }> = {
   },
   "bg-paper": {
     light: "#f8f9fa",
-    dark: "#242728",
+    dark: "#181919",
   },
   "text-primary": {
     light: "#1a1d1e",
@@ -16,6 +19,14 @@ export const COLORS: Record<string, { light: string; dark: string }> = {
   "text-on-primary": {
     light: "#000000",
     dark: "#000000",
+  },
+  "text-secondary": {
+    light: "#6c757d",
+    dark: "#6c757d",
+  },
+  "gradient-text": {
+    light: "linear-gradient(to right, #000 60%, rgba(0,0,0,0.5))",
+    dark: "linear-gradient(to right, #fff 60%, rgba(255,255,255,0.5))",
   },
   "seventy-percent-opacity": {
     light: "rgba(0, 0, 0, 0.7)",
@@ -35,90 +46,138 @@ export const COLORS: Record<string, { light: string; dark: string }> = {
   },
 }
 
-const theme: Theme = createTheme({
-  palette: {
-    primary: {
-      main: "#5cc5ff",
-    },
-    background: {
-      default: "var(--bg-primary)",
-      paper: "var(--bg-paper)",
-    },
-    text: {
-      primary: "var(--text-primary)",
-      secondary: "var(--seventy-percent-opacity)",
-    },
-  },
-  typography: {
-    fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-    h1: {
-      fontSize: "3.5rem",
-      fontWeight: 600,
-      lineHeight: 1.2,
-    },
-    h2: {
-      fontSize: "2.25rem",
-      fontWeight: 600,
-    },
-    body1: {
-      fontSize: "1rem",
-      lineHeight: 1.5,
-    },
-  },
-  components: {
-    MuiCssBaseline: {
-      styleOverrides: {
-        "html, body": {
-          backgroundColor: "var(--bg-primary)",
-          color: "var(--text-primary)",
-          minHeight: "100vh",
-          transition: "background-color 0.2s ease",
-        },
+export function createAppTheme(mode: "dark" | "light"): Theme {
+  return createTheme({
+    palette: {
+      mode,
+      primary: {
+        main: "#5cc5ff", // Maya blue
+      },
+      secondary: {
+        main: "#23a0fa", // Celestial blue
+      },
+      success: {
+        main: "#679436", // Asparagus
+      },
+      info: {
+        main: "#5cc5ff", // Maya blue
+      },
+      warning: {
+        main: "#f19953", // Sandy brown
+      },
+      error: {
+        main: "#a5243d", // Amaranth purple
       },
     },
-    MuiButton: {
-      styleOverrides: {
-        root: {
-          borderRadius: "8px",
-          textTransform: "none",
-          padding: "8px 16px",
-          fontSize: "0.875rem",
-          fontWeight: 500,
-        },
-        containedPrimary: {
-          backgroundColor: "#5cc5ff",
-          color: "var(--text-on-primary)",
-          "&:hover": {
-            backgroundColor: "#45d3ff",
-          },
-        },
-        outlinedPrimary: {
-          borderColor: "var(--twelve-percent-opacity)",
-          "&:hover": {
-            borderColor: "var(--twenty-percent-opacity)",
-            backgroundColor: "var(--five-percent-opacity)",
-          },
-        },
-        textPrimary: {
-          color: "var(--seventy-percent-opacity)",
-          "&:hover": {
-            backgroundColor: "var(--five-percent-opacity)",
+    typography: {
+      fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+      h1: {
+        fontSize: "3.5rem",
+        fontWeight: 600,
+        lineHeight: 1.2,
+        color: "var(--text-primary)",
+      },
+      h2: {
+        fontSize: "2.25rem",
+        fontWeight: 600,
+        color: "var(--text-primary)",
+      },
+      body1: {
+        fontSize: "1rem",
+        lineHeight: 1.5,
+        color: "var(--text-primary)",
+      },
+    },
+    components: {
+      MuiCssBaseline: {
+        styleOverrides: {
+          "html, body": {
+            backgroundColor: "var(--bg-primary)",
+            color: "var(--text-primary)",
+            minHeight: "100vh",
+            transition: "background-color 0.2s ease",
           },
         },
       },
-    },
-    MuiAppBar: {
-      styleOverrides: {
-        root: {
-          color: "var(--text-primary)",
-          backgroundColor: "transparent",
-          backgroundImage: "none",
-          boxShadow: "none",
-          borderBottom: "1px solid var(--twelve-percent-opacity)",
+      MuiPaper: {
+        styleOverrides: {
+          root: {
+            backgroundColor: "var(--bg-paper)",
+            color: "var(--text-primary)",
+          },
+        },
+      },
+      MuiButton: {
+        styleOverrides: {
+          root: {
+            borderRadius: "8px",
+            textTransform: "none",
+            padding: "8px 16px",
+            fontSize: "0.875rem",
+            fontWeight: 500,
+          },
+          containedPrimary: {
+            backgroundColor: "#5cc5ff",
+            color: "var(--text-on-primary)",
+            "&:hover": {
+              backgroundColor: "#45d3ff",
+            },
+          },
+          outlinedPrimary: {
+            borderColor: "var(--twelve-percent-opacity)",
+            "&:hover": {
+              borderColor: "var(--twenty-percent-opacity)",
+              backgroundColor: "var(--five-percent-opacity)",
+            },
+          },
+          textPrimary: {
+            color: "var(--seventy-percent-opacity)",
+            "&:hover": {
+              backgroundColor: "var(--five-percent-opacity)",
+            },
+          },
+        },
+      },
+      MuiAppBar: {
+        styleOverrides: {
+          root: {
+            color: "var(--text-primary)",
+            backgroundColor: "transparent",
+            backgroundImage: "none",
+            boxShadow: "none",
+            borderBottom: "1px solid var(--twelve-percent-opacity)",
+          },
+        },
+      },
+      MuiTypography: {
+        styleOverrides: {
+          root: {
+            color: "var(--text-primary)",
+          },
+          body2: {
+            color: "var(--text-secondary)",
+          },
+        },
+      },
+      MuiTextField: {
+        styleOverrides: {
+          root: {
+            "& .MuiInputBase-root": {
+              color: "var(--text-primary)",
+            },
+            "& .MuiFormLabel-root": {
+              color: "var(--seventy-percent-opacity)",
+            },
+          },
+        },
+      },
+      MuiListItemIcon: {
+        styleOverrides: {
+          root: {
+            color: "var(--seventy-percent-opacity)",
+          },
         },
       },
     },
-  },
-})
-
-export default theme
+  })
+}

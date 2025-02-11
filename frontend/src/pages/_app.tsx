@@ -1,14 +1,12 @@
 import "@/styles/globals.css"
 import "@/styles/theme.css"
-import { createTheme, CssBaseline, type ThemeOptions } from "@mui/material"
-import { ThemeProvider } from "@mui/material"
+import { CssBaseline, ThemeProvider } from "@mui/material"
 import type { AppProps } from "next/app"
 import { Inter } from "next/font/google"
-import { useMemo } from "react"
 
 import DarkMode from "@/components/DarkMode"
-import { useDarkMode } from "@/hooks/useDarkMode"
-import baseTheme from "@/lib/theme"
+import useAppTheme from "@/hooks/useAppTheme"
+import { AuthProvider } from "@/hooks/useAuth"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -17,23 +15,18 @@ if (!process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID) {
 }
 
 export default function App({ Component, pageProps }: AppProps): JSX.Element {
-  const isDarkMode = useDarkMode()
-  const theme = useMemo(() => {
-    const themeOptions: ThemeOptions = {
-      ...baseTheme,
-      palette: { mode: isDarkMode ? "dark" : "light" },
-    }
-    return createTheme(themeOptions)
-  }, [isDarkMode])
+  const theme = useAppTheme()
 
   return (
-    <DarkMode>
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
-        <div className={inter.className}>
-          <Component {...pageProps} />
-        </div>
-      </ThemeProvider>
-    </DarkMode>
+    <AuthProvider>
+      <DarkMode>
+        <ThemeProvider theme={theme}>
+          <CssBaseline />
+          <div className={inter.className}>
+            <Component {...pageProps} />
+          </div>
+        </ThemeProvider>
+      </DarkMode>
+    </AuthProvider>
   )
 }

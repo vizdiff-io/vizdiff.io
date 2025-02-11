@@ -358,6 +358,7 @@ async function ingestStorybook(
         log.info(`Found ${Object.keys(stories).length} stories to process`)
 
         const testResultTable = db.getRepository(TestResult)
+        const testResults: TestResult[] = []
 
         // Process each story
         for (const [storyId, story] of Object.entries(stories)) {
@@ -407,10 +408,25 @@ async function ingestStorybook(
           testResult.newImageUrl = `https://${bucket}.s3.amazonaws.com/${screenshotKey}`
           testResult.changeStatus = changeStatus
           await testResultTable.save(testResult)
+          testResults.push(testResult)
           log.debug(`Successfully saved test result record`)
         }
 
         log.info(`Successfully processed all ${Object.keys(stories).length} stories`)
+
+        let noChanges = true
+        for (const testResult of testResults) {
+          if (testResult.changeStatus !== "unchanged") {
+            noChanges = false
+            break
+          }
+        }
+
+        // Update the screenshot test status to completed
+        const startedSec = screenshotTest.createdAt.getTime() / 1000
+        screenshotTest.status = noChanges ? "no_changes" : "unapproved"
+        screenshotTest.buildDurationSec = Date.now() / 1000 - startedSec
+        await screenshotTestRepo.save(screenshotTest)
       } finally {
         log.debug("Shutting down local server")
         server.close()
@@ -423,12 +439,6 @@ async function ingestStorybook(
     // Cleanup
     log.debug(`Cleaning up temporary directory: ${tmpDir}`)
     await fsPromises.rm(tmpDir, { recursive: true, force: true })
-
-    // Update the screenshot test status to completed
-    const startedSec = screenshotTest.createdAt.getTime() / 1000
-    screenshotTest.status = "completed"
-    screenshotTest.buildDurationSec = Date.now() / 1000 - startedSec
-    await screenshotTestRepo.save(screenshotTest)
 
     log.info("Storybook ingestion completed successfully")
   }

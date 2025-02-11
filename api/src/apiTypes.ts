@@ -16,6 +16,9 @@ export type ProjectResponse = {
   githubRepoUrl: string
   token: string
   createdStampSec: number
+  lastBuildStampSec: number
+  builds: number
+  tests: number
 }
 
 export type ScreenshotTestResponse = {
@@ -27,7 +30,7 @@ export type ScreenshotTestResponse = {
   baseCommitSha?: string
   baseBranch?: string
   uploadId: string
-  status: "pending" | "running" | "completed"
+  status: "pending" | "running" | "no_changes" | "unapproved" | "approved" | "denied" | "failed"
   tag?: string
   initiatedStampSec: number
   buildDurationSec?: number

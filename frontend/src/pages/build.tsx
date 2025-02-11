@@ -11,19 +11,43 @@ import {
 } from "@mui/material"
 import Head from "next/head"
 import { useRouter } from "next/router"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 
 import { NavBody } from "@/components/NavBody"
 import TestResultCard from "@/components/TestResultCard"
 import TestResultDialog from "@/components/TestResultDialog"
 import useApiGet from "@/hooks/useApiGet"
+import useAppTheme from "@/hooks/useAppTheme"
 import type { TestResponse, TestResultResponse } from "@/lib/apiTypes"
+import { getStatusColor } from "@/lib/colors"
 
 export default function Build(): JSX.Element {
   const router = useRouter()
   const { id } = router.query
-  const [data, loading, error] = useApiGet<TestResponse>(`/api/tests/${id}`)
+
+  // Validate ID before making the API request
+  const isValidId = typeof id === "string" && /^\d+$/.test(id)
+  const [data, loading, error] = useApiGet<TestResponse>(isValidId ? `/api/tests/${id}` : undefined)
   const [selectedResult, setSelectedResult] = useState<TestResultResponse | null>(null)
+  const theme = useAppTheme()
+
+  // Handle invalid ID with useEffect for client-side navigation
+  useEffect(() => {
+    if (!isValidId && router.isReady) {
+      void router.push("/projects")
+    }
+  }, [isValidId, router, router.isReady])
+
+  // Show loading state while redirecting or if the page is not yet ready
+  if (!router.isReady || !isValidId) {
+    return (
+      <NavBody>
+        <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+          <CircularProgress />
+        </Box>
+      </NavBody>
+    )
+  }
 
   const handleApprove = async () => {
     // TASK: Implement approve API call
@@ -54,73 +78,79 @@ export default function Build(): JSX.Element {
           )}
 
           {/* Build header */}
-          <Box
-            sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 4 }}
-          >
-            <Box>
+          {loading ? (
+            <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+              <CircularProgress />
+            </Box>
+          ) : !data ? (
+            <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
               <Typography variant="h4" component="h1" sx={{ fontWeight: 600, mb: 1 }}>
-                {loading ? "Loading..." : `Build ${data?.buildNumber}`}
+                Build not found
               </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-                {data?.commitSha} on {data?.branch}
-              </Typography>
-              {data?.parent && (
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  Comparing with Build {data.parent.buildNumber} ({data.parent.commitSha})
+            </Box>
+          ) : (
+            <Box
+              sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 4 }}
+            >
+              <Box>
+                <Typography variant="h4" component="h1" sx={{ fontWeight: 600, mb: 1 }}>
+                  {`Build #${data.buildNumber}`}
                 </Typography>
-              )}
-              <Box sx={{ display: "flex", gap: 3 }}>
-                <Box>
-                  <Typography variant="h6" sx={{ fontWeight: 500 }}>
-                    {tests ?? "…"}
+                <Typography variant="body2" sx={{ mb: 0.5 }}>
+                  {data.commitSha} on {data.branch}
+                </Typography>
+                {data.parent && (
+                  <Typography variant="body2" sx={{ mb: 2 }}>
+                    Comparing with Build {data.parent.buildNumber} ({data.parent.commitSha})
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Tests
-                  </Typography>
-                </Box>
-                <Box>
-                  <Typography variant="h6" sx={{ fontWeight: 500 }}>
-                    {changes ?? "…"}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Changes
-                  </Typography>
-                </Box>
-                <Box>
-                  <Typography
-                    variant="h6"
-                    sx={{
-                      fontWeight: 500,
-                      color: data?.status === "completed" ? "success.main" : "text.primary",
-                    }}
-                  >
-                    {data?.status ?? "…"}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Status
-                  </Typography>
+                )}
+                <Box sx={{ display: "flex", gap: 3 }}>
+                  <Box>
+                    <Typography variant="h6" sx={{ fontWeight: 500 }}>
+                      {tests ?? "…"}
+                    </Typography>
+                    <Typography variant="body2">Tests</Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="h6" sx={{ fontWeight: 500 }}>
+                      {changes ?? "…"}
+                    </Typography>
+                    <Typography variant="body2">Changes</Typography>
+                  </Box>
+                  <Box>
+                    <Typography
+                      variant="h6"
+                      sx={{
+                        fontWeight: 500,
+                        color: getStatusColor(theme, data.status),
+                      }}
+                    >
+                      {data.status.charAt(0).toUpperCase() + data.status.slice(1)}
+                    </Typography>
+                    <Typography variant="body2">Status</Typography>
+                  </Box>
                 </Box>
               </Box>
+              <Box sx={{ display: "flex", gap: 2 }}>
+                <Button
+                  variant="contained"
+                  color="success"
+                  startIcon={<CheckCircleIcon />}
+                  onClick={handleApprove}
+                >
+                  Approve
+                </Button>
+                <Button
+                  variant="contained"
+                  color="error"
+                  startIcon={<CancelIcon />}
+                  onClick={handleDeny}
+                >
+                  Deny
+                </Button>
+              </Box>
             </Box>
-            <Box sx={{ display: "flex", gap: 2 }}>
-              <Button
-                variant="contained"
-                color="success"
-                startIcon={<CheckCircleIcon />}
-                onClick={handleApprove}
-              >
-                Approve
-              </Button>
-              <Button
-                variant="contained"
-                color="error"
-                startIcon={<CancelIcon />}
-                onClick={handleDeny}
-              >
-                Deny
-              </Button>
-            </Box>
-          </Box>
+          )}
 
           {/* Test Results */}
           {loading ? (

@@ -2,7 +2,7 @@ import type { Meta, StoryObj, StoryContext } from "@storybook/react"
 import { http, HttpResponse } from "msw"
 import { type ComponentType } from "react"
 
-import type { ProjectResponse } from "@/lib/apiTypes"
+import type { ProjectResponse, ScreenshotTestResponse } from "@/lib/apiTypes"
 
 import ThemeWrapper from "./ThemeWrapper"
 import { userHandler } from "./mocks"
@@ -20,6 +20,9 @@ const mockProjects: ProjectResponse[] = [
     githubRepoUrl: "https://github.com/MetaverseIndustries/vizdiff.io",
     token: "abc123def456",
     createdStampSec: oneMinuteAgo - 3600 * 24 * 30, // 1 month ago
+    lastBuildStampSec: oneMinuteAgo - 3600, // 1 hour ago
+    builds: 42,
+    tests: 156,
   },
   {
     id: 2,
@@ -27,6 +30,9 @@ const mockProjects: ProjectResponse[] = [
     githubRepoUrl: "https://github.com/example/project",
     token: "def456ghi789",
     createdStampSec: oneMinuteAgo - 3600 * 24 * 7, // 1 week ago
+    lastBuildStampSec: oneMinuteAgo - 3600 * 24, // 1 day ago
+    builds: 15,
+    tests: 45,
   },
   {
     id: 3,
@@ -34,6 +40,80 @@ const mockProjects: ProjectResponse[] = [
     githubRepoUrl: "https://github.com/test/project",
     token: "ghi789jkl012",
     createdStampSec: oneMinuteAgo - 3600, // 1 hour ago
+    lastBuildStampSec: oneMinuteAgo, // just now
+    builds: 3,
+    tests: 12,
+  },
+]
+const mockActivity: ScreenshotTestResponse[] = [
+  {
+    id: 1,
+    projectId: 1,
+    buildNumber: 6,
+    commitSha: "abc123def456",
+    branch: "main",
+    baseCommitSha: "abc123def456",
+    baseBranch: "main",
+    uploadId: "abc123def456",
+    status: "pending",
+    tag: "v1.0.0",
+    initiatedStampSec: oneMinuteAgo - 3600, // 1 hour ago
+    buildDurationSec: 100,
+  },
+  {
+    id: 2,
+    projectId: 2,
+    buildNumber: 5,
+    commitSha: "abc123def456",
+    branch: "main",
+    uploadId: "abc123def456",
+    status: "running",
+    initiatedStampSec: oneMinuteAgo - 3600 * 24, // 1 day ago
+    buildDurationSec: 100,
+  },
+  {
+    id: 3,
+    projectId: 3,
+    buildNumber: 4,
+    commitSha: "abc123def456",
+    branch: "main",
+    uploadId: "abc123def456",
+    status: "no_changes",
+    initiatedStampSec: oneMinuteAgo - 3600 * 24 * 30, // 1 month ago
+    buildDurationSec: 100,
+  },
+  {
+    id: 4,
+    projectId: 4,
+    buildNumber: 3,
+    commitSha: "abc123def456",
+    branch: "main",
+    uploadId: "abc123def456",
+    status: "failed",
+    initiatedStampSec: oneMinuteAgo - 3600 * 24 * 30, // 1 month ago
+    buildDurationSec: 100,
+  },
+  {
+    id: 5,
+    projectId: 5,
+    buildNumber: 2,
+    commitSha: "abc123def456",
+    branch: "main",
+    uploadId: "abc123def456",
+    status: "approved",
+    initiatedStampSec: oneMinuteAgo - 3600 * 24 * 30, // 1 month ago
+    buildDurationSec: 100,
+  },
+  {
+    id: 6,
+    projectId: 6,
+    buildNumber: 1,
+    commitSha: "abc123def456",
+    branch: "main",
+    uploadId: "abc123def456",
+    status: "unapproved",
+    initiatedStampSec: oneMinuteAgo - 3600 * 24 * 30, // 1 month ago
+    buildDurationSec: 100,
   },
 ]
 
@@ -60,7 +140,11 @@ const meta: Meta<typeof ProjectsComponent> = {
   ],
   parameters: {
     msw: {
-      handlers: [userHandler, http.get("/api/projects", () => HttpResponse.json(mockProjects))],
+      handlers: [
+        userHandler,
+        http.get("/api/projects", () => HttpResponse.json(mockProjects)),
+        http.get("/api/activity", () => HttpResponse.json(mockActivity)),
+      ],
     },
   },
 }
@@ -68,6 +152,14 @@ const meta: Meta<typeof ProjectsComponent> = {
 export default meta
 type Story = StoryObj<typeof ProjectsComponent>
 
-export const Projects: Story = {
-  render: () => <ProjectsComponent />,
+export const Light: Story = {
+  args: {
+    mode: "light",
+  },
+}
+
+export const Dark: Story = {
+  args: {
+    mode: "dark",
+  },
 }

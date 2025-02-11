@@ -19,6 +19,9 @@ const mockProject: ProjectResponse = {
   githubRepoUrl: "https://github.com/example/project",
   token: "abc123def456",
   createdStampSec: oneMinuteAgo - 3600 * 24, // 1 day ago
+  lastBuildStampSec: oneMinuteAgo,
+  builds: 15,
+  tests: 45,
 }
 
 const mockBuilds: ScreenshotTestSummaryResponse[] = [
@@ -30,7 +33,7 @@ const mockBuilds: ScreenshotTestSummaryResponse[] = [
     branch: "main",
     uploadId: "123",
     initiatedStampSec: oneMinuteAgo,
-    status: "completed",
+    status: "pending",
     components: 12,
     stories: 45,
     changes: 3,
@@ -46,7 +49,7 @@ const mockBuilds: ScreenshotTestSummaryResponse[] = [
     stories: 45,
     changes: 0,
     initiatedStampSec: oneMinuteAgo - 3600, // 1 hour ago
-    status: "completed",
+    status: "approved",
     tag: "Infrastructure upgrade",
   },
   {
@@ -60,7 +63,20 @@ const mockBuilds: ScreenshotTestSummaryResponse[] = [
     stories: 40,
     changes: 40,
     initiatedStampSec: oneMinuteAgo - 3600 * 24, // 1 day ago
-    status: "completed",
+    status: "unapproved",
+  },
+  {
+    id: 1,
+    projectId: 456,
+    buildNumber: 1,
+    commitSha: "1a2b3c4",
+    branch: "main",
+    uploadId: "121",
+    components: 10,
+    stories: 40,
+    changes: 40,
+    initiatedStampSec: oneMinuteAgo - 3600 * 24, // 1 day ago
+    status: "no_changes",
   },
 ]
 
@@ -104,6 +120,14 @@ const meta: Meta<typeof ProjectComponent> = {
 export default meta
 type Story = StoryObj<typeof ProjectComponent>
 
-export const Project: Story = {
-  render: () => <ProjectComponent />,
+export const Light: Story = {
+  args: {
+    mode: "light",
+  },
+}
+
+export const Dark: Story = {
+  args: {
+    mode: "dark",
+  },
 }

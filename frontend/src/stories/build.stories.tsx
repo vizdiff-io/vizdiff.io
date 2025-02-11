@@ -13,14 +13,14 @@ type StoryArgs = {
 }
 
 const oneMinuteAgo = Math.floor(Date.now() / 1000) - 60
-const mockData: TestResponse = {
+const mockBuildData: TestResponse = {
   id: 123,
   projectId: 456,
   buildNumber: 42,
   commitSha: "abc123",
   branch: "main",
   uploadId: "upload-123",
-  status: "completed",
+  status: "approved",
   initiatedStampSec: oneMinuteAgo,
   testResults: [
     {
@@ -55,7 +55,7 @@ const mockData: TestResponse = {
     branch: "main",
     commitSha: "def456",
     uploadId: "upload-122",
-    status: "completed",
+    status: "no_changes",
     initiatedStampSec: oneMinuteAgo - 3600,
   },
 }
@@ -88,7 +88,7 @@ const meta: Meta<typeof BuildComponent> = {
       },
     },
     msw: {
-      handlers: [userHandler, http.get("/api/tests/:id", () => HttpResponse.json(mockData))],
+      handlers: [userHandler, http.get("/api/tests/:id", () => HttpResponse.json(mockBuildData))],
     },
   },
 }
@@ -96,6 +96,14 @@ const meta: Meta<typeof BuildComponent> = {
 export default meta
 type Story = StoryObj<typeof BuildComponent>
 
-export const Build: Story = {
-  render: () => <BuildComponent />,
+export const Light: Story = {
+  args: {
+    mode: "light",
+  },
+}
+
+export const Dark: Story = {
+  args: {
+    mode: "dark",
+  },
 }
