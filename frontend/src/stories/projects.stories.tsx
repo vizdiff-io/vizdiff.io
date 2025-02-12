@@ -160,7 +160,11 @@ export const EmptyProjects: Story = {
   args: { mode: "light" },
   parameters: {
     msw: {
-      handlers: [userHandler, http.get("/api/projects", () => HttpResponse.json([]))],
+      handlers: [
+        userHandler,
+        http.get("/api/projects", () => HttpResponse.json([])),
+        http.get("/api/activity", () => HttpResponse.json([])),
+      ],
     },
   },
   render: () => <ProjectsComponent />,
