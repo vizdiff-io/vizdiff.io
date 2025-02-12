@@ -26,8 +26,8 @@ export class User {
   @Column({ name: "github_profile", type: "jsonb", nullable: false })
   githubProfile!: string
 
-  @Column({ name: "github_access_token", type: "varchar", length: 255, nullable: false })
-  githubAccessToken!: string
+  @Column({ name: "github_installation_id", type: "integer", nullable: false })
+  githubInstallationId!: number
 
   @OneToMany(() => Project, (project) => project.user)
   projects!: Promise<Project[]>

@@ -17,7 +17,8 @@ GITHUB_CLIENT_SECRET=<gh_client_secret>
 ```
 NEXT_PUBLIC_APP_URL=http://127.0.0.1:3000
 NEXT_PUBLIC_API_URL=http://127.0.0.1:3001
-NEXT_PUBLIC_GITHUB_CLIENT_ID=<gh_client_id>
+NEXT_PUBLIC_GITHUB_APP_NAME=vizdiff-io
+NEXT_PUBLIC_GITHUB_CLIENT_ID=<github_client_id>
 ```
 
 4. Start Postgres and create an empty vizdiff database and test database with the `start-postgres.sh` script

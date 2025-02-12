@@ -1,3 +1,4 @@
+import { createAppAuth } from "@octokit/auth-app"
 import { Octokit } from "@octokit/rest"
 import type { Response, NextFunction } from "express"
 import type { JwtPayload, VerifyErrors } from "jsonwebtoken"
@@ -5,14 +6,27 @@ import jwt from "jsonwebtoken"
 import { Project, User } from "shared"
 
 import { Database } from "./database"
-import { JWT_SECRET } from "./environment"
+import {
+  JWT_SECRET,
+  GITHUB_APP_ID,
+  GITHUB_PRIVATE_KEY,
+  GITHUB_CLIENT_ID,
+  GITHUB_CLIENT_SECRET,
+} from "./environment"
 import { log } from "./log"
 import type { AuthenticatedRequest, DefaultRequest, MaybeAuthenticatedRequest } from "./types"
 
-async function validateGitHubToken(githubAccessToken: string): Promise<boolean> {
+async function validateGitHubToken(installationId: number): Promise<boolean> {
   try {
-    const octokit = new Octokit({ auth: githubAccessToken })
-    await octokit.rest.users.getAuthenticated()
+    const auth = createAppAuth({
+      appId: GITHUB_APP_ID,
+      privateKey: GITHUB_PRIVATE_KEY,
+      clientId: GITHUB_CLIENT_ID,
+      clientSecret: GITHUB_CLIENT_SECRET,
+    })
+    const installationAuth = await auth({ type: "installation", installationId })
+    const octokit = new Octokit({ auth: installationAuth.token })
+    await octokit.rest.apps.getAuthenticated()
     return true
   } catch (err) {
     log.warn(`GitHub token validation failed: ${err}`)
@@ -25,12 +39,15 @@ async function refreshJWT(userId: number, res: Response): Promise<boolean> {
     // Get the user from the database to check their GitHub token
     const db = await Database()
     const user = await db.manager.findOneBy(User, { id: userId })
-    if (!user?.githubAccessToken) {
+    if (!user) {
+      return false
+    }
+    if (typeof user.githubInstallationId !== "number") {
       return false
     }
 
     // Validate the GitHub token
-    const isValid = await validateGitHubToken(user.githubAccessToken)
+    const isValid = await validateGitHubToken(user.githubInstallationId)
     if (!isValid) {
       return false
     }
@@ -43,7 +60,7 @@ async function refreshJWT(userId: number, res: Response): Promise<boolean> {
       httpOnly: true,
       secure: true,
       sameSite: "lax",
-      maxAge: 60 * 60 * 1000, // 1 hour in milliseconds
+      maxAge: 8 * 60 * 60 * 1000, // 8 hours in milliseconds
       path: "/",
     })
 

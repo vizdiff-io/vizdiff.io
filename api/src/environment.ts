@@ -16,6 +16,9 @@ export const PORT = parseInt(process.env.PORT ?? "") || (IS_TEST ? 3002 : 3001)
 
 export const GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID ?? ""
 export const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET ?? ""
+export const GITHUB_APP_ID = process.env.GITHUB_APP_ID ?? ""
+export const GITHUB_WEBHOOK_SECRET = process.env.GITHUB_WEBHOOK_SECRET ?? ""
+export const GITHUB_PRIVATE_KEY = process.env.GITHUB_PRIVATE_KEY ?? ""
 
 export const APP_URL =
   process.env.APP_URL ?? (IS_PRODUCTION ? "https://vizdiff.io" : "http://127.0.0.1:3000")
