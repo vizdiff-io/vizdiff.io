@@ -148,14 +148,14 @@ export default function Login(): JSX.Element {
                   <Typography variant="h6" sx={{ mb: 2 }}>
                     Organization Admin
                   </Typography>
-                  <Typography variant="body1" sx={{ mb: 2, color: "text.secondary" }}>
+                  <Typography variant="body1" sx={{ mb: 1, color: "text.secondary" }}>
                     Install the GitHub App to enable screenshot testing for your repositories. This
                     will allow us to:
-                    <Box component="ul" sx={{ mt: 1 }}>
-                      <li>Get notified when a pull request is created or updated</li>
-                      <li>Post GitHub Actions statuses</li>
-                    </Box>
                   </Typography>
+                  <Box component="ul" sx={{ mb: 2, ml: 3, color: "text.secondary" }}>
+                    <li>Get notified when a pull request is created or updated</li>
+                    <li>Post GitHub Actions statuses</li>
+                  </Box>
                 </Box>
                 <Box sx={{ pt: 3 }}>
                   <Button
