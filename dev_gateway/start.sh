@@ -22,21 +22,23 @@ server {
 
     location /api/ {
         proxy_pass http://host.docker.internal:3001/;
-        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-For \$remote_addr;
     }
     location / {
         proxy_pass http://host.docker.internal:3000/;
-        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-For \$remote_addr;
     }
 }
 EOF
 
-# Check if the dev gateway container is already running
-CONTAINER=$(docker ps --filter name=vizdiff-dev-gateway -q)
-
 # If the container is running, stop it and remove it
+CONTAINER=$(docker ps --filter name=vizdiff-dev-gateway -q)
 if [ -n "$CONTAINER" ]; then
   docker stop vizdiff-dev-gateway
+fi
+
+# Check if the container needs to be removed
+if docker ps -a --filter name=vizdiff-dev-gateway --format '{{.ID}}' | grep -q .; then
   docker rm vizdiff-dev-gateway
 fi
 
