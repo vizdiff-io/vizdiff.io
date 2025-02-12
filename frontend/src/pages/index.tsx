@@ -1,7 +1,7 @@
 import { Typography, Box, Button, Container } from "@mui/material"
 import Head from "next/head"
 
-import { NavBody } from "@/components/NavBody"
+import { MarketingLayout } from "@/components/NavBody"
 
 export default function Home(): JSX.Element {
   return (
@@ -10,7 +10,7 @@ export default function Home(): JSX.Element {
         <title>vizdiff.io</title>
         <meta name="description" content="Screenshot testing made easy." />
       </Head>
-      <NavBody>
+      <MarketingLayout>
         <Container maxWidth="lg">
           <Box
             sx={{
@@ -56,7 +56,7 @@ export default function Home(): JSX.Element {
             </Box>
           </Box>
         </Container>
-      </NavBody>
+      </MarketingLayout>
     </>
   )
 }

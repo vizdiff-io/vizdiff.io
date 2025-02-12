@@ -15,27 +15,27 @@ import {
   ListItemIcon,
 } from "@mui/material"
 import Head from "next/head"
+import Link from "next/link"
 import { useState } from "react"
 
-import { NavBody } from "@/components/NavBody"
+import { AppLayout } from "@/components/AppLayout"
 import NewProjectDialog from "@/components/NewProjectDialog"
 import useApiGet from "@/hooks/useApiGet"
 import useAppTheme from "@/hooks/useAppTheme"
 import type { ProjectResponse, ScreenshotTestResponse } from "@/lib/apiTypes"
 import { getStatusColor } from "@/lib/colors"
+import { plural } from "@/lib/text"
 import { formatTimeAgo } from "@/lib/time"
-
-function plural(count: number): string {
-  return count === 1 ? "" : "s"
-}
 
 export default function Projects(): JSX.Element {
   const [showModal, setShowModal] = useState(false)
-  const [projects, loading, projectError] = useApiGet<ProjectResponse[]>("/api/projects", [
+  const [projectsResponse, loading, projectError] = useApiGet<ProjectResponse[]>("/api/projects", [
     showModal,
   ])
-  const [activity, activityLoading] = useApiGet<ScreenshotTestResponse[]>("/api/activity")
+  const [activityResponse, activityLoading] = useApiGet<ScreenshotTestResponse[]>("/api/activity")
   const theme = useAppTheme()
+  const projects = projectsResponse ?? []
+  const activity = activityResponse ?? []
 
   return (
     <>
@@ -44,7 +44,7 @@ export default function Projects(): JSX.Element {
         <meta name="description" content="Project listing" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
-      <NavBody>
+      <AppLayout>
         <Box sx={{ display: "flex", gap: 3, px: 3, py: 4, minHeight: "calc(100vh - 64px)" }}>
           {/* Left Sidebar */}
           <Box sx={{ width: 200, flexShrink: 0 }}>
@@ -96,9 +96,11 @@ export default function Projects(): JSX.Element {
 
             {loading ? (
               <Typography>Loading projects...</Typography>
+            ) : projects.length === 0 ? (
+              <Typography>No projects yet</Typography>
             ) : (
               <Box>
-                {projects?.map((project) => (
+                {projects.map((project) => (
                   <a
                     key={project.id}
                     href={`/project?id=${project.id}`}
@@ -148,29 +150,35 @@ export default function Projects(): JSX.Element {
                 <Typography variant="body2" color="var(--text-primary)" sx={{ px: 2 }}>
                   Loading activity...
                 </Typography>
-              ) : activity?.length ? (
-                activity.map((test) => (
-                  <ListItem key={test.id} sx={{ px: 0, py: 1 }}>
-                    <ListItemIcon sx={{ minWidth: 32 }}>
-                      <CircleIcon
-                        sx={{
-                          fontSize: 12,
-                          color: getStatusColor(theme, test.status),
-                        }}
-                      />
-                    </ListItemIcon>
-                    <ListItemText
-                      primary={`Build #${test.buildNumber}`}
-                      secondary={formatTimeAgo(test.initiatedStampSec * 1000)}
-                      primaryTypographyProps={{ variant: "body2" }}
-                      secondaryTypographyProps={{ variant: "caption" }}
-                    />
-                  </ListItem>
-                ))
+              ) : activity.length === 0 ? (
+                <Typography variant="body2">No recent builds</Typography>
               ) : (
-                <Typography variant="body2" color="text.secondary" sx={{ px: 2 }}>
-                  No recent builds
-                </Typography>
+                activity.map((test) => (
+                  <Link
+                    key={test.id}
+                    href={`/build?id=${test.id}`}
+                    style={{ textDecoration: "none", color: "inherit" }}
+                  >
+                    <ListItem
+                      sx={{ px: 0, py: 1, "&:hover": { bgcolor: "var(--five-percent-opacity)" } }}
+                    >
+                      <ListItemIcon sx={{ minWidth: 32 }}>
+                        <CircleIcon
+                          sx={{
+                            fontSize: 12,
+                            color: getStatusColor(theme, test.status),
+                          }}
+                        />
+                      </ListItemIcon>
+                      <ListItemText
+                        primary={`Build #${test.buildNumber}`}
+                        secondary={formatTimeAgo(test.initiatedStampSec * 1000)}
+                        primaryTypographyProps={{ variant: "body2" }}
+                        secondaryTypographyProps={{ variant: "caption" }}
+                      />
+                    </ListItem>
+                  </Link>
+                ))
               )}
             </List>
           </Box>
@@ -178,7 +186,7 @@ export default function Projects(): JSX.Element {
 
         {/* New Project Modal */}
         {showModal && <NewProjectDialog onClose={() => setShowModal(false)} />}
-      </NavBody>
+      </AppLayout>
     </>
   )
 }

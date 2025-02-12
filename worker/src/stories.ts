@@ -1,0 +1,205 @@
+import { S3Client, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3"
+import fs, { promises as fsPromises } from "node:fs"
+import path from "node:path"
+import { Readable } from "node:stream"
+import { PNG } from "pngjs"
+import { TestResult, type TestResultStatus } from "shared"
+import type { Repository } from "typeorm"
+import type { Browser } from "webdriverio"
+
+import { diffImages } from "./images"
+import { log } from "./log"
+
+interface Story {
+  id: string
+  name: string
+  importPath: string
+}
+
+type StoryInfo = {
+  story: Story
+  baseTestResult?: TestResult
+  bucket: string
+  tmpDir: string
+  projectId: string
+  uploadId: string
+  port: number
+  s3Client: S3Client
+  testResultTable: Repository<TestResult>
+}
+
+export async function processStory({
+  story,
+  baseTestResult,
+  bucket,
+  tmpDir,
+  projectId,
+  uploadId,
+  port,
+  s3Client,
+  testResultTable,
+}: StoryInfo): Promise<TestResult> {
+  const storyId = story.id
+  log.info(`Processing story: ${storyId} (${story.name})`)
+
+  // Navigate to the story
+  const storyUrl = `http://localhost:${port}/iframe.html?id=${storyId}`
+  log.debug(`Navigating to story URL: ${storyUrl}`)
+  await browser.url(storyUrl)
+
+  // Wait for the story to load
+  log.debug("Waiting for story to load...")
+  await waitForStorybookToLoad(browser)
+
+  // Take a screenshot
+  const screenshotPath = path.join(tmpDir, `${storyId}.png`)
+  const screenshot = await takeScreenshotWithRetry(browser, screenshotPath)
+  log.debug(`Successfully captured ${screenshot.length} byte screenshot: ${screenshotPath}`)
+
+  // Upload screenshot to S3
+  const screenshotKey = `projects/${projectId}/screenshots/${uploadId}/${storyId}.png`
+  log.debug(`Uploading screenshot to S3: ${screenshotKey}`)
+  await s3Client.send(
+    new PutObjectCommand({
+      Bucket: bucket,
+      Key: screenshotKey,
+      Body: screenshot,
+      ContentType: "image/png",
+    }),
+  )
+  const newImageUrl = `https://${bucket}.s3.amazonaws.com/${screenshotKey}`
+  log.info(`Successfully uploaded screenshot ${screenshotKey} to S3 (${screenshot.length} bytes)`)
+
+  let changeStatus: TestResultStatus = "new"
+  let baselineImageUrl = newImageUrl
+  let diffImageUrl = newImageUrl
+  let diffRatio = 0
+
+  if (baseTestResult) {
+    // Attempt to download baseline screenshot
+    const baselineKey = `projects/${projectId}/screenshots/${baseTestResult.screenshotTestId}/${storyId}.png`
+    baselineImageUrl = `https://${bucket}.s3.amazonaws.com/${baselineKey}`
+    try {
+      const baselinePath = path.join(tmpDir, `${storyId}-baseline.png`)
+      await downloadImage(s3Client, bucket, baselineKey, baselinePath)
+
+      // Load the new and baseline PNG images
+      const newImageBuffer = await fsPromises.readFile(screenshotPath)
+      const baselineImageBuffer = await fsPromises.readFile(baselinePath)
+      const newPng = PNG.sync.read(newImageBuffer)
+      const baselinePng = PNG.sync.read(baselineImageBuffer)
+
+      if (newPng.width !== baselinePng.width || newPng.height !== baselinePng.height) {
+        log.warn(`Image dimensions mismatch for story ${storyId}`)
+        changeStatus = "changed"
+        diffRatio = 1
+      } else {
+        const diffRes = diffImages(newPng, baselinePng)
+        diffRatio = diffRes.diffRatio
+
+        // Default threshold of 0.1% difference
+        changeStatus = diffRatio < 0.001 ? "unchanged" : "changed"
+        log.debug(`Diff ratio for story ${storyId}: ${diffRatio} (${changeStatus})`)
+
+        // Write and upload the diff image
+        const diffPath = path.join(tmpDir, `${storyId}-diff.png`)
+        await fsPromises.writeFile(diffPath, PNG.sync.write(diffRes.diffMask))
+        const diffKey = `projects/${projectId}/screenshots/${uploadId}/${storyId}-diff.png`
+        log.debug(`Uploading diff image ${diffPath} to s3://${bucket}/${diffKey}`)
+        await s3Client.send(
+          new PutObjectCommand({
+            Bucket: bucket,
+            Key: diffKey,
+            Body: await fsPromises.readFile(diffPath),
+            ContentType: "image/png",
+          }),
+        )
+        diffImageUrl = `https://${bucket}.s3.amazonaws.com/${diffKey}`
+        log.info(
+          `Successfully uploaded diff image ${diffKey} to S3 (${diffRes.diffMask.data.byteLength} bytes)`,
+        )
+      }
+    } catch (err) {
+      log.warn(
+        `Baseline screenshot not available for story ${storyId}: ${err instanceof Error ? err.message : String(err)}`,
+      )
+      changeStatus = "new"
+    }
+  }
+
+  // Create test result record
+  log.debug(`Creating test result record for story: ${storyId}`)
+  const testResult = new TestResult()
+  testResult.name = story.name.substring(0, 255)
+  testResult.screenshotTestId = parseInt(uploadId, 10)
+  testResult.storyId = storyId
+  testResult.newImageUrl = newImageUrl
+  testResult.baselineImageUrl = baselineImageUrl
+  testResult.diffImageUrl = diffImageUrl
+  testResult.diffRatio = diffRatio
+  testResult.changeStatus = changeStatus
+  await testResultTable.save(testResult)
+  log.debug(`Successfully saved test result record`)
+
+  return testResult
+}
+
+async function downloadImage(
+  s3Client: S3Client,
+  bucket: string,
+  key: string,
+  filePath: string,
+): Promise<void> {
+  const resp = await s3Client.send(new GetObjectCommand({ Bucket: bucket, Key: key }))
+  if (!resp.Body) {
+    throw new Error("Empty baseline response")
+  }
+
+  const writeStream = fs.createWriteStream(filePath)
+  await new Promise<void>((resolve, reject) => {
+    if (resp.Body instanceof Readable) {
+      resp.Body.pipe(writeStream).on("finish", resolve).on("error", reject)
+    } else {
+      reject(new Error("Baseline response body is not a readable stream"))
+    }
+  })
+}
+
+async function waitForStorybookToLoad(browser: Browser): Promise<void> {
+  // Wait for the storybook store to be initialized
+  await browser.waitUntil(
+    async () => {
+      const state = await browser.execute(() => {
+        // @ts-expect-error: Storybook global
+        // eslint-disable-next-line no-underscore-dangle, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
+        return window?.__STORYBOOK_STORY_STORE__?.getSelection()?.status as unknown
+      })
+      return state === "DONE"
+    },
+    {
+      timeout: 10000,
+      timeoutMsg: "Story failed to load within 10s",
+      interval: 100,
+    },
+  )
+}
+
+async function takeScreenshotWithRetry(
+  browser: Browser,
+  screenshotPath: string,
+  maxRetries = 3,
+): Promise<Buffer<ArrayBuffer>> {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      log.debug(`Taking screenshot: ${screenshotPath}`)
+      return await browser.saveScreenshot(screenshotPath)
+    } catch (err) {
+      if (i === maxRetries - 1) {
+        throw err
+      }
+      log.warn(`Screenshot attempt ${i + 1} failed, waiting and retrying...`)
+      await browser.pause(1000)
+    }
+  }
+  throw new Error("Screenshot failed after max retries")
+}

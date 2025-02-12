@@ -1,4 +1,4 @@
-import { ScreenshotTest, TestResult } from "shared"
+import { ScreenshotTest, TestResult, type TestResultStatus } from "shared"
 
 import type { ScreenshotTestResponse, TestResultResponse } from "../apiTypes"
 import { getUserId } from "../authenticate"
@@ -90,10 +90,11 @@ function testResultToResponse(testResult: TestResult): TestResultResponse {
   return {
     id: testResult.id,
     name: testResult.name,
-    changeStatus: testResult.changeStatus as "new" | "unchanged" | "changed",
+    changeStatus: testResult.changeStatus as TestResultStatus,
     screenshotUrl: testResult.newImageUrl,
     ancestorScreenshotUrl: testResult.baselineImageUrl,
     diffMaskUrl: testResult.diffImageUrl,
+    diffRatio: testResult.diffRatio,
     createdStampSec: testResult.createdAt.getTime() / 1000,
   }
 }

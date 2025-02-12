@@ -115,12 +115,28 @@ export function createAppTheme(mode: "dark" | "light"): Theme {
             padding: "8px 16px",
             fontSize: "0.875rem",
             fontWeight: 500,
+            "&.Mui-disabled": {
+              opacity: 0.6,
+              cursor: "not-allowed",
+            },
           },
           containedPrimary: {
             backgroundColor: "#5cc5ff",
             color: "var(--text-on-primary)",
             "&:hover": {
               backgroundColor: "#45d3ff",
+            },
+          },
+          containedSuccess: {
+            "&.Mui-disabled": {
+              backgroundColor: "#679436",
+              color: "white",
+            },
+          },
+          containedError: {
+            "&.Mui-disabled": {
+              backgroundColor: "#a5243d",
+              color: "white",
             },
           },
           outlinedPrimary: {
@@ -134,6 +150,23 @@ export function createAppTheme(mode: "dark" | "light"): Theme {
             color: "var(--seventy-percent-opacity)",
             "&:hover": {
               backgroundColor: "var(--five-percent-opacity)",
+            },
+          },
+        },
+      },
+      MuiIconButton: {
+        styleOverrides: {
+          root: {
+            color: "var(--seventy-percent-opacity)",
+          },
+        },
+      },
+      MuiToggleButton: {
+        styleOverrides: {
+          root: {
+            color: "var(--text-primary)",
+            "&.Mui-disabled": {
+              color: "var(--text-secondary)",
             },
           },
         },
@@ -175,6 +208,13 @@ export function createAppTheme(mode: "dark" | "light"): Theme {
         styleOverrides: {
           root: {
             color: "var(--seventy-percent-opacity)",
+          },
+        },
+      },
+      MuiListItemText: {
+        styleOverrides: {
+          secondary: {
+            color: "var(--text-secondary)",
           },
         },
       },

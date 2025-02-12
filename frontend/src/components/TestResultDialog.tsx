@@ -69,10 +69,21 @@ export default function TestResultDialog({
           height: "calc(100vh - 64px)",
           maxHeight: "calc(100vh - 64px)",
           m: 2,
+          display: "flex",
+          flexDirection: "column",
         },
       }}
     >
-      <DialogTitle sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <DialogTitle
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flex: "0 0 auto",
+          p: 2,
+          pb: 1,
+        }}
+      >
         <Box>
           <Typography variant="h6" component="div">
             {result.name}
@@ -87,6 +98,7 @@ export default function TestResultDialog({
             exclusive
             onChange={handleViewModeChange}
             size="small"
+            color="primary"
           >
             <ToggleButton value="old" disabled={!result.ancestorScreenshotUrl}>
               <LayersIcon sx={{ mr: 1 }} />
@@ -110,43 +122,49 @@ export default function TestResultDialog({
           </IconButton>
         </Box>
       </DialogTitle>
-      <DialogContent sx={{ p: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <DialogContent sx={{ flex: 1, p: 2, overflow: "hidden", display: "flex" }}>
         {viewMode === "split" ? (
-          <Box sx={{ display: "flex", width: "100%", height: "100%", gap: 2, p: 2 }}>
-            <Box sx={{ flex: 1, position: "relative" }}>
-              <Typography variant="subtitle2" sx={{ mb: 1 }}>
+          <Box sx={{ display: "flex", width: "100%", gap: 2, overflow: "hidden" }}>
+            <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+              <Typography variant="subtitle2" sx={{ mb: 1, flex: "0 0 auto" }}>
                 Old Version
               </Typography>
-              <Box sx={{ position: "relative", width: "100%", height: "calc(100% - 28px)" }}>
+              <Box sx={{ position: "relative", flex: 1, overflow: "hidden" }}>
                 <Image
                   src={result.ancestorScreenshotUrl ?? result.screenshotUrl}
                   alt={`Old version of ${result.name}`}
-                  layout="fill"
-                  objectFit="contain"
+                  fill
+                  sizes="50vw"
+                  style={{ objectFit: "contain" }}
+                  priority
                 />
               </Box>
             </Box>
-            <Box sx={{ flex: 1, position: "relative" }}>
-              <Typography variant="subtitle2" sx={{ mb: 1 }}>
+            <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+              <Typography variant="subtitle2" sx={{ mb: 1, flex: "0 0 auto" }}>
                 New Version
               </Typography>
-              <Box sx={{ position: "relative", width: "100%", height: "calc(100% - 28px)" }}>
+              <Box sx={{ position: "relative", flex: 1, overflow: "hidden" }}>
                 <Image
                   src={result.screenshotUrl}
                   alt={`New version of ${result.name}`}
-                  layout="fill"
-                  objectFit="contain"
+                  fill
+                  sizes="50vw"
+                  style={{ objectFit: "contain" }}
+                  priority
                 />
               </Box>
             </Box>
           </Box>
         ) : (
-          <Box sx={{ position: "relative", width: "100%", height: "100%", p: 2 }}>
+          <Box sx={{ position: "relative", width: "100%", height: "100%", overflow: "hidden" }}>
             <Image
               src={getImageUrl()}
               alt={`Screenshot for ${result.name}`}
-              layout="fill"
-              objectFit="contain"
+              fill
+              sizes="100vw"
+              style={{ objectFit: "contain" }}
+              priority
             />
             {viewMode === "diff" && result.diffMaskUrl && (
               <Box
@@ -156,14 +174,16 @@ export default function TestResultDialog({
                   left: 0,
                   width: "100%",
                   height: "100%",
+                  overflow: "hidden",
                 }}
               >
                 <Image
                   src={result.diffMaskUrl}
                   alt={`Diff mask for ${result.name}`}
-                  layout="fill"
-                  objectFit="contain"
-                  style={{ opacity: 0.5 }}
+                  fill
+                  sizes="100vw"
+                  style={{ objectFit: "contain", opacity: 0.5 }}
+                  priority
                 />
               </Box>
             )}

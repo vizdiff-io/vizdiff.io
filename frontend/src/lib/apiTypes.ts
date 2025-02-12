@@ -1,3 +1,5 @@
+export type TestResultStatus = "new" | "unchanged" | "changed" | "failed"
+
 export type UserResponse = {
   id: number
   githubId: string
@@ -43,10 +45,11 @@ export type ScreenshotTestSummaryResponse = ScreenshotTestResponse & {
 export type TestResultResponse = {
   id: number
   name: string
-  changeStatus: "new" | "unchanged" | "changed"
+  changeStatus: TestResultStatus
   screenshotUrl: string
   ancestorScreenshotUrl?: string
   diffMaskUrl?: string
+  diffRatio?: number
   createdStampSec: number
 }
 

@@ -22,7 +22,13 @@ module.exports = tseslint.config(
     extends: ["plugin:storybook/recommended"],
   }),
   {
-    ignores: [".storybook/**", "public/**", "next.config.mjs", "eslint.config.cjs"],
+    ignores: [
+      ".storybook/**",
+      "cloudfront/**",
+      "public/**",
+      "next.config.mjs",
+      "eslint.config.cjs",
+    ],
     languageOptions: {
       parser: tseslint.parser,
       parserOptions: {

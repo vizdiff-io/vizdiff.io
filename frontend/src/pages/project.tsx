@@ -1,14 +1,15 @@
 import CircleIcon from "@mui/icons-material/Circle"
-import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown"
-import { Box, Button, Typography, Paper, useTheme } from "@mui/material"
+import { Box, Typography, Paper, useTheme } from "@mui/material"
 import { formatDistanceToNow } from "date-fns"
 import Head from "next/head"
+import Link from "next/link"
 import { useRouter } from "next/router"
 
-import { NavBody } from "@/components/NavBody"
+import { AppLayout } from "@/components/AppLayout"
 import useApiGet from "@/hooks/useApiGet"
 import type { ProjectResponse, ScreenshotTestSummaryResponse } from "@/lib/apiTypes"
 import { getStatusColor } from "@/lib/colors"
+import { plural } from "@/lib/text"
 
 export default function Project(): JSX.Element {
   const router = useRouter()
@@ -33,7 +34,7 @@ export default function Project(): JSX.Element {
         <meta name="description" content="Project builds and details" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
-      <NavBody>
+      <AppLayout>
         <Box sx={{ px: 3, py: 4 }}>
           {error && (
             <Paper sx={{ p: 2, mb: 3, bgcolor: "error.light", color: "error.contrastText" }}>
@@ -47,11 +48,11 @@ export default function Project(): JSX.Element {
             <Typography variant="h4" component="h1" sx={{ fontWeight: 600 }}>
               Builds
             </Typography>
-            <Box sx={{ display: "flex", gap: 1 }}>
+            {/* <Box sx={{ display: "flex", gap: 1 }}>
               <Button variant="outlined" endIcon={<KeyboardArrowDownIcon />}>
                 All branches
               </Button>
-            </Box>
+            </Box> */}
           </Box>
 
           {loading ? (
@@ -61,70 +62,80 @@ export default function Project(): JSX.Element {
           ) : (
             <Box>
               {builds.map((build) => (
-                <Paper
+                <Link
                   key={build.id}
-                  sx={{
-                    p: 3,
-                    mb: 2,
-                    display: "flex",
-                    alignItems: "center",
-                    "&:hover": { bgcolor: "action.hover" },
-                    cursor: "pointer",
-                  }}
-                  onClick={() => void router.push(`/build?id=${build.id}`)}
+                  href={`/build?id=${build.id}`}
+                  style={{ textDecoration: "none" }}
                 >
-                  <CircleIcon
+                  <Paper
                     sx={{
-                      mr: 2,
-                      fontSize: 16,
-                      color: getStatusColor(theme, build.status),
+                      p: 3,
+                      mb: 2,
+                      display: "flex",
+                      alignItems: "center",
+                      "&:hover": { bgcolor: "action.hover" },
+                      cursor: "pointer",
                     }}
-                  />
-                  <Box sx={{ flex: 1 }}>
-                    <Box sx={{ display: "flex", alignItems: "center", mb: 0.5 }}>
-                      <Typography variant="h6" component="h2" sx={{ mr: 2 }}>
-                        Build #{build.buildNumber}
+                  >
+                    <CircleIcon
+                      sx={{
+                        mr: 2,
+                        fontSize: 16,
+                        color: getStatusColor(theme, build.status),
+                      }}
+                    />
+                    <Box sx={{ flex: 1 }}>
+                      <Box sx={{ display: "flex", alignItems: "center", mb: 0.5 }}>
+                        <Typography variant="h6" component="h2" sx={{ mr: 2 }}>
+                          Build #{build.buildNumber}
+                        </Typography>
+                        {build.tag && (
+                          <Paper
+                            sx={{
+                              px: 1.5,
+                              py: 0.5,
+                              bgcolor: "success.light",
+                              borderRadius: 2,
+                            }}
+                          >
+                            <Typography variant="caption" sx={{ color: "black" }}>
+                              {build.tag}
+                            </Typography>
+                          </Paper>
+                        )}
+                      </Box>
+                      <Typography variant="body2">
+                        Created {formatDistanceToNow(build.initiatedStampSec * 1000)} ago •{" "}
+                        {build.commitSha} on {build.branch}
                       </Typography>
-                      {build.tag && (
-                        <Paper
-                          sx={{
-                            px: 1.5,
-                            py: 0.5,
-                            bgcolor: "success.light",
-                            borderRadius: 2,
-                          }}
-                        >
-                          <Typography variant="caption" sx={{ color: "black" }}>
-                            {build.tag}
-                          </Typography>
-                        </Paper>
-                      )}
                     </Box>
-                    <Typography variant="body2">
-                      Created {formatDistanceToNow(build.initiatedStampSec * 1000)} ago •{" "}
-                      {build.commitSha} on {build.branch}
-                    </Typography>
-                  </Box>
-                  <Box sx={{ display: "flex", gap: 4, ml: 2 }}>
-                    <Box sx={{ textAlign: "center" }}>
-                      <Typography variant="h6">{build.components ?? "…"}</Typography>
-                      <Typography variant="caption">Components</Typography>
+                    <Box sx={{ display: "flex", gap: 4, ml: 2 }}>
+                      <Box sx={{ textAlign: "center" }}>
+                        <Typography variant="h6">{build.components ?? "…"}</Typography>
+                        <Typography variant="caption">
+                          Component{plural(build.components ?? 0)}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ textAlign: "center" }}>
+                        <Typography variant="h6">{build.stories ?? "…"}</Typography>
+                        <Typography variant="caption">
+                          {build.stories === 1 ? "Story" : "Stories"}
+                        </Typography>
+                      </Box>
+                      <Box sx={{ textAlign: "center" }}>
+                        <Typography variant="h6">{build.changes ?? "…"}</Typography>
+                        <Typography variant="caption">
+                          Change{plural(build.changes ?? 0)}
+                        </Typography>
+                      </Box>
                     </Box>
-                    <Box sx={{ textAlign: "center" }}>
-                      <Typography variant="h6">{build.stories ?? "…"}</Typography>
-                      <Typography variant="caption">Stories</Typography>
-                    </Box>
-                    <Box sx={{ textAlign: "center" }}>
-                      <Typography variant="h6">{build.changes ?? "…"}</Typography>
-                      <Typography variant="caption">Changes</Typography>
-                    </Box>
-                  </Box>
-                </Paper>
+                  </Paper>
+                </Link>
               ))}
             </Box>
           )}
         </Box>
-      </NavBody>
+      </AppLayout>
     </>
   )
 }

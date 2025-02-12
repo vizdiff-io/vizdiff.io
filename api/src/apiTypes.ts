@@ -1,3 +1,5 @@
+import type { TestResultStatus } from "shared"
+
 import type { GithubUser } from "./schemas/GithubUser"
 
 export type UserResponse = {
@@ -45,10 +47,11 @@ export type ScreenshotTestSummaryResponse = ScreenshotTestResponse & {
 export type TestResultResponse = {
   id: number
   name: string
-  changeStatus: "new" | "unchanged" | "changed"
+  changeStatus: TestResultStatus
   screenshotUrl: string
   ancestorScreenshotUrl?: string
   diffMaskUrl?: string
+  diffRatio?: number
   createdStampSec: number
 }
 

@@ -26,18 +26,18 @@ const mockProjects: ProjectResponse[] = [
   },
   {
     id: 2,
-    name: "Example Project",
-    githubRepoUrl: "https://github.com/example/project",
+    name: "example-project",
+    githubRepoUrl: "https://github.com/example/example-project",
     token: "def456ghi789",
     createdStampSec: oneMinuteAgo - 3600 * 24 * 7, // 1 week ago
     lastBuildStampSec: oneMinuteAgo - 3600 * 24, // 1 day ago
-    builds: 15,
-    tests: 45,
+    builds: 1,
+    tests: 1,
   },
   {
     id: 3,
-    name: "Test Project",
-    githubRepoUrl: "https://github.com/test/project",
+    name: "MyAwesomeProject",
+    githubRepoUrl: "https://github.com/test/MyAwesomeProject",
     token: "ghi789jkl012",
     createdStampSec: oneMinuteAgo - 3600, // 1 hour ago
     lastBuildStampSec: oneMinuteAgo, // just now
@@ -152,14 +152,16 @@ const meta: Meta<typeof ProjectsComponent> = {
 export default meta
 type Story = StoryObj<typeof ProjectsComponent>
 
-export const Light: Story = {
-  args: {
-    mode: "light",
-  },
-}
+export const Light: Story = { args: { mode: "light" } }
 
-export const Dark: Story = {
-  args: {
-    mode: "dark",
+export const Dark: Story = { args: { mode: "dark" } }
+
+export const EmptyProjects: Story = {
+  args: { mode: "light" },
+  parameters: {
+    msw: {
+      handlers: [userHandler, http.get("/api/projects", () => HttpResponse.json([]))],
+    },
   },
+  render: () => <ProjectsComponent />,
 }

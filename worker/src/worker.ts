@@ -1,13 +1,14 @@
-import { S3Client, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3"
+import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3"
 import type { Capabilities } from "@wdio/types"
-import fs, { promises as fsPromises } from "fs"
-import http from "http"
-import os from "os"
-import path from "path"
+import fs, { promises as fsPromises } from "node:fs"
+import http from "node:http"
+import os from "node:os"
+import path from "node:path"
+import { Readable } from "node:stream"
+import pLimit from "p-limit"
 import pg from "pg"
 import createPgSubscriber from "pg-listen"
 import { ScreenshotTest, TestResult } from "shared"
-import { Readable } from "stream"
 import { extract } from "tar"
 import { remote } from "webdriverio"
 
@@ -20,6 +21,7 @@ import {
   POSTGRES_PORT,
 } from "./environment"
 import { log } from "./log"
+import { processStory } from "./stories"
 
 type IngestStorybookPayload = {
   projectId: string
@@ -225,7 +227,11 @@ export function shutdown(): void {
   })
 }
 
-async function ingestStorybook(
+async function getS3BucketForProjectId(_projectId: string): Promise<string> {
+  return "vizdiff-testing"
+}
+
+export async function ingestStorybook(
   projectId: string,
   screenshotTestId: number,
   uploadId: string,
@@ -242,7 +248,7 @@ async function ingestStorybook(
 
   // Initialize S3 client
   const s3Client = new S3Client({ region: "us-east-1" })
-  const bucket = "vizdiff-testing" // Hardcoded for now, will be moved to config later
+  const bucket = await getS3BucketForProjectId(projectId)
   const key = `projects/${projectId}/${uploadId}.tar.gz`
   log.debug(`Using S3 bucket: ${bucket}, key: ${key}`)
 
@@ -305,7 +311,15 @@ async function ingestStorybook(
       // Start a local server to serve the Storybook files
       log.info("Starting local HTTP server for Storybook files")
       const server = http.createServer((req, res) => {
-        const filePath = path.join(tmpDir, req.url ?? "")
+        // Reject requests that try to access files outside of the served directory
+        const requestedPath = path.normalize(req.url ?? "")
+        if (requestedPath.includes("..") || !requestedPath.startsWith("/")) {
+          res.writeHead(403)
+          res.end()
+          return
+        }
+
+        const filePath = path.join(tmpDir, requestedPath)
         log.debug(`Serving file: ${filePath}`)
         fsPromises
           .readFile(filePath)
@@ -358,60 +372,43 @@ async function ingestStorybook(
         log.info(`Found ${Object.keys(stories).length} stories to process`)
 
         const testResultTable = db.getRepository(TestResult)
-        const testResults: TestResult[] = []
 
-        // Process each story
-        for (const [storyId, story] of Object.entries(stories)) {
-          log.info(`Processing story: ${storyId} (${story.name})`)
+        // Fetch test results from the base commit if it exists
+        const baseTestResults = new Map<string, TestResult>()
+        if (screenshotTest.baseCommitSha) {
+          log.info(`Fetching base test results for commit ${screenshotTest.baseCommitSha}`)
+          const baseTests = await testResultTable
+            .createQueryBuilder("result")
+            .innerJoin(ScreenshotTest, "test", "result.screenshotTestId = test.id")
+            .where("test.commitSha = :commitSha", { commitSha: screenshotTest.baseCommitSha })
+            .getMany()
 
-          // Navigate to the story
-          const storyUrl = `http://localhost:${port}/iframe.html?id=${storyId}`
-          log.debug(`Navigating to story URL: ${storyUrl}`)
-          await browser.url(storyUrl)
-
-          // Wait for the story to load
-          log.debug("Waiting for story to load...")
-          await browser.pause(1000) // Basic wait, could be improved
-
-          // Take a screenshot
-          const screenshotPath = path.join(tmpDir, `${storyId}.png`)
-          log.debug(`Taking screenshot: ${screenshotPath}`)
-          const screenshot = (await browser.saveScreenshot(screenshotPath)) as Buffer
-          log.debug(`Successfully captured ${screenshot.length} byte screenshot: ${screenshotPath}`)
-
-          // Upload screenshot to S3
-          const screenshotKey = `projects/${projectId}/screenshots/${uploadId}/${storyId}.png`
-          log.debug(`Uploading screenshot to S3: ${screenshotKey}`)
-          await s3Client.send(
-            new PutObjectCommand({
-              Bucket: bucket,
-              Key: screenshotKey,
-              Body: screenshot,
-              ContentType: "image/png",
-            }),
-          )
-          log.info(
-            `Successfully uploaded screenshot ${screenshotKey} to S3 (${screenshot.length} bytes)`,
-          )
-
-          // TASK: We need to fetch the previous screenshot, compare the new
-          // screenshot with the previous screenshot, and determine the change
-          // status.
-          const changeStatus = "new" // For now assume this is a new screenshot
-
-          // Create test result record
-          log.debug(`Creating test result record for story: ${storyId}`)
-          const testResult = new TestResult()
-          testResult.name = story.name.substring(0, 255)
-          testResult.screenshotTestId = parseInt(uploadId, 10)
-          testResult.storyId = storyId
-          testResult.newImageUrl = `https://${bucket}.s3.amazonaws.com/${screenshotKey}`
-          testResult.changeStatus = changeStatus
-          await testResultTable.save(testResult)
-          testResults.push(testResult)
-          log.debug(`Successfully saved test result record`)
+          for (const test of baseTests) {
+            baseTestResults.set(test.storyId, test)
+          }
+          log.info(`Found ${baseTestResults.size} base test results`)
         }
 
+        // Process stories with a concurrency limit
+        const MAX_CONCURRENCY = 4
+        const limit = pLimit(MAX_CONCURRENCY)
+        const testResults = await Promise.all(
+          Object.values(stories).map((story) =>
+            limit(() =>
+              processStory({
+                story,
+                baseTestResult: baseTestResults.get(story.id),
+                bucket,
+                tmpDir,
+                projectId,
+                uploadId,
+                port,
+                s3Client,
+                testResultTable,
+              }),
+            ),
+          ),
+        )
         log.info(`Successfully processed all ${Object.keys(stories).length} stories`)
 
         let noChanges = true
@@ -435,12 +432,25 @@ async function ingestStorybook(
       log.debug("Closing WebdriverIO browser session")
       await browser.deleteSession()
     }
+  } catch (error) {
+    log.error(
+      `Failed to process storybook: ${error instanceof Error ? error.message : String(error)}`,
+    )
+    screenshotTest.status = "failed"
+    await screenshotTestRepo.save(screenshotTest)
+    throw error
   } finally {
     // Cleanup
     log.debug(`Cleaning up temporary directory: ${tmpDir}`)
     await fsPromises.rm(tmpDir, { recursive: true, force: true })
 
-    log.info("Storybook ingestion completed successfully")
+    // If status is still "running", something went wrong without throwing an error
+    if (screenshotTest.status === "running") {
+      screenshotTest.status = "failed"
+      await screenshotTestRepo.save(screenshotTest)
+    }
+
+    log.info(`Storybook ingestion completed with status: ${screenshotTest.status}`)
   }
 }
 

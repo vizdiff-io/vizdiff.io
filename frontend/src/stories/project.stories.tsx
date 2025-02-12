@@ -15,8 +15,8 @@ type StoryArgs = {
 const oneMinuteAgo = Math.floor(Date.now() / 1000) - 60
 const mockProject: ProjectResponse = {
   id: 456,
-  name: "Example Project",
-  githubRepoUrl: "https://github.com/example/project",
+  name: "example-project",
+  githubRepoUrl: "https://github.com/example/example-project",
   token: "abc123def456",
   createdStampSec: oneMinuteAgo - 3600 * 24, // 1 day ago
   lastBuildStampSec: oneMinuteAgo,
@@ -59,9 +59,9 @@ const mockBuilds: ScreenshotTestSummaryResponse[] = [
     commitSha: "1a2b3c4",
     branch: "main",
     uploadId: "121",
-    components: 10,
-    stories: 40,
-    changes: 40,
+    components: 1,
+    stories: 1,
+    changes: 1,
     initiatedStampSec: oneMinuteAgo - 3600 * 24, // 1 day ago
     status: "unapproved",
   },
@@ -129,5 +129,19 @@ export const Light: Story = {
 export const Dark: Story = {
   args: {
     mode: "dark",
+  },
+}
+
+export const NoBuilds: Story = {
+  args: {
+    mode: "light",
+  },
+  parameters: {
+    msw: {
+      handlers: [
+        http.get("/api/projects/:id", () => HttpResponse.json(mockProject)),
+        http.get("/api/projects/:projectId/builds", () => HttpResponse.json([])),
+      ],
+    },
   },
 }
