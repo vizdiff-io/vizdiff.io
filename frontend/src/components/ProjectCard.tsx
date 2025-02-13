@@ -27,9 +27,7 @@ export default function ProjectCard({ repo }: ProjectCardProps): JSX.Element {
         {repo.name}
       </Typography>
       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-        <Typography variant="body2" color="text.secondary">
-          {repo.full_name}
-        </Typography>
+        <Typography variant="body2">{repo.full_name}</Typography>
       </Box>
     </Paper>
   )

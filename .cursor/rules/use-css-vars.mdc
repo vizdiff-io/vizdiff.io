@@ -1,0 +1,50 @@
+---
+description: Use CSS variables for theme colors
+globs: *.tsx
+---
+# Use CSS variables
+
+Use CSS variables for theme colors when setting `color` or any other use of color in the frontend. The light or dark theme is applied to CSS variables on page load and kept up to date.
+
+<rule>
+name: use_css_vars
+description: Use CSS variables for MUI component colors and elsewhere
+filters:
+  # Match any .tsx files
+  - type: file_extension
+    pattern: "\\.tsx$"
+
+actions:
+  - type: reject
+    conditions:
+      # Match "color: " followed by *not* "var(--color-name)"
+      - pattern: "[Cc]olor: \"(?!var(--[a-zA-Z0-9-]+)\").*"
+        message: "Do not use MaterialUI color names directly. Use a `var(--color-name) equivalent from the list of recognized names."
+
+  - type: suggest
+    message: |
+      The following CSS variables are recognized:
+        var(--bg-primary)
+        var(--bg-paper)
+        var(--text-primary)
+        var(--text-on-primary)
+        var(--text-secondary)
+        var(--gradient-text)
+        var(--seventy-percent-opacity)
+        var(--twenty-percent-opacity)
+        var(--twelve-percent-opacity)
+        var(--five-percent-opacity)
+
+examples:
+  - input: |
+      # Bad: Standard MUI theme color
+      color: "text-secondary"
+
+      # Good: Use CSS variable
+      color: var(--text-secondary)
+    output: "Correctly used CSS variable"
+
+metadata:
+  priority: high
+  version: 1.0
+</rule>

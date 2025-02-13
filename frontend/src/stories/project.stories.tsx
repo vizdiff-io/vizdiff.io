@@ -139,6 +139,7 @@ export const NoBuilds: Story = {
   parameters: {
     msw: {
       handlers: [
+        userHandler,
         http.get("/api/projects/:id", () => HttpResponse.json(mockProject)),
         http.get("/api/projects/:projectId/builds", () => HttpResponse.json([])),
       ],

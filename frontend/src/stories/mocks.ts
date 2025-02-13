@@ -10,7 +10,7 @@ const mockUser: UserResponse = {
   githubUsername: "testuser",
   githubProfile: {
     login: "testuser",
-    avatar_url: "https://placecats.com/460/460",
+    avatar_url: "https://placecats.com/millie/460/460",
   },
   createdStampSec: oneMinuteAgo,
   updatedStampSec: oneMinuteAgo,

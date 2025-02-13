@@ -10,10 +10,6 @@ import { AuthProvider } from "@/hooks/useAuth"
 
 const inter = Inter({ subsets: ["latin"] })
 
-if (!process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID) {
-  throw new Error("NEXT_PUBLIC_GITHUB_CLIENT_ID is not defined. Please set it in .env.local")
-}
-
 export default function App({ Component, pageProps }: AppProps): JSX.Element {
   const theme = useAppTheme()
 
