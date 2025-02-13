@@ -148,11 +148,11 @@ export default function Login(): JSX.Element {
                   <Typography variant="h6" sx={{ mb: 2 }}>
                     Organization Admin
                   </Typography>
-                  <Typography variant="body1" sx={{ mb: 1, color: "text.secondary" }}>
+                  <Typography variant="body1" sx={{ mb: 1 }}>
                     Install the GitHub App to enable screenshot testing for your repositories. This
                     will allow us to:
                   </Typography>
-                  <Box component="ul" sx={{ mb: 2, ml: 3, color: "text.secondary" }}>
+                  <Box component="ul" sx={{ mb: 2, ml: 3 }}>
                     <li>Get notified when a pull request is created or updated</li>
                     <li>Post GitHub Actions statuses</li>
                   </Box>
@@ -187,7 +187,7 @@ export default function Login(): JSX.Element {
                   <Typography variant="h6" sx={{ mb: 2 }}>
                     Contributor
                   </Typography>
-                  <Typography variant="body1" sx={{ mb: 2, color: "text.secondary" }}>
+                  <Typography variant="body1" sx={{ mb: 2 }}>
                     Sign in to review and approve screenshot changes in repositories where the
                     GitHub App is already installed.
                   </Typography>
@@ -213,7 +213,7 @@ export default function Login(): JSX.Element {
               </Box>
             </Stack>
 
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 4 }}>
+            <Typography variant="body2" color="var(--seventy-percent-opacity)" sx={{ mt: 4 }}>
               By signing in, you agree to our Terms of Service and Privacy Policy.
             </Typography>
           </Box>
