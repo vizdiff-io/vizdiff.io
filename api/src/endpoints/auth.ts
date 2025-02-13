@@ -142,6 +142,7 @@ export async function githubCallback(req: DefaultRequest, res: DefaultResponse):
   user.email = ghUser.email
   user.githubUsername = ghUser.login
   user.githubProfile = JSON.stringify(ghUser)
+  user.githubAccessToken = ghTokenRes.access_token
 
   // If we have an installation ID, validate and update it
   if (installationId) {
@@ -157,7 +158,11 @@ export async function githubCallback(req: DefaultRequest, res: DefaultResponse):
     } catch (err) {
       log.error(`Failed to validate installation ID ${installationId}: ${err}`)
       // Don't fail the auth flow, just don't update the installation ID
+      user.githubInstallationId = null
     }
+  } else {
+    // No installation ID provided, this is a normal OAuth flow
+    user.githubInstallationId = null
   }
 
   user = await userTable.save(user)
@@ -166,7 +171,8 @@ export async function githubCallback(req: DefaultRequest, res: DefaultResponse):
   const token = jwt.sign({ sub: user.id }, JWT_SECRET, { expiresIn: "8h" })
 
   // Set a secure cookie for the JWT and a JS-accessible cookie to indicate that
-  // the user is authenticated
+  // the user is authenticated. The JWT lives for 8 hours and authenticated for
+  // 30 days to allow for refreshing the JWT during that period.
   const domain = new URL(APP_URL).hostname
   res.cookie("token", token, {
     domain,

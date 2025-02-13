@@ -12,53 +12,66 @@ import {
   GITHUB_PRIVATE_KEY,
   GITHUB_CLIENT_ID,
   GITHUB_CLIENT_SECRET,
+  IS_PRODUCTION,
 } from "./environment"
 import { log } from "./log"
 import type { AuthenticatedRequest, DefaultRequest, MaybeAuthenticatedRequest } from "./types"
 
-async function validateGitHubToken(installationId: number): Promise<boolean> {
+async function validateGitHubToken(user: User): Promise<boolean> {
   try {
-    const auth = createAppAuth({
-      appId: GITHUB_APP_ID,
-      privateKey: GITHUB_PRIVATE_KEY,
-      clientId: GITHUB_CLIENT_ID,
-      clientSecret: GITHUB_CLIENT_SECRET,
-    })
-    const installationAuth = await auth({ type: "installation", installationId })
-    const octokit = new Octokit({ auth: installationAuth.token })
-    await octokit.rest.apps.getAuthenticated()
+    // First validate the OAuth token which all users have
+    const octokit = new Octokit({ auth: user.githubAccessToken })
+    await octokit.rest.users.getAuthenticated()
+
+    // If they have a GitHub App installation, validate that too
+    if (typeof user.githubInstallationId === "number") {
+      const auth = createAppAuth({
+        appId: GITHUB_APP_ID,
+        privateKey: GITHUB_PRIVATE_KEY,
+        clientId: GITHUB_CLIENT_ID,
+        clientSecret: GITHUB_CLIENT_SECRET,
+      })
+      const installationAuth = await auth({
+        type: "installation",
+        installationId: user.githubInstallationId,
+      })
+      const appOctokit = new Octokit({ auth: installationAuth.token })
+      await appOctokit.rest.apps.getAuthenticated()
+    }
+
     return true
-  } catch (err) {
-    log.warn(`GitHub token validation failed: ${err}`)
+  } catch (error) {
+    if (error instanceof Error) {
+      log.warn(`GitHub token validation failed: ${error.message}`)
+    } else {
+      log.warn("GitHub token validation failed with unknown error")
+    }
     return false
   }
 }
 
-async function refreshJWT(userId: number, res: Response): Promise<boolean> {
+async function refreshJWT(userId: number, req: DefaultRequest, res: Response): Promise<boolean> {
   try {
-    // Get the user from the database to check their GitHub token
+    // Get the user from the database
     const db = await Database()
     const user = await db.manager.findOneBy(User, { id: userId })
     if (!user) {
       return false
     }
-    if (typeof user.githubInstallationId !== "number") {
-      return false
-    }
 
-    // Validate the GitHub token
-    const isValid = await validateGitHubToken(user.githubInstallationId)
+    // Validate both OAuth and GitHub App tokens as needed
+    const isValid = await validateGitHubToken(user)
     if (!isValid) {
       return false
     }
 
-    // Generate a new JWT token
-    const token = jwt.sign({ sub: user.id }, JWT_SECRET, { expiresIn: "1h" })
+    // Generate a new JWT token with 8 hour expiration
+    const token = jwt.sign({ sub: user.id }, JWT_SECRET, { expiresIn: "8h" })
 
-    // Set the new token in a cookie
+    // Set the new token in a cookie with 8 hour expiration
     res.cookie("token", token, {
       httpOnly: true,
-      secure: true,
+      secure: IS_PRODUCTION || req.secure ? true : undefined,
       sameSite: "lax",
       maxAge: 8 * 60 * 60 * 1000, // 8 hours in milliseconds
       path: "/",
@@ -93,7 +106,7 @@ export function authenticateJWT(req: DefaultRequest, res: Response, next: NextFu
         // If the token is expired, try to refresh it
         if (err.name === "TokenExpiredError" && typeof decoded === "object" && decoded.sub) {
           const userId = parseInt(decoded.sub, 10)
-          const refreshed = await refreshJWT(userId, res)
+          const refreshed = await refreshJWT(userId, req, res)
           if (refreshed) {
             // Set req.userId from the verified JWT payload and continue
             const reqWithUserId = req as AuthenticatedRequest

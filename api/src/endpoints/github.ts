@@ -26,8 +26,13 @@ async function getOctokitForUser(installationId: number): Promise<Octokit> {
 
 export async function orgs(req: DefaultRequest, res: DefaultResponse): Promise<void> {
   const user = await getUser(req)
-  const octokit = await getOctokitForUser(user.githubInstallationId)
 
+  if (user.githubInstallationId == null) {
+    res.status(403).json({ error: "GitHub App installation required for this endpoint" })
+    return
+  }
+
+  const octokit = await getOctokitForUser(user.githubInstallationId)
   const ghRes = await octokit.request("GET /user/orgs", { headers: GITHUB_HEADERS, per_page: 100 })
   log.debug(`Found ${ghRes.data.length} GitHub orgs for ${user.githubUsername}`)
 
@@ -37,6 +42,11 @@ export async function orgs(req: DefaultRequest, res: DefaultResponse): Promise<v
 export async function repos(req: DefaultRequest, res: DefaultResponse): Promise<void> {
   const user = await getUser(req)
   const org = req.query.org as string | undefined
+
+  if (user.githubInstallationId == null) {
+    res.status(403).json({ error: "GitHub App installation required for this endpoint" })
+    return
+  }
 
   const octokit = await getOctokitForUser(user.githubInstallationId)
   const ghRes = org
