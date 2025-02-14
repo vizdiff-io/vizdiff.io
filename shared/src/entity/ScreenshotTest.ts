@@ -60,6 +60,9 @@ export class ScreenshotTest {
   @Column({ type: "varchar", length: 255, nullable: false })
   status!: string
 
+  @Column({ name: "tag", type: "varchar", length: 255, nullable: true })
+  tag!: string | undefined
+
   @Column({ name: "total_changes", type: "integer", nullable: true })
   totalChanges!: number | undefined
 

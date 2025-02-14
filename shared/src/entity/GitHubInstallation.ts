@@ -29,7 +29,7 @@ export class GitHubInstallation {
   @Column({ name: "account_type", type: "varchar", length: 255, nullable: false })
   accountType!: string // 'Organization' or 'User'
 
-  @Column({ name: "creator_id", type: "integer", nullable: false })
+  @Column({ name: "creator_id", type: "integer", nullable: false, update: false })
   creatorId!: number
 
   @ManyToOne("User", { onDelete: "CASCADE", nullable: false })
