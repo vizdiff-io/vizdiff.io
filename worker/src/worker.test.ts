@@ -324,7 +324,7 @@ describe("worker", () => {
       await ingestStorybook(projectId, screenshotTestId, uploadId)
 
       // Verify S3 interactions
-      expect(S3Client).toHaveBeenCalledWith({ region: "us-east-1" })
+      expect(S3Client).toHaveBeenCalled()
       expect(mockSend).toHaveBeenCalledWith(expect.any(GetObjectCommand))
 
       // Verify screenshot test status updates

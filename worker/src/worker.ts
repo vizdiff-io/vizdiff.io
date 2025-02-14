@@ -229,7 +229,7 @@ export function shutdown(): void {
 }
 
 async function getS3BucketForProjectId(_projectId: string): Promise<string> {
-  return "vizdiff-testing"
+  return "vizdiffio-testing"
 }
 
 export async function ingestStorybook(
@@ -248,7 +248,7 @@ export async function ingestStorybook(
   }
 
   // Initialize S3 client
-  const s3Client = new S3Client({ region: "us-east-1" })
+  const s3Client = new S3Client()
   const bucket = await getS3BucketForProjectId(projectId)
   const key = `projects/${projectId}/${uploadId}.tar.gz`
   log.debug(`Using S3 bucket: ${bucket}, key: ${key}`)
