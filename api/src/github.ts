@@ -33,17 +33,51 @@ export async function syncUserInstallations(user: User): Promise<GitHubInstallat
       installationId: inst.id,
     })
 
-    if (!installation) {
-      installation = new GitHubInstallation()
-      installation.creatorId = user.id // Set creator for new installations
-      installation.installationId = inst.id
-    }
-
     const account = inst.account as GitHubAccount
-    installation.accountId = String(account.id)
-    installation.accountName = account.login
-    installation.accountType = account.type
-    installation = await db.manager.save(GitHubInstallation, installation)
+    const accountId = String(account.id)
+    const accountName = account.login
+    const accountType = account.type
+
+    if (!installation) {
+      // Create new installation
+      installation = new GitHubInstallation()
+      installation.creatorId = user.id
+      installation.installationId = inst.id
+      installation.accountId = accountId
+      installation.accountName = accountName
+      installation.accountType = accountType
+
+      log.debug(`Creating new GitHub installation for ${accountName} with creator ${user.id}`)
+
+      try {
+        installation = await db.manager.save(GitHubInstallation, installation)
+        log.debug(
+          `Created GitHub installation ${installation.id} with creator ${installation.creatorId}`,
+        )
+      } catch (error) {
+        if (error instanceof Error) {
+          log.error(`Failed to save installation: ${error.message}`)
+        }
+        throw error
+      }
+    } else if (
+      installation.accountId !== accountId ||
+      installation.accountName !== accountName ||
+      installation.accountType !== accountType
+    ) {
+      // Only update if data has changed
+      const oldCreatorId = installation.creatorId
+      installation.accountId = accountId
+      installation.accountName = accountName
+      installation.accountType = accountType
+      log.debug(
+        `Updating GitHub installation ${installation.id} for ${accountName}, creator was ${oldCreatorId} and user is ${user.id}`,
+      )
+      installation = await db.manager.save(GitHubInstallation, installation)
+      log.debug(
+        `Updated GitHub installation ${installation.id}, creator is ${installation.creatorId}`,
+      )
+    }
 
     // Link to user if not already linked
     const userInstallation = await db.manager
