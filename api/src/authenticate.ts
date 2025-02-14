@@ -175,5 +175,5 @@ export async function getProjectByToken(token: string): Promise<Project> {
 }
 
 export async function getS3BucketForProject(_project: Project): Promise<string> {
-  return "vizdiff-testing"
+  return "vizdiffio-testing"
 }

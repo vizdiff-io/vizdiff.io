@@ -1,3 +1,4 @@
+import { randomBytes } from "crypto"
 import { Project } from "shared"
 
 import type { ProjectResponse } from "../apiTypes"
@@ -224,7 +225,7 @@ export const resetToken: RequestHandler = async (req, res) => {
   res.json(response)
 }
 
-/** Generate a random 12-character hex string to use as a project token. */
+/** Generate a random 16-character hex string to use as a project token. */
 function generateProjectToken(): string {
-  return [...Array<undefined>(12)].map(() => Math.floor(Math.random() * 16).toString(16)).join("")
+  return randomBytes(8).toString("hex") // 8 bytes = 16 hex chars
 }

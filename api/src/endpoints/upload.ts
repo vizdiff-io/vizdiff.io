@@ -1,4 +1,5 @@
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3"
+import { S3Client } from "@aws-sdk/client-s3"
+import { Upload as S3Upload } from "@aws-sdk/lib-storage"
 import { WorkTask } from "shared"
 import { uuidv7 } from "uuidv7"
 
@@ -9,7 +10,6 @@ import { log } from "../log"
 import { createScreenshotTest } from "../screenshotTests"
 import type { DefaultRequest, DefaultResponse } from "../types"
 
-const AWS_REGION = "us-east-1"
 const MAX_UPLOAD_BYTES = 1024 * 1024 * 100 // 100 MB
 const MAX_BRANCH_LENGTH = 1024
 
@@ -66,17 +66,34 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
   )
 
   // Proxy the .tar.gz upload to S3
-  const s3Client = new S3Client({ region: AWS_REGION })
-  const putObjectCommand = new PutObjectCommand({ Bucket, Key, Body: req })
-  await s3Client.send(putObjectCommand)
+  const s3Client = new S3Client()
+  const upload = new S3Upload({
+    client: s3Client,
+    params: {
+      Bucket,
+      Key,
+      Body: req,
+      ContentType: "application/gzip",
+      ContentLength: length,
+    },
+  })
+
+  try {
+    const result = await upload.done()
+    void result // Ignore the result
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : String(err)
+    log.error(`Failed to upload ${Key} to S3: ${errorMessage}`)
+    throw new Error(`Failed to upload to S3: ${errorMessage}`)
+  }
 
   log.info(
-    `Uploaded ${Key} to S3 bucket ${Bucket} (project=${project.id}, upload=${uploadId}, length=${req.readableLength})`,
+    `Uploaded ${Key} to S3 bucket ${Bucket} (project=${project.id}, upload=${uploadId}, length=${length})`,
   )
 
   // Create a row in `screenshot_tests` for this upload
   const screenshotTest = await createScreenshotTest(
-    project.id,
+    project,
     commitSha,
     branch,
     uploadId,
