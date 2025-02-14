@@ -3,6 +3,7 @@ import { Project, ScreenshotTest, TestResult } from "shared"
 import type { ScreenshotTestResponse, TestResponse, TestResultResponse } from "../apiTypes"
 import { Database } from "../database"
 import { getParamInt } from "../http"
+import { log } from "../log"
 import type { RequestHandler } from "../types"
 
 type ScreenshotTestWithStats = {
@@ -85,41 +86,38 @@ export const list: RequestHandler = async (req, res) => {
 }
 
 export const get: RequestHandler = async (req, res) => {
-  const { user } = res.locals
-  const projectId = getParamInt("projectId", req)
-  const id = getParamInt("id", req)
-  if (!projectId) {
-    res.status(400).json({ error: "Missing projectId" })
-    return
-  }
-  if (!id) {
+  // const { user } = res.locals
+  const screenshotTestId = getParamInt("id", req)
+  if (!screenshotTestId) {
     res.status(400).json({ error: "Missing id" })
     return
   }
 
   const db = await Database()
-  const projectTable = db.getRepository(Project)
-  const project = await projectTable.findOneBy({ id: projectId, user: { id: user.id } })
 
+  const screenshotTestTable = db.getRepository(ScreenshotTest)
+  const screenshotTest = await screenshotTestTable.findOneBy({ id: screenshotTestId })
+  if (!screenshotTest) {
+    log.error(`Screenshot test not found: id=${screenshotTestId}`)
+    res.status(404).json({ error: "Screenshot test not found" })
+    return
+  }
+  const projectId = screenshotTest.project.id
+
+  const projectTable = db.getRepository(Project)
+  const project = await projectTable.findOneBy({ id: projectId })
   if (!project) {
+    log.error(`Project not found: projectId=${projectId}`)
     res.status(404).json({ error: "Project not found" })
     return
   }
 
-  const screenshotTestTable = db.getRepository(ScreenshotTest)
-  const screenshotTest = await screenshotTestTable.findOneBy({ id, project: { id: projectId } })
-
-  if (!screenshotTest) {
-    res.status(404).json({ error: "Screenshot test not found" })
-    return
-  }
-
   const testResultTable = db.getRepository(TestResult)
-  const testResults = await testResultTable.findBy({ screenshotTest: { id } })
+  const testResults = await testResultTable.findBy({ screenshotTest: { id: screenshotTestId } })
 
   const response: TestResponse = {
     id: screenshotTest.id,
-    projectId: screenshotTest.projectId,
+    projectId: screenshotTest.project.id,
     buildNumber: screenshotTest.buildNumber,
     commitSha: screenshotTest.commitSha,
     branch: screenshotTest.branch,
