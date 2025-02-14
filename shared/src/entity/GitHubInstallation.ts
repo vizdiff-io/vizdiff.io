@@ -32,9 +32,9 @@ export class GitHubInstallation {
   @Column({ name: "creator_id", type: "integer", nullable: false, update: false })
   creatorId!: number
 
-  @ManyToOne("User", { onDelete: "CASCADE", nullable: false })
+  @ManyToOne("User", { onDelete: "CASCADE" })
   @JoinColumn({ name: "creator_id", referencedColumnName: "id" })
-  creator!: Promise<User>
+  creator?: Promise<User>
 
   @ManyToMany("User")
   @JoinTable({

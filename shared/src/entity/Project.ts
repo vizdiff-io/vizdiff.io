@@ -27,7 +27,7 @@ export class Project {
   @Column({ type: "varchar", length: 255, nullable: false })
   name!: string
 
-  @Column({ type: "char", length: 12, unique: true, nullable: false })
+  @Column({ type: "char", length: 255, unique: true, nullable: false })
   token!: string
 
   @Column({ name: "github_repo_url", type: "varchar", length: 2048, nullable: false })

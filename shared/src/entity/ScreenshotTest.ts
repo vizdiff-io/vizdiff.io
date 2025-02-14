@@ -25,9 +25,9 @@ export class ScreenshotTest {
   @Column({ name: "project_id", type: "integer", nullable: false })
   projectId!: number
 
-  @ManyToOne("Project", { onDelete: "CASCADE", nullable: false })
-  @JoinColumn({ name: "project_id", referencedColumnName: "id" })
-  project!: Promise<Project>
+  @ManyToOne("Project", { onDelete: "CASCADE" })
+  @JoinColumn({ name: "project_id" })
+  project?: Promise<Project>
 
   @Column({ name: "build_number", type: "integer", nullable: false })
   buildNumber!: number
@@ -41,7 +41,7 @@ export class ScreenshotTest {
   @OneToMany("WorkTask", "screenshotTest")
   workTasks!: Promise<WorkTask[]>
 
-  @Column({ name: "commit_sha", type: "varchar", length: 64, nullable: false })
+  @Column({ name: "commit_sha", type: "varchar", length: 64, nullable: false, update: false })
   commitSha!: string
 
   @Column({ type: "varchar", length: 1024, nullable: false })
