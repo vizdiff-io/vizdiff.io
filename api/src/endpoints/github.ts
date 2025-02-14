@@ -25,8 +25,6 @@ async function getOctokitForUser(installationId: number): Promise<Octokit> {
   return new Octokit({ auth: installationAuth.token })
 }
 
-type OrgResponse = RestEndpointMethodTypes["orgs"]["list"]["response"]["data"][number]
-
 export const orgs: RequestHandler = async (_req, res) => {
   const { user } = res.locals
 
@@ -37,26 +35,36 @@ export const orgs: RequestHandler = async (_req, res) => {
     return
   }
 
-  // Get orgs for all installations
-  const allOrgs: OrgResponse[] = []
-  for (const installation of installations) {
-    const octokit = await getOctokitForUser(installation.installationId)
-    const ghRes = await octokit.request("GET /user/orgs", {
-      headers: GITHUB_HEADERS,
-      per_page: 100,
-    })
+  log.debug(
+    `Found installations: ${installations
+      .map((i) => `${i.accountName}(${i.accountType})`)
+      .join(", ")}`,
+  )
 
-    // Only include orgs where we have an installation
-    const installedOrgs = ghRes.data.filter((org) =>
-      installations.some(
-        (inst) => inst.accountType === "Organization" && inst.accountId === String(org.id),
-      ),
-    )
-    allOrgs.push(...installedOrgs)
-  }
+  // Get all org installations
+  const orgInstallations = installations.filter((inst) => inst.accountType === "Organization")
 
-  log.debug(`Found ${allOrgs.length} GitHub orgs for ${user.githubUsername}`)
-  res.json(allOrgs)
+  // Convert installations to org format
+  const orgList = orgInstallations.map((inst) => ({
+    login: inst.accountName,
+    id: parseInt(inst.accountId, 10),
+    node_id: "", // We don't have this but it's not used
+    url: `https://api.github.com/orgs/${inst.accountName}`,
+    repos_url: `https://api.github.com/orgs/${inst.accountName}/repos`,
+    events_url: `https://api.github.com/orgs/${inst.accountName}/events`,
+    hooks_url: `https://api.github.com/orgs/${inst.accountName}/hooks`,
+    issues_url: `https://api.github.com/orgs/${inst.accountName}/issues`,
+    members_url: `https://api.github.com/orgs/${inst.accountName}/members{/member}`,
+    public_members_url: `https://api.github.com/orgs/${inst.accountName}/public_members{/member}`,
+    avatar_url: `https://avatars.githubusercontent.com/u/${inst.accountId}?v=4`,
+    description: null,
+  }))
+
+  log.debug(
+    `Found ${orgList.length} GitHub orgs with app installations for ${user.githubUsername}. ` +
+      `Organizations: ${orgList.map((o) => o.login).join(", ")}`,
+  )
+  res.json(orgList)
 }
 
 type OrgRepoResponse = RestEndpointMethodTypes["repos"]["listForOrg"]["response"]["data"][number]
