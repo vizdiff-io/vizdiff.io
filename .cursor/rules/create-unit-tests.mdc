@@ -1,0 +1,166 @@
+---
+description: Guidelines for creating comprehensive unit tests with proper mocking and test organization
+globs: */*.test.ts, **/*.test.tsx
+---
+---
+description: Guidelines for creating comprehensive unit tests with proper mocking and test organization
+globs: **/*.test.ts, **/*.test.tsx
+---
+# Unit Test Creation Guidelines
+
+Standards for creating well-structured unit tests following the project's testing patterns.
+
+<rule>
+name: create_unit_tests
+description: Guidelines for creating comprehensive unit tests with proper mocking and test organization
+filters:
+  - type: file_extension
+    pattern: "\\.test\\.(ts|tsx)$"
+  - type: event
+    pattern: "file_create"
+
+actions:
+  - type: suggest
+    message: |
+      When creating unit tests, follow these guidelines:
+
+      1. File Structure:
+         ```typescript
+         /**
+          * Test suite description block explaining:
+          * 1. What functionality is being tested
+          * 2. The key processes/steps involved
+          * 3. What external dependencies are mocked
+          */
+
+         import { expect, describe, it, beforeEach, vi, afterEach } from "vitest"
+         // Core imports first
+         import * as fs from "fs/promises"
+         import * as path from "path"
+         // External dependencies next
+         import { externalDep } from "external-package"
+         // Internal imports last
+         import { functionToTest } from "./file-under-test"
+
+         // Mock external dependencies
+         vi.mock("external-package")
+         vi.mock("./internal-dependency")
+
+         // Define types for complex mocked responses
+         type MockResponse = {
+           field1: string
+           field2: number
+         }
+
+         describe("module-name", () => {
+           // Test fixtures - reusable mock data
+           const validInput = {
+             field1: "value1",
+             field2: "value2"
+           }
+
+           beforeEach(() => {
+             // Reset all mocks
+             vi.clearAllMocks()
+
+             // Setup mock implementations
+             vi.mocked(externalDep).mockResolvedValue(mockResponse)
+           })
+
+           afterEach(() => {
+             vi.clearAllMocks()
+           })
+
+           describe("specific-functionality", () => {
+             it("should handle successful case", async () => {
+               // Arrange
+               const input = { ...validInput }
+
+               // Act
+               await functionToTest(input)
+
+               // Assert
+               expect(externalDep).toHaveBeenCalledWith(
+                 expect.objectContaining({
+                   field1: input.field1
+                 })
+               )
+             })
+
+             it("should handle error case", async () => {
+               // Arrange
+               vi.mocked(externalDep).mockRejectedValue(new Error("Mock error"))
+
+               // Act & Assert
+               await expect(functionToTest(validInput))
+                 .rejects.toThrow("Expected error message")
+             })
+           })
+         })
+         ```
+
+      2. Test Organization:
+         - Group tests logically using nested `describe` blocks
+         - Use clear, descriptive test names that explain the scenario
+         - Follow the Arrange-Act-Assert pattern
+         - Test both success and error cases
+         - Test edge cases and boundary conditions
+
+      3. Mocking Best Practices:
+         - Mock all external dependencies (fs, network calls, etc.)
+         - Use `vi.mock()` for module-level mocks
+         - Reset mocks in `beforeEach`
+         - Provide type safety for mock responses
+         - Mock only what's necessary - don't mock the system under test
+
+      4. Assertions:
+         - Make specific assertions about the expected outcome
+         - Use appropriate matchers (toHaveBeenCalled, toMatchObject, etc.)
+         - For async code, properly test promise resolution/rejection
+         - Assert both positive and negative cases
+
+      5. Test Data:
+         - Create reusable test fixtures
+         - Use meaningful variable names
+         - Keep test data minimal but sufficient
+         - Consider creating helper functions for complex setup
+
+      6. Error Handling:
+         - Test error conditions thoroughly
+         - Verify error messages and types
+         - Ensure cleanup happens even when errors occur
+         - Test error recovery if applicable
+
+      7. Cleanup:
+         - Clean up mocks after each test
+         - Reset any global state
+         - Clean up resources in afterEach/afterAll
+
+examples:
+  - input: |
+      // Bad: Minimal test without proper structure
+      test("it works", () => {
+        expect(myFunction()).toBe(true)
+      })
+
+      // Good: Well-structured test with proper setup and assertions
+      describe("myFunction", () => {
+        beforeEach(() => {
+          vi.clearAllMocks()
+        })
+
+        it("should process input correctly", async () => {
+          const input = { value: "test" }
+          const result = await myFunction(input)
+          expect(result).toEqual(expect.objectContaining({
+            processed: true,
+            value: "test"
+          }))
+        })
+      })
+    output: "Well-structured test following guidelines"
+
+metadata:
+  priority: high
+  version: 1.0
+</rule>

@@ -1,5 +1,9 @@
 ---
-description: Cursor Rules Location
+description: Instructions on creating and storing cursor rules
+globs: *.mdc
+---
+---
+description: Instructions on creating and storing cursor rules
 globs: *.mdc
 ---
 # Cursor Rules Location
@@ -43,7 +47,42 @@ actions:
          - Always use .mdc extension
          - Make names descriptive of the rule's purpose
 
-      3. Directory structure:
+      3. Use this template when creating a new rule:
+         ```markdown
+         ---
+         Description: Brief description of what this rule does
+         Globs: **/*.ext, **/pattern/**
+         ---
+         # Rule Title
+
+         Detailed description of the rule's purpose and behavior.
+
+         <rule>
+         name: rule_name
+         description: One-line description for the rule
+         filters:
+           - type: file_extension
+             pattern: "pattern"
+           # Add more filters...
+
+         actions:
+           - type: suggest
+             message: |
+               Action description
+           # Add more actions...
+
+         examples:
+           - input: |
+               Example input
+             output: "Example output"
+
+         metadata:
+           priority: high
+           version: 1.0
+         </rule>
+         ```
+
+      4. Directory structure:
          ```
          PROJECT_ROOT/
          ├── .cursor/
@@ -53,7 +92,7 @@ actions:
          └── ...
          ```
 
-      4. Never place rule files:
+      5. Never place rule files:
          - In the project root
          - In subdirectories outside .cursor/rules
          - In any other location
