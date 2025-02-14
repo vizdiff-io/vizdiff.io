@@ -33,6 +33,7 @@ export default function Project(): JSX.Element {
   const handleCopyToken = async () => {
     if (project?.token) {
       try {
+        console.log(`Copying token "${project.token}"`)
         await navigator.clipboard.writeText(project.token)
         setCopyTooltip("Copied!")
         setTimeout(() => setCopyTooltip("Copy"), 2000)
