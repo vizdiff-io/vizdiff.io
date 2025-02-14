@@ -14,6 +14,7 @@ import {
   GITHUB_CLIENT_SECRET,
   IS_PRODUCTION,
 } from "./environment"
+import { getInstallationsForUserId } from "./github"
 import { log } from "./log"
 import type { AuthenticatedRequest, DefaultRequest, MaybeAuthenticatedRequest } from "./types"
 
@@ -23,8 +24,10 @@ async function validateGitHubToken(user: User): Promise<boolean> {
     const octokit = new Octokit({ auth: user.githubAccessToken })
     await octokit.rest.users.getAuthenticated()
 
-    // If they have a GitHub App installation, validate that too
-    if (typeof user.githubInstallationId === "number") {
+    // If they have any GitHub App installations, validate one of them too
+    const installations = await getInstallationsForUserId(user.id)
+    const firstInstallation = installations[0]
+    if (firstInstallation) {
       const auth = createAppAuth({
         appId: GITHUB_APP_ID,
         privateKey: GITHUB_PRIVATE_KEY,
@@ -33,7 +36,7 @@ async function validateGitHubToken(user: User): Promise<boolean> {
       })
       const installationAuth = await auth({
         type: "installation",
-        installationId: user.githubInstallationId,
+        installationId: firstInstallation.installationId,
       })
       const appOctokit = new Octokit({ auth: installationAuth.token })
       await appOctokit.rest.apps.getAuthenticated()

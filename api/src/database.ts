@@ -1,4 +1,13 @@
-import { Project, ScreenshotTest, TestResult, User, WorkTask } from "shared"
+import "reflect-metadata" // For TypeORM
+import {
+  Project,
+  ScreenshotTest,
+  TestResult,
+  User,
+  WorkTask,
+  defineRelationships,
+  GitHubInstallation,
+} from "shared"
 import { DataSource } from "typeorm"
 
 import {
@@ -22,7 +31,7 @@ const database = new DataSource({
   synchronize: !IS_PRODUCTION,
   dropSchema: IS_TEST,
   logging: !IS_TEST,
-  entities: [Project, ScreenshotTest, TestResult, User, WorkTask],
+  entities: [Project, ScreenshotTest, TestResult, User, WorkTask, GitHubInstallation],
   subscribers: [],
   migrations: [],
 })
@@ -35,7 +44,19 @@ export async function Database(): Promise<DataSource> {
   }
 
   if (!databaseInitializationPromise) {
-    databaseInitializationPromise = database.initialize()
+    databaseInitializationPromise = database.initialize().then((db) => {
+      try {
+        // Define relationships after database is initialized but before any queries
+        defineRelationships()
+      } catch (error) {
+        if (error instanceof Error) {
+          log.error("Failed to define relationships:", error.message)
+        } else {
+          log.error("Failed to define relationships with unknown error")
+        }
+      }
+      return db
+    })
   }
 
   await databaseInitializationPromise

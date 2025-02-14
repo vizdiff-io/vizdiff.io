@@ -5,9 +5,11 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToMany,
+  ManyToMany,
 } from "typeorm"
 
-import { Project } from "./Project"
+import type { GitHubInstallation } from "./GitHubInstallation"
+import type { Project } from "./Project"
 
 @Entity("users")
 export class User {
@@ -29,11 +31,14 @@ export class User {
   @Column({ name: "github_access_token", type: "varchar", length: 255, nullable: false })
   githubAccessToken!: string
 
-  @Column({ name: "github_installation_id", type: "integer", nullable: true })
-  githubInstallationId!: number | null
-
-  @OneToMany(() => Project, (project) => project.user)
+  @OneToMany("Project", "user")
   projects!: Promise<Project[]>
+
+  @ManyToMany("GitHubInstallation", "users")
+  githubInstallations!: Promise<GitHubInstallation[]>
+
+  @OneToMany("GitHubInstallation", "creator")
+  createdInstallations!: Promise<GitHubInstallation[]>
 
   @CreateDateColumn({ name: "created_at", type: "timestamp", nullable: false })
   createdAt!: Date

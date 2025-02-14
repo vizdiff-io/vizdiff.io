@@ -1,4 +1,3 @@
-import { createAppAuth } from "@octokit/auth-app"
 import { Octokit } from "@octokit/rest"
 import jwt from "jsonwebtoken"
 import { User } from "shared"
@@ -14,6 +13,7 @@ import {
   IS_PRODUCTION,
   JWT_SECRET,
 } from "../environment"
+import { syncUserInstallations } from "../github"
 import { parseSimpleQueryString, requiredQueryString } from "../http"
 import { log } from "../log"
 import type { GithubUser } from "../schemas/GithubUser"
@@ -38,7 +38,6 @@ if (!APP_URL) {
 }
 
 export async function githubAppInstalled(req: DefaultRequest, res: DefaultResponse): Promise<void> {
-  const installationId = requiredQueryString("installation_id", req)
   const setupAction = requiredQueryString("setup_action", req)
 
   // Only proceed if this was a new installation
@@ -47,10 +46,8 @@ export async function githubAppInstalled(req: DefaultRequest, res: DefaultRespon
     return
   }
 
-  // Start the OAuth flow to get user details, passing the installation_id
-  const state = encodeURIComponent(
-    `redirect=${encodeURIComponent(`${APP_URL}/projects`)}&installation_id=${installationId}`,
-  )
+  // Start the OAuth flow to get user details
+  const state = encodeURIComponent(`redirect=${encodeURIComponent(`${APP_URL}/projects`)}`)
   const callbackUri = encodeURIComponent(`${APP_URL}/api/auth/github/callback`)
   const scope = "read:user,user:email"
   const authUrl = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&redirect_uri=${callbackUri}&scope=${scope}&state=${state}`
@@ -61,7 +58,6 @@ export async function githubCallback(req: DefaultRequest, res: DefaultResponse):
   const code = requiredQueryString("code", req)
 
   // Handle both direct app installation callback and OAuth callback
-  let installationId: number | undefined
   let finalRedirect: string | undefined
 
   // If we have state, parse it (OAuth flow)
@@ -69,18 +65,6 @@ export async function githubCallback(req: DefaultRequest, res: DefaultResponse):
   if (state) {
     const stateValues = parseSimpleQueryString(state)
     finalRedirect = stateValues.get("redirect")
-    const stateInstallId = stateValues.get("installation_id")
-    if (stateInstallId) {
-      installationId = parseInt(stateInstallId, 10)
-    }
-  }
-
-  // If we have installation_id in query params (direct app installation), use that
-  const queryInstallId = req.query.installation_id as string | undefined
-  if (queryInstallId) {
-    installationId = parseInt(queryInstallId, 10)
-    // Default redirect for app installation flow
-    finalRedirect = `${APP_URL}/projects`
   }
 
   if (!finalRedirect) {
@@ -143,29 +127,10 @@ export async function githubCallback(req: DefaultRequest, res: DefaultResponse):
   user.githubUsername = ghUser.login
   user.githubProfile = JSON.stringify(ghUser)
   user.githubAccessToken = ghTokenRes.access_token
-
-  // If we have an installation ID, validate and update it
-  if (installationId) {
-    try {
-      const auth = createAppAuth({
-        appId: GITHUB_APP_ID,
-        privateKey: GITHUB_PRIVATE_KEY,
-        clientId: GITHUB_CLIENT_ID,
-        clientSecret: GITHUB_CLIENT_SECRET,
-      })
-      await auth({ type: "installation", installationId })
-      user.githubInstallationId = installationId
-    } catch (err) {
-      log.error(`Failed to validate installation ID ${installationId}: ${err}`)
-      // Don't fail the auth flow, just don't update the installation ID
-      user.githubInstallationId = null
-    }
-  } else {
-    // No installation ID provided, this is a normal OAuth flow
-    user.githubInstallationId = null
-  }
-
   user = await userTable.save(user)
+
+  // Sync GitHub App installations for this user
+  await syncUserInstallations(user)
 
   // Generate a JWT
   const token = jwt.sign({ sub: user.id }, JWT_SECRET, { expiresIn: "8h" })

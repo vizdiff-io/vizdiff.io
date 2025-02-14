@@ -8,6 +8,7 @@ import {
   GITHUB_CLIENT_SECRET,
   GITHUB_PRIVATE_KEY,
 } from "../environment"
+import { getInstallationForOrg, getInstallationsForUserId, syncUserInstallations } from "../github"
 import { log } from "../log"
 import type { DefaultRequest, DefaultResponse } from "../types"
 
@@ -27,28 +28,52 @@ async function getOctokitForUser(installationId: number): Promise<Octokit> {
 export async function orgs(req: DefaultRequest, res: DefaultResponse): Promise<void> {
   const user = await getUser(req)
 
-  if (user.githubInstallationId == null) {
+  // Ensure installations are up to date
+  const installations = await syncUserInstallations(user)
+  if (installations.length === 0) {
     res.status(403).json({ error: "GitHub App installation required for this endpoint" })
     return
   }
 
-  const octokit = await getOctokitForUser(user.githubInstallationId)
-  const ghRes = await octokit.request("GET /user/orgs", { headers: GITHUB_HEADERS, per_page: 100 })
-  log.debug(`Found ${ghRes.data.length} GitHub orgs for ${user.githubUsername}`)
+  // Get orgs for all installations
+  const allOrgs = []
+  for (const installation of installations) {
+    const octokit = await getOctokitForUser(installation.installationId)
+    const ghRes = await octokit.request("GET /user/orgs", {
+      headers: GITHUB_HEADERS,
+      per_page: 100,
+    })
 
-  res.json(ghRes.data)
+    // Only include orgs where we have an installation
+    const installedOrgs = ghRes.data.filter((org) =>
+      installations.some(
+        (inst) => inst.accountType === "Organization" && inst.accountId === String(org.id),
+      ),
+    )
+    allOrgs.push(...installedOrgs)
+  }
+
+  log.debug(`Found ${allOrgs.length} GitHub orgs for ${user.githubUsername}`)
+  res.json(allOrgs)
 }
 
 export async function repos(req: DefaultRequest, res: DefaultResponse): Promise<void> {
   const user = await getUser(req)
   const org = req.query.org as string | undefined
 
-  if (user.githubInstallationId == null) {
+  // Ensure installations are up to date
+  await syncUserInstallations(user)
+
+  const installation = org
+    ? await getInstallationForOrg(user, org)
+    : (await getInstallationsForUserId(user.id)).find((i) => i.accountType === "User")
+
+  if (!installation) {
     res.status(403).json({ error: "GitHub App installation required for this endpoint" })
     return
   }
 
-  const octokit = await getOctokitForUser(user.githubInstallationId)
+  const octokit = await getOctokitForUser(installation.installationId)
   const ghRes = org
     ? await octokit.request("GET /orgs/{org}/repos", {
         headers: GITHUB_HEADERS,
@@ -63,7 +88,7 @@ export async function repos(req: DefaultRequest, res: DefaultResponse): Promise<
         affiliation: "owner,collaborator",
         per_page: 100,
       })
-  log.debug(`Found ${ghRes.data.length} GitHub projects (user=${user.githubUsername}, org=${org})`)
 
+  log.debug(`Found ${ghRes.data.length} GitHub projects (user=${user.githubUsername}, org=${org})`)
   res.json(ghRes.data)
 }
