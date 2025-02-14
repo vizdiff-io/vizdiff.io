@@ -54,14 +54,21 @@ async function vizdiff(storybookDir: string, options: CommandArgs): Promise<void
       ? [options.baseCommit, options.baseBranch]
       : await getBaseCommitShaAndBranch(storybookDir, commitSha, branch)
 
-  await uploadStorybook({
-    storybookDir,
-    commitSha,
-    branch,
-    projectToken,
-    baseCommitSha,
-    baseBranch,
-  })
+  try {
+    await uploadStorybook({
+      storybookDir,
+      commitSha,
+      branch,
+      projectToken,
+      baseCommitSha,
+      baseBranch,
+    })
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message.includes("401")) {
+      fatal("Invalid project token. Please check that the token is correct.")
+    }
+    fatal(err instanceof Error ? err.message : String(err))
+  }
 }
 
 function getToken(options: { token?: string }) {

@@ -151,7 +151,7 @@ describe("upload-storybook", () => {
       process.env.VIZDIFF_API_URL = "https://custom.vizdiff.io"
       await uploadStorybook(validOpts)
       expect(fetch).toHaveBeenCalledWith(
-        expect.stringContaining("https://custom.vizdiff.io/api/upload/storybook"),
+        expect.stringContaining("https://custom.vizdiff.io/upload/storybook"),
         expect.any(Object),
       )
       delete process.env.VIZDIFF_API_URL

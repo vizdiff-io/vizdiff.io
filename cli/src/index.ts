@@ -1,9 +1,8 @@
 export * from "./upload-storybook"
 
 /**
- * Verify that a token is 26 characters and only contains characters from
- * Crockford's base32 alphabet.
+ * Verify that a token is 12-24 hex characters.
  */
 export function checkToken(token: string): boolean {
-  return /^[0123456789abcdefghjkmnpqrstvwxyz]{26}$/.test(token)
+  return /^[0-9a-f]{12,24}$/.test(token)
 }

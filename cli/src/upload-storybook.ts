@@ -65,12 +65,16 @@ export async function uploadStorybook(opts: UploadStorybookOpts): Promise<void> 
   try {
     // POST the tarball to the vizdiff API
     const body = await fs.readFile(tarballFilename)
-    const baseUrl = (process.env.VIZDIFF_API_URL ?? "https://vizdiff.io").replace(/\/+$/, "")
-    const url = `${baseUrl}/api/upload/storybook?token=${projectToken}`
+    const baseUrl = (process.env.VIZDIFF_API_URL ?? "https://vizdiff.io/api").replace(/\/+$/, "")
+    const url = `${baseUrl}/upload/storybook?token=${projectToken}`
+    const baseCommitStr =
+      baseCommitSha || baseBranch
+        ? `base commit ${baseCommitSha ?? ""} on branch "${baseBranch ?? ""}"`
+        : "no base commit"
     info(
       `Uploading ${formatBytes(
         body.byteLength,
-      )} for commit ${commitSha} on branch ${branch} to ${baseUrl}`,
+      )} for commit ${commitSha} on branch "${branch}" (${baseCommitStr}) to ${baseUrl}`,
     )
     const response = await fetch(url, {
       method: "POST",
@@ -98,6 +102,7 @@ export async function uploadStorybook(opts: UploadStorybookOpts): Promise<void> 
   } finally {
     // Delete the tarball regardless of success or failure
     await fs.unlink(tarballFilename)
+    info(`Deleted storybook tarball: ${tarballFilename}`)
   }
 }
 
