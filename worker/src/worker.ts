@@ -88,6 +88,7 @@ async function main() {
   await subscriber.connect()
   await subscriber.listenTo(TASKS_CHANNEL)
 
+  log.info("Starting worker poll")
   pollForNewTasks()
 }
 
