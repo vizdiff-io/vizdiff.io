@@ -5,13 +5,7 @@ https://vizdiff.io website, backend, cli, and worker
 ## Local development
 
 1. `yarn`
-2. Create `api/.env` with the following:
-
-```
-GITHUB_CLIENT_ID=<gh_client_id>
-GITHUB_CLIENT_SECRET=<gh_client_secret>
-```
-
+2. Follow the instructions in [api/README.md](api/README.md) to create the `api/.env` file
 3. Create `frontend/.env.local` with the following:
 
 ```
