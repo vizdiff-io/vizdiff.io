@@ -109,7 +109,7 @@ describe("screenshotTests", () => {
       const expectedTest = new ScreenshotTest()
       Object.assign(expectedTest, {
         id: 1,
-        projectId: testProject.id,
+        project: testProject,
         buildNumber: 1,
         commitSha: "1234567890123456789012345678901234567890",
         branch: "main",
@@ -141,7 +141,7 @@ describe("screenshotTests", () => {
       })
       expect(mockSave).toHaveBeenCalledWith(
         expect.objectContaining({
-          projectId: testProject.id,
+          project: testProject,
           commitSha: "1234567890123456789012345678901234567890",
           branch: "main",
           uploadId: "test-upload-id",
@@ -157,7 +157,7 @@ describe("screenshotTests", () => {
       const expectedTest = new ScreenshotTest()
       Object.assign(expectedTest, {
         id: 2,
-        projectId: testProject.id,
+        project: testProject,
         buildNumber: 6,
         commitSha: "2234567890123456789012345678901234567890",
         branch: "feature",
@@ -183,6 +183,7 @@ describe("screenshotTests", () => {
       expect(mockSave).toHaveBeenCalledWith(
         expect.objectContaining({
           buildNumber: 6,
+          project: testProject,
         }),
       )
     })
@@ -193,7 +194,7 @@ describe("screenshotTests", () => {
       const expectedTest = new ScreenshotTest()
       Object.assign(expectedTest, {
         id: 3,
-        projectId: testProject.id,
+        project: testProject,
         buildNumber: 1,
         commitSha: "3234567890123456789012345678901234567890",
         branch: "feature",
@@ -221,6 +222,7 @@ describe("screenshotTests", () => {
         expect.objectContaining({
           baseCommitSha: "0234567890123456789012345678901234567890",
           baseBranch: "main",
+          project: testProject,
         }),
       )
     })

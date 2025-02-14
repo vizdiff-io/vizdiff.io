@@ -1,15 +1,14 @@
 import { Octokit } from "@octokit/rest"
-import type { User } from "shared"
-import { GitHubInstallation } from "shared"
-import type { DataSource, EntityTarget } from "typeorm"
-import { describe, it, vi, expect, beforeEach } from "vitest"
+import { GitHubInstallation, User } from "shared"
+import type { DataSource } from "typeorm"
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 
 import { Database } from "./database"
 import { syncUserInstallations } from "./github"
 
 // Mock external dependencies
-vi.mock("@octokit/rest")
 vi.mock("./database")
+vi.mock("@octokit/rest")
 vi.mock("./environment", () => ({
   GITHUB_APP_ID: "123456",
   IS_TEST: true,
@@ -22,68 +21,61 @@ vi.mock("./environment", () => ({
 }))
 
 // Mock function declarations
-const mockInstallationSave = vi.fn()
-const mockInstallationFindOne = vi.fn()
-const mockInstallationFindOneBy = vi.fn()
-const mockDatabaseGetRepository = vi.fn()
-const mockQueryBuilder = {
-  select: vi.fn().mockReturnThis(),
-  from: vi.fn().mockReturnThis(),
-  where: vi.fn().mockReturnThis(),
-  andWhere: vi.fn().mockReturnThis(),
-  getRawOne: vi.fn().mockResolvedValue({ userId: null }),
-}
+const mockFindOneBy = vi.fn()
+const mockSave = vi.fn()
 
-describe("github", () => {
-  // Test fixtures
-  const testUser: Partial<User> = {
-    id: 1,
-    githubId: "123",
-    githubUsername: "test-user",
-    githubProfile: "{}",
-    githubAccessToken: "test-token",
-    email: "test@example.com",
-    createdAt: new Date(),
-    updatedAt: new Date(),
+// Create a reusable query builder mock that properly chains
+function createMockQueryBuilder() {
+  const mock = {
+    select: vi.fn().mockReturnThis(),
+    from: vi.fn().mockReturnThis(),
+    where: vi.fn().mockReturnThis(),
+    andWhere: vi.fn().mockReturnThis(),
+    getRawOne: vi.fn().mockResolvedValue({ userId: null }),
+    insert: vi.fn().mockReturnThis(),
+    into: vi.fn().mockReturnThis(),
+    values: vi.fn().mockReturnThis(),
+    execute: vi.fn().mockResolvedValue({ raw: [], affected: 1 }),
   }
 
-  const mockInstallation = new GitHubInstallation()
-  mockInstallation.id = 1
-  mockInstallation.installationId = 1
-  mockInstallation.accountId = "456"
-  mockInstallation.accountName = "test-org"
-  mockInstallation.accountType = "Organization"
-  mockInstallation.creatorId = 1
-  mockInstallation.createdAt = new Date()
-  mockInstallation.updatedAt = new Date()
+  return mock
+}
+
+// Test fixtures
+const testUser = new User()
+Object.assign(testUser, {
+  id: 1,
+  githubId: "12345",
+  githubUsername: "testuser",
+  githubProfile: "{}",
+  githubAccessToken: "test-token",
+  email: "test@example.com",
+  createdAt: new Date(),
+  updatedAt: new Date(),
+})
+
+describe("github", () => {
+  let mockQueryBuilder: ReturnType<typeof createMockQueryBuilder>
 
   beforeEach(() => {
     vi.clearAllMocks()
 
     // Reset mock implementations
-    mockInstallationSave.mockReset()
-    mockInstallationFindOne.mockReset()
-    mockInstallationFindOneBy.mockReset()
-    mockDatabaseGetRepository.mockReset()
-    Object.values(mockQueryBuilder).forEach((mock) => mock.mockClear())
+    mockFindOneBy.mockReset()
+    mockSave.mockReset()
 
-    // Setup database mock with repositories and manager
+    // Create a fresh query builder mock for each test
+    mockQueryBuilder = createMockQueryBuilder()
+
+    // Setup database mock
     vi.mocked(Database).mockImplementation(
       async () =>
         ({
-          getRepository: mockDatabaseGetRepository.mockImplementation(() => ({
-            findOne: mockInstallationFindOne,
-            save: mockInstallationSave,
-          })),
           manager: {
-            findOneBy: mockInstallationFindOneBy,
-            save: mockInstallationSave,
+            findOneBy: mockFindOneBy,
             createQueryBuilder: vi.fn().mockReturnValue(mockQueryBuilder),
+            save: mockSave,
           },
-          "@instanceof": Symbol.for("TypeORM.DataSource"),
-          name: "default",
-          options: { type: "postgres", database: "test" },
-          isInitialized: true,
         }) as unknown as DataSource,
     )
 
@@ -108,111 +100,101 @@ describe("github", () => {
     )
 
     // Setup save mock to return the input
-    mockInstallationSave.mockImplementation(
-      async (
-        entity: EntityTarget<GitHubInstallation> | GitHubInstallation,
-        installation?: GitHubInstallation,
-      ) => {
-        if (installation) {
-          // Called with (GitHubInstallation, {...})
-          return installation
-        }
-        // Called with just the installation
-        if (entity instanceof GitHubInstallation) {
-          return entity
-        }
-        const newInstallation = new GitHubInstallation()
-        Object.assign(newInstallation, entity)
-        return newInstallation
+    mockSave.mockImplementation(
+      async (_entityType: typeof GitHubInstallation, installation: GitHubInstallation) => {
+        return installation
       },
     )
   })
 
+  afterEach(() => {
+    vi.resetAllMocks()
+  })
+
   describe("syncUserInstallations", () => {
     it("creates new installations", async () => {
-      mockInstallationFindOneBy.mockResolvedValue(null)
-      mockQueryBuilder.getRawOne.mockResolvedValue({ userId: null })
+      // Mock finding no existing installation
+      mockFindOneBy.mockResolvedValueOnce(null)
 
-      const installations = await syncUserInstallations(testUser as User)
-
-      expect(installations).toHaveLength(1)
-      expect(mockInstallationSave).toHaveBeenCalled()
-
-      const saveCall = mockInstallationSave.mock.calls[0]
-      if (!saveCall) {
-        throw new Error("Expected save to be called")
-      }
-      const [entityType, savedInstallation] = saveCall as [
-        EntityTarget<GitHubInstallation>,
-        GitHubInstallation,
-      ]
-      expect(entityType).toBe(GitHubInstallation)
-      expect(savedInstallation).toMatchObject({
+      // Mock finding the newly created installation
+      const expectedInstallation = new GitHubInstallation()
+      Object.assign(expectedInstallation, {
+        id: 1,
         installationId: 1,
         accountId: "456",
         accountName: "test-org",
         accountType: "Organization",
         creatorId: testUser.id,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       })
+      mockFindOneBy.mockResolvedValueOnce(expectedInstallation)
+
+      // Mock finding no existing user-installation link
+      mockQueryBuilder.getRawOne.mockResolvedValueOnce(null)
+
+      const installations = await syncUserInstallations(testUser)
+
+      expect(installations).toHaveLength(1)
+      expect(installations[0]).toBe(expectedInstallation)
+      expect(installations[0]?.accountId).toBe("456")
+      expect(installations[0]?.accountName).toBe("test-org")
     })
 
     it("updates existing installations", async () => {
       // Create a mock installation with different data than what GitHub returns
       const existingInstallation = new GitHubInstallation()
-      existingInstallation.id = 1
-      existingInstallation.installationId = 1
-      existingInstallation.accountId = "789" // Different account ID
-      existingInstallation.accountName = "old-org" // Different org name
-      existingInstallation.accountType = "Organization"
-      existingInstallation.creatorId = 1
-      existingInstallation.createdAt = new Date()
-      existingInstallation.updatedAt = new Date()
+      Object.assign(existingInstallation, {
+        id: 1,
+        installationId: 1,
+        accountId: "789", // Different account ID
+        accountName: "old-org", // Different org name
+        accountType: "Organization",
+        creatorId: testUser.id,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
 
-      mockInstallationFindOneBy.mockResolvedValue(existingInstallation)
-      mockQueryBuilder.getRawOne.mockResolvedValue({ userId: testUser.id })
+      // Mock finding the existing installation
+      mockFindOneBy.mockResolvedValueOnce(existingInstallation)
 
-      const installations = await syncUserInstallations(testUser as User)
+      // Mock finding no existing user-installation link
+      mockQueryBuilder.getRawOne.mockResolvedValueOnce(null)
+
+      const installations = await syncUserInstallations(testUser)
 
       expect(installations).toHaveLength(1)
-      expect(mockInstallationSave).toHaveBeenCalled()
-
-      const saveCall = mockInstallationSave.mock.calls[0]
-      if (!saveCall) {
-        throw new Error("Expected save to be called")
-      }
-      const [entityType, savedInstallation] = saveCall as [
-        EntityTarget<GitHubInstallation>,
-        GitHubInstallation,
-      ]
-      expect(entityType).toBe(GitHubInstallation)
-      expect(savedInstallation).toMatchObject({
-        installationId: 1,
-        accountId: "456", // Updated to match GitHub data
-        accountName: "test-org", // Updated to match GitHub data
-        accountType: "Organization",
-      })
+      expect(installations[0]).toBe(existingInstallation)
+      expect(installations[0]?.accountId).toBe("456")
+      expect(installations[0]?.accountName).toBe("test-org")
+      expect(mockSave).toHaveBeenCalledWith(GitHubInstallation, existingInstallation)
     })
 
     it("skips update when installation data hasn't changed", async () => {
       // Create a mock installation with the same data as GitHub returns
       const existingInstallation = new GitHubInstallation()
-      existingInstallation.id = 1
-      existingInstallation.installationId = 1
-      existingInstallation.accountId = "456" // Same as GitHub data
-      existingInstallation.accountName = "test-org" // Same as GitHub data
-      existingInstallation.accountType = "Organization"
-      existingInstallation.creatorId = 1
-      existingInstallation.createdAt = new Date()
-      existingInstallation.updatedAt = new Date()
+      Object.assign(existingInstallation, {
+        id: 1,
+        installationId: 1,
+        accountId: "456", // Same as GitHub data
+        accountName: "test-org", // Same as GitHub data
+        accountType: "Organization",
+        creatorId: testUser.id,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
 
-      mockInstallationFindOneBy.mockResolvedValue(existingInstallation)
-      mockQueryBuilder.getRawOne.mockResolvedValue({ userId: testUser.id })
+      // Mock finding the existing installation
+      mockFindOneBy.mockResolvedValueOnce(existingInstallation)
 
-      const installations = await syncUserInstallations(testUser as User)
+      // Mock finding no existing user-installation link
+      mockQueryBuilder.getRawOne.mockResolvedValueOnce(null)
+
+      const installations = await syncUserInstallations(testUser)
 
       expect(installations).toHaveLength(1)
-      expect(mockInstallationSave).not.toHaveBeenCalled()
       expect(installations[0]).toBe(existingInstallation)
+      expect(mockSave).not.toHaveBeenCalled()
     })
 
     it("filters out other app installations", async () => {
@@ -236,10 +218,10 @@ describe("github", () => {
           }) as unknown as Octokit,
       )
 
-      const installations = await syncUserInstallations(testUser as User)
+      const installations = await syncUserInstallations(testUser)
 
       expect(installations).toHaveLength(0)
-      expect(mockInstallationSave).not.toHaveBeenCalled()
+      expect(mockSave).not.toHaveBeenCalled()
     })
 
     it("handles GitHub API errors gracefully", async () => {
@@ -254,7 +236,7 @@ describe("github", () => {
           }) as unknown as Octokit,
       )
 
-      await expect(syncUserInstallations(testUser as User)).rejects.toThrow("GitHub API error")
+      await expect(syncUserInstallations(testUser)).rejects.toThrow("GitHub API error")
     })
   })
 })
