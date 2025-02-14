@@ -24,13 +24,13 @@ export class Project {
   @OneToMany("ScreenshotTest", "project")
   screenshotTests!: Promise<ScreenshotTest[]>
 
-  @Column({ type: "varchar", length: 255, nullable: false })
+  @Column({ type: "text", nullable: false })
   name!: string
 
-  @Column({ type: "char", length: 255, unique: true, nullable: false })
+  @Column({ type: "text", unique: true, nullable: false })
   token!: string
 
-  @Column({ name: "github_repo_url", type: "varchar", length: 2048, nullable: false })
+  @Column({ name: "github_repo_url", type: "text", nullable: false })
   githubRepoUrl!: string
 
   @Column({ name: "storybook_config", type: "jsonb", nullable: true })

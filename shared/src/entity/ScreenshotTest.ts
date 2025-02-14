@@ -16,18 +16,15 @@ import type { TestResult } from "./TestResult"
 import type { WorkTask } from "./WorkTask"
 
 @Entity("screenshot_tests")
-@Unique("UQ_project_id_commit_sha", ["projectId", "commitSha"])
-@Index("IDX_project_id_branch", ["projectId", "branch"])
+@Index("IDX_project_id_commit_sha", ["project.id", "commitSha"])
+@Index("IDX_project_id_branch", ["project.id", "branch"])
 export class ScreenshotTest {
   @PrimaryGeneratedColumn()
   id!: number
 
-  @Column({ name: "project_id", type: "integer", nullable: false })
-  projectId!: number
-
-  @ManyToOne("Project", { onDelete: "CASCADE" })
-  @JoinColumn({ name: "project_id" })
-  project?: Promise<Project>
+  @ManyToOne("Project", { onDelete: "CASCADE", nullable: false })
+  @JoinColumn({ name: "project_id", referencedColumnName: "id" })
+  project!: Project
 
   @Column({ name: "build_number", type: "integer", nullable: false })
   buildNumber!: number
@@ -41,26 +38,26 @@ export class ScreenshotTest {
   @OneToMany("WorkTask", "screenshotTest")
   workTasks!: Promise<WorkTask[]>
 
-  @Column({ name: "commit_sha", type: "varchar", length: 64, nullable: false, update: false })
+  @Column({ name: "commit_sha", type: "text", nullable: false, update: false })
   commitSha!: string
 
-  @Column({ type: "varchar", length: 1024, nullable: false })
+  @Column({ type: "text", nullable: false })
   branch!: string
 
-  @Column({ name: "base_commit_sha", type: "varchar", length: 64, nullable: true })
+  @Column({ name: "base_commit_sha", type: "text", nullable: true })
   baseCommitSha!: string | undefined
 
-  @Column({ name: "base_branch", type: "varchar", length: 1024, nullable: true })
+  @Column({ name: "base_branch", type: "text", nullable: true })
   baseBranch!: string | undefined
 
-  @Column({ name: "upload_id", type: "varchar", length: 36, unique: true, nullable: false })
+  @Column({ name: "upload_id", type: "text", unique: true, nullable: false })
   uploadId!: string
 
   // "pending" | "running" | "no_changes" | "unapproved" | "approved" | "denied" | "failed"
-  @Column({ type: "varchar", length: 255, nullable: false })
+  @Column({ type: "text", nullable: false })
   status!: string
 
-  @Column({ name: "tag", type: "varchar", length: 255, nullable: true })
+  @Column({ name: "tag", type: "text", nullable: true })
   tag!: string | undefined
 
   @Column({ name: "total_changes", type: "integer", nullable: true })

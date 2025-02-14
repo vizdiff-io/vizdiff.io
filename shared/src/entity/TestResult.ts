@@ -17,7 +17,7 @@ export class TestResult {
   @PrimaryGeneratedColumn()
   id!: number
 
-  @Column({ type: "varchar", length: 255, name: "name", nullable: false })
+  @Column({ type: "text", name: "name", nullable: false })
   name!: string
 
   @Column({ type: "integer", name: "screenshot_test_id" })
@@ -30,23 +30,23 @@ export class TestResult {
   @JoinColumn({ name: "screenshot_test_id", referencedColumnName: "id" })
   screenshotTest!: Promise<ScreenshotTest>
 
-  @Column({ type: "varchar", length: 255, name: "story_id", nullable: false })
+  @Column({ type: "text", name: "story_id", nullable: false })
   storyId!: string
 
-  @Column({ type: "varchar", length: 2048, name: "baseline_image_url", nullable: false })
+  @Column({ type: "text", name: "baseline_image_url", nullable: false })
   baselineImageUrl!: string
 
-  @Column({ type: "varchar", length: 2048, name: "new_image_url", nullable: false })
+  @Column({ type: "text", name: "new_image_url", nullable: false })
   newImageUrl!: string
 
-  @Column({ type: "varchar", length: 2048, name: "diff_image_url", nullable: true })
+  @Column({ type: "text", name: "diff_image_url", nullable: true })
   diffImageUrl?: string
 
   @Column({ type: "double precision", nullable: true })
   diffRatio?: number
 
   // Can be "new", "unchanged", "changed", or "failed"
-  @Column({ type: "varchar", length: 255, name: "change_status", nullable: false })
+  @Column({ type: "text", name: "change_status", nullable: false })
   changeStatus!: string
 
   @CreateDateColumn({ name: "created_at", nullable: false })

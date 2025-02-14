@@ -20,16 +20,16 @@ export class GitHubInstallation {
   @Column({ name: "installation_id", type: "integer", nullable: false })
   installationId!: number
 
-  @Column({ name: "account_id", type: "varchar", length: 255, nullable: false })
+  @Column({ name: "account_id", type: "text", nullable: false })
   accountId!: string // GitHub account/org ID where app is installed
 
-  @Column({ name: "account_name", type: "varchar", length: 255, nullable: false })
+  @Column({ name: "account_name", type: "text", nullable: false })
   accountName!: string // GitHub account/org login name
 
-  @Column({ name: "account_type", type: "varchar", length: 255, nullable: false })
+  @Column({ name: "account_type", type: "text", nullable: false })
   accountType!: string // 'Organization' or 'User'
 
-  @Column({ name: "creator_id", type: "integer", nullable: false, update: false })
+  @Column({ name: "creator_id", type: "integer", nullable: false })
   creatorId!: number
 
   @ManyToOne("User", { onDelete: "CASCADE" })
