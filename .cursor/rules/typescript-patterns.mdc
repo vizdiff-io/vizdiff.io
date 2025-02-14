@@ -1,0 +1,228 @@
+---
+description: TypeScript patterns and best practices for the vizdiff.io codebase
+globs: **/*.ts
+---
+---
+description: TypeScript patterns and best practices for the vizdiff.io codebase
+globs: "**/*.ts"
+---
+# TypeScript Patterns and Best Practices
+
+Coding patterns and best practices learned from implementing features in the vizdiff.io codebase.
+
+<rule>
+name: typescript_patterns
+description: Standards and patterns for TypeScript development based on real implementation experiences
+
+sections:
+  ---
+description: TypeScript patterns and best practices for the vizdiff.io codebase
+globs: "**/*.ts"
+---
+# TypeScript Patterns and Best Practices
+
+Coding patterns and best practices learned from implementing features in the vizdiff.io codebase.
+
+<rule>
+name: typescript_patterns
+description: Standards and patterns for TypeScript development based on real implementation experiences
+
+sections:
+  - name: typeorm_circular_deps
+    description: |
+      Handling circular dependencies in TypeORM with ESM:
+
+      1. Use type-only imports for circular references:
+      ```typescript
+      // In Project.ts
+      import type { User } from "./User"
+
+      @Entity()
+      export class Project {
+        @ManyToOne(() => User)
+        user!: User
+      }
+      ```
+
+      2. Use arrow functions in decorators to defer type evaluation:
+      ```typescript
+      @OneToMany(() => Project, (project) => project.user)
+      projects!: Project[]
+      ```
+
+      3. Keep entity relationships in separate files from the base entities:
+      ```typescript
+      // entities/index.ts
+      export * from "./User"
+      export * from "./Project"
+      export * from "./relationships"
+      ```
+
+  - name: github_api_types
+    description: |
+      When working with GitHub API types:
+      
+      1. Use specific types from @octokit/rest:
+      ```typescript
+      import type { RestEndpointMethodTypes } from "@octokit/rest"
+      
+      type Installation = 
+        RestEndpointMethodTypes["apps"]["listInstallationsForAuthenticatedUser"]["response"]["data"]["installations"][number]
+      ```
+
+      2. Create interfaces for known shapes when type assertions are needed:
+      ```typescript
+      interface GitHubAccount {
+        id: number
+        login: string
+        type: "User" | "Organization"
+      }
+      ```
+
+      3. Use type predicates with null checks:
+      ```typescript
+      const filtered = items.filter(
+        (item): item is Installation => 
+          item.app_id === parseInt(GITHUB_APP_ID, 10) && 
+          item.account != null
+      )
+      ```
+
+  - name: database_patterns
+    description: |
+      TypeORM patterns and best practices:
+
+      1. Raw queries should specify return type:
+      ```typescript
+      .getRawOne<{ userId: number }>()
+      ```
+
+      2. Join table queries should use createQueryBuilder:
+      ```typescript
+      db.manager
+        .createQueryBuilder(Entity, "e")
+        .innerJoin("join_table", "j", "j.entity_id = e.id")
+        .where("j.user_id = :userId", { userId: user.id })
+        .getMany()
+      ```
+
+      3. Null safety with findOneBy:
+      ```typescript
+      let record = await db.manager.findOneBy(Entity, {
+        id: someId,
+      })
+      
+      if (!record) {
+        record = new Entity()
+      }
+      ```
+
+  - name: error_handling
+    description: |
+      Error handling patterns:
+
+      1. API endpoints should use specific error responses:
+      ```typescript
+      if (!installation) {
+        res.status(403).json({ error: "GitHub App installation required" })
+        return
+      }
+      ```
+
+      2. Catch blocks should handle both Error and unknown:
+      ```typescript
+      try {
+        // ...
+      } catch (error) {
+        if (error instanceof Error) {
+          log.warn(`Operation failed: ${error.message}`)
+        } else {
+          log.warn("Operation failed with unknown error")
+        }
+      }
+      ```
+
+  - name: logging
+    description: |
+      Logging best practices:
+
+      1. Use debug for flow tracking:
+      ```typescript
+      log.debug(`Found ${results.length} items for user ${user.username}`)
+      ```
+
+      2. Use info for important state changes:
+      ```typescript
+      log.info(
+        `GitHub installation sync for user ${user.githubUsername} (${user.id}) ` +
+        `found ${results.length} installations`
+      )
+      ```
+
+      3. Use error for failures:
+      ```typescript
+      log.error(`GitHub user response did not contain "login": ${json}`)
+      ```
+
+  - name: api_endpoints
+    description: |
+      API endpoint patterns:
+
+      1. Always validate required parameters:
+      ```typescript
+      const code = requiredQueryString("code", req)
+      ```
+
+      2. Type query parameters explicitly:
+      ```typescript
+      const org = req.query.org as string | undefined
+      ```
+
+      3. Set proper response headers and status:
+      ```typescript
+      res.cookie("token", token, {
+        domain,
+        httpOnly: true,
+        secure: IS_PRODUCTION || req.secure ? true : undefined,
+        sameSite: "lax",
+        maxAge: 8 * 60 * 60 * 1000,
+        path: "/",
+      })
+      ```
+
+examples:
+  - description: "GitHub API type safety"
+    input: |
+      const installations = await octokit.apps.listInstallationsForAuthenticatedUser()
+    output: |
+      type Installation = RestEndpointMethodTypes["apps"]["listInstallationsForAuthenticatedUser"]["response"]["data"]["installations"][number]
+      
+      const installations = await octokit.apps.listInstallationsForAuthenticatedUser()
+      const ourInstallations = installations.data.installations.filter(
+        (inst): inst is Installation => 
+          inst.app_id === parseInt(GITHUB_APP_ID, 10) && 
+          inst.account != null
+      )
+
+  - description: "Database query with joins"
+    input: |
+      const records = await db.find(Entity, { userId })
+    output: |
+      const records = await db.manager
+        .createQueryBuilder(Entity, "e")
+        .innerJoin("join_table", "j", "j.entity_id = e.id")
+        .where("j.user_id = :userId", { userId })
+        .getMany()
+
+metadata:
+  priority: high
+  version: 1.0
+  tags:
+    - typescript
+    - patterns
+    - best-practices
+    - github-api
+    - typeorm
+    - error-handling
+    - logging
+</rule>
