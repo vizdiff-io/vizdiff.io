@@ -1,3 +1,4 @@
+import type { Request } from "express"
 import { parse as parseQs, stringify as stringifyQs } from "qs"
 import { URL } from "url"
 
@@ -5,16 +6,18 @@ import type { DefaultRequest } from "./types"
 
 const ALLOWED_REDIRECT_DOMAINS = new Set(["localhost", "127.0.0.1", "vizdiff.io"])
 
-export function getParamInt(key: string, req: DefaultRequest): number | undefined {
-  const params = req.params as Record<string, string>
-  const maybeValue = params[key]
-  if (typeof maybeValue === "string") {
-    const value = parseInt(maybeValue)
-    if (!isNaN(value)) {
-      return value
-    }
+export function getParamInt(name: string, req: Request): number | undefined {
+  const value = req.params[name]
+  if (!value) {
+    return undefined
   }
-  return undefined
+
+  const parsed = parseInt(value, 10)
+  if (isNaN(parsed)) {
+    return undefined
+  }
+
+  return parsed
 }
 
 export function getQueryString(key: string, req: DefaultRequest): string | undefined {
@@ -22,9 +25,8 @@ export function getQueryString(key: string, req: DefaultRequest): string | undef
   return typeof maybeValue === "string" ? maybeValue : undefined
 }
 
-export function getParamString(key: string, req: DefaultRequest): string | undefined {
-  const maybeValue = (req.params as Record<string, string>)[key]
-  return typeof maybeValue === "string" ? maybeValue : undefined
+export function getParamString(name: string, req: Request): string | undefined {
+  return req.params[name]
 }
 
 export function getCookieString(key: string, req: DefaultRequest): string | undefined {
@@ -65,24 +67,13 @@ export function isValidRedirectUrl(redirectUrl: string): boolean {
 }
 
 /** Parses a query string with only unique keys */
-export function parseSimpleQueryString(queryString: string): Map<string, string> {
-  if (queryString.length > 2048) {
-    throw new Error(`Query string too long: ${queryString.length} characters`)
-  }
-  const parsed = parseQs(queryString, { ignoreQueryPrefix: true })
+export function parseSimpleQueryString(query: string): Map<string, string> {
   const result = new Map<string, string>()
+  const parsed = parseQs(query)
   for (const [key, value] of Object.entries(parsed)) {
     if (typeof value === "string") {
       result.set(key, value)
-    } else if (Array.isArray(value) && value.length > 0) {
-      const firstValue = value[0]
-      if (typeof firstValue === "string") {
-        result.set(key, firstValue)
-      }
     }
-  }
-  if (result.size === 0) {
-    throw new Error(`Invalid query string: "${queryString}"`)
   }
   return result
 }
@@ -92,4 +83,20 @@ export function encodeQueryParams(params: Record<string, string>): string {
     return ""
   }
   return stringifyQs(params, { addQueryPrefix: false })
+}
+
+export function buildQueryString(params: Record<string, string>): string {
+  return stringifyQs(params)
+}
+
+export function validateRedirectUrl(url: string): string | undefined {
+  try {
+    const parsed = new URL(url)
+    if (ALLOWED_REDIRECT_DOMAINS.has(parsed.hostname)) {
+      return url
+    }
+  } catch {
+    // Ignore parse errors
+  }
+  return undefined
 }

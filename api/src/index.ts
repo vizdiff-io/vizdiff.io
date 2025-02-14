@@ -7,7 +7,7 @@ import Express from "express"
 import Router from "express-promise-router"
 import { pinoHttp } from "pino-http"
 
-import { authenticateJWT } from "./authenticate"
+import { authenticateJWT, requireUser } from "./authenticate"
 import { InitializeDatabase } from "./database"
 import * as Approval from "./endpoints/approval"
 import * as Auth from "./endpoints/auth"
@@ -65,23 +65,23 @@ router.get("/", (_req: DefaultRequest, res: DefaultResponse) => {
 router.get("/auth/github/callback", Auth.githubCallback)
 router.get("/auth/logout", Auth.logout) // Clears cookies only, no auth needed
 
-router.get("/github/orgs", authenticateJWT, Github.orgs)
-router.get("/github/repos", authenticateJWT, Github.repos)
+router.get("/github/orgs", authenticateJWT, requireUser, Github.orgs)
+router.get("/github/repos", authenticateJWT, requireUser, Github.repos)
 
-router.get("/activity", authenticateJWT, ScreenshotTests.listActivity)
+router.get("/activity", authenticateJWT, requireUser, ScreenshotTests.listActivity)
 
-router.get("/projects", authenticateJWT, Projects.list)
-router.get("/projects/:id", authenticateJWT, Projects.get)
-router.delete("/projects/:id", authenticateJWT, Projects.remove)
-router.post("/projects", authenticateJWT, Projects.create)
-router.get("/projects/:projectId/builds", authenticateJWT, ScreenshotTests.list)
+router.get("/projects", authenticateJWT, requireUser, Projects.list)
+router.get("/projects/:id", authenticateJWT, requireUser, Projects.get)
+router.delete("/projects/:id", authenticateJWT, requireUser, Projects.remove)
+router.post("/projects", authenticateJWT, requireUser, Projects.create)
+router.get("/projects/:projectId/builds", authenticateJWT, requireUser, ScreenshotTests.list)
 
-router.get("/tests/:id", authenticateJWT, ScreenshotTests.get)
-router.post("/tests/:id/status/:status", authenticateJWT, Approval.approveOrDeny)
+router.get("/tests/:id", authenticateJWT, requireUser, ScreenshotTests.get)
+router.post("/tests/:id/status/:status", authenticateJWT, requireUser, Approval.approveOrDeny)
 
 router.post("/upload/storybook", Upload.uploadStorybook) // ?token=<project_token>
 
-router.get("/users/me", authenticateJWT, User.me)
+router.get("/users/me", authenticateJWT, requireUser, User.me)
 
 app.use(router)
 

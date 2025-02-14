@@ -1,6 +1,6 @@
 import { createAppAuth } from "@octokit/auth-app"
 import { Octokit } from "@octokit/rest"
-import type { Response, NextFunction } from "express"
+import type { Request, Response, NextFunction } from "express"
 import type { JwtPayload, VerifyErrors } from "jsonwebtoken"
 import jwt from "jsonwebtoken"
 import { Project, User } from "shared"
@@ -16,7 +16,7 @@ import {
 } from "./environment"
 import { getInstallationsForUserId } from "./github"
 import { log } from "./log"
-import type { AuthenticatedRequest, DefaultRequest, MaybeAuthenticatedRequest } from "./types"
+import type { RequestLocals } from "./types"
 
 async function validateGitHubToken(user: User): Promise<boolean> {
   try {
@@ -53,7 +53,7 @@ async function validateGitHubToken(user: User): Promise<boolean> {
   }
 }
 
-async function refreshJWT(userId: number, req: DefaultRequest, res: Response): Promise<boolean> {
+async function refreshJWT(userId: number, req: Request, res: Response): Promise<boolean> {
   try {
     // Get the user from the database
     const db = await Database()
@@ -87,7 +87,7 @@ async function refreshJWT(userId: number, req: DefaultRequest, res: Response): P
   }
 }
 
-export function authenticateJWT(req: DefaultRequest, res: Response, next: NextFunction): void {
+export function authenticateJWT(req: Request, res: Response, next: NextFunction): void {
   const jwtHeader = Array.isArray(req.headers.jwt) ? req.headers.jwt[0] : req.headers.jwt
   const jwtCookie = req.cookies.token as string | undefined
   const token = (jwtHeader?.length ?? 0) > 0 ? jwtHeader : jwtCookie
@@ -111,10 +111,9 @@ export function authenticateJWT(req: DefaultRequest, res: Response, next: NextFu
           const userId = parseInt(decoded.sub, 10)
           const refreshed = await refreshJWT(userId, req, res)
           if (refreshed) {
-            // Set req.userId from the verified JWT payload and continue
-            const reqWithUserId = req as AuthenticatedRequest
-            reqWithUserId.userId = userId
-            log.debug(`Request authenticated as user ${reqWithUserId.userId} via refreshed JWT`)
+            // Set user in res.locals from the verified JWT payload and continue
+            ;(res.locals as RequestLocals).user = { id: userId } as User
+            log.debug(`Request authenticated as user ${userId} via refreshed JWT`)
             next()
             return
           }
@@ -133,38 +132,30 @@ export function authenticateJWT(req: DefaultRequest, res: Response, next: NextFu
         return
       }
 
-      // Set req.userId from the verified JWT payload
-      const reqWithUserId = req as AuthenticatedRequest
-      reqWithUserId.userId = parseInt(decoded.sub, 10)
-      log.debug(`Request authenticated as user ${reqWithUserId.userId} via JWT`)
+      // Set user in res.locals from the verified JWT payload
+      ;(res.locals as RequestLocals).user = { id: parseInt(decoded.sub, 10) } as User
+      log.debug(`Request authenticated as user ${decoded.sub} via JWT`)
       next()
     },
   )
 }
 
-export function getUserId(req: DefaultRequest): number {
-  const maybeAuthedReq = req as MaybeAuthenticatedRequest
-  if (maybeAuthedReq.userId == undefined) {
-    throw new Error(`Request is not authenticated`)
-  }
-  return maybeAuthedReq.userId
-}
-
-export async function getUser(req: DefaultRequest): Promise<User> {
-  const maybeAuthedReq = req as MaybeAuthenticatedRequest
-  if (maybeAuthedReq.userId == undefined) {
-    throw new Error(`Request is not authenticated`)
+export async function requireUser(_req: Request, res: Response, next: NextFunction): Promise<void> {
+  const locals = res.locals as RequestLocals
+  if (!locals.user.id) {
+    res.status(401).json({ error: "Unauthorized" })
+    return
   }
 
-  const userId = maybeAuthedReq.userId
   const db = await Database()
-  const user = await db.manager.findOneBy(User, { id: userId })
+  const user = await db.manager.findOneBy(User, { id: locals.user.id })
   if (!user) {
-    throw new Error(`User id "${userId}" not found`)
+    res.status(401).json({ error: "User not found" })
+    return
   }
 
-  log.debug(`User ${user.id} (${user.githubUsername}) retrieved from the database`)
-  return user
+  locals.user = user
+  next()
 }
 
 export async function getProjectByToken(token: string): Promise<Project> {
