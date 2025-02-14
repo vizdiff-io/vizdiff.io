@@ -1,9 +1,11 @@
 import CircleIcon from "@mui/icons-material/Circle"
-import { Box, Typography, Paper, useTheme } from "@mui/material"
+import ContentCopyIcon from "@mui/icons-material/ContentCopy"
+import { Box, Typography, Paper, useTheme, IconButton, Tooltip } from "@mui/material"
 import { formatDistanceToNow } from "date-fns"
 import Head from "next/head"
 import Link from "next/link"
 import { useRouter } from "next/router"
+import { useState } from "react"
 
 import { AppLayout } from "@/components/AppLayout"
 import useApiGet from "@/hooks/useApiGet"
@@ -23,9 +25,24 @@ export default function Project(): JSX.Element {
     isValidId ? `/api/projects/${id}/builds` : undefined,
   )
   const builds = buildsResponse ?? []
+  const [copyTooltip, setCopyTooltip] = useState("Copy")
 
   const loading = projectLoading || buildsLoading
   const error = projectError ?? buildsError
+
+  const handleCopyToken = async () => {
+    if (project?.token) {
+      try {
+        await navigator.clipboard.writeText(project.token)
+        setCopyTooltip("Copied!")
+        setTimeout(() => setCopyTooltip("Copy"), 2000)
+      } catch (err) {
+        console.error("Failed to copy token:", err)
+        setCopyTooltip("Copy failed")
+        setTimeout(() => setCopyTooltip("Copy"), 2000)
+      }
+    }
+  }
 
   return (
     <>
@@ -39,6 +56,40 @@ export default function Project(): JSX.Element {
           {error && (
             <Paper sx={{ p: 2, mb: 3, bgcolor: "error.light", color: "error.contrastText" }}>
               {error.message}
+            </Paper>
+          )}
+
+          {project?.token && (
+            <Paper
+              sx={{
+                p: 2,
+                mb: 3,
+                display: "inline-flex",
+                alignItems: "center",
+              }}
+            >
+              <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                  <strong>VIZDIFF_PROJECT_TOKEN</strong>
+                </Typography>
+                <Typography
+                  variant="body2"
+                  component="code"
+                  sx={{
+                    fontFamily: "monospace",
+                    bgcolor: "action.hover",
+                    p: 1,
+                    borderRadius: 1,
+                  }}
+                >
+                  {project.token}
+                </Typography>
+              </Box>
+              <Tooltip title={copyTooltip}>
+                <IconButton onClick={handleCopyToken} size="small">
+                  <ContentCopyIcon />
+                </IconButton>
+              </Tooltip>
             </Paper>
           )}
 
