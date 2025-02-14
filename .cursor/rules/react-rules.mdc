@@ -1,0 +1,111 @@
+---
+description: React patterns and best practices for TypeScript components
+globs: **/*.tsx
+---
+---
+description: React patterns and best practices for TypeScript components
+globs: "**/*.tsx"
+---
+# React TypeScript Patterns
+
+Best practices and patterns for React components using TypeScript.
+
+<rule>
+name: react_typescript_patterns
+description: Standards for React component development with TypeScript
+
+sections:
+  - name: api_type_derivation
+    description: |
+      Derive exact types from API type definitions for component props and state:
+
+      ```typescript
+      import type { Endpoints } from "@octokit/types"
+      
+      // Define prop types using exact API response types
+      type GithubOrg = Endpoints["GET /user/orgs"]["response"]["data"][0]
+      type GithubRepo = Endpoints["GET /orgs/{org}/repos"]["response"]["data"][0]
+
+      interface ProjectDialogProps {
+        onClose: () => void
+        org?: GithubOrg
+        repo?: GithubRepo
+      }
+      ```
+
+      Benefits:
+      1. Ensures component props match API response structure exactly
+      2. Automatic type updates when API types change
+      3. Better type safety than manual interface definitions
+      4. IDE autocompletion for all API response fields
+
+  - name: data_loading_hooks
+    description: |
+      Use tuple returns for data loading hooks in React components:
+
+      ```typescript
+      // Hook definition
+      function useAuthenticatedFetch<T>(url: string | undefined): [T | null, boolean, Error | null] {
+        // Implementation...
+      }
+
+      // Usage in component
+      function OrgList(): JSX.Element {
+        const [orgs, isLoading, _error] = useAuthenticatedFetch<GithubOrg[]>(API_ORGS_URL)
+
+        if (isLoading) {
+          return <CircularProgress />
+        }
+
+        return (
+          <List>
+            {orgs?.map((org) => (
+              <ListItem key={org.id}>{org.login}</ListItem>
+            ))}
+          </List>
+        )
+      }
+      ```
+
+      Benefits:
+      1. Consistent pattern for handling async data states
+      2. Type-safe loading and error states
+      3. Clean component rendering logic
+      4. Easy to handle undefined/loading states
+
+examples:
+  - description: "Component with API types and loading states"
+    input: |
+      function ProjectList() {
+        const data = await fetchProjects()
+        return <div>{data.map(p => p.name)}</div>
+      }
+    output: |
+      type Project = Endpoints["GET /projects"]["response"]["data"][0]
+
+      function ProjectList(): JSX.Element {
+        const [projects, isLoading, _error] = useAuthenticatedFetch<Project[]>('/api/projects')
+
+        if (isLoading) {
+          return <CircularProgress />
+        }
+
+        return (
+          <List>
+            {projects?.map((project) => (
+              <ListItem key={project.id}>{project.name}</ListItem>
+            ))}
+          </List>
+        )
+      }
+
+metadata:
+  priority: high
+  version: 1.0
+  tags:
+    - react
+    - typescript
+    - patterns
+    - components
+    - hooks
+</rule>

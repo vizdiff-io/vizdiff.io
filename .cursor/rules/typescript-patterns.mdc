@@ -15,19 +15,6 @@ name: typescript_patterns
 description: Standards and patterns for TypeScript development based on real implementation experiences
 
 sections:
-  ---
-description: TypeScript patterns and best practices for the vizdiff.io codebase
-globs: "**/*.ts"
----
-# TypeScript Patterns and Best Practices
-
-Coding patterns and best practices learned from implementing features in the vizdiff.io codebase.
-
-<rule>
-name: typescript_patterns
-description: Standards and patterns for TypeScript development based on real implementation experiences
-
-sections:
   - name: typeorm_circular_deps
     description: |
       Handling circular dependencies in TypeORM with ESM:
