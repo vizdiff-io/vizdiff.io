@@ -109,6 +109,27 @@ jobs:
         working-directory: frontend
         run: yarn build-storybook
 
+      - name:  Publish to vizdiff.io
+        env:
+          # When triggered by a pull_request event, use the PR context.
+          # Otherwise, fall back to push context.
+          MAIN_BRANCH: 'main'
+          MAIN_COMMIT: 'N/A'
+          COMMIT_SHA: ${{ github.event_name == 'pull_request' 
+                            ? github.event.pull_request.head.sha 
+                            : github.sha }}
+          BRANCH_NAME: ${{ github.event_name == 'pull_request' 
+                          ? github.event.pull_request.head.ref 
+                          : github.ref_name }}
+          BASE_BRANCH: ${{ github.event_name == 'pull_request' 
+                          ? github.event.pull_request.base.ref 
+                          : ${{ env.MAIN_BRANCH }} }}
+          BASE_COMMIT: ${{ github.event_name == 'pull_request' 
+                          ? github.event.pull_request.base.sha 
+                          : ${{ env.MAIN_COMMIT }} }}
+          VIZDIFF_PROJECT_TOKEN: ${{ secrets.VIZDIFF_PROJECT_TOKEN }}
+        run: yarn cli upload
+
       - name: Publish to Chromatic
         working-directory: frontend
         env:
