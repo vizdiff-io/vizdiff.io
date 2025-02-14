@@ -34,7 +34,7 @@ actions:
     message: |
       When creating Cursor rules:
 
-      1. Always place rule files in PROJECT_ROOT/.cursor/rules/:
+      1. Rules must be placed in PROJECT_ROOT/.cursor/rules/:
          ```
          .cursor/rules/
          ├── your-rule-name.mdc
@@ -47,7 +47,14 @@ actions:
          - Always use .mdc extension
          - Make names descriptive of the rule's purpose
 
-      3. Use this template when creating a new rule:
+      3. Important Note About Rule Creation:
+         The AI assistant cannot directly create or modify files in the .cursor/rules directory.
+         Instead, when requesting a new rule, the AI will:
+         - Provide the filename that should be created
+         - Print the complete contents that should go in that file
+         - You (the user) will need to manually create the file with the provided contents
+
+      4. Rule File Template:
          ```markdown
          ---
          Description: Brief description of what this rule does
@@ -82,7 +89,7 @@ actions:
          </rule>
          ```
 
-      4. Directory structure:
+      5. Directory structure:
          ```
          PROJECT_ROOT/
          ├── .cursor/
@@ -92,21 +99,33 @@ actions:
          └── ...
          ```
 
-      5. Never place rule files:
+      6. Never place rule files:
          - In the project root
          - In subdirectories outside .cursor/rules
          - In any other location
 
 examples:
   - input: |
-      # Bad: Rule file in wrong location
-      rules/my-rule.mdc
-      my-rule.mdc
-      .rules/my-rule.mdc
+      User: "Create a rule for TypeScript naming conventions"
+    output: |
+      Please create the following file:
 
-      # Good: Rule file in correct location
-      .cursor/rules/my-rule.mdc
-    output: "Correctly placed Cursor rule file"
+      Filename: .cursor/rules/typescript-naming.mdc
+
+      Contents:
+      ```markdown
+      ---
+      description: TypeScript naming conventions
+      globs: "**/*.ts"
+      ---
+      # TypeScript Naming Conventions
+
+      <rule>
+      name: typescript_naming
+      description: Standards for naming in TypeScript files
+      ...
+      </rule>
+      ```
 
 metadata:
   priority: high
