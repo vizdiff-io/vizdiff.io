@@ -1,10 +1,9 @@
 import { Project } from "shared"
 
 import type { ProjectResponse } from "../apiTypes"
-import { getUser } from "../authenticate"
 import { Database } from "../database"
 import { getParamInt } from "../http"
-import type { DefaultRequest, DefaultResponse } from "../types"
+import type { RequestHandler } from "../types"
 
 type ProjectWithStats = {
   project_id: number
@@ -17,16 +16,24 @@ type ProjectWithStats = {
   testcount: string
 }
 
-export async function create(req: DefaultRequest, res: DefaultResponse): Promise<void> {
-  const user = await getUser(req)
-  const name = req.body.name as string | undefined
-  const githubRepoUrl = req.body.githubRepoUrl as string | undefined
+type CreateProjectBody = {
+  name: string
+  githubRepoUrl: string
+}
+
+export const create: RequestHandler = async (req, res) => {
+  const { user } = res.locals
+  const body = req.body as Partial<CreateProjectBody>
+  const name = body.name
+  const githubRepoUrl = body.githubRepoUrl
 
   if (!name) {
-    throw new Error("Missing name")
+    res.status(400).json({ error: "Missing name" })
+    return
   }
   if (!githubRepoUrl) {
-    throw new Error("Missing githubRepoUrl")
+    res.status(400).json({ error: "Missing githubRepoUrl" })
+    return
   }
 
   const project = new Project()
@@ -52,11 +59,12 @@ export async function create(req: DefaultRequest, res: DefaultResponse): Promise
   res.json(response)
 }
 
-export async function remove(req: DefaultRequest, res: DefaultResponse): Promise<void> {
-  const user = await getUser(req)
+export const remove: RequestHandler = async (req, res) => {
+  const { user } = res.locals
   const id = getParamInt("id", req)
   if (!id) {
-    throw new Error("Missing id")
+    res.status(400).json({ error: "Missing id" })
+    return
   }
 
   const db = await Database()
@@ -64,16 +72,16 @@ export async function remove(req: DefaultRequest, res: DefaultResponse): Promise
   const project = await projectTable.findOneBy({ id, user: { id: user.id } })
 
   if (!project) {
-    throw new Error("Project not found")
+    res.status(404).json({ error: "Project not found" })
+    return
   }
 
   await projectTable.remove(project)
-
   res.json({ success: true })
 }
 
-export async function list(req: DefaultRequest, res: DefaultResponse): Promise<void> {
-  const user = await getUser(req)
+export const list: RequestHandler = async (_req, res) => {
+  const { user } = res.locals
 
   const db = await Database()
   const projectTable = db.getRepository(Project)
@@ -153,11 +161,12 @@ export async function list(req: DefaultRequest, res: DefaultResponse): Promise<v
   res.json(responses)
 }
 
-export async function get(req: DefaultRequest, res: DefaultResponse): Promise<void> {
-  const user = await getUser(req)
+export const get: RequestHandler = async (req, res) => {
+  const { user } = res.locals
   const id = getParamInt("id", req)
   if (!id) {
-    throw new Error("Missing id")
+    res.status(400).json({ error: "Missing id" })
+    return
   }
 
   const db = await Database()
@@ -165,17 +174,29 @@ export async function get(req: DefaultRequest, res: DefaultResponse): Promise<vo
   const project = await projectTable.findOneBy({ id, user: { id: user.id } })
 
   if (!project) {
-    throw new Error("Project not found")
+    res.status(404).json({ error: "Project not found" })
+    return
   }
 
-  res.json(project)
+  const response: ProjectResponse = {
+    id: project.id,
+    name: project.name,
+    githubRepoUrl: project.githubRepoUrl,
+    token: project.token,
+    createdStampSec: project.createdAt.getTime() / 1000,
+    lastBuildStampSec: 0,
+    builds: 0,
+    tests: 0,
+  }
+  res.json(response)
 }
 
-export async function resetToken(req: DefaultRequest, res: DefaultResponse): Promise<void> {
-  const user = await getUser(req)
+export const resetToken: RequestHandler = async (req, res) => {
+  const { user } = res.locals
   const id = getParamInt("id", req)
   if (!id) {
-    throw new Error("Missing id")
+    res.status(400).json({ error: "Missing id" })
+    return
   }
 
   const db = await Database()
@@ -183,13 +204,24 @@ export async function resetToken(req: DefaultRequest, res: DefaultResponse): Pro
   const project = await projectTable.findOneBy({ id, user: { id: user.id } })
 
   if (!project) {
-    throw new Error("Project not found")
+    res.status(404).json({ error: "Project not found" })
+    return
   }
 
   project.token = generateProjectToken()
   await projectTable.save(project)
 
-  res.json(project)
+  const response: ProjectResponse = {
+    id: project.id,
+    name: project.name,
+    githubRepoUrl: project.githubRepoUrl,
+    token: project.token,
+    createdStampSec: project.createdAt.getTime() / 1000,
+    lastBuildStampSec: 0,
+    builds: 0,
+    tests: 0,
+  }
+  res.json(response)
 }
 
 /** Generate a random 12-character hex string to use as a project token. */

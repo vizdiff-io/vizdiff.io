@@ -1,39 +1,43 @@
 import { ScreenshotTest } from "shared"
 
-import { getUser } from "../authenticate"
 import { Database } from "../database"
-import { getParamInt, getParamString } from "../http"
-import type { DefaultRequest, DefaultResponse } from "../types"
+import { getParamInt } from "../http"
+import type { RequestHandler } from "../types"
 
-export async function approveOrDeny(req: DefaultRequest, res: DefaultResponse): Promise<void> {
-  const user = await getUser(req)
-  const screenshotTestId = getParamInt("id", req)
-  if (!screenshotTestId) {
-    throw new Error("Missing screenshot test id")
+export const approveOrDeny: RequestHandler = async (req, res) => {
+  const { user } = res.locals
+  const id = getParamInt("id", req)
+  const status = req.params.status as string | undefined
+
+  if (!id) {
+    res.status(400).json({ error: "Missing id" })
+    return
   }
-  const status = getParamString("status", req)
-  if (status !== "approved" && status !== "denied") {
-    throw new Error("Missing or invalid status")
+  if (!status) {
+    res.status(400).json({ error: "Missing status" })
+    return
+  }
+  if (status !== "approve" && status !== "deny") {
+    res.status(400).json({ error: "Invalid status" })
+    return
   }
 
   const db = await Database()
-  const screenshotTestRepo = db.getRepository(ScreenshotTest)
-  const screenshotTest = await screenshotTestRepo.findOneBy({ id: screenshotTestId })
-  if (!screenshotTest) {
-    throw new Error(`Screenshot test ${screenshotTestId} not found`)
-  }
+  const testTable = db.getRepository(ScreenshotTest)
+  const test = await testTable
+    .createQueryBuilder("test")
+    .innerJoinAndSelect("test.project", "project")
+    .where("test.id = :id AND project.user = :userId", { id, userId: user.id })
+    .getOne()
 
-  const project = await screenshotTest.project
-
-  // TASK(https://github.com/mvi-llc/vizdiff.io/issues/9): Fall back to asking GitHub if the user
-  // (on GitHub) is a collaborator on the repo
-  if (project.user.id !== user.id) {
-    throw new Error("Access denied")
+  if (!test) {
+    res.status(404).json({ error: "Test not found" })
+    return
   }
 
   // Update the screenshot test status
-  screenshotTest.status = status
-  await screenshotTestRepo.save(screenshotTest)
+  test.status = status === "approve" ? "approved" : "denied"
+  await testTable.save(test)
 
   res.json({ success: true })
 }

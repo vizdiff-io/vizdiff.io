@@ -1,7 +1,7 @@
 import { createAppAuth } from "@octokit/auth-app"
 import { Octokit } from "@octokit/rest"
+import type { RestEndpointMethodTypes } from "@octokit/rest"
 
-import { getUser } from "../authenticate"
 import {
   GITHUB_APP_ID,
   GITHUB_CLIENT_ID,
@@ -10,7 +10,7 @@ import {
 } from "../environment"
 import { getInstallationForOrg, getInstallationsForUserId, syncUserInstallations } from "../github"
 import { log } from "../log"
-import type { DefaultRequest, DefaultResponse } from "../types"
+import type { RequestHandler } from "../types"
 
 const GITHUB_HEADERS = { "X-GitHub-Api-Version": "2022-11-28" }
 
@@ -25,8 +25,10 @@ async function getOctokitForUser(installationId: number): Promise<Octokit> {
   return new Octokit({ auth: installationAuth.token })
 }
 
-export async function orgs(req: DefaultRequest, res: DefaultResponse): Promise<void> {
-  const user = await getUser(req)
+type OrgResponse = RestEndpointMethodTypes["orgs"]["list"]["response"]["data"][number]
+
+export const orgs: RequestHandler = async (_req, res) => {
+  const { user } = res.locals
 
   // Ensure installations are up to date
   const installations = await syncUserInstallations(user)
@@ -36,7 +38,7 @@ export async function orgs(req: DefaultRequest, res: DefaultResponse): Promise<v
   }
 
   // Get orgs for all installations
-  const allOrgs = []
+  const allOrgs: OrgResponse[] = []
   for (const installation of installations) {
     const octokit = await getOctokitForUser(installation.installationId)
     const ghRes = await octokit.request("GET /user/orgs", {
@@ -57,8 +59,13 @@ export async function orgs(req: DefaultRequest, res: DefaultResponse): Promise<v
   res.json(allOrgs)
 }
 
-export async function repos(req: DefaultRequest, res: DefaultResponse): Promise<void> {
-  const user = await getUser(req)
+type OrgRepoResponse = RestEndpointMethodTypes["repos"]["listForOrg"]["response"]["data"][number]
+type UserRepoResponse =
+  RestEndpointMethodTypes["repos"]["listForAuthenticatedUser"]["response"]["data"][number]
+type RepoResponse = OrgRepoResponse | UserRepoResponse
+
+export const repos: RequestHandler = async (req, res) => {
+  const { user } = res.locals
   const org = req.query.org as string | undefined
 
   // Ensure installations are up to date
@@ -90,5 +97,5 @@ export async function repos(req: DefaultRequest, res: DefaultResponse): Promise<
       })
 
   log.debug(`Found ${ghRes.data.length} GitHub projects (user=${user.githubUsername}, org=${org})`)
-  res.json(ghRes.data)
+  res.json(ghRes.data as RepoResponse[])
 }

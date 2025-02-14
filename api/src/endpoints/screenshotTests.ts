@@ -1,100 +1,201 @@
-import { ScreenshotTest, TestResult, type TestResultStatus } from "shared"
+import { Project, ScreenshotTest, TestResult } from "shared"
 
-import type { ScreenshotTestResponse, TestResultResponse } from "../apiTypes"
-import { getUserId } from "../authenticate"
+import type { ScreenshotTestResponse, TestResponse, TestResultResponse } from "../apiTypes"
 import { Database } from "../database"
 import { getParamInt } from "../http"
-import type { DefaultRequest, DefaultResponse } from "../types"
+import type { RequestHandler } from "../types"
 
-export async function list(req: DefaultRequest, res: DefaultResponse): Promise<void> {
+type ScreenshotTestWithStats = {
+  screenshot_test_id: number
+  screenshot_test_created_at: Date
+  screenshot_test_git_branch: string
+  screenshot_test_git_commit: string
+  screenshot_test_base_commit_sha: string
+  screenshot_test_base_branch: string
+  screenshot_test_build_number: number
+  screenshot_test_upload_id: string
+  screenshot_test_status: string
+  screenshot_test_tag: string
+  testcount: string
+}
+
+export const list: RequestHandler = async (req, res) => {
+  const { user } = res.locals
   const projectId = getParamInt("projectId", req)
   if (!projectId) {
-    throw new Error("Missing projectId")
+    res.status(400).json({ error: "Missing projectId" })
+    return
   }
 
   const db = await Database()
-  const screenshotTestRepo = db.getRepository(ScreenshotTest)
+  const projectTable = db.getRepository(Project)
+  const project = await projectTable.findOneBy({ id: projectId, user: { id: user.id } })
 
-  const screenshotTests = await screenshotTestRepo.find({
-    where: { projectId },
-    order: { buildNumber: "DESC" },
-    take: 10,
-  })
+  if (!project) {
+    res.status(404).json({ error: "Project not found" })
+    return
+  }
 
-  const responses = await Promise.all(screenshotTests.map(screenshotTestToResponse))
+  const screenshotTestTable = db.getRepository(ScreenshotTest)
+  const screenshotTestsWithStats = await screenshotTestTable
+    .createQueryBuilder("screenshot_test")
+    .leftJoin(
+      (qb) =>
+        qb
+          .select([
+            "tr.screenshot_test_id as screenshotTestId",
+            "COUNT(DISTINCT tr.name) as testcount",
+          ])
+          .from("test_results", "tr")
+          .groupBy("tr.screenshot_test_id"),
+      "test_counts",
+      "test_counts.screenshotTestId = screenshot_test.id",
+    )
+    .select([
+      "screenshot_test.id",
+      "screenshot_test.createdAt",
+      "screenshot_test.branch",
+      "screenshot_test.commitSha",
+      "screenshot_test.baseCommitSha",
+      "screenshot_test.baseBranch",
+      "screenshot_test.buildNumber",
+      "screenshot_test.uploadId",
+      "screenshot_test.status",
+      "screenshot_test.tag",
+      "COALESCE(test_counts.testcount, '0') as testcount",
+    ])
+    .where("screenshot_test.project = :projectId", { projectId })
+    .orderBy("screenshot_test.createdAt", "DESC")
+    .getRawMany<ScreenshotTestWithStats>()
+
+  const responses: ScreenshotTestResponse[] = screenshotTestsWithStats.map((test) => ({
+    id: test.screenshot_test_id,
+    projectId,
+    buildNumber: test.screenshot_test_build_number,
+    commitSha: test.screenshot_test_git_commit,
+    branch: test.screenshot_test_git_branch,
+    baseCommitSha: test.screenshot_test_base_commit_sha,
+    baseBranch: test.screenshot_test_base_branch,
+    uploadId: test.screenshot_test_upload_id,
+    status: test.screenshot_test_status as ScreenshotTestResponse["status"],
+    tag: test.screenshot_test_tag,
+    initiatedStampSec: test.screenshot_test_created_at.getTime() / 1000,
+  }))
   res.json(responses)
 }
 
-// Returns the 10 most recent screenshot tests across all projects for the current user
-export async function listActivity(req: DefaultRequest, res: DefaultResponse): Promise<void> {
-  const userId = getUserId(req)
-  const db = await Database()
-  const screenshotTestRepo = db.getRepository(ScreenshotTest)
-
-  const screenshotTests = await screenshotTestRepo
-    .createQueryBuilder("screenshotTest")
-    .innerJoinAndSelect("screenshotTest.project", "project")
-    .where("project.user_id = :userId", { userId })
-    .orderBy("screenshotTest.createdAt", "DESC")
-    .take(10)
-    .getMany()
-
-  const responses: ScreenshotTestResponse[] = screenshotTests.map(screenshotTestToResponse)
-  res.json(responses)
-}
-
-export async function get(req: DefaultRequest, res: DefaultResponse): Promise<void> {
+export const get: RequestHandler = async (req, res) => {
+  const { user } = res.locals
+  const projectId = getParamInt("projectId", req)
   const id = getParamInt("id", req)
+  if (!projectId) {
+    res.status(400).json({ error: "Missing projectId" })
+    return
+  }
   if (!id) {
-    throw new Error("Missing id")
+    res.status(400).json({ error: "Missing id" })
+    return
   }
 
   const db = await Database()
-  const screenshotTestRepo = db.getRepository(ScreenshotTest)
+  const projectTable = db.getRepository(Project)
+  const project = await projectTable.findOneBy({ id: projectId, user: { id: user.id } })
 
-  const screenshotTest = await screenshotTestRepo.findOneBy({ id })
-  if (!screenshotTest) {
-    throw new Error("Screenshot test not found")
+  if (!project) {
+    res.status(404).json({ error: "Project not found" })
+    return
   }
 
-  // Fetch the parent screenshot test, querying by projectId+commitSha
-  const parentScreenshotTest = await screenshotTestRepo.findOneBy({
-    projectId: screenshotTest.projectId,
-    commitSha: screenshotTest.baseCommitSha,
-  })
-  const parent = parentScreenshotTest ? screenshotTestToResponse(parentScreenshotTest) : undefined
+  const screenshotTestTable = db.getRepository(ScreenshotTest)
+  const screenshotTest = await screenshotTestTable.findOneBy({ id, project: { id: projectId } })
 
-  // Fetch all of the test results for this screenshot test
-  const testResults = (await screenshotTest.testResults).map(testResultToResponse)
+  if (!screenshotTest) {
+    res.status(404).json({ error: "Screenshot test not found" })
+    return
+  }
 
-  const screenshotResponse = screenshotTestToResponse(screenshotTest)
-  res.json({ ...screenshotResponse, parent, testResults })
-}
+  const testResultTable = db.getRepository(TestResult)
+  const testResults = await testResultTable.findBy({ screenshotTest: { id } })
 
-function screenshotTestToResponse(screenshotTest: ScreenshotTest): ScreenshotTestResponse {
-  return {
+  const response: TestResponse = {
     id: screenshotTest.id,
     projectId: screenshotTest.projectId,
     buildNumber: screenshotTest.buildNumber,
     commitSha: screenshotTest.commitSha,
     branch: screenshotTest.branch,
+    baseCommitSha: screenshotTest.baseCommitSha,
+    baseBranch: screenshotTest.baseBranch,
     uploadId: screenshotTest.uploadId,
     status: screenshotTest.status as ScreenshotTestResponse["status"],
-    tag: undefined,
+    tag: screenshotTest.tag,
     initiatedStampSec: screenshotTest.createdAt.getTime() / 1000,
     buildDurationSec: screenshotTest.buildDurationSec,
+    testResults: testResults.map((result) => ({
+      id: result.id,
+      name: result.name,
+      changeStatus: result.changeStatus as TestResultResponse["changeStatus"],
+      screenshotUrl: result.newImageUrl,
+      ancestorScreenshotUrl: result.baselineImageUrl,
+      diffMaskUrl: result.diffImageUrl,
+      diffRatio: result.diffRatio,
+      createdStampSec: result.createdAt.getTime() / 1000,
+    })),
   }
+
+  res.json(response)
 }
 
-function testResultToResponse(testResult: TestResult): TestResultResponse {
-  return {
-    id: testResult.id,
-    name: testResult.name,
-    changeStatus: testResult.changeStatus as TestResultStatus,
-    screenshotUrl: testResult.newImageUrl,
-    ancestorScreenshotUrl: testResult.baselineImageUrl,
-    diffMaskUrl: testResult.diffImageUrl,
-    diffRatio: testResult.diffRatio,
-    createdStampSec: testResult.createdAt.getTime() / 1000,
-  }
+export const listActivity: RequestHandler = async (_req, res) => {
+  const { user } = res.locals
+  const db = await Database()
+  const screenshotTestTable = db.getRepository(ScreenshotTest)
+
+  const screenshotTests = await screenshotTestTable
+    .createQueryBuilder("screenshot_test")
+    .innerJoinAndSelect("screenshot_test.project", "project")
+    .leftJoin(
+      (qb) =>
+        qb
+          .select([
+            "tr.screenshot_test_id as screenshotTestId",
+            "COUNT(DISTINCT tr.name) as testcount",
+          ])
+          .from("test_results", "tr")
+          .groupBy("tr.screenshot_test_id"),
+      "test_counts",
+      "test_counts.screenshotTestId = screenshot_test.id",
+    )
+    .select([
+      "screenshot_test.id",
+      "screenshot_test.createdAt",
+      "screenshot_test.branch",
+      "screenshot_test.commitSha",
+      "screenshot_test.baseCommitSha",
+      "screenshot_test.baseBranch",
+      "screenshot_test.buildNumber",
+      "screenshot_test.uploadId",
+      "screenshot_test.status",
+      "screenshot_test.tag",
+      "project.id as project_id",
+      "COALESCE(test_counts.testcount, '0') as testcount",
+    ])
+    .where("project.user = :userId", { userId: user.id })
+    .orderBy("screenshot_test.createdAt", "DESC")
+    .take(10)
+    .getRawMany<ScreenshotTestWithStats & { project_id: number }>()
+
+  const responses: ScreenshotTestResponse[] = screenshotTests.map((test) => ({
+    id: test.screenshot_test_id,
+    projectId: test.project_id,
+    buildNumber: test.screenshot_test_build_number,
+    commitSha: test.screenshot_test_git_commit,
+    branch: test.screenshot_test_git_branch,
+    baseCommitSha: test.screenshot_test_base_commit_sha,
+    baseBranch: test.screenshot_test_base_branch,
+    uploadId: test.screenshot_test_upload_id,
+    status: test.screenshot_test_status as ScreenshotTestResponse["status"],
+    tag: test.screenshot_test_tag,
+    initiatedStampSec: test.screenshot_test_created_at.getTime() / 1000,
+  }))
+  res.json(responses)
 }
