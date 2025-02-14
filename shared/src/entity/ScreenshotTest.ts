@@ -22,7 +22,7 @@ export class ScreenshotTest {
   @PrimaryGeneratedColumn()
   id!: number
 
-  @ManyToOne("Project", { onDelete: "CASCADE", nullable: false })
+  @ManyToOne("Project", { onDelete: "CASCADE", nullable: false, eager: true })
   @JoinColumn({ name: "project_id", referencedColumnName: "id" })
   project!: Project
 

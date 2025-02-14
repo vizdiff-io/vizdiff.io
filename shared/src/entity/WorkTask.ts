@@ -15,7 +15,7 @@ export class WorkTask {
   @PrimaryGeneratedColumn()
   id!: number
 
-  @ManyToOne("ScreenshotTest", "workTasks", { onDelete: "CASCADE", nullable: false })
+  @ManyToOne("ScreenshotTest", "workTasks", { onDelete: "CASCADE", nullable: false, eager: true })
   @JoinColumn({ name: "screenshot_test_id", referencedColumnName: "id" })
   screenshotTest!: ScreenshotTest
 
