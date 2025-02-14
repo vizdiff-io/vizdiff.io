@@ -29,7 +29,7 @@ export async function createScreenshotTest(
 
     // Create the new screenshot test
     const screenshotTest = new ScreenshotTest()
-    screenshotTest.projectId = project.id
+    screenshotTest.project = project
     screenshotTest.buildNumber = buildNumber
     screenshotTest.commitSha = commitSha
     screenshotTest.branch = branch

@@ -158,9 +158,10 @@ export async function requireUser(_req: Request, res: Response, next: NextFuncti
   next()
 }
 
-export async function getProjectByToken(token: string): Promise<Project> {
-  if (token.length !== 12) {
-    throw new Error("Invalid token")
+export async function getProjectByToken(token: string): Promise<Project | undefined> {
+  if (token.length < 12 || token.length > 128) {
+    log.error(`Invalid token length: ${token.length}`)
+    return undefined
   }
 
   // Look up the project by token
@@ -168,7 +169,8 @@ export async function getProjectByToken(token: string): Promise<Project> {
   const projectTable = db.getRepository(Project)
   const project = await projectTable.findOneBy({ token })
   if (!project) {
-    throw new Error(`Invalid or expired token`)
+    log.error(`Invalid or expired token: ${token}`)
+    return undefined
   }
 
   return project

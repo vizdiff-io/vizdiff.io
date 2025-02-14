@@ -57,6 +57,10 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
 
   const uploadId = uuidv7()
   const project = await getProjectByToken(token)
+  if (!project) {
+    res.status(401).json({ error: "Invalid token" })
+    return
+  }
 
   const Bucket = await getS3BucketForProject(project)
   const Key = `projects/${project.id}/${uploadId}.tar.gz`
@@ -103,7 +107,7 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
 
   // Add a task to the queue to process this screenshot test
   const task = new WorkTask()
-  task.screenshotTestId = screenshotTest.id
+  task.screenshotTest = screenshotTest
   task.taskType = "ingest_storybook"
   task.data = JSON.stringify({ projectId: project.id, uploadId })
   task.createdAt = new Date()

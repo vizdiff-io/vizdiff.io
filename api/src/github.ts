@@ -40,17 +40,34 @@ export async function syncUserInstallations(user: User): Promise<GitHubInstallat
 
     if (!installation) {
       // Create new installation
-      installation = new GitHubInstallation()
-      installation.creatorId = user.id
-      installation.installationId = inst.id
-      installation.accountId = accountId
-      installation.accountName = accountName
-      installation.accountType = accountType
-
       log.debug(`Creating new GitHub installation for ${accountName} with creator ${user.id}`)
 
       try {
-        installation = await db.manager.save(GitHubInstallation, installation)
+        // Create the installation with all required fields
+        await db.manager
+          .createQueryBuilder()
+          .insert()
+          .into(GitHubInstallation)
+          .values([
+            {
+              installationId: inst.id,
+              accountId,
+              accountName,
+              accountType,
+              creatorId: user.id,
+            },
+          ])
+          .execute()
+
+        // Get the newly created installation
+        installation = await db.manager.findOneBy(GitHubInstallation, {
+          installationId: inst.id,
+        })
+
+        if (!installation) {
+          throw new Error("Failed to find newly created installation")
+        }
+
         log.debug(
           `Created GitHub installation ${installation.id} with creator ${installation.creatorId}`,
         )
