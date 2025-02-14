@@ -8,7 +8,7 @@ import {
   UpdateDateColumn,
 } from "typeorm"
 
-import { ScreenshotTest } from "./ScreenshotTest"
+import type { ScreenshotTest } from "./ScreenshotTest"
 
 @Entity("task_queue")
 export class WorkTask {
@@ -18,7 +18,7 @@ export class WorkTask {
   @Column({ name: "screenshot_test_id", type: "integer" })
   screenshotTestId!: number
 
-  @ManyToOne(() => ScreenshotTest, { onDelete: "CASCADE", nullable: false })
+  @ManyToOne("ScreenshotTest", "workTasks", { onDelete: "CASCADE", nullable: false })
   @JoinColumn({ name: "screenshot_test_id", referencedColumnName: "id" })
   screenshotTest!: Promise<ScreenshotTest>
 

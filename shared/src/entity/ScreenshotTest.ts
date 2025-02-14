@@ -11,9 +11,9 @@ import {
   UpdateDateColumn,
 } from "typeorm"
 
-import { Project } from "./Project"
-import { TestResult } from "./TestResult"
-import { WorkTask } from "./WorkTask"
+import type { Project } from "./Project"
+import type { TestResult } from "./TestResult"
+import type { WorkTask } from "./WorkTask"
 
 @Entity("screenshot_tests")
 @Unique("UQ_project_id_commit_sha", ["projectId", "commitSha"])
@@ -25,7 +25,7 @@ export class ScreenshotTest {
   @Column({ name: "project_id", type: "integer", nullable: false })
   projectId!: number
 
-  @ManyToOne(() => Project, { onDelete: "CASCADE", nullable: false })
+  @ManyToOne("Project", { onDelete: "CASCADE", nullable: false })
   @JoinColumn({ name: "project_id", referencedColumnName: "id" })
   project!: Promise<Project>
 
@@ -35,10 +35,10 @@ export class ScreenshotTest {
   @Column({ name: "build_duration_sec", type: "double precision", nullable: true })
   buildDurationSec!: number | undefined
 
-  @OneToMany(() => TestResult, (testResult) => testResult.screenshotTest)
+  @OneToMany("TestResult", "screenshotTest")
   testResults!: Promise<TestResult[]>
 
-  @OneToMany(() => WorkTask, (workTask) => workTask.screenshotTest)
+  @OneToMany("WorkTask", "screenshotTest")
   workTasks!: Promise<WorkTask[]>
 
   @Column({ name: "commit_sha", type: "varchar", length: 64, nullable: false })

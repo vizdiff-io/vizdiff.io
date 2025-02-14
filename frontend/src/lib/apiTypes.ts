@@ -1,13 +1,32 @@
 export type TestResultStatus = "new" | "unchanged" | "changed" | "failed"
 
+export type GithubUser = {
+  login: string
+  id: number
+  node_id: string
+  avatar_url: string
+  email: string | null
+}
+
+export type GitHubInstallationResponse = {
+  id: number
+  installationId: number
+  accountId: string
+  accountName: string
+  accountType: string
+  isCreator: boolean
+  createdStampSec: number
+}
+
 export type UserResponse = {
   id: number
   githubId: string
   email: string | null
   githubUsername: string
-  githubProfile: Record<string, unknown>
+  githubProfile: GithubUser
   createdStampSec: number
   updatedStampSec: number
+  githubInstallations: GitHubInstallationResponse[]
 }
 
 export type ProjectResponse = {

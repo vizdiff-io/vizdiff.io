@@ -8,7 +8,7 @@ import {
   UpdateDateColumn,
 } from "typeorm"
 
-import { ScreenshotTest } from "./ScreenshotTest"
+import type { ScreenshotTest } from "./ScreenshotTest"
 
 export type TestResultStatus = "new" | "unchanged" | "changed" | "failed"
 
@@ -23,7 +23,7 @@ export class TestResult {
   @Column({ type: "integer", name: "screenshot_test_id" })
   screenshotTestId!: number
 
-  @ManyToOne(() => ScreenshotTest, (screenshotTest) => screenshotTest.testResults, {
+  @ManyToOne("ScreenshotTest", "testResults", {
     onDelete: "CASCADE",
     nullable: false,
   })
