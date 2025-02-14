@@ -3,9 +3,11 @@ import {
   List,
   ListItemButton,
   ListItemText,
-  Divider,
   CircularProgress,
   IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
 } from "@mui/material"
 import type { Endpoints } from "@octokit/types"
 import React, { useState, useEffect, useCallback } from "react"
@@ -20,36 +22,23 @@ type NewProjectDialogProps = {
 type GithubOrg = Endpoints["GET /user/orgs"]["response"]["data"][0]
 type GithubRepo = Endpoints["GET /orgs/{org}/repos"]["response"]["data"][0]
 
-const API_ME_URL = "/api/users/me"
 const API_ORGS_URL = "/api/github/orgs"
 const API_REPOS_URL = "/api/github/repos"
-
-interface User {
-  githubUsername: string
-}
 
 export default function NewProjectDialog({ onClose }: NewProjectDialogProps): JSX.Element {
   const [repos, setRepos] = useState<GithubRepo[]>([])
   const [loading, setLoading] = useState(true)
   const [_error, setError] = useState<string | null>(null)
 
-  const [me, isMeLoading, _meErr] = useAuthenticatedFetch<User>(API_ME_URL)
   const [orgs, isOrgsLoading, _orgsErr] = useAuthenticatedFetch<GithubOrg[]>(API_ORGS_URL)
 
   const updateLoading = useCallback(() => {
-    if (!isMeLoading && !isOrgsLoading) {
+    if (!isOrgsLoading) {
       setLoading(false)
     }
-  }, [isMeLoading, isOrgsLoading])
+  }, [isOrgsLoading])
 
   useEffect(() => updateLoading(), [updateLoading])
-
-  const handleMeClick = async () => {
-    setLoading(true)
-    const [meRepos, _meReposError] = await apiGet(API_REPOS_URL)
-    setRepos((meRepos as [] | null) ?? [])
-    updateLoading()
-  }
 
   const handleOrgClick = async (org: string) => {
     setLoading(true)
@@ -73,40 +62,79 @@ export default function NewProjectDialog({ onClose }: NewProjectDialogProps): JS
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
-      {/* Close button at the top right */}
-      <div style={{ alignSelf: "flex-end", marginBottom: "10px" }}>
-        <IconButton onClick={onClose}>
+    <Dialog
+      open={true}
+      onClose={onClose}
+      maxWidth="md"
+      fullWidth
+      PaperProps={{
+        sx: {
+          minHeight: "50vh",
+          maxHeight: "80vh",
+        },
+      }}
+    >
+      <DialogTitle
+        sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", pb: 1 }}
+      >
+        Add Project
+        <IconButton onClick={onClose} size="small">
           <CloseIcon />
         </IconButton>
-      </div>
-
-      {/* Orgs and Repos lists */}
-      <div style={{ display: "flex", flexDirection: "row", alignItems: "flex-start" }}>
-        <List component="nav">
-          {me && (
-            <ListItemButton key={me.githubUsername} onClick={() => handleMeClick()}>
-              <ListItemText primary={me.githubUsername} />
-            </ListItemButton>
+      </DialogTitle>
+      <DialogContent>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "row",
+            alignItems: "flex-start",
+            gap: "1rem",
+            height: "100%",
+            minHeight: "300px",
+          }}
+        >
+          {loading || isOrgsLoading ? (
+            <div style={{ display: "flex", justifyContent: "center", width: "100%" }}>
+              <CircularProgress />
+            </div>
+          ) : (
+            <>
+              <List
+                component="nav"
+                sx={{
+                  width: "50%",
+                  borderRight: 1,
+                  borderColor: "divider",
+                  overflowY: "auto",
+                  maxHeight: "60vh",
+                }}
+              >
+                {orgs?.map((org) => (
+                  <ListItemButton key={org.id} onClick={() => handleOrgClick(org.login)}>
+                    <ListItemText primary={org.login} />
+                  </ListItemButton>
+                ))}
+              </List>
+              {repos.length > 0 && (
+                <List
+                  component="nav"
+                  sx={{
+                    width: "50%",
+                    overflowY: "auto",
+                    maxHeight: "60vh",
+                  }}
+                >
+                  {repos.map((repo) => (
+                    <ListItemButton key={repo.id} onClick={() => handleRepoClick(repo)}>
+                      <ListItemText primary={repo.name} />
+                    </ListItemButton>
+                  ))}
+                </List>
+              )}
+            </>
           )}
-          {orgs?.map((org) => (
-            <ListItemButton key={org.id} onClick={() => handleOrgClick(org.login)}>
-              <ListItemText primary={org.login} />
-            </ListItemButton>
-          ))}
-        </List>
-        <Divider orientation="vertical" flexItem />
-        {repos.length > 0 && (
-          <List component="nav">
-            {repos.map((repo) => (
-              <ListItemButton key={repo.id} onClick={() => handleRepoClick(repo)}>
-                <ListItemText primary={repo.name} />
-              </ListItemButton>
-            ))}
-          </List>
-        )}
-        {loading && <CircularProgress />}
-      </div>
-    </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   )
 }
