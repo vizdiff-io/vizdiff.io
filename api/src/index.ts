@@ -87,7 +87,7 @@ app.use(router)
 
 // Error handling
 app.use((err: Error, _req: DefaultRequest, res: DefaultResponse, _next: Express.NextFunction) => {
-  log.error(err.message)
+  log.error(`${err.message}\n${err.stack}`)
   res.err = err
   res.status(500).json({ error: err.message })
 })
