@@ -3,12 +3,37 @@ import fs, { promises as fsPromises } from "node:fs"
 import path from "node:path"
 import { Readable } from "node:stream"
 import { PNG } from "pngjs"
-import { TestResult, type TestResultStatus } from "shared"
+import { ScreenshotTest, TestResult, type TestResultStatus } from "shared"
 import type { Repository } from "typeorm"
 import type { Browser } from "webdriverio"
 
 import { diffImages } from "./images"
 import { log } from "./log"
+
+// Create a mutex for browser access
+const browserMutex = {
+  locked: false,
+  queue: [] as Array<() => void>,
+
+  async acquire(): Promise<void> {
+    if (!this.locked) {
+      this.locked = true
+      return
+    }
+    await new Promise<void>((resolve) => this.queue.push(resolve))
+  },
+
+  release(): void {
+    if (this.queue.length > 0) {
+      const next = this.queue.shift()
+      if (next) {
+        next()
+      }
+    } else {
+      this.locked = false
+    }
+  },
+}
 
 interface Story {
   id: string
@@ -18,6 +43,7 @@ interface Story {
 
 type StoryInfo = {
   story: Story
+  screenshotTest: ScreenshotTest
   baseTestResult?: TestResult
   bucket: string
   tmpDir: string
@@ -26,10 +52,12 @@ type StoryInfo = {
   port: number
   s3Client: S3Client
   testResultTable: Repository<TestResult>
+  browser: Browser
 }
 
 export async function processStory({
   story,
+  screenshotTest,
   baseTestResult,
   bucket,
   tmpDir,
@@ -38,23 +66,32 @@ export async function processStory({
   port,
   s3Client,
   testResultTable,
+  browser,
 }: StoryInfo): Promise<TestResult> {
   const storyId = story.id
   log.info(`Processing story: ${storyId} (${story.name})`)
 
-  // Navigate to the story
-  const storyUrl = `http://localhost:${port}/iframe.html?id=${storyId}`
-  log.debug(`Navigating to story URL: ${storyUrl}`)
-  await browser.url(storyUrl)
-
-  // Wait for the story to load
-  log.debug("Waiting for story to load...")
-  await waitForStorybookToLoad(browser)
-
-  // Take a screenshot
+  // Take screenshot with browser mutex
   const screenshotPath = path.join(tmpDir, `${storyId}.png`)
-  const screenshot = await takeScreenshotWithRetry(browser, screenshotPath)
-  log.debug(`Successfully captured ${screenshot.length} byte screenshot: ${screenshotPath}`)
+  let screenshot: Buffer
+  await browserMutex.acquire()
+  try {
+    // Navigate to the story
+    const storyUrl = `http://localhost:${port}/iframe.html?id=${storyId}`
+    log.debug(`Navigating to story URL: ${storyUrl}`)
+    await browser.url(storyUrl)
+
+    // Wait for the story to load
+    log.debug("Waiting for story to load...")
+    await waitForStorybookToLoad(browser)
+
+    // Take a screenshot
+    screenshot = await takeScreenshotWithRetry(browser, screenshotPath)
+    log.debug(`Successfully captured ${screenshot.length} byte screenshot: ${screenshotPath}`)
+  } finally {
+    // Release browser mutex
+    browserMutex.release()
+  }
 
   // Upload screenshot to S3
   const screenshotKey = `projects/${projectId}/screenshots/${uploadId}/${storyId}.png`
@@ -77,7 +114,7 @@ export async function processStory({
 
   if (baseTestResult) {
     // Attempt to download baseline screenshot
-    const baselineKey = `projects/${projectId}/screenshots/${baseTestResult.screenshotTestId}/${storyId}.png`
+    const baselineKey = `projects/${projectId}/screenshots/${baseTestResult.screenshotTest.uploadId}/${storyId}.png`
     baselineImageUrl = `https://${bucket}.s3.amazonaws.com/${baselineKey}`
     try {
       const baselinePath = path.join(tmpDir, `${storyId}-baseline.png`)
@@ -131,7 +168,7 @@ export async function processStory({
   log.debug(`Creating test result record for story: ${storyId}`)
   const testResult = new TestResult()
   testResult.name = story.name.substring(0, 255)
-  testResult.screenshotTestId = parseInt(uploadId, 10)
+  testResult.screenshotTest = screenshotTest
   testResult.storyId = storyId
   testResult.newImageUrl = newImageUrl
   testResult.baselineImageUrl = baselineImageUrl
@@ -166,22 +203,26 @@ async function downloadImage(
 }
 
 async function waitForStorybookToLoad(browser: Browser): Promise<void> {
-  // Wait for the storybook store to be initialized
   await browser.waitUntil(
     async () => {
-      const state = await browser.execute(() => {
-        // @ts-expect-error: Storybook global
-        // eslint-disable-next-line no-underscore-dangle, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call
-        return window?.__STORYBOOK_STORY_STORE__?.getSelection()?.status as unknown
+      // eslint-disable-next-line prefer-arrow-callback
+      const ready = await browser.execute(function () {
+        // @ts-expect-error: this is javascript
+        // eslint-disable-next-line
+        return !!(window.__STORYBOOK_PREVIEW__ && window.__STORYBOOK_PREVIEW__.ready)
       })
-      return state === "DONE"
+      log.debug(`Storybook ready: ${ready}`)
+      return ready
     },
     {
-      timeout: 10000,
+      timeout: 10 * 1000,
       timeoutMsg: "Story failed to load within 10s",
       interval: 100,
     },
   )
+
+  // Additional wait to ensure story is fully rendered
+  // await browser.pause(1000)
 }
 
 async function takeScreenshotWithRetry(

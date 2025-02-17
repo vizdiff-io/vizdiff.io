@@ -1,3 +1,4 @@
+/* eslint-disable no-underscore-dangle */
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3"
 import type { Capabilities } from "@wdio/types"
 import fs, { promises as fsPromises } from "node:fs"
@@ -40,9 +41,21 @@ interface Story {
   importPath: string
 }
 
+type StorybookWindow = {
+  __STORYBOOK_PREVIEW__?: {
+    ready: boolean
+    extract: () => Promise<Record<string, Story>>
+    storyStore?: {
+      cacheAllCSFFiles: () => Promise<void>
+    }
+  }
+}
+
 const TASKS_CHANNEL = "task_queue"
 const CONN_STRING = `postgres://${POSTGRES_USER}:${POSTGRES_PASS}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DATABASE}`
 const POLL_INTERVAL_MS = 1000 * 10
+const RETRY_INTERVAL_MS = 1000 * 15
+const LOCK_TIMEOUT_MINUTES = 60
 
 // Postgres connection pool, used for raw SQL queries such as acquiring locks
 const pool = new pg.Pool({
@@ -58,8 +71,13 @@ const pool = new pg.Pool({
 const subscriber = createPgSubscriber({ connectionString: CONN_STRING })
 // Current task being processed, if any
 let currentTaskId: number | undefined
-// Pending tasks we were notified about or discovered while processing another task
-const pendingTaskIds: number[] = []
+// Set of task IDs that have failed recently to prevent rapid retries
+const recentlyFailedTaskIds = new Set<number>()
+
+// Clear failed task IDs after the poll interval to allow retries later
+function clearFailedTaskId(taskId: number): void {
+  recentlyFailedTaskIds.delete(taskId)
+}
 
 async function main() {
   subscriber.notifications.on(TASKS_CHANNEL, (payload) => {
@@ -107,13 +125,24 @@ export function pollForNewTasks(): void {
         return
       }
 
+      // Skip if this task recently failed
+      if (recentlyFailedTaskIds.has(taskQueueId)) {
+        log.debug(`Skipping recently failed task ${taskQueueId}`)
+        setTimeout(pollForNewTasks, POLL_INTERVAL_MS)
+        return
+      }
+
       log.info(`Found new task: ${taskQueueId}`)
       startTask(taskQueueId)
         .catch((err: unknown) => {
           log.error(`Error processing task ${taskQueueId}: ${err}`)
+          // Track failed task and schedule cleanup
+          recentlyFailedTaskIds.add(taskQueueId)
+          setTimeout(() => clearFailedTaskId(taskQueueId), RETRY_INTERVAL_MS)
         })
         .finally(() => {
-          setTimeout(pollForNewTasks, 0)
+          // Use the configured poll interval to prevent rapid retries
+          setTimeout(pollForNewTasks, POLL_INTERVAL_MS)
         })
     })
     .catch((err: unknown) => {
@@ -133,25 +162,25 @@ export async function startTask(taskQueueId: number): Promise<void> {
 
   if (currentTaskId != undefined) {
     log.info(`Cannot start task ${taskQueueId}: worker is already processing task ${currentTaskId}`)
-    pendingTaskIds.push(taskQueueId)
     return
   }
 
   currentTaskId = taskQueueId
   await processTask(task.task_type, task.screenshot_test_id, task.data).finally(async () => {
     currentTaskId = undefined
-
-    const nextTaskId = pendingTaskIds.shift()
-    if (nextTaskId) {
-      await startTask(nextTaskId)
-    }
   })
 }
 
 export async function latestTaskQueueId(): Promise<number | undefined> {
   const client = await pool.connect()
   try {
-    const res = await client.query("select id from task_queue order by id desc limit 1")
+    const res = await client.query(
+      `SELECT id FROM task_queue 
+       WHERE locked_at IS NULL 
+          OR locked_at < NOW() - INTERVAL '${LOCK_TIMEOUT_MINUTES} minutes'
+       ORDER BY id DESC 
+       LIMIT 1`,
+    )
     if (res.rowCount === 0) {
       return undefined
     }
@@ -164,11 +193,13 @@ export async function latestTaskQueueId(): Promise<number | undefined> {
 export async function fetchTask(taskQueueId: number): Promise<Task | undefined> {
   const client = await pool.connect()
   try {
-    // First try to acquire the lock atomically
+    // First try to acquire the lock atomically, respecting the lock timeout
     const lockRes = await client.query(
       `UPDATE task_queue 
        SET locked_at = NOW(), locked_by = $1
-       WHERE id = $2 AND locked_at IS NULL
+       WHERE id = $2 
+         AND (locked_at IS NULL 
+           OR locked_at < NOW() - INTERVAL '${LOCK_TIMEOUT_MINUTES} minutes')
        RETURNING task_type, screenshot_test_id, data`,
       [`worker-${process.pid}`, taskQueueId],
     )
@@ -183,15 +214,27 @@ export async function fetchTask(taskQueueId: number): Promise<Task | undefined> 
         throw new Error(`Task not found: ${taskQueueId}`)
       }
       const task = checkRes.rows[0] as { locked_by: string; locked_at: Date }
-      log.warn(`Task ${taskQueueId} is locked by ${task.locked_by} since ${task.locked_at}`)
+      const lockAge = Math.floor((Date.now() - task.locked_at.getTime()) / (1000 * 60))
+      log.warn(
+        `Task ${taskQueueId} is locked by ${task.locked_by} since ${task.locked_at} (${lockAge} minutes ago)`,
+      )
       return undefined
     }
 
-    return lockRes.rows[0] as {
+    const task = lockRes.rows[0] as {
       task_type: string
       screenshot_test_id: number
-      data: Record<string, unknown>
+      data: Record<string, unknown> | string | undefined
     }
+
+    if (!task.data) {
+      throw new Error(`Task ${taskQueueId} has no data`)
+    } else if (typeof task.data === "string") {
+      log.warn(`Task ${taskQueueId} has string data, parsing as JSON`)
+      task.data = JSON.parse(task.data) as Record<string, unknown>
+    }
+
+    return task as Task
   } finally {
     client.release()
   }
@@ -206,7 +249,12 @@ export async function processTask(
   try {
     switch (taskType) {
       case "ingest_storybook": {
-        const { projectId, uploadId } = data as IngestStorybookPayload
+        const { projectId, uploadId } = data as Partial<IngestStorybookPayload>
+        if (!projectId || !uploadId) {
+          throw new Error(
+            `Missing required ingest_storybook fields: projectId=${projectId}, uploadId=${uploadId}`,
+          )
+        }
         await ingestStorybook(projectId, screenshotTestId, uploadId)
         break
       }
@@ -275,16 +323,10 @@ export async function ingestStorybook(
     // Save the tarball to disk
     const tarballPath = path.join(tmpDir, "storybook.tar.gz")
     log.debug(`Saving tarball to: ${tarballPath}`)
-    const writeStream = fs.createWriteStream(tarballPath)
-    await new Promise<void>((resolve, reject) => {
-      if (response.Body instanceof Readable) {
-        const stream = response.Body.pipe(writeStream)
-        stream.on("finish", () => resolve())
-        stream.on("error", (err: Error) => reject(err))
-      } else {
-        reject(new Error("Response body is not a readable stream"))
-      }
-    })
+    if (!(response.Body instanceof Readable)) {
+      throw new Error(`Unexpected response.Body type ${typeof response.Body}`)
+    }
+    await downloadWithTimeout(response.Body, tarballPath)
     log.debug(`Successfully saved tarball to disk`)
 
     // Extract the tarball
@@ -295,6 +337,7 @@ export async function ingestStorybook(
     // Initialize WebdriverIO
     log.info("Initializing WebdriverIO in headless Chrome mode")
     const config: Capabilities.WebdriverIOConfig = {
+      outputDir: path.join(tmpDir, "wdio-logs"),
       capabilities: {
         browserName: "chrome",
         "goog:chromeOptions": {
@@ -313,7 +356,7 @@ export async function ingestStorybook(
       log.info("Starting local HTTP server for Storybook files")
       const server = http.createServer((req, res) => {
         // Reject requests that try to access files outside of the served directory
-        const requestedPath = path.normalize(req.url ?? "")
+        const requestedPath = path.normalize(req.url?.split("?")[0] ?? "")
         if (requestedPath.includes("..") || !requestedPath.startsWith("/")) {
           res.writeHead(403)
           res.end()
@@ -351,6 +394,12 @@ export async function ingestStorybook(
 
       // Let the OS choose an available port
       server.listen(0)
+
+      // Wait for the server to be ready
+      await new Promise<void>((resolve) => {
+        server.once("listening", () => resolve())
+      })
+
       const address = server.address()
       if (!address || typeof address === "string") {
         throw new Error("Failed to get server port")
@@ -359,18 +408,58 @@ export async function ingestStorybook(
       log.info(`Local server started on port ${port}`)
 
       try {
-        // Read the Storybook preview file to get the list of stories
-        log.info("Reading Storybook preview file to extract stories")
-        const previewFile = await fsPromises.readFile(path.join(tmpDir, "iframe.html"), "utf8")
-        const storiesMatch = /window\['STORIES'\] = ({.*?});/s.exec(previewFile)
-        const storiesJson = storiesMatch?.at(1)
-        if (!storiesJson) {
-          throw new Error("Could not find stories in preview file")
-        }
-        log.debug("Successfully extracted stories from preview file")
+        // Navigate to the Storybook iframe and wait for stories to load
+        log.info("Waiting for Storybook to load stories")
+        await browser.url(`http://localhost:${port}/iframe.html`)
+        await browser.waitUntil(
+          async () => {
+            return await browser.execute(async (): Promise<boolean> => {
+              // @ts-expect-error: window is not defined
+              const preview = (window as StorybookWindow).__STORYBOOK_PREVIEW__
+              if (!preview?.storyStore) {
+                return false
+              }
 
-        const stories = JSON.parse(storiesJson) as Record<string, Story>
-        log.info(`Found ${Object.keys(stories).length} stories to process`)
+              try {
+                await preview.storyStore.cacheAllCSFFiles()
+                return true
+              } catch {
+                return false
+              }
+            })
+          },
+          {
+            timeout: 10000,
+            timeoutMsg: "Storybook failed to load stories within 10s",
+            interval: 100,
+          },
+        )
+
+        // Get the loaded stories
+        const stories = await browser.execute(async () => {
+          // @ts-expect-error: window is not defined
+          const preview = (window as StorybookWindow).__STORYBOOK_PREVIEW__
+          if (!preview) {
+            return undefined
+          }
+
+          try {
+            return await preview.extract()
+          } catch (err) {
+            console.error("Failed to extract stories:", err)
+            return undefined
+          }
+        })
+        if (!stories) {
+          throw new Error("No stories found in Storybook")
+        }
+
+        const storyCount = Object.keys(stories).length
+        if (storyCount === 0) {
+          throw new Error("Storybook loaded but contains no stories")
+        }
+
+        log.info(`Found ${storyCount} stories to process`)
 
         const testResultTable = db.getRepository(TestResult)
 
@@ -398,6 +487,7 @@ export async function ingestStorybook(
             limit(() =>
               processStory({
                 story,
+                screenshotTest,
                 baseTestResult: baseTestResults.get(story.id),
                 bucket,
                 tmpDir,
@@ -406,6 +496,7 @@ export async function ingestStorybook(
                 port,
                 s3Client,
                 testResultTable,
+                browser,
               }),
             ),
           ),
@@ -427,7 +518,7 @@ export async function ingestStorybook(
         await screenshotTestRepo.save(screenshotTest)
       } finally {
         log.debug("Shutting down local server")
-        server.close()
+        await new Promise<void>((resolve) => server.close(() => resolve()))
       }
     } finally {
       log.debug("Closing WebdriverIO browser session")
@@ -458,12 +549,42 @@ export async function ingestStorybook(
 export async function releaseLock(taskQueueId: number): Promise<void> {
   const client = await pool.connect()
   try {
+    log.debug(`Releasing lock for task ${taskQueueId}`)
     await client.query("UPDATE task_queue SET locked_at = NULL, locked_by = NULL WHERE id = $1", [
       taskQueueId,
     ])
   } finally {
     client.release()
   }
+}
+
+async function downloadWithTimeout(
+  readable: Readable,
+  destPath: string,
+  timeoutMs = 30 * 1000,
+): Promise<void> {
+  const writeStream = fs.createWriteStream(destPath)
+  const cleanup = () => {
+    readable.destroy()
+    writeStream.destroy()
+  }
+
+  await Promise.race([
+    new Promise<void>((resolve, reject) => {
+      const stream = readable.pipe(writeStream)
+      stream.on("finish", () => resolve())
+      stream.on("error", (err: Error) => {
+        cleanup()
+        reject(err)
+      })
+    }),
+    new Promise<never>((_, reject) => {
+      setTimeout(() => {
+        cleanup()
+        reject(new Error(`Download timed out after ${timeoutMs}ms`))
+      }, timeoutMs)
+    }),
+  ])
 }
 
 main().catch((err: unknown) => {
