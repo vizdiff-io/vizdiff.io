@@ -20,15 +20,13 @@ export class TestResult {
   @Column({ type: "text", name: "name", nullable: false })
   name!: string
 
-  @Column({ type: "integer", name: "screenshot_test_id" })
-  screenshotTestId!: number
-
   @ManyToOne("ScreenshotTest", "testResults", {
     onDelete: "CASCADE",
     nullable: false,
+    eager: true,
   })
   @JoinColumn({ name: "screenshot_test_id", referencedColumnName: "id" })
-  screenshotTest!: Promise<ScreenshotTest>
+  screenshotTest!: ScreenshotTest
 
   @Column({ type: "text", name: "story_id", nullable: false })
   storyId!: string
