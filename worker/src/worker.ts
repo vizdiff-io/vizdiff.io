@@ -11,6 +11,7 @@ import pg from "pg"
 import createPgSubscriber from "pg-listen"
 import { ScreenshotTest, TestResult } from "shared"
 import { extract } from "tar"
+import { Not, In } from "typeorm"
 import { remote } from "webdriverio"
 
 import { Database } from "./database"
@@ -370,6 +371,39 @@ export async function ingestStorybook(
   const screenshotTest = await screenshotTestRepo.findOneBy({ id: screenshotTestId })
   if (!screenshotTest) {
     throw new Error(`Screenshot test not found: ${screenshotTestId}`)
+  }
+
+  // Clean up previous test results for the same commit/branch
+  if (screenshotTest.commitSha && screenshotTest.branch) {
+    log.info(`Cleaning up previous test results for the same commit/branch if they exist`)
+
+    // Use a transaction to ensure atomicity
+    await db.transaction(async (transactionalEntityManager) => {
+      const testResultRepo = transactionalEntityManager.getRepository(TestResult)
+      const screenshotTestRepoTx = transactionalEntityManager.getRepository(ScreenshotTest)
+
+      // Find previous screenshot tests with the same commit and branch
+      const previousTests = await screenshotTestRepoTx.find({
+        where: {
+          commitSha: screenshotTest.commitSha,
+          branch: screenshotTest.branch,
+          project: { id: screenshotTest.project.id },
+          id: Not(screenshotTest.id), // Exclude current test
+        },
+      })
+
+      // Delete test results for these previous tests
+      if (previousTests.length > 0) {
+        const previousTestIds = previousTests.map((test) => test.id)
+        const deleteResult = await testResultRepo.delete({
+          screenshotTest: { id: In(previousTestIds) },
+        })
+
+        log.info(
+          `Deleted ${deleteResult.affected ?? 0} test results from ${previousTests.length} previous test runs for the same commit`,
+        )
+      }
+    })
   }
 
   // Initialize S3 client
