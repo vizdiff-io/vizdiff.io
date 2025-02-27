@@ -17,6 +17,9 @@
  * - PostgreSQL notification system
  */
 
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment */
+// These eslint-disable directives are used because we're mocking complex database types for testing
+
 import "reflect-metadata"
 import { S3Client, GetObjectCommand, type S3ClientResolvedConfig } from "@aws-sdk/client-s3"
 import type { MiddlewareStack } from "@aws-sdk/types"
@@ -29,10 +32,7 @@ import { expect, describe, it, afterAll, beforeEach, vi, afterEach } from "vites
 
 import { Database } from "./database"
 import { log } from "./log"
-import { ingestStorybook, processTask, shutdown } from "./worker"
-
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-explicit-any */
+import { ingestStorybook, processTask, shutdown, sweepStuckBuilds } from "./worker"
 
 // Mock function declarations - these track calls to key operations
 const mockSend = vi.fn()
@@ -479,6 +479,110 @@ describe("worker", () => {
 
       // Verify no test results were created since we couldn't get the stories list
       expect(mockTestResultSave).not.toHaveBeenCalled()
+    })
+  })
+
+  // Add a new test case for sweepStuckBuilds
+  describe("sweepStuckBuilds", () => {
+    // These mocks are explicitly typed with any to avoid TypeScript errors
+    // when mocking complex database interactions for tests
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    let mockGetMany: any
+    let mockSave: any
+    /* eslint-enable @typescript-eslint/no-explicit-any */
+
+    beforeEach(() => {
+      // Clear mocks
+      vi.clearAllMocks()
+
+      // Create mocks we can control in tests
+      mockGetMany = vi.fn()
+      mockSave = vi.fn()
+
+      // Mock the database with a structure that matches our usage
+      /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument */
+      vi.mocked(Database).mockResolvedValue({
+        getRepository: () => ({
+          createQueryBuilder: () => ({
+            where: () => ({
+              andWhere: () => ({
+                getMany: mockGetMany,
+              }),
+            }),
+          }),
+          save: mockSave,
+        }),
+      } as any)
+      /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument */
+    })
+
+    it("should update stuck builds to failed status", async () => {
+      // Setup mock data
+      const threeHoursAgo = new Date()
+      threeHoursAgo.setHours(threeHoursAgo.getHours() - 3)
+
+      const stuckRunningBuild = {
+        id: 1,
+        status: "running",
+        updatedAt: threeHoursAgo,
+      }
+
+      const stuckPendingBuild = {
+        id: 2,
+        status: "pending",
+        updatedAt: threeHoursAgo,
+      }
+
+      // Mock responses for running and pending builds
+      /* eslint-disable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
+      mockGetMany.mockResolvedValueOnce([stuckRunningBuild])
+      mockGetMany.mockResolvedValueOnce([stuckPendingBuild])
+      /* eslint-enable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
+
+      // Run the function
+      const count = await sweepStuckBuilds()
+
+      // Verify the results
+      expect(count).toBe(2)
+
+      expect(mockSave).toHaveBeenCalledTimes(2)
+      expect(mockSave).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 1,
+          status: "failed",
+        }),
+      )
+      expect(mockSave).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 2,
+          status: "failed",
+        }),
+      )
+    })
+
+    it("should not update any builds if none are stuck", async () => {
+      // Mock empty results
+      /* eslint-disable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
+      mockGetMany.mockResolvedValueOnce([])
+      mockGetMany.mockResolvedValueOnce([])
+
+      // Run the function
+      const count = await sweepStuckBuilds()
+
+      // Verify results
+      expect(count).toBe(0)
+      expect(mockSave).not.toHaveBeenCalled()
+      /* eslint-enable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
+    })
+
+    it("should handle errors properly", async () => {
+      // Mock error
+      /* eslint-disable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
+      mockGetMany.mockRejectedValueOnce(new Error("Database error"))
+      /* eslint-enable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
+
+      // Verify the function throws
+      await expect(sweepStuckBuilds()).rejects.toThrow("Database error")
     })
   })
 })

@@ -58,6 +58,10 @@ const RETRY_INTERVAL_MS = 1000 * 15
 const LOCK_TIMEOUT_MINUTES = 60
 const MAX_RETRY_COUNT = 5 // Maximum number of retries before giving up
 const MAX_BACKOFF_MS = 1000 * 60 * 30 // 30 minutes max backoff
+// Consider a build stuck if it's been running for more than this amount of time
+const STUCK_RUNNING_THRESHOLD_MINUTES = 120 // 2 hours
+// Consider a build stuck if it's been pending for more than this amount of time
+const STUCK_PENDING_THRESHOLD_MINUTES = 240 // 4 hours
 
 // Postgres connection pool, used for raw SQL queries such as acquiring locks
 const pool = new pg.Pool({
@@ -123,8 +127,21 @@ export function pollForNewTasks(): void {
   latestTaskQueueId()
     .then((taskQueueId) => {
       if (taskQueueId == undefined) {
-        log.trace(`No new tasks, delaying poll for ${POLL_INTERVAL_MS}ms`)
-        setTimeout(() => pollForNewTasks(), POLL_INTERVAL_MS)
+        log.trace(`No new tasks, checking for stuck builds...`)
+        // No tasks, so check for stuck builds
+        sweepStuckBuilds()
+          .then((stuckBuildsCount) => {
+            if (stuckBuildsCount > 0) {
+              log.info(`Found and updated ${stuckBuildsCount} stuck builds`)
+            } else {
+              log.trace(`No stuck builds found`)
+            }
+            setTimeout(() => pollForNewTasks(), POLL_INTERVAL_MS)
+          })
+          .catch((err: unknown) => {
+            log.error(`Error sweeping for stuck builds: ${err}`)
+            setTimeout(() => pollForNewTasks(), POLL_INTERVAL_MS)
+          })
         return
       }
 
@@ -656,6 +673,75 @@ async function downloadWithTimeout(
       }, timeoutMs)
     }),
   ])
+}
+
+/**
+ * Checks for screenshot tests that have been in "running" or "pending" status for too long
+ * and marks them as "failed".
+ *
+ * @returns Promise with the number of stuck builds that were updated
+ */
+export async function sweepStuckBuilds(): Promise<number> {
+  log.trace(
+    `Sweeping for stuck builds (running threshold: ${STUCK_RUNNING_THRESHOLD_MINUTES} minutes, pending threshold: ${STUCK_PENDING_THRESHOLD_MINUTES} minutes)`,
+  )
+
+  try {
+    const db = await Database()
+    const screenshotTestRepo = db.getRepository(ScreenshotTest)
+
+    // Calculate threshold dates for running and pending builds
+    const runningThresholdDate = new Date()
+    runningThresholdDate.setMinutes(
+      runningThresholdDate.getMinutes() - STUCK_RUNNING_THRESHOLD_MINUTES,
+    )
+
+    const pendingThresholdDate = new Date()
+    pendingThresholdDate.setMinutes(
+      pendingThresholdDate.getMinutes() - STUCK_PENDING_THRESHOLD_MINUTES,
+    )
+
+    // Find stuck "running" builds
+    const stuckRunningBuilds = await screenshotTestRepo
+      .createQueryBuilder("test")
+      .where("test.status = :status", { status: "running" })
+      .andWhere("test.updated_at < :thresholdDate", { thresholdDate: runningThresholdDate })
+      .getMany()
+
+    // Find stuck "pending" builds
+    const stuckPendingBuilds = await screenshotTestRepo
+      .createQueryBuilder("test")
+      .where("test.status = :status", { status: "pending" })
+      .andWhere("test.updated_at < :thresholdDate", { thresholdDate: pendingThresholdDate })
+      .getMany()
+
+    // Combine both lists
+    const stuckBuilds = [...stuckRunningBuilds, ...stuckPendingBuilds]
+
+    if (stuckBuilds.length === 0) {
+      return 0
+    }
+
+    // Update stuck builds to "failed" status
+    log.info(
+      `Found ${stuckBuilds.length} stuck builds to update (${stuckRunningBuilds.length} running, ${stuckPendingBuilds.length} pending)`,
+    )
+
+    for (const build of stuckBuilds) {
+      const runningDurationHours = (Date.now() - build.updatedAt.getTime()) / (1000 * 60 * 60)
+      log.warn(
+        `Marking stuck build ${build.id} as failed (stuck in "${build.status}" for ${runningDurationHours.toFixed(1)} hours)`,
+      )
+
+      build.status = "failed"
+      await screenshotTestRepo.save(build)
+    }
+
+    return stuckBuilds.length
+  } catch (error) {
+    log.error(`Error while sweeping for stuck builds: ${error}`)
+    throw error
+  }
 }
 
 main().catch((err: unknown) => {
