@@ -1,6 +1,14 @@
 import CircleIcon from "@mui/icons-material/Circle"
 import ContentCopyIcon from "@mui/icons-material/ContentCopy"
-import { Box, Typography, Paper, useTheme, IconButton, Tooltip } from "@mui/material"
+import {
+  Box,
+  Typography,
+  Paper,
+  useTheme,
+  IconButton,
+  Tooltip,
+  Link as MuiLink,
+} from "@mui/material"
 import { formatDistanceToNow } from "date-fns"
 import Head from "next/head"
 import Link from "next/link"
@@ -42,6 +50,23 @@ export default function Project(): JSX.Element {
         setTimeout(() => setCopyTooltip("Copy"), 2000)
       }
     }
+  }
+
+  // Helper function to get the GitHub URL for a commit
+  const getCommitUrl = (commitSha: string): string => {
+    const repoUrl = project?.githubRepoUrl ?? ""
+    if (!repoUrl || !commitSha) {
+      return "#"
+    }
+
+    // Extract owner and repo name from GitHub URL
+    const match = /github\.com\/([^/]+)\/([^/]+)/.exec(repoUrl)
+    if (!match) {
+      return "#"
+    }
+
+    const [, owner, repo] = match
+    return `https://github.com/${owner}/${repo}/commit/${commitSha}`
   }
 
   return (
@@ -157,24 +182,35 @@ export default function Project(): JSX.Element {
                       </Box>
                       <Typography variant="body2">
                         Created {formatDistanceToNow(build.initiatedStampSec * 1000)} ago •{" "}
-                        {build.commitSha} on {build.branch}
+                        {build.commitSha && (
+                          <Tooltip title={build.commitSha}>
+                            <MuiLink
+                              href={getCommitUrl(build.commitSha)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()} // Prevent triggering the parent Link
+                              sx={{
+                                fontFamily: "monospace",
+                                textDecoration: "none",
+                                "&:hover": { textDecoration: "underline" },
+                              }}
+                            >
+                              {build.commitSha.substring(0, 7)}
+                            </MuiLink>
+                          </Tooltip>
+                        )}{" "}
+                        on {build.branch}
                       </Typography>
                     </Box>
                     <Box sx={{ display: "flex", gap: 4, ml: 2 }}>
                       <Box sx={{ textAlign: "center" }}>
-                        <Typography variant="h6">{build.components ?? "…"}</Typography>
+                        <Typography variant="h6">{build.stories ?? 0}</Typography>
                         <Typography variant="caption">
-                          Component{plural(build.components ?? 0)}
+                          {build.stories === 1 ? "Test" : "Tests"}
                         </Typography>
                       </Box>
                       <Box sx={{ textAlign: "center" }}>
-                        <Typography variant="h6">{build.stories ?? "…"}</Typography>
-                        <Typography variant="caption">
-                          {build.stories === 1 ? "Story" : "Stories"}
-                        </Typography>
-                      </Box>
-                      <Box sx={{ textAlign: "center" }}>
-                        <Typography variant="h6">{build.changes ?? "…"}</Typography>
+                        <Typography variant="h6">{build.changes ?? 0}</Typography>
                         <Typography variant="caption">
                           Change{plural(build.changes ?? 0)}
                         </Typography>

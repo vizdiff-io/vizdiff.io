@@ -22,6 +22,96 @@ type CreateProjectBody = {
   githubRepoUrl: string
 }
 
+/**
+ * Fetches a project with its associated statistics
+ * @param db Database connection
+ * @param projectId Project ID to fetch stats for
+ * @param userId User ID for permission check
+ * @returns The project with its stats or null if not found
+ */
+async function getProjectWithStats(
+  db: Awaited<ReturnType<typeof Database>>,
+  projectId: number,
+  userId: number,
+): Promise<ProjectWithStats | null> {
+  const projectTable = db.getRepository(Project)
+
+  const projectsWithStats = await projectTable
+    .createQueryBuilder("project")
+    .leftJoin(
+      (qb) =>
+        qb
+          .select([
+            "st.projectId as pid",
+            "st.id as sid",
+            "st.createdAt as screatedAt",
+            "COALESCE(tc.testcount, 0) as tcount",
+          ])
+          .from(
+            (subQuery) =>
+              subQuery
+                .select([
+                  "screenshot_tests.id as id",
+                  "screenshot_tests.project_id as projectId",
+                  "screenshot_tests.created_at as createdAt",
+                  "ROW_NUMBER() OVER (PARTITION BY screenshot_tests.project_id ORDER BY screenshot_tests.created_at DESC) as rn",
+                ])
+                .from("screenshot_tests", "screenshot_tests")
+                .orderBy("screenshot_tests.created_at", "DESC"),
+            "st",
+          )
+          .leftJoin(
+            (subQuery) =>
+              subQuery
+                .select([
+                  "tr.screenshot_test_id as screenshotTestId",
+                  "COUNT(DISTINCT tr.name) as testcount",
+                ])
+                .from("test_results", "tr")
+                .groupBy("tr.screenshot_test_id"),
+            "tc",
+            "tc.screenshotTestId = st.id",
+          )
+          .where("st.rn = 1"),
+      "latest_test",
+      "latest_test.pid = project.id",
+    )
+    .leftJoin("project.screenshotTests", "screenshotTest")
+    .select([
+      "project.id",
+      "project.name",
+      "project.githubRepoUrl",
+      "project.token",
+      "project.createdAt",
+      "latest_test.screatedAt as lastbuildstamp",
+      "COUNT(DISTINCT screenshotTest.id) as buildcount",
+      "latest_test.tcount as testcount",
+    ])
+    .where("project.id = :projectId AND project.user = :userId", { projectId, userId })
+    .groupBy("project.id")
+    .addGroupBy("latest_test.screatedAt")
+    .addGroupBy("latest_test.tcount")
+    .getRawOne<ProjectWithStats>()
+
+  return projectsWithStats ?? null
+}
+
+/**
+ * Convert a ProjectWithStats to a ProjectResponse
+ */
+function convertToProjectResponse(project: ProjectWithStats): ProjectResponse {
+  return {
+    id: project.project_id,
+    name: project.project_name,
+    githubRepoUrl: project.project_github_repo_url,
+    token: project.project_token,
+    createdStampSec: project.project_created_at.getTime() / 1000,
+    lastBuildStampSec: project.lastbuildstamp ? project.lastbuildstamp.getTime() / 1000 : 0,
+    builds: parseInt(project.buildcount) || 0,
+    tests: parseInt(project.testcount) || 0,
+  }
+}
+
 export const create: RequestHandler = async (req, res) => {
   const { user } = res.locals
   const body = req.body as Partial<CreateProjectBody>
@@ -149,16 +239,7 @@ export const list: RequestHandler = async (_req, res) => {
     .addGroupBy("latest_test.tcount")
     .getRawMany<ProjectWithStats>()
 
-  const responses: ProjectResponse[] = projectsWithStats.map((project) => ({
-    id: project.project_id,
-    name: project.project_name,
-    githubRepoUrl: project.project_github_repo_url,
-    token: project.project_token,
-    createdStampSec: project.project_created_at.getTime() / 1000,
-    lastBuildStampSec: project.lastbuildstamp ? project.lastbuildstamp.getTime() / 1000 : 0,
-    builds: parseInt(project.buildcount) || 0,
-    tests: parseInt(project.testcount) || 0,
-  }))
+  const responses: ProjectResponse[] = projectsWithStats.map(convertToProjectResponse)
   res.json(responses)
 }
 
@@ -171,24 +252,14 @@ export const get: RequestHandler = async (req, res) => {
   }
 
   const db = await Database()
-  const projectTable = db.getRepository(Project)
-  const project = await projectTable.findOneBy({ id, user: { id: user.id } })
+  const projectWithStats = await getProjectWithStats(db, id, user.id)
 
-  if (!project) {
+  if (!projectWithStats) {
     res.status(404).json({ error: "Project not found" })
     return
   }
 
-  const response: ProjectResponse = {
-    id: project.id,
-    name: project.name,
-    githubRepoUrl: project.githubRepoUrl,
-    token: project.token,
-    createdStampSec: project.createdAt.getTime() / 1000,
-    lastBuildStampSec: 0,
-    builds: 0,
-    tests: 0,
-  }
+  const response = convertToProjectResponse(projectWithStats)
   res.json(response)
 }
 
@@ -212,16 +283,26 @@ export const resetToken: RequestHandler = async (req, res) => {
   project.token = generateProjectToken()
   await projectTable.save(project)
 
-  const response: ProjectResponse = {
-    id: project.id,
-    name: project.name,
-    githubRepoUrl: project.githubRepoUrl,
-    token: project.token,
-    createdStampSec: project.createdAt.getTime() / 1000,
-    lastBuildStampSec: 0,
-    builds: 0,
-    tests: 0,
+  // Get the updated project with stats
+  const projectWithStats = await getProjectWithStats(db, id, user.id)
+
+  if (!projectWithStats) {
+    // Should never happen, but handle it gracefully
+    const basicResponse: ProjectResponse = {
+      id: project.id,
+      name: project.name,
+      githubRepoUrl: project.githubRepoUrl,
+      token: project.token,
+      createdStampSec: project.createdAt.getTime() / 1000,
+      lastBuildStampSec: 0,
+      builds: 0,
+      tests: 0,
+    }
+    res.json(basicResponse)
+    return
   }
+
+  const response = convertToProjectResponse(projectWithStats)
   res.json(response)
 }
 
