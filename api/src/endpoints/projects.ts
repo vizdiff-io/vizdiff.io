@@ -45,7 +45,7 @@ async function getProjectWithStats(
             "st.projectId as pid",
             "MAX(st.id) as sid",
             "MAX(st.createdAt) as screatedAt",
-            "COALESCE(SUM(tc.testcount), 0) as tcount",
+            "MAX(tc.testcount) as tcount", // Use MAX instead of SUM to get only the latest test count
             "COUNT(DISTINCT st.buildNumber) as buildcount",
           ])
           .from(
@@ -56,9 +56,12 @@ async function getProjectWithStats(
                   "screenshot_tests.project_id as projectId",
                   "screenshot_tests.created_at as createdAt",
                   "screenshot_tests.build_number as buildNumber",
-                  "ROW_NUMBER() OVER (PARTITION BY screenshot_tests.project_id, screenshot_tests.build_number ORDER BY screenshot_tests.created_at DESC) as rn",
+                  "ROW_NUMBER() OVER (PARTITION BY screenshot_tests.project_id ORDER BY screenshot_tests.created_at DESC) as rn",
                 ])
                 .from("screenshot_tests", "screenshot_tests")
+                .where(
+                  "screenshot_tests.status IN ('completed', 'no_changes', 'unapproved', 'approved')",
+                )
                 .orderBy("screenshot_tests.created_at", "DESC"),
             "st",
           )
@@ -188,10 +191,9 @@ export const list: RequestHandler = async (_req, res) => {
   const projectTable = db.getRepository(Project)
 
   // This query gets project stats by:
-  // 1. Finding the most recent ScreenshotTest for each project using ROW_NUMBER()
-  // 2. Pre-aggregating test counts to avoid correlated subqueries
-  // 3. Counting total number of builds across all time
-  // Uses window functions and derived tables for better performance on large datasets
+  // 1. Finding the most recent ScreenshotTest for each project
+  // 2. Only counting tests from that build (not summing across all builds)
+  // 3. Using window functions for better performance
   const projectsWithStats = await projectTable
     .createQueryBuilder("project")
     .leftJoin(
@@ -201,7 +203,7 @@ export const list: RequestHandler = async (_req, res) => {
             "st.projectId as pid",
             "MAX(st.id) as sid",
             "MAX(st.createdAt) as screatedAt",
-            "COALESCE(SUM(tc.testcount), 0) as tcount",
+            "MAX(tc.testcount) as tcount", // Use MAX instead of SUM to get count only from the latest build
             "COUNT(DISTINCT st.buildNumber) as buildcount",
           ])
           .from(
@@ -212,9 +214,12 @@ export const list: RequestHandler = async (_req, res) => {
                   "screenshot_tests.project_id as projectId",
                   "screenshot_tests.created_at as createdAt",
                   "screenshot_tests.build_number as buildNumber",
-                  "ROW_NUMBER() OVER (PARTITION BY screenshot_tests.project_id, screenshot_tests.build_number ORDER BY screenshot_tests.created_at DESC) as rn",
+                  "ROW_NUMBER() OVER (PARTITION BY screenshot_tests.project_id ORDER BY screenshot_tests.created_at DESC) as rn",
                 ])
                 .from("screenshot_tests", "screenshot_tests")
+                .where(
+                  "screenshot_tests.status IN ('completed', 'no_changes', 'unapproved', 'approved')",
+                )
                 .orderBy("screenshot_tests.created_at", "DESC"),
             "st",
           )
