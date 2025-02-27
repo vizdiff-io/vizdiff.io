@@ -1,6 +1,11 @@
 import { Project, ScreenshotTest, TestResult } from "shared"
 
-import type { ScreenshotTestResponse, TestResponse, TestResultResponse } from "../apiTypes"
+import type {
+  ScreenshotTestResponse,
+  ScreenshotTestSummaryResponse,
+  TestResponse,
+  TestResultResponse,
+} from "../apiTypes"
 import { Database } from "../database"
 import { getParamInt } from "../http"
 import { log } from "../log"
@@ -18,6 +23,7 @@ type ScreenshotTestWithStats = {
   screenshot_test_status: string
   screenshot_test_tag: string
   testcount: string
+  changecount: string
 }
 
 export const list: RequestHandler = async (req, res) => {
@@ -46,6 +52,7 @@ export const list: RequestHandler = async (req, res) => {
           .select([
             "tr.screenshot_test_id as screenshotTestId",
             "COUNT(DISTINCT tr.name) as testcount",
+            "SUM(CASE WHEN tr.change_status = 'changed' OR tr.change_status = 'new' THEN 1 ELSE 0 END) as changecount",
           ])
           .from("test_results", "tr")
           .groupBy("tr.screenshot_test_id"),
@@ -64,12 +71,13 @@ export const list: RequestHandler = async (req, res) => {
       "screenshot_test.status",
       "screenshot_test.tag",
       "COALESCE(test_counts.testcount, '0') as testcount",
+      "COALESCE(test_counts.changecount, '0') as changecount",
     ])
     .where("screenshot_test.project = :projectId", { projectId })
     .orderBy("screenshot_test.createdAt", "DESC")
     .getRawMany<ScreenshotTestWithStats>()
 
-  const responses: ScreenshotTestResponse[] = screenshotTestsWithStats.map((test) => ({
+  const responses: ScreenshotTestSummaryResponse[] = screenshotTestsWithStats.map((test) => ({
     id: test.screenshot_test_id,
     projectId,
     buildNumber: test.screenshot_test_build_number,
@@ -81,6 +89,8 @@ export const list: RequestHandler = async (req, res) => {
     status: test.screenshot_test_status as ScreenshotTestResponse["status"],
     tag: test.screenshot_test_tag,
     initiatedStampSec: test.screenshot_test_created_at.getTime() / 1000,
+    stories: parseInt(test.testcount) || 0,
+    changes: parseInt(test.changecount) || 0,
   }))
   res.json(responses)
 }
