@@ -17,7 +17,7 @@ export const approveOrDeny: RequestHandler = async (req, res) => {
     res.status(400).json({ error: "Missing status" })
     return
   }
-  if (status !== "approve" && status !== "deny") {
+  if (status !== "approved" && status !== "denied") {
     res.status(400).json({ error: "Invalid status" })
     return
   }
@@ -36,7 +36,7 @@ export const approveOrDeny: RequestHandler = async (req, res) => {
   }
 
   // Update the screenshot test status
-  test.status = status === "approve" ? "approved" : "denied"
+  test.status = status
   await testTable.save(test)
 
   res.json({ success: true })
