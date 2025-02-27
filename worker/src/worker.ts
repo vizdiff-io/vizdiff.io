@@ -56,6 +56,8 @@ const CONN_STRING = `postgres://${POSTGRES_USER}:${POSTGRES_PASS}@${POSTGRES_HOS
 const POLL_INTERVAL_MS = 1000 * 10
 const RETRY_INTERVAL_MS = 1000 * 15
 const LOCK_TIMEOUT_MINUTES = 60
+const MAX_RETRY_COUNT = 5 // Maximum number of retries before giving up
+const MAX_BACKOFF_MS = 1000 * 60 * 30 // 30 minutes max backoff
 
 // Postgres connection pool, used for raw SQL queries such as acquiring locks
 const pool = new pg.Pool({
@@ -71,12 +73,12 @@ const pool = new pg.Pool({
 const subscriber = createPgSubscriber({ connectionString: CONN_STRING })
 // Current task being processed, if any
 let currentTaskId: number | undefined
-// Set of task IDs that have failed recently to prevent rapid retries
-const recentlyFailedTaskIds = new Set<number>()
+// Map of task IDs to their failure count and next retry time
+const failedTasksMap = new Map<number, { retryCount: number; nextRetryTime: number }>()
 
-// Clear failed task IDs after the poll interval to allow retries later
+// Clear failed task ID after it's been retried the maximum number of times or after successful processing
 function clearFailedTaskId(taskId: number): void {
-  recentlyFailedTaskIds.delete(taskId)
+  failedTasksMap.delete(taskId)
 }
 
 async function main() {
@@ -114,61 +116,113 @@ export function pollForNewTasks(): void {
   // Early return if we're already processing a task
   if (currentTaskId != undefined) {
     log.debug("Worker is busy, skipping poll")
-    setTimeout(pollForNewTasks, POLL_INTERVAL_MS)
+    setTimeout(() => pollForNewTasks(), POLL_INTERVAL_MS)
     return
   }
 
   latestTaskQueueId()
     .then((taskQueueId) => {
       if (taskQueueId == undefined) {
-        setTimeout(pollForNewTasks, POLL_INTERVAL_MS)
+        log.trace(`No new tasks, delaying poll for ${POLL_INTERVAL_MS}ms`)
+        setTimeout(() => pollForNewTasks(), POLL_INTERVAL_MS)
         return
       }
 
-      // Skip if this task recently failed
-      if (recentlyFailedTaskIds.has(taskQueueId)) {
-        log.debug(`Skipping recently failed task ${taskQueueId}`)
-        setTimeout(pollForNewTasks, POLL_INTERVAL_MS)
+      // Check if this task has a backoff period
+      const now = Date.now()
+      const failedTask = failedTasksMap.get(taskQueueId)
+
+      // Skip if this task's next retry time hasn't been reached
+      if (failedTask && now < failedTask.nextRetryTime) {
+        const waitTimeSec = Math.round((failedTask.nextRetryTime - now) / 1000)
+        log.debug(`Skipping recently failed task ${taskQueueId}, will retry in ${waitTimeSec}s`)
+
+        // If a task has failed many times but is still in the queue, it might be stuck
+        if (failedTask.retryCount >= 3) {
+          log.warn(
+            `Task ${taskQueueId} has failed ${failedTask.retryCount} times but is still in the queue. Consider manually deleting it.`,
+          )
+        }
+
+        setTimeout(() => pollForNewTasks(), POLL_INTERVAL_MS)
         return
       }
 
       log.info(`Found new task: ${taskQueueId}`)
       startTask(taskQueueId)
+        .then(() => {
+          // Task was processed successfully, immediately check for more tasks
+          // Use process.nextTick to avoid growing the stack too much with synchronous tasks
+          log.debug("Task completed successfully, immediately checking for more tasks")
+          process.nextTick(() => pollForNewTasks())
+        })
         .catch((err: unknown) => {
           log.error(`Error processing task ${taskQueueId}: ${err}`)
-          // Track failed task and schedule cleanup
-          recentlyFailedTaskIds.add(taskQueueId)
-          setTimeout(() => clearFailedTaskId(taskQueueId), RETRY_INTERVAL_MS)
-        })
-        .finally(() => {
-          // Use the configured poll interval to prevent rapid retries
-          setTimeout(pollForNewTasks, POLL_INTERVAL_MS)
+
+          // Update retry count and calculate next retry with exponential backoff
+          const taskFailureInfo = failedTasksMap.get(taskQueueId) ?? {
+            retryCount: 0,
+            nextRetryTime: 0,
+          }
+          taskFailureInfo.retryCount += 1
+
+          if (taskFailureInfo.retryCount > MAX_RETRY_COUNT) {
+            log.error(
+              `Task ${taskQueueId} has failed ${taskFailureInfo.retryCount} times, giving up`,
+            )
+            clearFailedTaskId(taskQueueId)
+          } else {
+            // Calculate exponential backoff: 2^retryCount * base interval, with a maximum cap
+            const backoffMs = Math.min(
+              Math.pow(2, taskFailureInfo.retryCount) * RETRY_INTERVAL_MS,
+              MAX_BACKOFF_MS,
+            )
+            taskFailureInfo.nextRetryTime = now + backoffMs
+            failedTasksMap.set(taskQueueId, taskFailureInfo)
+
+            const backoffSec = Math.round(backoffMs / 1000)
+            log.info(
+              `Task ${taskQueueId} failed ${taskFailureInfo.retryCount} times, will retry in ${backoffSec}s`,
+            )
+          }
+
+          // For failures, use the normal poll interval
+          setTimeout(() => pollForNewTasks(), POLL_INTERVAL_MS)
         })
     })
     .catch((err: unknown) => {
       log.error("Error fetching latest task queue ID:", err)
-      setTimeout(pollForNewTasks, POLL_INTERVAL_MS)
+      setTimeout(() => pollForNewTasks(), POLL_INTERVAL_MS)
     })
 }
 
 export async function startTask(taskQueueId: number): Promise<void> {
-  const task = await fetchTask(taskQueueId)
-  if (!task) {
-    log.warn(`Not starting task ${taskQueueId}: fetchTask() failed`)
-    return
-  }
-
-  log.debug(`Fetched task ${taskQueueId} [${task.task_type}]`)
-
+  // Check if we're already processing a task
   if (currentTaskId != undefined) {
     log.info(`Cannot start task ${taskQueueId}: worker is already processing task ${currentTaskId}`)
     return
   }
-
   currentTaskId = taskQueueId
-  await processTask(task.task_type, task.screenshot_test_id, task.data).finally(async () => {
+
+  try {
+    const task = await fetchTask(taskQueueId)
+    if (!task) {
+      log.warn(`Not starting task ${taskQueueId}: fetchTask() failed`)
+      currentTaskId = undefined
+      return
+    }
+
+    log.debug(`Fetched task ${taskQueueId} [${task.task_type}]`)
+    await processTask(task.task_type, task.screenshot_test_id, task.data)
+
+    // If we got here, the task was successful, so clear it from the failed tasks map
+    clearFailedTaskId(taskQueueId)
+  } catch (error) {
+    log.error(`Error processing task ${taskQueueId}:`, error)
+    throw error
+  } finally {
     currentTaskId = undefined
-  })
+  }
 }
 
 export async function latestTaskQueueId(): Promise<number | undefined> {
@@ -256,16 +310,22 @@ export async function processTask(
           )
         }
         await ingestStorybook(projectId, screenshotTestId, uploadId)
+
+        // Task completed successfully, delete it from the queue
+        if (currentTaskId) {
+          await deleteTask(currentTaskId)
+        }
         break
       }
       default:
         throw new Error(`Unknown task type: ${taskType}`)
     }
-  } finally {
-    // Make sure to release the lock even if there's an error
+  } catch (error) {
+    // On error, release the lock so it can be retried with backoff
     if (currentTaskId) {
       await releaseLock(currentTaskId)
     }
+    throw error
   }
 }
 
@@ -311,23 +371,20 @@ export async function ingestStorybook(
   await screenshotTestRepo.save(screenshotTest)
 
   try {
-    // Download the tarball from S3
-    log.info(`Downloading storybook build from S3: ${key}`)
+    // Initialize the tarball download from S3
+    const tarballPath = path.join(tmpDir, "storybook.tar.gz")
+    log.info(`Downloading storybook build from S3 ${key} -> ${tarballPath}`)
     const getObjectCommand = new GetObjectCommand({ Bucket: bucket, Key: key })
     const response = await s3Client.send(getObjectCommand)
     if (!response.Body) {
       throw new Error("Empty response body from S3")
     }
-    log.debug(`Successfully downloaded storybook build from S3`)
-
-    // Save the tarball to disk
-    const tarballPath = path.join(tmpDir, "storybook.tar.gz")
-    log.debug(`Saving tarball to: ${tarballPath}`)
     if (!(response.Body instanceof Readable)) {
       throw new Error(`Unexpected response.Body type ${typeof response.Body}`)
     }
-    await downloadWithTimeout(response.Body, tarballPath)
-    log.debug(`Successfully saved tarball to disk`)
+    // Download the tarball to a temporary file
+    await downloadWithTimeout(response.Body, tarballPath, 30 * 1000)
+    log.debug(`Successfully downloaded storybook build from S3`)
 
     // Extract the tarball
     log.info(`Extracting storybook build to: ${tmpDir}`)
@@ -409,6 +466,7 @@ export async function ingestStorybook(
 
       try {
         // Navigate to the Storybook iframe and wait for stories to load
+        const timeoutMs = 10 * 1000 // 10 seconds
         log.info("Waiting for Storybook to load stories")
         await browser.url(`http://localhost:${port}/iframe.html`)
         await browser.waitUntil(
@@ -429,8 +487,8 @@ export async function ingestStorybook(
             })
           },
           {
-            timeout: 10000,
-            timeoutMsg: "Storybook failed to load stories within 10s",
+            timeout: timeoutMs,
+            timeoutMsg: `Storybook failed to load stories within ${timeoutMs / 1000}s`,
             interval: 100,
           },
         )
@@ -469,7 +527,7 @@ export async function ingestStorybook(
           log.info(`Fetching base test results for commit ${screenshotTest.baseCommitSha}`)
           const baseTests = await testResultTable
             .createQueryBuilder("result")
-            .innerJoin(ScreenshotTest, "test", "result.screenshotTestId = test.id")
+            .innerJoin(ScreenshotTest, "test", "result.screenshot_test_id = test.id")
             .where("test.commitSha = :commitSha", { commitSha: screenshotTest.baseCommitSha })
             .getMany()
 
@@ -558,10 +616,23 @@ export async function releaseLock(taskQueueId: number): Promise<void> {
   }
 }
 
+/**
+ * Delete a task from the queue after it's been successfully processed.
+ */
+export async function deleteTask(taskQueueId: number): Promise<void> {
+  const client = await pool.connect()
+  try {
+    log.debug(`Deleting task ${taskQueueId} from queue`)
+    await client.query("DELETE FROM task_queue WHERE id = $1", [taskQueueId])
+  } finally {
+    client.release()
+  }
+}
+
 async function downloadWithTimeout(
   readable: Readable,
   destPath: string,
-  timeoutMs = 30 * 1000,
+  timeoutMs: number,
 ): Promise<void> {
   const writeStream = fs.createWriteStream(destPath)
   const cleanup = () => {
