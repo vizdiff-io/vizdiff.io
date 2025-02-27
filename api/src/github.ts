@@ -15,7 +15,10 @@ interface GitHubAccount {
   type: "User" | "Organization"
 }
 
-export async function syncUserInstallations(user: User): Promise<GitHubInstallation[]> {
+export async function syncUserInstallations(
+  user: User,
+  specificInstallationId?: number,
+): Promise<GitHubInstallation[]> {
   const db = await Database()
   const octokit = new Octokit({ auth: user.githubAccessToken })
   const installations = await octokit.apps.listInstallationsForAuthenticatedUser()
@@ -25,6 +28,14 @@ export async function syncUserInstallations(user: User): Promise<GitHubInstallat
     (inst): inst is Installation =>
       inst.app_id === parseInt(GITHUB_APP_ID, 10) && inst.account != null,
   )
+
+  // If a specific installation ID was provided but not found in the list, log a warning
+  if (
+    specificInstallationId &&
+    !ourInstallations.some((inst) => inst.id === specificInstallationId)
+  ) {
+    log.warn(`Could not find GitHub installation ${specificInstallationId} for user ${user.id}`)
+  }
 
   const results: GitHubInstallation[] = []
   for (const inst of ourInstallations) {

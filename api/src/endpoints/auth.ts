@@ -39,6 +39,7 @@ if (!APP_URL) {
 
 export async function githubAppInstalled(req: DefaultRequest, res: DefaultResponse): Promise<void> {
   const setupAction = requiredQueryString("setup_action", req)
+  const installationId = requiredQueryString("installation_id", req)
 
   // Only proceed if this was a new installation
   if (setupAction !== "install") {
@@ -46,8 +47,10 @@ export async function githubAppInstalled(req: DefaultRequest, res: DefaultRespon
     return
   }
 
-  // Start the OAuth flow to get user details
-  const state = encodeURIComponent(`redirect=${encodeURIComponent(`${APP_URL}/projects`)}`)
+  // Start the OAuth flow to get user details, passing the installation_id
+  const state = encodeURIComponent(
+    `redirect=${encodeURIComponent(`${APP_URL}/projects`)}&installation_id=${installationId}`,
+  )
   const callbackUri = encodeURIComponent(`${APP_URL}/api/auth/github/callback`)
   const scope = "read:user,user:email"
   const authUrl = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&redirect_uri=${callbackUri}&scope=${scope}&state=${state}`
@@ -58,6 +61,7 @@ export async function githubCallback(req: DefaultRequest, res: DefaultResponse):
   const code = requiredQueryString("code", req)
 
   // Handle both direct app installation callback and OAuth callback
+  let installationId: number | undefined
   let finalRedirect: string | undefined
 
   // If we have state, parse it (OAuth flow)
@@ -65,6 +69,18 @@ export async function githubCallback(req: DefaultRequest, res: DefaultResponse):
   if (state) {
     const stateValues = parseSimpleQueryString(state)
     finalRedirect = stateValues.get("redirect")
+    const stateInstallId = stateValues.get("installation_id")
+    if (stateInstallId) {
+      installationId = parseInt(stateInstallId, 10)
+    }
+  }
+
+  // If we have installation_id in query params (direct app installation), use that
+  const queryInstallId = req.query.installation_id as string | undefined
+  if (queryInstallId) {
+    installationId = parseInt(queryInstallId, 10)
+    // Default redirect for app installation flow
+    finalRedirect = finalRedirect ?? `${APP_URL}/projects`
   }
 
   if (!finalRedirect) {
@@ -127,10 +143,11 @@ export async function githubCallback(req: DefaultRequest, res: DefaultResponse):
   user.githubUsername = ghUser.login
   user.githubProfile = JSON.stringify(ghUser)
   user.githubAccessToken = ghTokenRes.access_token
+
   user = await userTable.save(user)
 
-  // Sync GitHub App installations for this user
-  await syncUserInstallations(user)
+  // Sync GitHub App installations for this user, passing the installation ID if available
+  await syncUserInstallations(user, installationId)
 
   // Generate a JWT
   const token = jwt.sign({ sub: user.id }, JWT_SECRET, { expiresIn: "8h" })
