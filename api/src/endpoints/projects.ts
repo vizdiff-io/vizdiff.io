@@ -43,9 +43,10 @@ async function getProjectWithStats(
         qb
           .select([
             "st.projectId as pid",
-            "st.id as sid",
-            "st.createdAt as screatedAt",
-            "COALESCE(tc.testcount, 0) as tcount",
+            "MAX(st.id) as sid",
+            "MAX(st.createdAt) as screatedAt",
+            "COALESCE(SUM(tc.testcount), 0) as tcount",
+            "COUNT(DISTINCT st.buildNumber) as buildcount",
           ])
           .from(
             (subQuery) =>
@@ -54,7 +55,8 @@ async function getProjectWithStats(
                   "screenshot_tests.id as id",
                   "screenshot_tests.project_id as projectId",
                   "screenshot_tests.created_at as createdAt",
-                  "ROW_NUMBER() OVER (PARTITION BY screenshot_tests.project_id ORDER BY screenshot_tests.created_at DESC) as rn",
+                  "screenshot_tests.build_number as buildNumber",
+                  "ROW_NUMBER() OVER (PARTITION BY screenshot_tests.project_id, screenshot_tests.build_number ORDER BY screenshot_tests.created_at DESC) as rn",
                 ])
                 .from("screenshot_tests", "screenshot_tests")
                 .orderBy("screenshot_tests.created_at", "DESC"),
@@ -64,19 +66,30 @@ async function getProjectWithStats(
             (subQuery) =>
               subQuery
                 .select([
-                  "tr.screenshot_test_id as screenshotTestId",
-                  "COUNT(DISTINCT tr.name) as testcount",
+                  "tr.screenshotTestId as screenshotTestId",
+                  "COUNT(DISTINCT tr.testName) as testcount",
                 ])
-                .from("test_results", "tr")
-                .groupBy("tr.screenshot_test_id"),
+                .from(
+                  (innerSubQuery) =>
+                    innerSubQuery
+                      .select([
+                        "tr2.screenshot_test_id as screenshotTestId",
+                        "tr2.name as testName",
+                        "ROW_NUMBER() OVER (PARTITION BY tr2.screenshot_test_id, tr2.name ORDER BY tr2.id DESC) as rn",
+                      ])
+                      .from("test_results", "tr2"),
+                  "tr",
+                )
+                .where("tr.rn = 1")
+                .groupBy("tr.screenshotTestId"),
             "tc",
             "tc.screenshotTestId = st.id",
           )
-          .where("st.rn = 1"),
+          .where("st.rn = 1")
+          .groupBy("st.projectId"),
       "latest_test",
       "latest_test.pid = project.id",
     )
-    .leftJoin("project.screenshotTests", "screenshotTest")
     .select([
       "project.id",
       "project.name",
@@ -84,13 +97,10 @@ async function getProjectWithStats(
       "project.token",
       "project.createdAt",
       "latest_test.screatedAt as lastbuildstamp",
-      "COUNT(DISTINCT screenshotTest.id) as buildcount",
+      "latest_test.buildcount as buildcount",
       "latest_test.tcount as testcount",
     ])
     .where("project.id = :projectId AND project.user = :userId", { projectId, userId })
-    .groupBy("project.id")
-    .addGroupBy("latest_test.screatedAt")
-    .addGroupBy("latest_test.tcount")
     .getRawOne<ProjectWithStats>()
 
   return projectsWithStats ?? null
@@ -189,9 +199,10 @@ export const list: RequestHandler = async (_req, res) => {
         qb
           .select([
             "st.projectId as pid",
-            "st.id as sid",
-            "st.createdAt as screatedAt",
-            "COALESCE(tc.testcount, 0) as tcount",
+            "MAX(st.id) as sid",
+            "MAX(st.createdAt) as screatedAt",
+            "COALESCE(SUM(tc.testcount), 0) as tcount",
+            "COUNT(DISTINCT st.buildNumber) as buildcount",
           ])
           .from(
             (subQuery) =>
@@ -200,7 +211,8 @@ export const list: RequestHandler = async (_req, res) => {
                   "screenshot_tests.id as id",
                   "screenshot_tests.project_id as projectId",
                   "screenshot_tests.created_at as createdAt",
-                  "ROW_NUMBER() OVER (PARTITION BY screenshot_tests.project_id ORDER BY screenshot_tests.created_at DESC) as rn",
+                  "screenshot_tests.build_number as buildNumber",
+                  "ROW_NUMBER() OVER (PARTITION BY screenshot_tests.project_id, screenshot_tests.build_number ORDER BY screenshot_tests.created_at DESC) as rn",
                 ])
                 .from("screenshot_tests", "screenshot_tests")
                 .orderBy("screenshot_tests.created_at", "DESC"),
@@ -210,19 +222,30 @@ export const list: RequestHandler = async (_req, res) => {
             (subQuery) =>
               subQuery
                 .select([
-                  "tr.screenshot_test_id as screenshotTestId",
-                  "COUNT(DISTINCT tr.name) as testcount",
+                  "tr.screenshotTestId as screenshotTestId",
+                  "COUNT(DISTINCT tr.testName) as testcount",
                 ])
-                .from("test_results", "tr")
-                .groupBy("tr.screenshot_test_id"),
+                .from(
+                  (innerSubQuery) =>
+                    innerSubQuery
+                      .select([
+                        "tr2.screenshot_test_id as screenshotTestId",
+                        "tr2.name as testName",
+                        "ROW_NUMBER() OVER (PARTITION BY tr2.screenshot_test_id, tr2.name ORDER BY tr2.id DESC) as rn",
+                      ])
+                      .from("test_results", "tr2"),
+                  "tr",
+                )
+                .where("tr.rn = 1")
+                .groupBy("tr.screenshotTestId"),
             "tc",
             "tc.screenshotTestId = st.id",
           )
-          .where("st.rn = 1"),
+          .where("st.rn = 1")
+          .groupBy("st.projectId"),
       "latest_test",
       "latest_test.pid = project.id",
     )
-    .leftJoin("project.screenshotTests", "screenshotTest")
     .select([
       "project.id",
       "project.name",
@@ -230,13 +253,10 @@ export const list: RequestHandler = async (_req, res) => {
       "project.token",
       "project.createdAt",
       "latest_test.screatedAt as lastbuildstamp",
-      "COUNT(DISTINCT screenshotTest.id) as buildcount",
+      "latest_test.buildcount as buildcount",
       "latest_test.tcount as testcount",
     ])
     .where("project.user = :userId", { userId: user.id })
-    .groupBy("project.id")
-    .addGroupBy("latest_test.screatedAt")
-    .addGroupBy("latest_test.tcount")
     .getRawMany<ProjectWithStats>()
 
   const responses: ProjectResponse[] = projectsWithStats.map(convertToProjectResponse)

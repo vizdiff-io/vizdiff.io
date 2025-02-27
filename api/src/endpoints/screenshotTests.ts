@@ -46,16 +46,38 @@ export const list: RequestHandler = async (req, res) => {
   const screenshotTestTable = db.getRepository(ScreenshotTest)
   const screenshotTestsWithStats = await screenshotTestTable
     .createQueryBuilder("screenshot_test")
+    .innerJoin(
+      (qb) =>
+        qb
+          .select(["MAX(st.id) as latest_id", "st.build_number as build_number"])
+          .from(ScreenshotTest, "st")
+          .where("st.project_id = :projectId", { projectId })
+          .groupBy("st.build_number"),
+      "latest_tests",
+      "latest_tests.latest_id = screenshot_test.id",
+    )
     .leftJoin(
       (qb) =>
         qb
           .select([
-            "tr.screenshot_test_id as screenshotTestId",
-            "COUNT(DISTINCT tr.name) as testcount",
-            "SUM(CASE WHEN tr.change_status = 'changed' OR tr.change_status = 'new' THEN 1 ELSE 0 END) as changecount",
+            "tr.screenshotTestId as screenshotTestId",
+            "COUNT(DISTINCT tr.testName) as testcount",
+            "SUM(CASE WHEN tr.changeStatus = 'changed' OR tr.changeStatus = 'new' THEN 1 ELSE 0 END) as changecount",
           ])
-          .from("test_results", "tr")
-          .groupBy("tr.screenshot_test_id"),
+          .from(
+            (subQuery) =>
+              subQuery
+                .select([
+                  "tr2.screenshot_test_id as screenshotTestId",
+                  "tr2.name as testName",
+                  "tr2.change_status as changeStatus",
+                  "ROW_NUMBER() OVER (PARTITION BY tr2.screenshot_test_id, tr2.name ORDER BY tr2.id DESC) as rn",
+                ])
+                .from("test_results", "tr2"),
+            "tr",
+          )
+          .where("tr.rn = 1")
+          .groupBy("tr.screenshotTestId"),
       "test_counts",
       "test_counts.screenshotTestId = screenshot_test.id",
     )
@@ -122,8 +144,22 @@ export const get: RequestHandler = async (req, res) => {
     return
   }
 
+  // Get the most recent test result for each test name
   const testResultTable = db.getRepository(TestResult)
-  const testResults = await testResultTable.findBy({ screenshotTest: { id: screenshotTestId } })
+  const testResults = await testResultTable
+    .createQueryBuilder("result")
+    .innerJoin(
+      (qb) =>
+        qb
+          .select(["tr.name as name", "MAX(tr.id) as latest_id"])
+          .from(TestResult, "tr")
+          .where("tr.screenshot_test_id = :screenshotTestId", { screenshotTestId })
+          .groupBy("tr.name"),
+      "latest_results",
+      "latest_results.latest_id = result.id",
+    )
+    .where("result.screenshotTest = :screenshotTestId", { screenshotTestId })
+    .getMany()
 
   const response: TestResponse = {
     id: screenshotTest.id,
@@ -161,15 +197,43 @@ export const listActivity: RequestHandler = async (_req, res) => {
   const screenshotTests = await screenshotTestTable
     .createQueryBuilder("screenshot_test")
     .innerJoinAndSelect("screenshot_test.project", "project")
+    .innerJoin(
+      // Subquery to get the latest screenshot test for each build number
+      (qb) =>
+        qb
+          .select([
+            "MAX(st.id) as latest_id",
+            "st.project_id as project_id",
+            "st.build_number as build_number",
+          ])
+          .from(ScreenshotTest, "st")
+          .innerJoin("st.project", "p")
+          .where("p.user_id = :userId", { userId: user.id })
+          .groupBy("st.project_id")
+          .addGroupBy("st.build_number"),
+      "latest_tests",
+      "latest_tests.latest_id = screenshot_test.id",
+    )
     .leftJoin(
       (qb) =>
         qb
           .select([
-            "tr.screenshot_test_id as screenshotTestId",
-            "COUNT(DISTINCT tr.name) as testcount",
+            "tr.screenshotTestId as screenshotTestId",
+            "COUNT(DISTINCT tr.testName) as testcount",
           ])
-          .from("test_results", "tr")
-          .groupBy("tr.screenshot_test_id"),
+          .from(
+            (subQuery) =>
+              subQuery
+                .select([
+                  "tr2.screenshot_test_id as screenshotTestId",
+                  "tr2.name as testName",
+                  "ROW_NUMBER() OVER (PARTITION BY tr2.screenshot_test_id, tr2.name ORDER BY tr2.id DESC) as rn",
+                ])
+                .from("test_results", "tr2"),
+            "tr",
+          )
+          .where("tr.rn = 1")
+          .groupBy("tr.screenshotTestId"),
       "test_counts",
       "test_counts.screenshotTestId = screenshot_test.id",
     )
@@ -187,7 +251,6 @@ export const listActivity: RequestHandler = async (_req, res) => {
       "project.id as project_id",
       "COALESCE(test_counts.testcount, '0') as testcount",
     ])
-    .where("project.user = :userId", { userId: user.id })
     .orderBy("screenshot_test.createdAt", "DESC")
     .take(10)
     .getRawMany<ScreenshotTestWithStats & { project_id: number }>()
