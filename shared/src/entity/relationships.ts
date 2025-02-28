@@ -21,15 +21,15 @@ export function defineRelationships(): void {
 
   // Project <-> ScreenshotTest
   ProjectEntity.prototype.screenshotTests = Promise.resolve([] as ScreenshotTest[])
-  ScreenshotTestEntity.prototype.project = Promise.resolve({} as Project)
+  ScreenshotTestEntity.prototype.project = null as unknown as Project
 
   // ScreenshotTest <-> TestResult
   ScreenshotTestEntity.prototype.testResults = Promise.resolve([] as TestResult[])
-  TestResultEntity.prototype.screenshotTest = Promise.resolve({} as ScreenshotTest)
+  TestResultEntity.prototype.screenshotTest = null as unknown as ScreenshotTest
 
   // ScreenshotTest <-> WorkTask
   ScreenshotTestEntity.prototype.workTasks = Promise.resolve([] as WorkTask[])
-  WorkTaskEntity.prototype.screenshotTest = Promise.resolve({} as ScreenshotTest)
+  WorkTaskEntity.prototype.screenshotTest = null as unknown as ScreenshotTest
 
   // User <-> GitHubInstallation (ManyToMany for access)
   UserEntity.prototype.githubInstallations = Promise.resolve([] as GitHubInstallation[])

@@ -11,7 +11,11 @@ const mockUser: UserResponse = {
   githubProfile: {
     login: "testuser",
     avatar_url: "https://placecats.com/millie/460/460",
+    id: 0,
+    node_id: "",
+    email: null,
   },
+  githubInstallations: [],
   createdStampSec: oneMinuteAgo,
   updatedStampSec: oneMinuteAgo,
 }
