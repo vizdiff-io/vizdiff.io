@@ -109,16 +109,17 @@ jobs:
         working-directory: frontend
         run: yarn build-storybook
 
-      - name: Publish to vizdiff.io
-        env:
-          # When triggered by a pull_request event, use the PR context.
-          # Otherwise, fall back to push context.
-          COMMIT_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-          BRANCH_NAME: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || github.ref_name }}
-          BASE_BRANCH: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.ref || 'main' }}
-          BASE_COMMIT: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || 'N/A' }}
-          VIZDIFF_PROJECT_TOKEN: ${{ secrets.VIZDIFF_PROJECT_TOKEN }}
-        run: yarn cli upload --commit "${{ env.COMMIT_SHA }}" --branch "${{ env.BRANCH_NAME }}" --base-branch "${{ env.BASE_BRANCH }}" --base-commit "${{ env.BASE_COMMIT }}"
+      # - name: Publish to vizdiff.io
+      #   working-directory: frontend
+      #   env:
+      #     # When triggered by a pull_request event, use the PR context.
+      #     # Otherwise, fall back to push context.
+      #     COMMIT_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+      #     BRANCH_NAME: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || github.ref_name }}
+      #     BASE_BRANCH: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.ref || 'main' }}
+      #     BASE_COMMIT: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || 'N/A' }}
+      #     VIZDIFF_PROJECT_TOKEN: ${{ secrets.VIZDIFF_PROJECT_TOKEN }}
+      #   run: yarn cli upload --commit "${{ env.COMMIT_SHA }}" --branch "${{ env.BRANCH_NAME }}" --base-branch "${{ env.BASE_BRANCH }}" --base-commit "${{ env.BASE_COMMIT }}" --storybook-directory "storybook-static"
 
       - name: Publish to Chromatic
         working-directory: frontend
