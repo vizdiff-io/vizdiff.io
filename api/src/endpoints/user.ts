@@ -1,10 +1,22 @@
-import type { UserResponse } from "../apiTypes"
-import { getUser } from "../authenticate"
+import type { GitHubInstallationResponse, UserResponse } from "../apiTypes"
+import { getInstallationsForUserId } from "../github"
 import type { GithubUser } from "../schemas/GithubUser"
-import type { DefaultRequest, DefaultResponse } from "../types"
+import type { RequestHandler } from "../types"
 
-export async function me(req: DefaultRequest, res: DefaultResponse): Promise<void> {
-  const user = await getUser(req)
+export const me: RequestHandler = async (_req, res) => {
+  const { user } = res.locals
+  const installations = await getInstallationsForUserId(user.id)
+
+  const installationResponses: GitHubInstallationResponse[] = installations.map((installation) => ({
+    id: installation.id,
+    installationId: installation.installationId,
+    accountId: installation.accountId,
+    accountName: installation.accountName,
+    accountType: installation.accountType,
+    isCreator: installation.creatorId === user.id,
+    createdStampSec: installation.createdAt.getTime() / 1000,
+  }))
+
   const response: UserResponse = {
     id: user.id,
     githubId: user.githubId,
@@ -13,6 +25,7 @@ export async function me(req: DefaultRequest, res: DefaultResponse): Promise<voi
     githubProfile: JSON.parse(user.githubProfile) as GithubUser,
     createdStampSec: user.createdAt.getTime() / 1000,
     updatedStampSec: user.updatedAt.getTime() / 1000,
+    githubInstallations: installationResponses,
   }
   res.json(response)
 }

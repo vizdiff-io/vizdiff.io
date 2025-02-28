@@ -2,6 +2,16 @@ import type { TestResultStatus } from "shared"
 
 import type { GithubUser } from "./schemas/GithubUser"
 
+export type GitHubInstallationResponse = {
+  id: number
+  installationId: number
+  accountId: string
+  accountName: string
+  accountType: string
+  isCreator: boolean
+  createdStampSec: number
+}
+
 export type UserResponse = {
   id: number
   githubId: string
@@ -10,6 +20,7 @@ export type UserResponse = {
   githubProfile: GithubUser
   createdStampSec: number
   updatedStampSec: number
+  githubInstallations: GitHubInstallationResponse[]
 }
 
 export type ProjectResponse = {

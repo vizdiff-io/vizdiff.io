@@ -1,4 +1,3 @@
-import { createAppAuth } from "@octokit/auth-app"
 import { Octokit } from "@octokit/rest"
 import jwt from "jsonwebtoken"
 import { User } from "shared"
@@ -14,6 +13,7 @@ import {
   IS_PRODUCTION,
   JWT_SECRET,
 } from "../environment"
+import { syncUserInstallations } from "../github"
 import { parseSimpleQueryString, requiredQueryString } from "../http"
 import { log } from "../log"
 import type { GithubUser } from "../schemas/GithubUser"
@@ -38,8 +38,8 @@ if (!APP_URL) {
 }
 
 export async function githubAppInstalled(req: DefaultRequest, res: DefaultResponse): Promise<void> {
-  const installationId = requiredQueryString("installation_id", req)
   const setupAction = requiredQueryString("setup_action", req)
+  const installationId = requiredQueryString("installation_id", req)
 
   // Only proceed if this was a new installation
   if (setupAction !== "install") {
@@ -80,7 +80,7 @@ export async function githubCallback(req: DefaultRequest, res: DefaultResponse):
   if (queryInstallId) {
     installationId = parseInt(queryInstallId, 10)
     // Default redirect for app installation flow
-    finalRedirect = `${APP_URL}/projects`
+    finalRedirect = finalRedirect ?? `${APP_URL}/projects`
   }
 
   if (!finalRedirect) {
@@ -144,28 +144,10 @@ export async function githubCallback(req: DefaultRequest, res: DefaultResponse):
   user.githubProfile = JSON.stringify(ghUser)
   user.githubAccessToken = ghTokenRes.access_token
 
-  // If we have an installation ID, validate and update it
-  if (installationId) {
-    try {
-      const auth = createAppAuth({
-        appId: GITHUB_APP_ID,
-        privateKey: GITHUB_PRIVATE_KEY,
-        clientId: GITHUB_CLIENT_ID,
-        clientSecret: GITHUB_CLIENT_SECRET,
-      })
-      await auth({ type: "installation", installationId })
-      user.githubInstallationId = installationId
-    } catch (err) {
-      log.error(`Failed to validate installation ID ${installationId}: ${err}`)
-      // Don't fail the auth flow, just don't update the installation ID
-      user.githubInstallationId = null
-    }
-  } else {
-    // No installation ID provided, this is a normal OAuth flow
-    user.githubInstallationId = null
-  }
-
   user = await userTable.save(user)
+
+  // Sync GitHub App installations for this user, passing the installation ID if available
+  await syncUserInstallations(user, installationId)
 
   // Generate a JWT
   const token = jwt.sign({ sub: user.id }, JWT_SECRET, { expiresIn: "8h" })

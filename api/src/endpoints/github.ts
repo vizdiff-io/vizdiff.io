@@ -1,15 +1,16 @@
 import { createAppAuth } from "@octokit/auth-app"
 import { Octokit } from "@octokit/rest"
+import type { RestEndpointMethodTypes } from "@octokit/rest"
 
-import { getUser } from "../authenticate"
 import {
   GITHUB_APP_ID,
   GITHUB_CLIENT_ID,
   GITHUB_CLIENT_SECRET,
   GITHUB_PRIVATE_KEY,
 } from "../environment"
+import { getInstallationForOrg, getInstallationsForUserId, syncUserInstallations } from "../github"
 import { log } from "../log"
-import type { DefaultRequest, DefaultResponse } from "../types"
+import type { RequestHandler } from "../types"
 
 const GITHUB_HEADERS = { "X-GitHub-Api-Version": "2022-11-28" }
 
@@ -24,31 +25,70 @@ async function getOctokitForUser(installationId: number): Promise<Octokit> {
   return new Octokit({ auth: installationAuth.token })
 }
 
-export async function orgs(req: DefaultRequest, res: DefaultResponse): Promise<void> {
-  const user = await getUser(req)
+export const orgs: RequestHandler = async (_req, res) => {
+  const { user } = res.locals
 
-  if (user.githubInstallationId == null) {
+  // Ensure installations are up to date
+  const installations = await syncUserInstallations(user)
+  if (installations.length === 0) {
     res.status(403).json({ error: "GitHub App installation required for this endpoint" })
     return
   }
 
-  const octokit = await getOctokitForUser(user.githubInstallationId)
-  const ghRes = await octokit.request("GET /user/orgs", { headers: GITHUB_HEADERS, per_page: 100 })
-  log.debug(`Found ${ghRes.data.length} GitHub orgs for ${user.githubUsername}`)
+  log.debug(
+    `Found installations: ${installations
+      .map((i) => `${i.accountName}(${i.accountType})`)
+      .join(", ")}`,
+  )
 
-  res.json(ghRes.data)
+  // Get all org installations
+  const orgInstallations = installations.filter((inst) => inst.accountType === "Organization")
+
+  // Convert installations to org format
+  const orgList = orgInstallations.map((inst) => ({
+    login: inst.accountName,
+    id: parseInt(inst.accountId, 10),
+    node_id: "", // We don't have this but it's not used
+    url: `https://api.github.com/orgs/${inst.accountName}`,
+    repos_url: `https://api.github.com/orgs/${inst.accountName}/repos`,
+    events_url: `https://api.github.com/orgs/${inst.accountName}/events`,
+    hooks_url: `https://api.github.com/orgs/${inst.accountName}/hooks`,
+    issues_url: `https://api.github.com/orgs/${inst.accountName}/issues`,
+    members_url: `https://api.github.com/orgs/${inst.accountName}/members{/member}`,
+    public_members_url: `https://api.github.com/orgs/${inst.accountName}/public_members{/member}`,
+    avatar_url: `https://avatars.githubusercontent.com/u/${inst.accountId}?v=4`,
+    description: null,
+  }))
+
+  log.debug(
+    `Found ${orgList.length} GitHub orgs with app installations for ${user.githubUsername}. ` +
+      `Organizations: ${orgList.map((o) => o.login).join(", ")}`,
+  )
+  res.json(orgList)
 }
 
-export async function repos(req: DefaultRequest, res: DefaultResponse): Promise<void> {
-  const user = await getUser(req)
+type OrgRepoResponse = RestEndpointMethodTypes["repos"]["listForOrg"]["response"]["data"][number]
+type UserRepoResponse =
+  RestEndpointMethodTypes["repos"]["listForAuthenticatedUser"]["response"]["data"][number]
+type RepoResponse = OrgRepoResponse | UserRepoResponse
+
+export const repos: RequestHandler = async (req, res) => {
+  const { user } = res.locals
   const org = req.query.org as string | undefined
 
-  if (user.githubInstallationId == null) {
+  // Ensure installations are up to date
+  await syncUserInstallations(user)
+
+  const installation = org
+    ? await getInstallationForOrg(user, org)
+    : (await getInstallationsForUserId(user.id)).find((i) => i.accountType === "User")
+
+  if (!installation) {
     res.status(403).json({ error: "GitHub App installation required for this endpoint" })
     return
   }
 
-  const octokit = await getOctokitForUser(user.githubInstallationId)
+  const octokit = await getOctokitForUser(installation.installationId)
   const ghRes = org
     ? await octokit.request("GET /orgs/{org}/repos", {
         headers: GITHUB_HEADERS,
@@ -63,7 +103,7 @@ export async function repos(req: DefaultRequest, res: DefaultResponse): Promise<
         affiliation: "owner,collaborator",
         per_page: 100,
       })
-  log.debug(`Found ${ghRes.data.length} GitHub projects (user=${user.githubUsername}, org=${org})`)
 
-  res.json(ghRes.data)
+  log.debug(`Found ${ghRes.data.length} GitHub projects (user=${user.githubUsername}, org=${org})`)
+  res.json(ghRes.data as RepoResponse[])
 }

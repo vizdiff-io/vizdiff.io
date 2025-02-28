@@ -5,35 +5,40 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToMany,
+  ManyToMany,
 } from "typeorm"
 
-import { Project } from "./Project"
+import type { GitHubInstallation } from "./GitHubInstallation"
+import type { Project } from "./Project"
 
 @Entity("users")
 export class User {
   @PrimaryGeneratedColumn()
   id!: number
 
-  @Column({ name: "github_id", type: "varchar", length: 255, unique: true, nullable: false })
+  @Column({ name: "github_id", type: "text", unique: true, nullable: false })
   githubId!: string
 
-  @Column({ type: "varchar", length: 255, unique: true, nullable: true })
+  @Column({ type: "text", unique: true, nullable: true })
   email!: string | null
 
-  @Column({ name: "github_username", type: "varchar", length: 255, unique: true, nullable: false })
+  @Column({ name: "github_username", type: "text", unique: true, nullable: false })
   githubUsername!: string
 
   @Column({ name: "github_profile", type: "jsonb", nullable: false })
   githubProfile!: string
 
-  @Column({ name: "github_access_token", type: "varchar", length: 255, nullable: false })
+  @Column({ name: "github_access_token", type: "text", nullable: false })
   githubAccessToken!: string
 
-  @Column({ name: "github_installation_id", type: "integer", nullable: true })
-  githubInstallationId!: number | null
-
-  @OneToMany(() => Project, (project) => project.user)
+  @OneToMany("Project", "user")
   projects!: Promise<Project[]>
+
+  @ManyToMany("GitHubInstallation", "users")
+  githubInstallations!: Promise<GitHubInstallation[]>
+
+  @OneToMany("GitHubInstallation", "creator")
+  createdInstallations!: Promise<GitHubInstallation[]>
 
   @CreateDateColumn({ name: "created_at", type: "timestamp", nullable: false })
   createdAt!: Date

@@ -17,7 +17,9 @@
     "prepack": "yarn build",
     "prepublishOnly": "yarn lint && yarn test",
     "start": "VIZDIFF_API_URL=http://127.0.0.1:3001 ts-node src/bin/vizdiff.ts",
-    "test": "echo 'No tests'"
+    "test": "yarn run vitest --run",
+    "upload": "yarn start upload",
+    "vizdiff": "yarn start"
   },
   "devDependencies": {
     "@foxglove/eslint-plugin": "2.0.0",
@@ -32,7 +34,8 @@
     "eslint-plugin-prettier": "5.2.3",
     "prettier": "3.4.2",
     "ts-node": "10.9.2",
-    "typescript": "5.7.3"
+    "typescript": "5.7.3",
+    "vitest": "^3.0.5"
   },
   "dependencies": {
     "commander": "13.1.0",

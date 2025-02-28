@@ -1,0 +1,52 @@
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  ManyToMany,
+  JoinTable,
+  ManyToOne,
+  JoinColumn,
+} from "typeorm"
+
+import type { User } from "./User"
+
+@Entity("github_installations")
+export class GitHubInstallation {
+  @PrimaryGeneratedColumn()
+  id!: number
+
+  @Column({ name: "installation_id", type: "integer", nullable: false })
+  installationId!: number
+
+  @Column({ name: "account_id", type: "text", nullable: false })
+  accountId!: string // GitHub account/org ID where app is installed
+
+  @Column({ name: "account_name", type: "text", nullable: false })
+  accountName!: string // GitHub account/org login name
+
+  @Column({ name: "account_type", type: "text", nullable: false })
+  accountType!: string // 'Organization' or 'User'
+
+  @Column({ name: "creator_id", type: "integer", nullable: false })
+  creatorId!: number
+
+  @ManyToOne("User", { onDelete: "CASCADE" })
+  @JoinColumn({ name: "creator_id", referencedColumnName: "id" })
+  creator?: Promise<User>
+
+  @ManyToMany("User")
+  @JoinTable({
+    name: "user_github_installations",
+    joinColumn: { name: "installation_id", referencedColumnName: "id" },
+    inverseJoinColumn: { name: "user_id", referencedColumnName: "id" },
+  })
+  users!: User[]
+
+  @CreateDateColumn({ name: "created_at" })
+  createdAt!: Date
+
+  @UpdateDateColumn({ name: "updated_at" })
+  updatedAt!: Date
+}

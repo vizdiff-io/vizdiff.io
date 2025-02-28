@@ -1,0 +1,114 @@
+---
+description: Guidelines for committing changes in logical groups with conventional commit messages
+globs: 
+---
+ ---
+Description: Guidelines for committing changes in logical groups with conventional commit messages
+Globs:
+---
+# Committing Changes
+
+Best practices for organizing and committing changes to the repository.
+
+<rule>
+name: commit_changes
+description: Standards for organizing commits into logical groups with conventional commit messages
+
+actions:
+  - type: suggest
+    message: |
+      When committing changes, follow these steps:
+
+      1. Safety Check:
+         ```bash
+         # Ensure you're not on main branch
+         git branch --show-current
+         ```
+
+      2. Review Changes:
+         ```bash
+         # See modified files
+         git status -s
+         
+         # Review actual changes
+         git --no-pager diff
+         ```
+
+      3. Group Changes:
+         Group files into logical commits based on their purpose:
+         - Infrastructure changes (build, config, dependencies)
+         - Feature implementations
+         - Bug fixes
+         - Test additions/modifications
+         - Documentation updates
+         - CI/CD changes
+
+      4. Commit Each Group:
+         Use conventional commit messages:
+         - feat: New features
+         - fix: Bug fixes
+         - test: Adding/updating tests
+         - docs: Documentation changes
+         - ci: CI configuration changes
+         - chore: Maintenance tasks
+         - refactor: Code restructuring
+         - style: Formatting changes
+         - perf: Performance improvements
+
+         Example:
+         ```bash
+         # Stage files for first group
+         git add path/to/file1 path/to/file2
+
+         # Commit with conventional message
+         git commit -m "type: brief description"
+         ```
+
+      5. Push Changes:
+         ```bash
+         git push
+         ```
+
+      Example commit grouping:
+      ```bash
+      # Testing changes
+      git add test/*.ts package.json
+      git commit -m "test: add unit tests for user authentication"
+
+      # Feature implementation
+      git add src/auth.ts src/middleware/*
+      git commit -m "feat: implement OAuth authentication flow"
+
+      # Documentation
+      git add README.md docs/*
+      git commit -m "docs: update authentication setup guide"
+      ```
+
+examples:
+  - input: |
+      Modified files:
+      M src/auth.test.ts
+      M src/auth.ts
+      M package.json
+      M README.md
+      M .github/workflows/ci.yml
+    output: |
+      Suggested commit groups:
+      1. test: add auth tests
+         - src/auth.test.ts
+         - package.json (if test dependencies added)
+      
+      2. feat/fix: auth changes
+         - src/auth.ts
+         - package.json (if new dependencies)
+      
+      3. docs: update documentation
+         - README.md
+      
+      4. ci: workflow changes
+         - .github/workflows/ci.yml
+
+metadata:
+  priority: medium
+  version: 1.0
+</rule>

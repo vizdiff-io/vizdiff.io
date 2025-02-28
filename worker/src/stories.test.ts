@@ -1,7 +1,7 @@
 import { S3Client, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3"
 import type { WriteStream } from "node:fs"
 import { PNG } from "pngjs"
-import { TestResult } from "shared"
+import { TestResult, ScreenshotTest } from "shared"
 import { Readable } from "stream"
 import type { Repository } from "typeorm"
 import { expect, describe, it, vi, beforeEach } from "vitest"
@@ -19,15 +19,6 @@ import { processStory } from "./stories"
  * 4. Compares the images and determines if there are changes
  * 5. Saves the results to the database
  */
-
-// Required for Storybook's global state in tests
-declare global {
-  interface Window {
-    __STORYBOOK_STORY_STORE__?: {
-      getSelection: () => { status: string }
-    }
-  }
-}
 
 // Mock function declarations for all external dependencies
 const mockSend = vi.fn()
@@ -258,6 +249,19 @@ describe("processStory", () => {
     importPath: "./stories/Test.stories.tsx",
   }
 
+  // Mock ScreenshotTest instance
+  const mockScreenshotTest = new ScreenshotTest()
+  Object.assign(mockScreenshotTest, {
+    id: 123,
+    status: "pending",
+    buildNumber: 1,
+    commitSha: "1234567890123456789012345678901234567890",
+    branch: "main",
+    uploadId: "abcdef",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  })
+
   // Mock WebdriverIO browser instance for taking screenshots
   const mockBrowser = {
     url: mockBrowserUrl,
@@ -289,20 +293,22 @@ describe("processStory", () => {
     // Setup S3 mock behavior
     mockSend.mockImplementation(async (command) => {
       if (command instanceof GetObjectCommand) {
-        // Verify baseline image is fetched with correct key
-        const expectedKey = `projects/test-project/screenshots/456/test-story.png`
-        if (command.input.Key !== expectedKey) {
-          throw new Error(`Expected S3 key: ${expectedKey}, but got: ${command.input.Key}`)
+        // Extract uploadId from the key path
+        const key = command.input.Key ?? ""
+        const match = /screenshots\/([\w-]+)\//.exec(key)
+        const uploadId = match?.[1]
+        if (uploadId === "xyz789") {
+          // Return mock stream with baseline image data
+          return {
+            Body: new Readable({
+              read() {
+                this.push(Buffer.from("mock baseline image"))
+                this.push(null)
+              },
+            }),
+          }
         }
-        // Return mock stream with baseline image data
-        return {
-          Body: new Readable({
-            read() {
-              this.push(Buffer.from("mock baseline image"))
-              this.push(null)
-            },
-          }),
-        }
+        throw new Error(`Baseline not found for uploadId: ${uploadId}`)
       }
       if (command instanceof PutObjectCommand) {
         return command
@@ -321,6 +327,7 @@ describe("processStory", () => {
   it("should process a new story without baseline", async () => {
     const testResult = await processStory({
       story: mockStory,
+      screenshotTest: mockScreenshotTest,
       bucket: "test-bucket",
       tmpDir: "/tmp/test",
       projectId: "test-project",
@@ -330,6 +337,7 @@ describe("processStory", () => {
       testResultTable: {
         save: mockTestResultSave.mockImplementation(async (data: TestResult) => data),
       } as unknown as Repository<TestResult>,
+      browser: mockBrowser,
     })
 
     // Verify browser interactions
@@ -361,7 +369,7 @@ describe("processStory", () => {
     expect(testResult.diffRatio).toBe(0)
     expect(testResult.name).toBe("Test Story")
     expect(testResult.storyId).toBe("test-story")
-    expect(testResult.screenshotTestId).toBe(123)
+    expect(testResult.screenshotTest.id).toBe(123)
   })
 
   /**
@@ -374,23 +382,37 @@ describe("processStory", () => {
    */
   it("should process a story with no change from baseline", async () => {
     ;(PNG as unknown as { setTestMode(mode: string): void }).setTestMode("unchanged")
-    const baseTestResult = {
+    const baseTestResult = new TestResult()
+    Object.assign(baseTestResult, {
+      id: 789,
+      name: "Test Story",
+      storyId: "test-story",
       screenshotTestId: 456,
+      screenshotTest: {
+        id: 456,
+        uploadId: "xyz789",
+      },
+      baselineImageUrl: "https://test-bucket.s3.amazonaws.com/baseline.png",
+      newImageUrl: "https://test-bucket.s3.amazonaws.com/new.png",
+      diffImageUrl: "https://test-bucket.s3.amazonaws.com/diff.png",
+      diffRatio: 0,
       changeStatus: "new",
-    } as TestResult
+    })
 
     const testResult = await processStory({
       story: mockStory,
+      screenshotTest: mockScreenshotTest,
       baseTestResult,
       bucket: "test-bucket",
       tmpDir: "/tmp/test",
       projectId: "test-project",
-      uploadId: "123",
+      uploadId: "xyz789",
       port: 9009,
       s3Client: new S3Client({}),
       testResultTable: {
         save: mockTestResultSave.mockImplementation(async (data: TestResult) => data),
       } as unknown as Repository<TestResult>,
+      browser: mockBrowser,
     })
 
     expect(testResult.changeStatus).toBe("unchanged")
@@ -406,23 +428,37 @@ describe("processStory", () => {
    */
   it("should handle baseline image dimension mismatch", async () => {
     ;(PNG as unknown as { setTestMode(mode: string): void }).setTestMode("dimension_mismatch")
-    const baseTestResult = {
+    const baseTestResult = new TestResult()
+    Object.assign(baseTestResult, {
+      id: 789,
+      name: "Test Story",
+      storyId: "test-story",
       screenshotTestId: 456,
+      screenshotTest: {
+        id: 456,
+        uploadId: "xyz789",
+      },
+      baselineImageUrl: "https://test-bucket.s3.amazonaws.com/baseline.png",
+      newImageUrl: "https://test-bucket.s3.amazonaws.com/new.png",
+      diffImageUrl: "https://test-bucket.s3.amazonaws.com/diff.png",
+      diffRatio: 0,
       changeStatus: "unchanged",
-    } as TestResult
+    })
 
     const testResult = await processStory({
       story: mockStory,
+      screenshotTest: mockScreenshotTest,
       baseTestResult,
       bucket: "test-bucket",
       tmpDir: "/tmp/test",
       projectId: "test-project",
-      uploadId: "123",
+      uploadId: "xyz789",
       port: 9009,
       s3Client: new S3Client({}),
       testResultTable: {
         save: mockTestResultSave.mockImplementation(async (data: TestResult) => data),
       } as unknown as Repository<TestResult>,
+      browser: mockBrowser,
     })
 
     expect(testResult.changeStatus).toBe("changed")
@@ -444,6 +480,7 @@ describe("processStory", () => {
 
     await processStory({
       story: mockStory,
+      screenshotTest: mockScreenshotTest,
       bucket: "test-bucket",
       tmpDir: "/tmp/test",
       projectId: "test-project",
@@ -453,6 +490,7 @@ describe("processStory", () => {
       testResultTable: {
         save: mockTestResultSave.mockImplementation(async (data: TestResult) => data),
       } as unknown as Repository<TestResult>,
+      browser: mockBrowser,
     })
 
     expect(mockBrowserSaveScreenshot).toHaveBeenCalledTimes(2)
@@ -467,10 +505,22 @@ describe("processStory", () => {
    * - Result is marked as "new"
    */
   it("should handle missing baseline gracefully", async () => {
-    const baseTestResult = {
+    const baseTestResult = new TestResult()
+    Object.assign(baseTestResult, {
+      id: 789,
+      name: "Test Story",
+      storyId: "test-story",
       screenshotTestId: 456,
+      screenshotTest: {
+        id: 456,
+        uploadId: "xyz789",
+      },
+      baselineImageUrl: "https://test-bucket.s3.amazonaws.com/baseline.png",
+      newImageUrl: "https://test-bucket.s3.amazonaws.com/new.png",
+      diffImageUrl: "https://test-bucket.s3.amazonaws.com/diff.png",
+      diffRatio: 0,
       changeStatus: "unchanged",
-    } as TestResult
+    })
 
     // Mock S3 error when fetching baseline
     mockSend.mockImplementation(async (command) => {
@@ -485,16 +535,18 @@ describe("processStory", () => {
 
     const testResult = await processStory({
       story: mockStory,
+      screenshotTest: mockScreenshotTest,
       baseTestResult,
       bucket: "test-bucket",
       tmpDir: "/tmp/test",
       projectId: "test-project",
-      uploadId: "123",
+      uploadId: mockScreenshotTest.uploadId,
       port: 9009,
       s3Client: new S3Client({}),
       testResultTable: {
         save: mockTestResultSave.mockImplementation(async (data: TestResult) => data),
       } as unknown as Repository<TestResult>,
+      browser: mockBrowser,
     })
 
     expect(testResult.changeStatus).toBe("new")

@@ -12,6 +12,8 @@ type CommandArgs = {
   token?: string
   commit?: string
   branch?: string
+  baseBranch?: string
+  baseCommit?: string
 }
 
 function main(): void {
@@ -20,9 +22,17 @@ function main(): void {
   program
     .command("upload <storybook-directory>")
     .description("Upload a storybook build folder to vizdiff.io")
-    .option("-t, --token <token>", "Project token")
-    .option("-c, --commit <commit-sha>", "Git commit SHA")
-    .option("-b, --branch <branch-name>", "Git branch name")
+    .option("-t, --token <token>", "Project token (defaults to VIZDIFF_PROJECT_TOKEN)")
+    .option("-c, --commit <commit-sha>", "Git commit SHA (defaults to the latest commit)")
+    .option("-b, --branch <branch-name>", "Git branch name (defaults to the current branch)")
+    .option(
+      "--base-branch <base-branch-name>",
+      "Base branch name for comparison (defaults to the default branch)",
+    )
+    .option(
+      "--base-commit <base-commit-sha>",
+      "Base commit SHA for comparison (defaults to the merge base commit)",
+    )
     .action((storybookDir: string, options: CommandArgs) => {
       vizdiff(storybookDir, options).catch(fatal)
     })
@@ -39,27 +49,33 @@ async function vizdiff(storybookDir: string, options: CommandArgs): Promise<void
   const projectToken = getToken(options)
   const commitSha = await getCommitSha(storybookDir, options)
   const branch = await getBranch(storybookDir, options)
-  const [baseCommitSha, baseBranch] = await getBaseCommitShaAndBranch(
-    storybookDir,
-    commitSha,
-    branch,
-  )
+  const [baseCommitSha, baseBranch] =
+    options.baseCommit && options.baseBranch
+      ? [options.baseCommit, options.baseBranch]
+      : await getBaseCommitShaAndBranch(storybookDir, commitSha, branch)
 
-  await uploadStorybook({
-    storybookDir,
-    commitSha,
-    branch,
-    projectToken,
-    baseCommitSha,
-    baseBranch,
-  })
+  try {
+    await uploadStorybook({
+      storybookDir,
+      commitSha,
+      branch,
+      projectToken,
+      baseCommitSha,
+      baseBranch,
+    })
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message.includes("401")) {
+      fatal("Invalid project token. Please check that the token is correct.")
+    }
+    fatal(err instanceof Error ? err.message : String(err))
+  }
 }
 
 function getToken(options: { token?: string }) {
-  const token = options.token ?? process.env.VIZDIFF_TOKEN
+  const token = options.token ?? process.env.VIZDIFF_PROJECT_TOKEN ?? process.env.VIZDIFF_TOKEN
   if (!token) {
     fatal(
-      "Missing project token. Please set the VIZDIFF_TOKEN environment variable or use the --token option.",
+      "Missing project token. Please set the VIZDIFF_PROJECT_TOKEN environment variable or use the --token option.",
     )
   }
   if (!checkToken(token)) {

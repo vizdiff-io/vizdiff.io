@@ -1,0 +1,68 @@
+---
+description: Automatically update yarn.lock when dependencies change in any package.json file
+globs: **/package.json
+---
+---
+description: Automatically update yarn.lock when dependencies change in any package.json file
+globs: **/package.json
+---
+# Yarn Lock Updates
+
+Rule for automatically updating yarn.lock when package.json files are modified.
+
+<rule>
+name: update_yarn_lock
+description: Automatically run yarn to update the workspace lockfile when dependencies change
+filters:
+  # Match any package.json file
+  - type: file_extension
+    pattern: "package\\.json$"
+  # Match dependency changes
+  - type: content_change
+    pattern: "\"dependencies\"|\"devDependencies\"|\"peerDependencies\""
+  # Match file modification events
+  - type: event
+    pattern: "file_modify"
+
+actions:
+  - type: suggest
+    message: |
+      Dependencies have changed in package.json. You should run:
+      ```bash
+      yarn
+      ```
+      This will:
+      1. Update the workspace lockfile
+      2. Install new dependencies
+      3. Remove unused dependencies
+      4. Ensure consistency across the workspace
+
+  - type: execute
+    command: "yarn"
+    auto_approve: true
+    conditions:
+      - pattern: "\"dependencies\"|\"devDependencies\"|\"peerDependencies\""
+        message: "Updating yarn.lock due to dependency changes"
+
+examples:
+  - input: |
+      # Before: package.json
+      {
+        "dependencies": {
+          "lodash": "^4.17.21"
+        }
+      }
+
+      # After: package.json
+      {
+        "dependencies": {
+          "lodash": "^4.17.21",
+          "express": "^4.18.2"
+        }
+      }
+    output: "Running yarn to update lockfile with new express dependency"
+
+metadata:
+  priority: high
+  version: 1.0
+</rule>

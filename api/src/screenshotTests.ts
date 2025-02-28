@@ -1,9 +1,9 @@
-import { ScreenshotTest } from "shared"
+import { Project, ScreenshotTest } from "shared"
 
 import { Database } from "./database"
 
 export async function createScreenshotTest(
-  projectId: number,
+  project: Project,
   commitSha: string,
   branch: string,
   uploadId: string,
@@ -23,21 +23,20 @@ export async function createScreenshotTest(
       .createQueryBuilder()
       .select("COALESCE(MAX(build_number), 0)", "maxBuildNumber")
       .from(ScreenshotTest, "st")
-      .where("project_id = :projectId", { projectId })
+      .where("project_id = :projectId", { projectId: project.id })
       .getRawOne()) as unknown as { maxBuildNumber: number } | undefined
     const buildNumber = (result?.maxBuildNumber ?? 0) + 1
 
     // Create the new screenshot test
-    const screenshotTest = manager.create(ScreenshotTest, {
-      projectId,
-      buildNumber,
-      commitSha,
-      branch,
-      baseCommitSha,
-      baseBranch,
-      uploadId,
-      status: "pending",
-    })
+    const screenshotTest = new ScreenshotTest()
+    screenshotTest.project = project
+    screenshotTest.buildNumber = buildNumber
+    screenshotTest.commitSha = commitSha
+    screenshotTest.branch = branch
+    screenshotTest.baseCommitSha = baseCommitSha
+    screenshotTest.baseBranch = baseBranch
+    screenshotTest.uploadId = uploadId
+    screenshotTest.status = "pending"
 
     return await manager.save(screenshotTest)
   })

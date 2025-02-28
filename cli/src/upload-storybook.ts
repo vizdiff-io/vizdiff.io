@@ -62,41 +62,48 @@ export async function uploadStorybook(opts: UploadStorybookOpts): Promise<void> 
   }
   info(`Created storybook tarball: ${tarballFilename}`)
 
-  // POST the tarball to the vizdiff API
-  const body = await fs.readFile(tarballFilename)
-  const baseUrl = (process.env.VIZDIFF_API_URL ?? "https://vizdiff.io").replace(/\/+$/, "")
-  const url = `${baseUrl}/api/upload/storybook?token=${projectToken}`
-  info(
-    `Uploading ${formatBytes(
-      body.byteLength,
-    )} for commit ${commitSha} on branch ${branch} to ${baseUrl}`,
-  )
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/gzip",
-      "X-Vizdiff-Commit-Sha": commitSha,
-      "X-Vizdiff-Branch": branch,
-      ...(baseCommitSha && { "X-Vizdiff-Base-Commit-Sha": baseCommitSha }),
-      ...(baseBranch && { "X-Vizdiff-Base-Branch": baseBranch }),
-    },
-    body: await fs.readFile(tarballFilename),
-  })
-  if (!response.ok) {
-    throw new Error(
-      `Failed to upload storybook build folder to vizdiff CDN: ${response.statusText} (${response.status})`,
+  try {
+    // POST the tarball to the vizdiff API
+    const body = await fs.readFile(tarballFilename)
+    const baseUrl = (process.env.VIZDIFF_API_URL ?? "https://vizdiff.io/api").replace(/\/+$/, "")
+    const url = `${baseUrl}/upload/storybook?token=${projectToken}`
+    const baseCommitStr =
+      baseCommitSha || baseBranch
+        ? `base commit ${baseCommitSha ?? ""} on branch "${baseBranch ?? ""}"`
+        : "no base commit"
+    info(
+      `Uploading ${formatBytes(
+        body.byteLength,
+      )} for commit ${commitSha} on branch "${branch}" (${baseCommitStr}) to ${baseUrl}`,
     )
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/gzip",
+        "X-Vizdiff-Commit-Sha": commitSha,
+        "X-Vizdiff-Branch": branch,
+        ...(baseCommitSha && { "X-Vizdiff-Base-Commit-Sha": baseCommitSha }),
+        ...(baseBranch && { "X-Vizdiff-Base-Branch": baseBranch }),
+      },
+      body: await fs.readFile(tarballFilename),
+    })
+    if (!response.ok) {
+      throw new Error(
+        `Failed to upload storybook build folder to vizdiff CDN: ${response.statusText} (${response.status})`,
+      )
+    }
+    const res = (await response.json()) as UploadResponse
+    if (!res.success) {
+      throw new Error(
+        `Failed to upload storybook build folder to vizdiff CDN: ${res.error ?? "Unknown error"}`,
+      )
+    }
+    info(`Uploaded storybook build folder, testId=${res.testId}, uploadId=${res.uploadId}`)
+  } finally {
+    // Delete the tarball regardless of success or failure
+    await fs.unlink(tarballFilename)
+    info(`Deleted storybook tarball: ${tarballFilename}`)
   }
-  const res = (await response.json()) as UploadResponse
-  if (!res.success) {
-    throw new Error(
-      `Failed to upload storybook build folder to vizdiff CDN: ${JSON.stringify(res.error ?? res)}`,
-    )
-  }
-  info(`Uploaded storybook build folder, testId=${res.testId}, uploadId=${res.uploadId}`)
-
-  // Delete the tarball
-  await fs.unlink(tarballFilename)
 }
 
 function randHexString(length = 8): string {

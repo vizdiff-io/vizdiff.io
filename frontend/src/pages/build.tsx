@@ -71,13 +71,43 @@ export default function Build(): JSX.Element {
   }
 
   const handleApprove = async () => {
-    // TASK: Implement approve API call
-    console.log("Approve build", id)
+    try {
+      const response = await fetch(`/api/tests/${id}/status/approved`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to approve build")
+      }
+
+      // Refresh the data
+      window.location.reload()
+    } catch (err) {
+      console.error("Error approving build:", err)
+    }
   }
 
   const handleDeny = async () => {
-    // TASK: Implement deny API call
-    console.log("Deny build", id)
+    try {
+      const response = await fetch(`/api/tests/${id}/status/denied`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to deny build")
+      }
+
+      // Refresh the data
+      window.location.reload()
+    } catch (err) {
+      console.error("Error denying build:", err)
+    }
   }
 
   const tests = data?.testResults.length

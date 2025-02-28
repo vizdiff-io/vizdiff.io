@@ -1,4 +1,12 @@
-import { TestResult } from "shared"
+import {
+  GitHubInstallation,
+  Project,
+  ScreenshotTest,
+  TestResult,
+  User,
+  WorkTask,
+  defineRelationships,
+} from "shared"
 import { DataSource } from "typeorm"
 
 import {
@@ -23,10 +31,12 @@ export async function Database(): Promise<DataSource> {
     username: POSTGRES_USER,
     password: POSTGRES_PASS,
     database: POSTGRES_DATABASE,
-    entities: [TestResult],
+    entities: [GitHubInstallation, Project, ScreenshotTest, TestResult, User, WorkTask],
     synchronize: false,
   })
 
   await database.initialize()
+  // Define relationships after database is initialized but before any queries
+  defineRelationships()
   return database
 }
