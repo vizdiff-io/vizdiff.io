@@ -145,20 +145,6 @@ export default function TestResultDialog({
           <Box sx={{ display: "flex", width: "100%", gap: 2, overflow: "hidden" }}>
             <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
               <Box sx={{ position: "relative", flex: 1, overflow: "hidden" }}>
-                <Typography
-                  variant="subtitle2"
-                  sx={{
-                    position: "absolute",
-                    width: "100%",
-                    textAlign: "center",
-                    top: 0,
-                    zIndex: 1,
-                    padding: "4px",
-                    backgroundColor: "rgba(255, 255, 255, 0.7)",
-                  }}
-                >
-                  Old Version
-                </Typography>
                 <Image
                   src={result.ancestorScreenshotUrl ?? result.screenshotUrl}
                   alt={`Old version of ${result.name}`}
@@ -171,20 +157,6 @@ export default function TestResultDialog({
             </Box>
             <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
               <Box sx={{ position: "relative", flex: 1, overflow: "hidden" }}>
-                <Typography
-                  variant="subtitle2"
-                  sx={{
-                    position: "absolute",
-                    width: "100%",
-                    textAlign: "center",
-                    top: 0,
-                    zIndex: 1,
-                    padding: "4px",
-                    backgroundColor: "rgba(255, 255, 255, 0.7)",
-                  }}
-                >
-                  New Version
-                </Typography>
                 <Image
                   src={result.screenshotUrl}
                   alt={`New version of ${result.name}`}
