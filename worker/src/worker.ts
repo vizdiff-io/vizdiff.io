@@ -516,6 +516,13 @@ export async function ingestStorybook(
       log.info(`Local server started on port ${port}`)
 
       try {
+        // Set a fixed viewport
+        await browser.setViewport({
+          width: 1200,
+          height: 900,
+          devicePixelRatio: 1,
+        })
+
         // Navigate to the Storybook iframe and wait for stories to load
         const timeoutMs = 10 * 1000 // 10 seconds
         log.info("Waiting for Storybook to load stories")
@@ -610,7 +617,9 @@ export async function ingestStorybook(
             ),
           ),
         )
-        log.info(`Successfully processed all ${Object.keys(stories).length} stories`)
+        log.info(
+          `Successfully processed all ${Object.keys(stories).length} stories for test ${screenshotTest.id} (build #${screenshotTest.buildNumber})`,
+        )
 
         let noChanges = true
         for (const testResult of testResults) {
