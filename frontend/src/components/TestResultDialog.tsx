@@ -13,7 +13,7 @@ import {
   Typography,
 } from "@mui/material"
 import Image from "next/image"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 
 import type { TestResultResponse } from "@/lib/apiTypes"
 import { changeStatusColor, changeStatusMessage } from "@/lib/changeStatus"
@@ -31,13 +31,31 @@ export default function TestResultDialog({
 }: TestResultDialogProps): JSX.Element | null {
   const [viewMode, setViewMode] = useState<ViewMode>("new")
 
+  // Determine which view modes are available based on test result
+  const hasAncestorScreenshot = result?.ancestorScreenshotUrl ? true : false
+  const isNewStatus = result?.changeStatus === "new"
+  const canShowOld = hasAncestorScreenshot && !isNewStatus
+  const canShowDiff = hasAncestorScreenshot && !isNewStatus && (result?.diffMaskUrl ? true : false)
+  const canShowSplit = hasAncestorScreenshot && !isNewStatus
+
+  // Reset to "new" view if current view mode isn't available based on status
+  useEffect(() => {
+    if (!result) {
+      return
+    }
+
+    if (
+      (viewMode === "old" && !canShowOld) ||
+      (viewMode === "diff" && !canShowDiff) ||
+      (viewMode === "split" && !canShowSplit)
+    ) {
+      setViewMode("new")
+    }
+  }, [viewMode, canShowOld, canShowDiff, canShowSplit, result])
+
+  // Early return if no result
   if (!result) {
     return null
-  }
-
-  // Reset to "new" view if trying to view a mode that requires ancestorScreenshotUrl
-  if (!result.ancestorScreenshotUrl && (viewMode === "old" || viewMode === "split")) {
-    setViewMode("new")
   }
 
   const handleViewModeChange = (_: React.MouseEvent<HTMLElement>, newMode: ViewMode | null) => {
@@ -100,7 +118,7 @@ export default function TestResultDialog({
             size="small"
             color="primary"
           >
-            <ToggleButton value="old" disabled={!result.ancestorScreenshotUrl}>
+            <ToggleButton value="old" disabled={!canShowOld}>
               <LayersIcon sx={{ mr: 1 }} />
               Old
             </ToggleButton>
@@ -108,11 +126,11 @@ export default function TestResultDialog({
               <LayersIcon sx={{ mr: 1 }} />
               New
             </ToggleButton>
-            <ToggleButton value="diff" disabled={!result.diffMaskUrl}>
+            <ToggleButton value="diff" disabled={!canShowDiff}>
               <CompareIcon sx={{ mr: 1 }} />
               Diff
             </ToggleButton>
-            <ToggleButton value="split" disabled={!result.ancestorScreenshotUrl}>
+            <ToggleButton value="split" disabled={!canShowSplit}>
               <GridViewIcon sx={{ mr: 1 }} />
               2-up
             </ToggleButton>
@@ -126,10 +144,21 @@ export default function TestResultDialog({
         {viewMode === "split" ? (
           <Box sx={{ display: "flex", width: "100%", gap: 2, overflow: "hidden" }}>
             <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-              <Typography variant="subtitle2" sx={{ mb: 1, flex: "0 0 auto" }}>
-                Old Version
-              </Typography>
               <Box sx={{ position: "relative", flex: 1, overflow: "hidden" }}>
+                <Typography
+                  variant="subtitle2"
+                  sx={{
+                    position: "absolute",
+                    width: "100%",
+                    textAlign: "center",
+                    top: 0,
+                    zIndex: 1,
+                    padding: "4px",
+                    backgroundColor: "rgba(255, 255, 255, 0.7)",
+                  }}
+                >
+                  Old Version
+                </Typography>
                 <Image
                   src={result.ancestorScreenshotUrl ?? result.screenshotUrl}
                   alt={`Old version of ${result.name}`}
@@ -141,10 +170,21 @@ export default function TestResultDialog({
               </Box>
             </Box>
             <Box sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-              <Typography variant="subtitle2" sx={{ mb: 1, flex: "0 0 auto" }}>
-                New Version
-              </Typography>
               <Box sx={{ position: "relative", flex: 1, overflow: "hidden" }}>
+                <Typography
+                  variant="subtitle2"
+                  sx={{
+                    position: "absolute",
+                    width: "100%",
+                    textAlign: "center",
+                    top: 0,
+                    zIndex: 1,
+                    padding: "4px",
+                    backgroundColor: "rgba(255, 255, 255, 0.7)",
+                  }}
+                >
+                  New Version
+                </Typography>
                 <Image
                   src={result.screenshotUrl}
                   alt={`New version of ${result.name}`}
@@ -175,6 +215,8 @@ export default function TestResultDialog({
                   width: "100%",
                   height: "100%",
                   overflow: "hidden",
+                  backgroundColor: "rgba(255, 0, 255, 0.2)",
+                  mixBlendMode: "multiply",
                 }}
               >
                 <Image
@@ -182,7 +224,7 @@ export default function TestResultDialog({
                   alt={`Diff mask for ${result.name}`}
                   fill
                   sizes="100vw"
-                  style={{ objectFit: "contain", opacity: 0.5 }}
+                  style={{ objectFit: "contain" }}
                   priority
                 />
               </Box>
