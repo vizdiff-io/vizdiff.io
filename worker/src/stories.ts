@@ -114,53 +114,69 @@ export async function processStory({
 
   if (baseTestResult) {
     // Attempt to download baseline screenshot
-    const baselineKey = `projects/${projectId}/screenshots/${baseTestResult.screenshotTest.uploadId}/${storyId}.png`
-    baselineImageUrl = `https://${bucket}.s3.amazonaws.com/${baselineKey}`
-    try {
-      const baselinePath = path.join(tmpDir, `${storyId}-baseline.png`)
-      await downloadImage(s3Client, bucket, baselineKey, baselinePath)
-
-      // Load the new and baseline PNG images
-      const newImageBuffer = await fsPromises.readFile(screenshotPath)
-      const baselineImageBuffer = await fsPromises.readFile(baselinePath)
-      const newPng = PNG.sync.read(newImageBuffer)
-      const baselinePng = PNG.sync.read(baselineImageBuffer)
-
-      if (newPng.width !== baselinePng.width || newPng.height !== baselinePng.height) {
-        log.warn(`Image dimensions mismatch for story ${storyId}`)
-        changeStatus = "changed"
-        diffRatio = 1
-      } else {
-        const diffRes = diffImages(newPng, baselinePng)
-        diffRatio = diffRes.diffRatio
-
-        // Default threshold of 0.1% difference
-        changeStatus = diffRatio < 0.001 ? "unchanged" : "changed"
-        log.debug(`Diff ratio for story ${storyId}: ${diffRatio} (${changeStatus})`)
-
-        // Write and upload the diff image
-        const diffPath = path.join(tmpDir, `${storyId}-diff.png`)
-        await fsPromises.writeFile(diffPath, PNG.sync.write(diffRes.diffMask))
-        const diffKey = `projects/${projectId}/screenshots/${uploadId}/${storyId}-diff.png`
-        log.debug(`Uploading diff image ${diffPath} to s3://${bucket}/${diffKey}`)
-        await s3Client.send(
-          new PutObjectCommand({
-            Bucket: bucket,
-            Key: diffKey,
-            Body: await fsPromises.readFile(diffPath),
-            ContentType: "image/png",
-          }),
-        )
-        diffImageUrl = `https://${bucket}.s3.amazonaws.com/${diffKey}`
-        log.info(
-          `Successfully uploaded diff image ${diffKey} to S3 (${diffRes.diffMask.data.byteLength} bytes)`,
-        )
-      }
-    } catch (err) {
+    log.debug(
+      `Base test result for story ${storyId}: ${JSON.stringify({
+        id: baseTestResult.id,
+        storyId: baseTestResult.storyId,
+        hasScreenshotTest: !!baseTestResult.screenshotTest,
+        screenshotTestId: baseTestResult.screenshotTest.id,
+        uploadId: baseTestResult.screenshotTest.uploadId,
+      })}`,
+    )
+    if (!baseTestResult.screenshotTest.uploadId) {
       log.warn(
-        `Baseline screenshot not available for story ${storyId}: ${err instanceof Error ? err.message : String(err)}`,
+        `Base test result for story ${storyId} has missing screenshotTest or uploadId reference`,
       )
       changeStatus = "new"
+    } else {
+      const baselineKey = `projects/${projectId}/screenshots/${baseTestResult.screenshotTest.uploadId}/${storyId}.png`
+      baselineImageUrl = `https://${bucket}.s3.amazonaws.com/${baselineKey}`
+      try {
+        const baselinePath = path.join(tmpDir, `${storyId}-baseline.png`)
+        await downloadImage(s3Client, bucket, baselineKey, baselinePath)
+
+        // Load the new and baseline PNG images
+        const newImageBuffer = await fsPromises.readFile(screenshotPath)
+        const baselineImageBuffer = await fsPromises.readFile(baselinePath)
+        const newPng = PNG.sync.read(newImageBuffer)
+        const baselinePng = PNG.sync.read(baselineImageBuffer)
+
+        if (newPng.width !== baselinePng.width || newPng.height !== baselinePng.height) {
+          log.warn(`Image dimensions mismatch for story ${storyId}`)
+          changeStatus = "changed"
+          diffRatio = 1
+        } else {
+          const diffRes = diffImages(newPng, baselinePng)
+          diffRatio = diffRes.diffRatio
+
+          // Default threshold of 0.1% difference
+          changeStatus = diffRatio < 0.001 ? "unchanged" : "changed"
+          log.debug(`Diff ratio for story ${storyId}: ${diffRatio} (${changeStatus})`)
+
+          // Write and upload the diff image
+          const diffPath = path.join(tmpDir, `${storyId}-diff.png`)
+          await fsPromises.writeFile(diffPath, PNG.sync.write(diffRes.diffMask))
+          const diffKey = `projects/${projectId}/screenshots/${uploadId}/${storyId}-diff.png`
+          log.debug(`Uploading diff image ${diffPath} to s3://${bucket}/${diffKey}`)
+          await s3Client.send(
+            new PutObjectCommand({
+              Bucket: bucket,
+              Key: diffKey,
+              Body: await fsPromises.readFile(diffPath),
+              ContentType: "image/png",
+            }),
+          )
+          diffImageUrl = `https://${bucket}.s3.amazonaws.com/${diffKey}`
+          log.info(
+            `Successfully uploaded diff image ${diffKey} to S3 (${diffRes.diffMask.data.byteLength} bytes)`,
+          )
+        }
+      } catch (err) {
+        log.warn(
+          `Baseline screenshot not available for story ${storyId}: ${err instanceof Error ? err.message : String(err)}`,
+        )
+        changeStatus = "new"
+      }
     }
   }
 

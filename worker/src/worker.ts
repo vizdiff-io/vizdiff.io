@@ -578,7 +578,7 @@ export async function ingestStorybook(
           log.info(`Fetching base test results for commit ${screenshotTest.baseCommitSha}`)
           const baseTests = await testResultTable
             .createQueryBuilder("result")
-            .innerJoin(ScreenshotTest, "test", "result.screenshot_test_id = test.id")
+            .leftJoinAndSelect("result.screenshotTest", "test")
             .where("test.commitSha = :commitSha", { commitSha: screenshotTest.baseCommitSha })
             .getMany()
 
