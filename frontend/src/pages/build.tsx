@@ -170,7 +170,7 @@ export default function Build(): JSX.Element {
                     >
                       {data.commitSha.substring(0, 7)}
                     </MuiLink>
-                  </Tooltip>
+                  </Tooltip>{" "}
                   on{" "}
                   <MuiLink
                     href={getBranchUrl(data.branch, data.githubRepoUrl)}
