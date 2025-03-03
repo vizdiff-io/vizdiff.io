@@ -44,6 +44,7 @@ export type ScreenshotTestResponse = {
   id: number
   projectId: number
   buildNumber: number
+  githubRepoUrl: string
   commitSha: string
   branch: string
   baseCommitSha?: string
