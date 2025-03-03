@@ -644,7 +644,7 @@ export async function ingestStorybook(
     }
   } catch (error) {
     log.error(
-      `Failed to process storybook: ${error instanceof Error ? error.message : String(error)}`,
+      `Failed to process storybook in test ${screenshotTest.id} (build #${screenshotTest.buildNumber}): ${error instanceof Error ? error.message : String(error)}`,
     )
     screenshotTest.status = "failed"
     await screenshotTestRepo.save(screenshotTest)
@@ -661,7 +661,7 @@ export async function ingestStorybook(
     }
 
     log.info(
-      `Storybook ingestion completed for ${screenshotTest.id} with status: ${screenshotTest.status}`,
+      `Storybook ingestion completed for ${screenshotTest.id} (build #${screenshotTest.buildNumber}) with status: ${screenshotTest.status}`,
     )
   }
 }

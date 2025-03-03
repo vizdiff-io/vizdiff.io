@@ -109,7 +109,7 @@ export async function processStory({
 
   let changeStatus: TestResultStatus = "new"
   let baselineImageUrl = newImageUrl
-  let diffImageUrl = newImageUrl
+  let diffImageUrl: string | undefined
   let diffRatio = 0
 
   if (baseTestResult) {
@@ -181,9 +181,12 @@ export async function processStory({
   }
 
   // Create test result record
-  log.debug(`Creating test result record for story: ${storyId}`)
+  const sanitizedName = story.name.substring(0, 255)
+  log.debug(
+    `Creating test result record for build #${screenshotTest.buildNumber} story "${sanitizedName}" (${storyId})`,
+  )
   const testResult = new TestResult()
-  testResult.name = story.name.substring(0, 255)
+  testResult.name = sanitizedName
   testResult.screenshotTest = screenshotTest
   testResult.storyId = storyId
   testResult.newImageUrl = newImageUrl
@@ -192,7 +195,9 @@ export async function processStory({
   testResult.diffRatio = diffRatio
   testResult.changeStatus = changeStatus
   await testResultTable.save(testResult)
-  log.debug(`Successfully saved test result record ${testResult.id}`)
+  log.debug(
+    `Successfully saved test result record ${testResult.id} (${testResult.name}) for build #${screenshotTest.buildNumber}`,
+  )
 
   return testResult
 }
@@ -237,8 +242,10 @@ async function waitForStorybookToLoad(browser: Browser): Promise<void> {
     },
   )
 
-  // Additional wait to ensure story is fully rendered
-  // await browser.pause(1000)
+  // TASK: Use WebDriver BiDi to wait for "network quiescence"
+
+  // Sleep for an additional fixed delay after network requests have completed
+  await browser.pause(500)
 }
 
 async function takeScreenshotWithRetry(
