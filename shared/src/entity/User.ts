@@ -40,9 +40,9 @@ export class User {
   @OneToMany("GitHubInstallation", "creator")
   createdInstallations!: Promise<GitHubInstallation[]>
 
-  @CreateDateColumn({ name: "created_at", type: "timestamp", nullable: false })
+  @CreateDateColumn({ name: "created_at", type: "timestamptz", nullable: false })
   createdAt!: Date
 
-  @UpdateDateColumn({ name: "updated_at", type: "timestamp", nullable: false })
+  @UpdateDateColumn({ name: "updated_at", type: "timestamptz", nullable: false })
   updatedAt!: Date
 }

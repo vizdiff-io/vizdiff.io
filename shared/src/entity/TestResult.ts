@@ -47,9 +47,9 @@ export class TestResult {
   @Column({ type: "text", name: "change_status", nullable: false })
   changeStatus!: string
 
-  @CreateDateColumn({ name: "created_at", nullable: false })
+  @CreateDateColumn({ name: "created_at", type: "timestamptz", nullable: false })
   createdAt!: Date
 
-  @UpdateDateColumn({ name: "updated_at", nullable: false })
+  @UpdateDateColumn({ name: "updated_at", type: "timestamptz", nullable: false })
   updatedAt!: Date
 }

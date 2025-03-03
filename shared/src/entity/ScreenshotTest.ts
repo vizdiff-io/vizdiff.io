@@ -62,9 +62,9 @@ export class ScreenshotTest {
   @Column({ name: "total_changes", type: "integer", nullable: true })
   totalChanges!: number | undefined
 
-  @CreateDateColumn({ name: "created_at", nullable: false })
+  @CreateDateColumn({ name: "created_at", type: "timestamptz", nullable: false })
   createdAt!: Date
 
-  @UpdateDateColumn({ name: "updated_at", nullable: false })
+  @UpdateDateColumn({ name: "updated_at", type: "timestamptz", nullable: false })
   updatedAt!: Date
 }

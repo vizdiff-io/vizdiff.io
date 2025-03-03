@@ -25,15 +25,15 @@ export class WorkTask {
   @Column({ type: "jsonb", nullable: false })
   data!: string
 
-  @Column({ name: "locked_at", type: "timestamp", nullable: true })
+  @Column({ name: "locked_at", type: "timestamptz", nullable: true })
   lockedAt?: Date
 
   @Column({ name: "locked_by", type: "text", nullable: true })
   lockedBy?: string
 
-  @CreateDateColumn({ name: "created_at", type: "timestamp", nullable: false })
+  @CreateDateColumn({ name: "created_at", type: "timestamptz", nullable: false })
   createdAt!: Date
 
-  @UpdateDateColumn({ name: "updated_at", type: "timestamp", nullable: false })
+  @UpdateDateColumn({ name: "updated_at", type: "timestamptz", nullable: false })
   updatedAt!: Date
 }
