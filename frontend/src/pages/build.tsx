@@ -8,7 +8,10 @@ import {
   CircularProgress,
   ImageList,
   ImageListItem,
+  Tooltip,
+  Link as MuiLink,
 } from "@mui/material"
+import { formatDistanceToNow } from "date-fns"
 import Head from "next/head"
 import { useRouter } from "next/router"
 import { useEffect, useState } from "react"
@@ -20,6 +23,7 @@ import useApiGet from "@/hooks/useApiGet"
 import useAppTheme from "@/hooks/useAppTheme"
 import type { ScreenshotTestResponse, TestResponse, TestResultResponse } from "@/lib/apiTypes"
 import { getStatusColor } from "@/lib/colors"
+import { getBranchUrl, getCommitUrl } from "@/lib/links"
 
 function getStatusText(status: ScreenshotTestResponse["status"]): string {
   switch (status) {
@@ -151,7 +155,30 @@ export default function Build(): JSX.Element {
                   {`Build #${data.buildNumber}`}
                 </Typography>
                 <Typography variant="body2" sx={{ mb: 0.5 }}>
-                  {data.commitSha} on {data.branch}
+                  Created {formatDistanceToNow(data.initiatedStampSec * 1000)} ago •{" "}
+                  <Tooltip title={data.commitSha}>
+                    <MuiLink
+                      href={getCommitUrl(data.commitSha, data.githubRepoUrl)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()} // Prevent triggering the parent Link
+                      sx={{
+                        fontFamily: "monospace",
+                        textDecoration: "none",
+                        "&:hover": { textDecoration: "underline" },
+                      }}
+                    >
+                      {data.commitSha.substring(0, 7)}
+                    </MuiLink>
+                  </Tooltip>
+                  on{" "}
+                  <MuiLink
+                    href={getBranchUrl(data.branch, data.githubRepoUrl)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {data.branch}
+                  </MuiLink>
                 </Typography>
                 {data.parent && (
                   <Typography variant="body2" sx={{ mb: 2 }}>

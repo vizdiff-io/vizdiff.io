@@ -19,6 +19,7 @@ import { AppLayout } from "@/components/AppLayout"
 import useApiGet from "@/hooks/useApiGet"
 import type { ProjectResponse, ScreenshotTestSummaryResponse } from "@/lib/apiTypes"
 import { getStatusColor } from "@/lib/colors"
+import { getBranchUrl, getCommitUrl } from "@/lib/links"
 import { plural } from "@/lib/text"
 
 export default function Project(): JSX.Element {
@@ -50,23 +51,6 @@ export default function Project(): JSX.Element {
         setTimeout(() => setCopyTooltip("Copy"), 2000)
       }
     }
-  }
-
-  // Helper function to get the GitHub URL for a commit
-  const getCommitUrl = (commitSha: string): string => {
-    const repoUrl = project?.githubRepoUrl ?? ""
-    if (!repoUrl || !commitSha) {
-      return "#"
-    }
-
-    // Extract owner and repo name from GitHub URL
-    const match = /github\.com\/([^/]+)\/([^/]+)/.exec(repoUrl)
-    if (!match) {
-      return "#"
-    }
-
-    const [, owner, repo] = match
-    return `https://github.com/${owner}/${repo}/commit/${commitSha}`
   }
 
   return (
@@ -182,24 +166,29 @@ export default function Project(): JSX.Element {
                       </Box>
                       <Typography variant="body2">
                         Created {formatDistanceToNow(build.initiatedStampSec * 1000)} ago •{" "}
-                        {build.commitSha && (
-                          <Tooltip title={build.commitSha}>
-                            <MuiLink
-                              href={getCommitUrl(build.commitSha)}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()} // Prevent triggering the parent Link
-                              sx={{
-                                fontFamily: "monospace",
-                                textDecoration: "none",
-                                "&:hover": { textDecoration: "underline" },
-                              }}
-                            >
-                              {build.commitSha.substring(0, 7)}
-                            </MuiLink>
-                          </Tooltip>
-                        )}{" "}
-                        on {build.branch}
+                        <Tooltip title={build.commitSha}>
+                          <MuiLink
+                            href={getCommitUrl(build.commitSha, project?.githubRepoUrl)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()} // Prevent triggering the parent Link
+                            sx={{
+                              fontFamily: "monospace",
+                              textDecoration: "none",
+                              "&:hover": { textDecoration: "underline" },
+                            }}
+                          >
+                            {build.commitSha.substring(0, 7)}
+                          </MuiLink>
+                        </Tooltip>
+                        on{" "}
+                        <MuiLink
+                          href={getBranchUrl(build.branch, project?.githubRepoUrl)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          {build.branch}
+                        </MuiLink>
                       </Typography>
                     </Box>
                     <Box sx={{ display: "flex", gap: 4, ml: 2 }}>
