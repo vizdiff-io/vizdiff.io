@@ -64,10 +64,14 @@ async function vizdiff(storybookDir: string, options: CommandArgs): Promise<void
       baseBranch,
     })
   } catch (err: unknown) {
-    if (err instanceof Error && err.message.includes("401")) {
+    const errMessage = err instanceof Error ? err.message : String(err)
+    if (errMessage.includes("401")) {
       fatal("Invalid project token. Please check that the token is correct.")
+    } else if (errMessage === "fetch failed") {
+      fatal("Storybook upload failed")
+    } else {
+      fatal(`Storybook upload failed: ${errMessage}`)
     }
-    fatal(err instanceof Error ? err.message : String(err))
   }
 }
 

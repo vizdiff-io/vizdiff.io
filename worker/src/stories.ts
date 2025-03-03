@@ -176,7 +176,7 @@ export async function processStory({
   testResult.diffRatio = diffRatio
   testResult.changeStatus = changeStatus
   await testResultTable.save(testResult)
-  log.debug(`Successfully saved test result record`)
+  log.debug(`Successfully saved test result record ${testResult.id}`)
 
   return testResult
 }

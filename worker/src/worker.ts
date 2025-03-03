@@ -651,7 +651,9 @@ export async function ingestStorybook(
       await screenshotTestRepo.save(screenshotTest)
     }
 
-    log.info(`Storybook ingestion completed with status: ${screenshotTest.status}`)
+    log.info(
+      `Storybook ingestion completed for ${screenshotTest.id} with status: ${screenshotTest.status}`,
+    )
   }
 }
 
