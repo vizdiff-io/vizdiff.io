@@ -102,6 +102,7 @@ export const list: RequestHandler = async (req, res) => {
   const responses: ScreenshotTestSummaryResponse[] = screenshotTestsWithStats.map((test) => ({
     id: test.screenshot_test_id,
     projectId,
+    githubRepoUrl: project.githubRepoUrl,
     buildNumber: test.screenshot_test_build_number,
     commitSha: test.screenshot_test_git_commit,
     branch: test.screenshot_test_git_branch,
@@ -164,6 +165,7 @@ export const get: RequestHandler = async (req, res) => {
   const response: TestResponse = {
     id: screenshotTest.id,
     projectId: screenshotTest.project.id,
+    githubRepoUrl: project.githubRepoUrl,
     buildNumber: screenshotTest.buildNumber,
     commitSha: screenshotTest.commitSha,
     branch: screenshotTest.branch,
@@ -249,16 +251,18 @@ export const listActivity: RequestHandler = async (_req, res) => {
       "screenshot_test.status",
       "screenshot_test.tag",
       "project.id as project_id",
+      "project.github_repo_url as project_github_repo_url",
       "COALESCE(test_counts.testcount, '0') as testcount",
     ])
     .orderBy("screenshot_test.createdAt", "DESC")
     .take(10)
-    .getRawMany<ScreenshotTestWithStats & { project_id: number }>()
+    .getRawMany<ScreenshotTestWithStats & { project_id: number; project_github_repo_url: string }>()
 
   const responses: ScreenshotTestResponse[] = screenshotTests.map((test) => ({
     id: test.screenshot_test_id,
     projectId: test.project_id,
     buildNumber: test.screenshot_test_build_number,
+    githubRepoUrl: test.project_github_repo_url,
     commitSha: test.screenshot_test_git_commit,
     branch: test.screenshot_test_git_branch,
     baseCommitSha: test.screenshot_test_base_commit_sha,

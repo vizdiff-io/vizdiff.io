@@ -90,6 +90,13 @@ vi.mock("webdriverio", () => ({
       url: vi.fn().mockImplementation(async (url: string) => {
         log.debug("WebdriverIO url called with:", url)
       }),
+      setViewport: vi
+        .fn()
+        .mockImplementation(
+          async (viewport: { width: number; height: number; devicePixelRatio: number }) => {
+            log.debug("WebdriverIO setViewport called with:", viewport)
+          },
+        ),
       saveScreenshot: vi.fn().mockImplementation(async () => {
         log.debug("WebdriverIO saveScreenshot called")
         return Buffer.from("mock screenshot")
@@ -282,6 +289,7 @@ describe("worker", () => {
             return {
               createQueryBuilder: vi.fn().mockReturnValue({
                 innerJoin: vi.fn().mockReturnThis(),
+                leftJoinAndSelect: vi.fn().mockReturnThis(),
                 where: vi.fn().mockReturnThis(),
                 getMany: vi.fn().mockResolvedValue([mockBaseTestResult]),
               }),
@@ -423,6 +431,7 @@ describe("worker", () => {
               return {
                 createQueryBuilder: vi.fn().mockReturnValue({
                   innerJoin: vi.fn().mockReturnThis(),
+                  leftJoinAndSelect: vi.fn().mockReturnThis(),
                   where: vi.fn().mockReturnThis(),
                   getMany: vi.fn().mockResolvedValue([]),
                 }),

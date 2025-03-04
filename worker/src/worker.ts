@@ -516,6 +516,13 @@ export async function ingestStorybook(
       log.info(`Local server started on port ${port}`)
 
       try {
+        // Set a fixed viewport
+        await browser.setViewport({
+          width: 1200,
+          height: 900,
+          devicePixelRatio: 1,
+        })
+
         // Navigate to the Storybook iframe and wait for stories to load
         const timeoutMs = 10 * 1000 // 10 seconds
         log.info("Waiting for Storybook to load stories")
@@ -578,7 +585,7 @@ export async function ingestStorybook(
           log.info(`Fetching base test results for commit ${screenshotTest.baseCommitSha}`)
           const baseTests = await testResultTable
             .createQueryBuilder("result")
-            .innerJoin(ScreenshotTest, "test", "result.screenshot_test_id = test.id")
+            .leftJoinAndSelect("result.screenshotTest", "test")
             .where("test.commitSha = :commitSha", { commitSha: screenshotTest.baseCommitSha })
             .getMany()
 
@@ -610,7 +617,9 @@ export async function ingestStorybook(
             ),
           ),
         )
-        log.info(`Successfully processed all ${Object.keys(stories).length} stories`)
+        log.info(
+          `Successfully processed all ${Object.keys(stories).length} stories for test ${screenshotTest.id} (build #${screenshotTest.buildNumber})`,
+        )
 
         let noChanges = true
         for (const testResult of testResults) {
@@ -635,7 +644,7 @@ export async function ingestStorybook(
     }
   } catch (error) {
     log.error(
-      `Failed to process storybook: ${error instanceof Error ? error.message : String(error)}`,
+      `Failed to process storybook in test ${screenshotTest.id} (build #${screenshotTest.buildNumber}): ${error instanceof Error ? error.message : String(error)}`,
     )
     screenshotTest.status = "failed"
     await screenshotTestRepo.save(screenshotTest)
@@ -651,7 +660,9 @@ export async function ingestStorybook(
       await screenshotTestRepo.save(screenshotTest)
     }
 
-    log.info(`Storybook ingestion completed with status: ${screenshotTest.status}`)
+    log.info(
+      `Storybook ingestion completed for ${screenshotTest.id} (build #${screenshotTest.buildNumber}) with status: ${screenshotTest.status}`,
+    )
   }
 }
 

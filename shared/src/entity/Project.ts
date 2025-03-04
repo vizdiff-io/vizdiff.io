@@ -36,9 +36,9 @@ export class Project {
   @Column({ name: "storybook_config", type: "jsonb", nullable: true })
   storybookConfig!: Record<string, unknown>
 
-  @CreateDateColumn({ name: "created_at", nullable: false })
+  @CreateDateColumn({ name: "created_at", type: "timestamptz", nullable: false })
   createdAt!: Date
 
-  @UpdateDateColumn({ name: "updated_at", nullable: false })
+  @UpdateDateColumn({ name: "updated_at", type: "timestamptz", nullable: false })
   updatedAt!: Date
 }

@@ -1,6 +1,7 @@
 ---
 description: Guidelines for committing changes in logical groups with conventional commit messages
 globs: 
+alwaysApply: false
 ---
  ---
 Description: Guidelines for committing changes in logical groups with conventional commit messages
@@ -17,7 +18,7 @@ description: Standards for organizing commits into logical groups with conventio
 actions:
   - type: suggest
     message: |
-      When committing changes, follow these steps:
+      When committing changes, follow these steps. Always disable the git pager:
 
       1. Safety Check:
          ```bash
