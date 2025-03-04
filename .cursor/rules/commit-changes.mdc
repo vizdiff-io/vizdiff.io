@@ -1,5 +1,5 @@
 ---
-description: Guidelines for committing changes in logical groups with conventional commit messagesgit 
+description: Guidelines for committing changes in logical groups with conventional commit messages
 globs: 
 alwaysApply: false
 ---
