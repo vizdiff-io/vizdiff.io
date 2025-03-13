@@ -13,6 +13,7 @@ import {
   APP_URL,
 } from "../environment"
 import { log } from "../log"
+import type { CheckSuitePayload } from "../schemas/CheckSuitePayload"
 import { createScreenshotTest } from "../screenshotTests"
 import type { DefaultRequest, DefaultResponse } from "../types"
 
@@ -24,7 +25,7 @@ interface WebhookRequest extends DefaultRequest {
 /**
  * Verify the GitHub webhook signature
  */
-function verifyWebhookSignature(
+export function verifyWebhookSignature(
   payload: Buffer,
   signature: string | undefined,
   signingSecret: string,
@@ -227,56 +228,5 @@ export async function githubCheckSuiteWebhook(
     const errorMessage = error instanceof Error ? error.message : String(error)
     log.error(`Error processing check_suite webhook: ${errorMessage}`)
     res.status(500).json({ error: "Internal server error" })
-  }
-}
-
-interface CheckSuitePayload {
-  action: string
-  check_suite: {
-    id: number
-    head_branch: string
-    head_sha: string
-    status: string
-    conclusion: string | null
-    pull_requests: Array<{
-      number: number
-      head: {
-        ref: string
-        sha: string
-        repo: {
-          id: number
-          name: string
-        }
-      }
-      base: {
-        ref: string
-        sha: string
-        repo: {
-          id: number
-          name: string
-        }
-      }
-    }>
-  }
-  repository: {
-    id: number
-    name: string
-    full_name: string
-    owner: {
-      login: string
-      id: number
-    }
-  }
-  organization?: {
-    login: string
-    id: number
-  }
-  sender: {
-    login: string
-    id: number
-  }
-  installation: {
-    id: number
-    node_id: string
   }
 }
