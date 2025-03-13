@@ -16,6 +16,7 @@ import * as Projects from "./endpoints/projects"
 import * as ScreenshotTests from "./endpoints/screenshotTests"
 import * as Upload from "./endpoints/upload"
 import * as User from "./endpoints/user"
+import * as Webhooks from "./endpoints/webhooks"
 import { IS_PRODUCTION, IS_TEST, PORT } from "./environment"
 import { log } from "./log"
 import type { DefaultRequest, DefaultResponse } from "./types"
@@ -51,18 +52,35 @@ if (!IS_TEST) {
 
 // Register middleware
 app.use(httpLogger)
-app.use(cors())
+
 app.use(cookieParser())
 app.use(bodyParser.json())
 app.disable("x-powered-by")
 app.set("trust proxy", ["loopback", "linklocal", "uniquelocal"])
+
+// Special raw body parser for GitHub webhooks to verify signatures
+const rawBodyParser = bodyParser.json({
+  verify: (req: Express.Request & { rawBody?: Buffer }, _res, buf) => {
+    req.rawBody = buf
+  },
+})
+
+// Configure CORS
+app.use(
+  cors({
+    origin: IS_PRODUCTION ? ["https://vizdiff.io", /\.vizdiff\.io$/] : undefined,
+    credentials: true,
+  }),
+)
 
 // Register routes
 router.get("/", (_req: DefaultRequest, res: DefaultResponse) => {
   res.json({ uptime: (new Date().getTime() - startTime) / 1000 })
 })
 
+// Auth routes
 router.get("/auth/github/callback", Auth.githubCallback)
+router.get("/auth/github/installed", Auth.githubAppInstalled)
 router.get("/auth/logout", Auth.logout) // Clears cookies only, no auth needed
 
 router.get("/github/orgs", authenticateJWT, requireUser, Github.orgs)
@@ -72,18 +90,21 @@ router.get("/activity", authenticateJWT, requireUser, ScreenshotTests.listActivi
 
 router.get("/projects", authenticateJWT, requireUser, Projects.list)
 router.get("/projects/:id", authenticateJWT, requireUser, Projects.get)
-router.delete("/projects/:id", authenticateJWT, requireUser, Projects.remove)
 router.post("/projects", authenticateJWT, requireUser, Projects.create)
-router.get("/projects/:projectId/builds", authenticateJWT, requireUser, ScreenshotTests.list)
+router.post("/projects/:id/reset-token", authenticateJWT, requireUser, Projects.resetToken)
+router.delete("/projects/:id", authenticateJWT, requireUser, Projects.remove)
 
+router.get("/projects/:projectId/builds", authenticateJWT, requireUser, ScreenshotTests.list)
 router.get("/tests/:id", authenticateJWT, requireUser, ScreenshotTests.get)
 router.post("/tests/:id/status/:status", authenticateJWT, requireUser, Approval.approveOrDeny)
 
+router.get("/users/me", authenticateJWT, requireUser, User.me)
 router.post("/upload/storybook", Upload.uploadStorybook) // ?token=<project_token>
 
-router.get("/users/me", authenticateJWT, requireUser, User.me)
+// GitHub webhook route - use special middleware for raw body
+router.post("/webhooks/github", rawBodyParser, Webhooks.githubCheckSuiteWebhook)
 
-app.use(router)
+app.use("/api", router)
 
 // Error handling
 app.use((err: Error, _req: DefaultRequest, res: DefaultResponse, _next: Express.NextFunction) => {
