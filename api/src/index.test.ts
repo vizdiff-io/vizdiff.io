@@ -12,8 +12,8 @@ describe("app", () => {
     expect(process.env.PORT).toBe("0")
   })
 
-  it("GET /", async () => {
-    const response = await request(server).get("/")
+  it("GET /api", async () => {
+    const response = await request(server).get("/api")
     expect(response.status).toBe(200)
     expect(response.body.uptime).toBeGreaterThan(0)
   })

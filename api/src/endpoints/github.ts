@@ -45,17 +45,18 @@ export const orgs: RequestHandler = async (_req, res) => {
   const orgInstallations = installations.filter((inst) => inst.accountType === "Organization")
 
   // Convert installations to org format
+  const ORGS_URL = "https://api.github.com/user/orgs"
   const orgList = orgInstallations.map((inst) => ({
     login: inst.accountName,
     id: parseInt(inst.accountId, 10),
     node_id: "", // We don't have this but it's not used
-    url: `https://api.github.com/orgs/${inst.accountName}`,
-    repos_url: `https://api.github.com/orgs/${inst.accountName}/repos`,
-    events_url: `https://api.github.com/orgs/${inst.accountName}/events`,
-    hooks_url: `https://api.github.com/orgs/${inst.accountName}/hooks`,
-    issues_url: `https://api.github.com/orgs/${inst.accountName}/issues`,
-    members_url: `https://api.github.com/orgs/${inst.accountName}/members{/member}`,
-    public_members_url: `https://api.github.com/orgs/${inst.accountName}/public_members{/member}`,
+    url: `${ORGS_URL}/${inst.accountName}`,
+    repos_url: `${ORGS_URL}/${inst.accountName}/repos`,
+    events_url: `${ORGS_URL}/${inst.accountName}/events`,
+    hooks_url: `${ORGS_URL}/${inst.accountName}/hooks`,
+    issues_url: `${ORGS_URL}/${inst.accountName}/issues`,
+    members_url: `${ORGS_URL}/${inst.accountName}/members{/member}`,
+    public_members_url: `${ORGS_URL}/${inst.accountName}/public_members{/member}`,
     avatar_url: `https://avatars.githubusercontent.com/u/${inst.accountId}?v=4`,
     description: null,
   }))
