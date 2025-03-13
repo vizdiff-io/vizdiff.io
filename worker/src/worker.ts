@@ -1,17 +1,5 @@
-/* eslint-disable no-underscore-dangle */
-import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3"
-import type { Capabilities } from "@wdio/types"
-import fs, { promises as fsPromises } from "node:fs"
-import http from "node:http"
-import os from "node:os"
-import path from "node:path"
-import { Readable } from "node:stream"
-import pLimit from "p-limit"
 import createPgSubscriber from "pg-listen"
-import { ScreenshotTest, TestResult } from "shared"
-import { extract } from "tar"
-import { Not, In } from "typeorm"
-import { remote } from "webdriverio"
+import { ScreenshotTest } from "shared"
 
 import { Database, DatabasePool } from "./database"
 import {
@@ -21,41 +9,20 @@ import {
   POSTGRES_PASS,
   POSTGRES_PORT,
 } from "./environment"
+import { ingestStorybook } from "./ingest"
 import { log } from "./log"
-import { processStory } from "./stories"
+import { latestTaskQueueId, fetchTask } from "./tasks"
 
 type IngestStorybookPayload = {
   projectId: string
   uploadId: string
 }
 
-type Task = {
-  task_type: string
-  screenshot_test_id: number
-  data: Record<string, unknown>
-}
-
-interface Story {
-  id: string
-  name: string
-  importPath: string
-}
-
-type StorybookWindow = {
-  __STORYBOOK_PREVIEW__?: {
-    ready: boolean
-    extract: () => Promise<Record<string, Story>>
-    storyStore?: {
-      cacheAllCSFFiles: () => Promise<void>
-    }
-  }
-}
-
 const TASKS_CHANNEL = "task_queue"
 const CONN_STRING = `postgres://${POSTGRES_USER}:${POSTGRES_PASS}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DATABASE}`
 const POLL_INTERVAL_MS = 1000 * 10
 const RETRY_INTERVAL_MS = 1000 * 15
-const LOCK_TIMEOUT_MINUTES = 60
+
 const MAX_RETRY_COUNT = 5 // Maximum number of retries before giving up
 const MAX_BACKOFF_MS = 1000 * 60 * 30 // 30 minutes max backoff
 // Consider a build stuck if it's been running for more than this amount of time
@@ -232,75 +199,6 @@ export async function startTask(taskQueueId: number): Promise<void> {
   }
 }
 
-export async function latestTaskQueueId(): Promise<number | undefined> {
-  const client = await DatabasePool()
-  try {
-    const res = await client.query(
-      `SELECT id FROM task_queue 
-       WHERE locked_at IS NULL 
-          OR locked_at < NOW() - INTERVAL '${LOCK_TIMEOUT_MINUTES} minutes'
-       ORDER BY id DESC 
-       LIMIT 1`,
-    )
-    if (res.rowCount === 0) {
-      return undefined
-    }
-    return (res.rows[0] as { id: number }).id
-  } finally {
-    client.release()
-  }
-}
-
-export async function fetchTask(taskQueueId: number): Promise<Task | undefined> {
-  const client = await DatabasePool()
-  try {
-    // First try to acquire the lock atomically, respecting the lock timeout
-    const lockRes = await client.query(
-      `UPDATE task_queue 
-       SET locked_at = NOW(), locked_by = $1
-       WHERE id = $2 
-         AND (locked_at IS NULL 
-           OR locked_at < NOW() - INTERVAL '${LOCK_TIMEOUT_MINUTES} minutes')
-       RETURNING task_type, screenshot_test_id, data`,
-      [`worker-${process.pid}`, taskQueueId],
-    )
-
-    // If no rows were updated, the task was already locked or doesn't exist
-    if (lockRes.rowCount === 0) {
-      const checkRes = await client.query(
-        "SELECT locked_at, locked_by FROM task_queue WHERE id = $1",
-        [taskQueueId],
-      )
-      if (checkRes.rowCount === 0) {
-        throw new Error(`Task not found: ${taskQueueId}`)
-      }
-      const task = checkRes.rows[0] as { locked_by: string; locked_at: Date }
-      const lockAge = Math.floor((Date.now() - task.locked_at.getTime()) / (1000 * 60))
-      log.warn(
-        `Task ${taskQueueId} is locked by ${task.locked_by} since ${task.locked_at} (${lockAge} minutes ago)`,
-      )
-      return undefined
-    }
-
-    const task = lockRes.rows[0] as {
-      task_type: string
-      screenshot_test_id: number
-      data: Record<string, unknown> | string | undefined
-    }
-
-    if (!task.data) {
-      throw new Error(`Task ${taskQueueId} has no data`)
-    } else if (typeof task.data === "string") {
-      log.warn(`Task ${taskQueueId} has string data, parsing as JSON`)
-      task.data = JSON.parse(task.data) as Record<string, unknown>
-    }
-
-    return task as Task
-  } finally {
-    client.release()
-  }
-}
-
 export async function processTask(
   taskType: string,
   screenshotTestId: number,
@@ -343,318 +241,6 @@ export function shutdown(): void {
   })
 }
 
-async function getS3BucketForProjectId(_projectId: string): Promise<string> {
-  return "vizdiffio-testing"
-}
-
-export async function ingestStorybook(
-  projectId: string,
-  screenshotTestId: number,
-  uploadId: string,
-): Promise<void> {
-  log.info(`Starting storybook ingestion for project ${projectId}, upload ${uploadId}`)
-
-  // Fetch the screenshot test record
-  const db = await Database()
-  const screenshotTestRepo = db.getRepository(ScreenshotTest)
-  const screenshotTest = await screenshotTestRepo.findOneBy({ id: screenshotTestId })
-  if (!screenshotTest) {
-    throw new Error(`Screenshot test not found: ${screenshotTestId}`)
-  }
-
-  // Clean up previous test results for the same commit/branch
-  if (screenshotTest.commitSha && screenshotTest.branch) {
-    log.info(`Cleaning up previous test results for the same commit/branch if they exist`)
-
-    // Use a transaction to ensure atomicity
-    await db.transaction(async (transactionalEntityManager) => {
-      const testResultRepo = transactionalEntityManager.getRepository(TestResult)
-      const screenshotTestRepoTx = transactionalEntityManager.getRepository(ScreenshotTest)
-
-      // Find previous screenshot tests with the same commit and branch
-      const previousTests = await screenshotTestRepoTx.find({
-        where: {
-          commitSha: screenshotTest.commitSha,
-          branch: screenshotTest.branch,
-          project: { id: screenshotTest.project.id },
-          id: Not(screenshotTest.id), // Exclude current test
-        },
-      })
-
-      // Delete test results for these previous tests
-      if (previousTests.length > 0) {
-        const previousTestIds = previousTests.map((test) => test.id)
-        const deleteResult = await testResultRepo.delete({
-          screenshotTest: { id: In(previousTestIds) },
-        })
-
-        log.info(
-          `Deleted ${deleteResult.affected ?? 0} test results from ${previousTests.length} previous test runs for the same commit`,
-        )
-      }
-    })
-  }
-
-  // Initialize S3 client
-  const s3Client = new S3Client()
-  const bucket = await getS3BucketForProjectId(projectId)
-  const key = `projects/${projectId}/${uploadId}.tar.gz`
-  log.debug(`Using S3 bucket: ${bucket}, key: ${key}`)
-
-  // Create temp directory for extraction
-  const tmpDir = path.join(os.tmpdir(), `storybook-${uploadId}`)
-  log.debug(`Creating temporary directory: ${tmpDir}`)
-  await fsPromises.mkdir(tmpDir, { recursive: true })
-
-  // Update the screenshot test status to running
-  screenshotTest.status = "running"
-  await screenshotTestRepo.save(screenshotTest)
-
-  try {
-    // Initialize the tarball download from S3
-    const tarballPath = path.join(tmpDir, "storybook.tar.gz")
-    log.info(`Downloading storybook build from S3 ${key} -> ${tarballPath}`)
-    const getObjectCommand = new GetObjectCommand({ Bucket: bucket, Key: key })
-    const response = await s3Client.send(getObjectCommand)
-    if (!response.Body) {
-      throw new Error("Empty response body from S3")
-    }
-    if (!(response.Body instanceof Readable)) {
-      throw new Error(`Unexpected response.Body type ${typeof response.Body}`)
-    }
-    // Download the tarball to a temporary file
-    await downloadWithTimeout(response.Body, tarballPath, 30 * 1000)
-    log.debug(`Successfully downloaded storybook build from S3`)
-
-    // Extract the tarball
-    log.info(`Extracting storybook build to: ${tmpDir}`)
-    await extract({ file: tarballPath, cwd: tmpDir })
-    log.debug(`Successfully extracted storybook build`)
-
-    // Initialize WebdriverIO
-    log.info("Initializing WebdriverIO in headless Chrome mode")
-    const config: Capabilities.WebdriverIOConfig = {
-      outputDir: path.join(tmpDir, "wdio-logs"),
-      capabilities: {
-        browserName: "chrome",
-        "goog:chromeOptions": {
-          args: ["--headless", "--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"],
-        },
-      },
-    }
-    const browser = await remote(config)
-    log.debug(
-      `Successfully initialized WebdriverIO [${browser.capabilities.browserName}] ` +
-        `[${browser.capabilities.browserVersion}] [${browser.capabilities.platformName}]`,
-    )
-
-    try {
-      // Start a local server to serve the Storybook files
-      log.info("Starting local HTTP server for Storybook files")
-      const server = http.createServer((req, res) => {
-        // Reject requests that try to access files outside of the served directory
-        const requestedPath = path.normalize(req.url?.split("?")[0] ?? "")
-        if (requestedPath.includes("..") || !requestedPath.startsWith("/")) {
-          res.writeHead(403)
-          res.end()
-          return
-        }
-
-        const filePath = path.join(tmpDir, requestedPath)
-        log.debug(`Serving file: ${filePath}`)
-        fsPromises
-          .readFile(filePath)
-          .then((content) => {
-            const ext = path.extname(filePath)
-            const contentType =
-              {
-                ".html": "text/html",
-                ".js": "text/javascript",
-                ".css": "text/css",
-                ".json": "application/json",
-                ".png": "image/png",
-                ".jpg": "image/jpeg",
-                ".gif": "image/gif",
-                ".svg": "image/svg+xml",
-              }[ext] ?? "application/octet-stream"
-
-            res.writeHead(200, { "Content-Type": contentType })
-            res.end(content)
-            log.debug(`Successfully served file: ${filePath}`)
-          })
-          .catch(() => {
-            log.warn(`File not found: ${filePath}`)
-            res.writeHead(404)
-            res.end()
-          })
-      })
-
-      // Let the OS choose an available port
-      server.listen(0)
-
-      // Wait for the server to be ready
-      await new Promise<void>((resolve) => {
-        server.once("listening", () => resolve())
-      })
-
-      const address = server.address()
-      if (!address || typeof address === "string") {
-        throw new Error("Failed to get server port")
-      }
-      const port = address.port
-      log.info(`Local server started on port ${port}`)
-
-      try {
-        // Set a fixed viewport
-        await browser.setViewport({
-          width: 1200,
-          height: 900,
-          devicePixelRatio: 1,
-        })
-
-        // Navigate to the Storybook iframe and wait for stories to load
-        const timeoutMs = 10 * 1000 // 10 seconds
-        log.info("Waiting for Storybook to load stories")
-        await browser.url(`http://localhost:${port}/iframe.html`)
-        await browser.waitUntil(
-          async () => {
-            return await browser.execute(async (): Promise<boolean> => {
-              // @ts-expect-error: window is not defined
-              const preview = (window as StorybookWindow).__STORYBOOK_PREVIEW__
-              if (!preview?.storyStore) {
-                return false
-              }
-
-              try {
-                await preview.storyStore.cacheAllCSFFiles()
-                return true
-              } catch {
-                return false
-              }
-            })
-          },
-          {
-            timeout: timeoutMs,
-            timeoutMsg: `Storybook failed to load stories within ${timeoutMs / 1000}s`,
-            interval: 100,
-          },
-        )
-
-        // Get the loaded stories
-        const stories = await browser.execute(async () => {
-          // @ts-expect-error: window is not defined
-          const preview = (window as StorybookWindow).__STORYBOOK_PREVIEW__
-          if (!preview) {
-            return undefined
-          }
-
-          try {
-            return await preview.extract()
-          } catch (err) {
-            console.error("Failed to extract stories:", err)
-            return undefined
-          }
-        })
-        if (!stories) {
-          throw new Error("No stories found in Storybook")
-        }
-
-        const storyCount = Object.keys(stories).length
-        if (storyCount === 0) {
-          throw new Error("Storybook loaded but contains no stories")
-        }
-
-        log.info(`Found ${storyCount} stories to process`)
-
-        const testResultTable = db.getRepository(TestResult)
-
-        // Fetch test results from the base commit if it exists
-        const baseTestResults = new Map<string, TestResult>()
-        if (screenshotTest.baseCommitSha) {
-          log.info(`Fetching base test results for commit ${screenshotTest.baseCommitSha}`)
-          const baseTests = await testResultTable
-            .createQueryBuilder("result")
-            .leftJoinAndSelect("result.screenshotTest", "test")
-            .where("test.commitSha = :commitSha", { commitSha: screenshotTest.baseCommitSha })
-            .getMany()
-
-          for (const test of baseTests) {
-            baseTestResults.set(test.storyId, test)
-          }
-          log.info(`Found ${baseTestResults.size} base test results`)
-        }
-
-        // Process stories with a concurrency limit
-        const MAX_CONCURRENCY = 4
-        const limit = pLimit(MAX_CONCURRENCY)
-        const testResults = await Promise.all(
-          Object.values(stories).map((story) =>
-            limit(() =>
-              processStory({
-                story,
-                screenshotTest,
-                baseTestResult: baseTestResults.get(story.id),
-                bucket,
-                tmpDir,
-                projectId,
-                uploadId,
-                port,
-                s3Client,
-                testResultTable,
-                browser,
-              }),
-            ),
-          ),
-        )
-        log.info(
-          `Successfully processed all ${Object.keys(stories).length} stories for test ${screenshotTest.id} (build #${screenshotTest.buildNumber})`,
-        )
-
-        let noChanges = true
-        for (const testResult of testResults) {
-          if (testResult.changeStatus !== "unchanged") {
-            noChanges = false
-            break
-          }
-        }
-
-        // Update the screenshot test status to completed
-        const startedSec = screenshotTest.createdAt.getTime() / 1000
-        screenshotTest.status = noChanges ? "no_changes" : "unapproved"
-        screenshotTest.buildDurationSec = Date.now() / 1000 - startedSec
-        await screenshotTestRepo.save(screenshotTest)
-      } finally {
-        log.debug("Shutting down local server")
-        await new Promise<void>((resolve) => server.close(() => resolve()))
-      }
-    } finally {
-      log.debug("Closing WebdriverIO browser session")
-      await browser.deleteSession()
-    }
-  } catch (error) {
-    log.error(
-      `Failed to process storybook in test ${screenshotTest.id} (build #${screenshotTest.buildNumber}): ${error instanceof Error ? error.message : String(error)}`,
-    )
-    screenshotTest.status = "failed"
-    await screenshotTestRepo.save(screenshotTest)
-    throw error
-  } finally {
-    // Cleanup
-    log.debug(`Cleaning up temporary directory: ${tmpDir}`)
-    await fsPromises.rm(tmpDir, { recursive: true, force: true })
-
-    // If status is still "running", something went wrong without throwing an error
-    if (screenshotTest.status === "running") {
-      screenshotTest.status = "failed"
-      await screenshotTestRepo.save(screenshotTest)
-    }
-
-    log.info(
-      `Storybook ingestion completed for ${screenshotTest.id} (build #${screenshotTest.buildNumber}) with status: ${screenshotTest.status}`,
-    )
-  }
-}
-
 export async function releaseLock(taskQueueId: number): Promise<void> {
   const client = await DatabasePool()
   try {
@@ -678,35 +264,6 @@ export async function deleteTask(taskQueueId: number): Promise<void> {
   } finally {
     client.release()
   }
-}
-
-async function downloadWithTimeout(
-  readable: Readable,
-  destPath: string,
-  timeoutMs: number,
-): Promise<void> {
-  const writeStream = fs.createWriteStream(destPath)
-  const cleanup = () => {
-    readable.destroy()
-    writeStream.destroy()
-  }
-
-  await Promise.race([
-    new Promise<void>((resolve, reject) => {
-      const stream = readable.pipe(writeStream)
-      stream.on("finish", () => resolve())
-      stream.on("error", (err: Error) => {
-        cleanup()
-        reject(err)
-      })
-    }),
-    new Promise<never>((_, reject) => {
-      setTimeout(() => {
-        cleanup()
-        reject(new Error(`Download timed out after ${timeoutMs}ms`))
-      }, timeoutMs)
-    }),
-  ])
 }
 
 /**
@@ -777,6 +334,8 @@ export async function sweepStuckBuilds(): Promise<number> {
     throw error
   }
 }
+
+// Entry point
 main().catch((err: unknown) => {
   log.error(`Fatal error: ${err}`)
 })

@@ -31,8 +31,9 @@ import type { DataSourceOptions, Repository, DataSource } from "typeorm"
 import { expect, describe, it, afterAll, beforeEach, vi, afterEach } from "vitest"
 
 import { Database } from "./database"
+import { ingestStorybook } from "./ingest"
 import { log } from "./log"
-import { ingestStorybook, processTask, shutdown, sweepStuckBuilds } from "./worker"
+import { processTask, shutdown, sweepStuckBuilds } from "./worker"
 
 // Mock function declarations - these track calls to key operations
 const mockSend = vi.fn()
