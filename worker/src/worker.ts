@@ -7,14 +7,13 @@ import os from "node:os"
 import path from "node:path"
 import { Readable } from "node:stream"
 import pLimit from "p-limit"
-import pg from "pg"
 import createPgSubscriber from "pg-listen"
 import { ScreenshotTest, TestResult } from "shared"
 import { extract } from "tar"
 import { Not, In } from "typeorm"
 import { remote } from "webdriverio"
 
-import { Database } from "./database"
+import { Database, DatabasePool } from "./database"
 import {
   POSTGRES_USER,
   POSTGRES_HOST,
@@ -64,16 +63,6 @@ const STUCK_RUNNING_THRESHOLD_MINUTES = 120 // 2 hours
 // Consider a build stuck if it's been pending for more than this amount of time
 const STUCK_PENDING_THRESHOLD_MINUTES = 240 // 4 hours
 
-// Postgres connection pool, used for raw SQL queries such as acquiring locks
-const pool = new pg.Pool({
-  host: POSTGRES_HOST,
-  user: POSTGRES_USER,
-  password: POSTGRES_PASS,
-  database: POSTGRES_DATABASE,
-  max: 3,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
-})
 // Postgres notification listener
 const subscriber = createPgSubscriber({ connectionString: CONN_STRING })
 // Current task being processed, if any
@@ -244,7 +233,7 @@ export async function startTask(taskQueueId: number): Promise<void> {
 }
 
 export async function latestTaskQueueId(): Promise<number | undefined> {
-  const client = await pool.connect()
+  const client = await DatabasePool()
   try {
     const res = await client.query(
       `SELECT id FROM task_queue 
@@ -263,7 +252,7 @@ export async function latestTaskQueueId(): Promise<number | undefined> {
 }
 
 export async function fetchTask(taskQueueId: number): Promise<Task | undefined> {
-  const client = await pool.connect()
+  const client = await DatabasePool()
   try {
     // First try to acquire the lock atomically, respecting the lock timeout
     const lockRes = await client.query(
@@ -667,7 +656,7 @@ export async function ingestStorybook(
 }
 
 export async function releaseLock(taskQueueId: number): Promise<void> {
-  const client = await pool.connect()
+  const client = await DatabasePool()
   try {
     log.debug(`Releasing lock for task ${taskQueueId}`)
     await client.query("UPDATE task_queue SET locked_at = NULL, locked_by = NULL WHERE id = $1", [
@@ -682,7 +671,7 @@ export async function releaseLock(taskQueueId: number): Promise<void> {
  * Delete a task from the queue after it's been successfully processed.
  */
 export async function deleteTask(taskQueueId: number): Promise<void> {
-  const client = await pool.connect()
+  const client = await DatabasePool()
   try {
     log.debug(`Deleting task ${taskQueueId} from queue`)
     await client.query("DELETE FROM task_queue WHERE id = $1", [taskQueueId])
@@ -788,7 +777,6 @@ export async function sweepStuckBuilds(): Promise<number> {
     throw error
   }
 }
-
 main().catch((err: unknown) => {
   log.error(`Fatal error: ${err}`)
 })
