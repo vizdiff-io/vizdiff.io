@@ -107,7 +107,7 @@ export default function TestResultDialog({
             {result.name}
           </Typography>
           <Typography variant="body2" color={changeStatusColor(result.changeStatus)}>
-            {changeStatusMessage(result.changeStatus)}
+            {changeStatusMessage(result.changeStatus, result.diffRatio ?? 0)}
           </Typography>
         </Box>
         <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>

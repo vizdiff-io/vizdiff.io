@@ -1,13 +1,13 @@
 import type { TestResultStatus } from "../../../shared/src/entity/TestResult"
 
-export function changeStatusMessage(changeStatus: TestResultStatus): string {
+export function changeStatusMessage(changeStatus: TestResultStatus, diffRatio: number): string {
   switch (changeStatus) {
     case "new":
       return "New"
     case "unchanged":
       return "Unchanged"
     case "changed":
-      return "Changed"
+      return `Changed (${(diffRatio * 100).toFixed(2)}%)`
     case "failed":
       return "Failed"
     default:

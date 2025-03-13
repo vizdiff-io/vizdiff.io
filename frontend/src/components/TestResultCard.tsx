@@ -74,7 +74,9 @@ export default function TestResultCard({
             bgcolor: changeStatusColor(result.changeStatus),
           }}
         />
-        <Typography variant="body2">{changeStatusMessage(result.changeStatus)}</Typography>
+        <Typography variant="body2">
+          {changeStatusMessage(result.changeStatus, result.diffRatio ?? 0)}
+        </Typography>
       </Box>
     </Paper>
   )
