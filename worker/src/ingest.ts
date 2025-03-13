@@ -13,6 +13,7 @@ import { remote } from "webdriverio"
 
 import { Database } from "./database"
 import { downloadWithTimeout } from "./download"
+import { updateGitHubCheckRun, type GitHubCheckData } from "./github"
 import { log } from "./log"
 import { processStory } from "./stories"
 
@@ -36,6 +37,7 @@ export async function ingestStorybook(
   projectId: string,
   screenshotTestId: number,
   uploadId: string,
+  githubCheckData?: GitHubCheckData,
 ): Promise<void> {
   log.info(`Starting storybook ingestion for project ${projectId}, upload ${uploadId}`)
 
@@ -45,6 +47,24 @@ export async function ingestStorybook(
   const screenshotTest = await screenshotTestRepo.findOneBy({ id: screenshotTestId })
   if (!screenshotTest) {
     throw new Error(`Screenshot test not found: ${screenshotTestId}`)
+  }
+
+  // Update GitHub check run to in-progress if we have GitHub check data
+  if (githubCheckData) {
+    try {
+      await updateGitHubCheckRun(
+        githubCheckData,
+        "in_progress",
+        undefined,
+        screenshotTestId,
+        "Processing Storybook components for visual testing...",
+      )
+    } catch (error) {
+      log.error(
+        `Failed to update GitHub check run to in-progress: ${error instanceof Error ? error.message : String(error)}`,
+      )
+      // Continue with the ingest process even if the GitHub API call fails
+    }
   }
 
   // Clean up previous test results for the same commit/branch
@@ -310,6 +330,29 @@ export async function ingestStorybook(
         screenshotTest.status = noChanges ? "no_changes" : "unapproved"
         screenshotTest.buildDurationSec = Date.now() / 1000 - startedSec
         await screenshotTestRepo.save(screenshotTest)
+
+        // Update GitHub check run with result if we have GitHub check data
+        if (githubCheckData) {
+          const conclusion = noChanges ? "success" : "neutral"
+          const summary = noChanges
+            ? "No visual changes detected in any components."
+            : `Visual changes detected in ${testResults.filter((r) => r.changeStatus !== "unchanged").length} components. Please review and approve the changes.`
+
+          try {
+            await updateGitHubCheckRun(
+              githubCheckData,
+              "completed",
+              conclusion,
+              screenshotTestId,
+              summary,
+            )
+          } catch (error) {
+            log.error(
+              `Failed to update GitHub check run to completed: ${error instanceof Error ? error.message : String(error)}`,
+            )
+            // Continue even if the GitHub API call fails
+          }
+        }
       } finally {
         log.debug("Shutting down local server")
         await new Promise<void>((resolve) => server.close(() => resolve()))
@@ -324,6 +367,24 @@ export async function ingestStorybook(
     )
     screenshotTest.status = "failed"
     await screenshotTestRepo.save(screenshotTest)
+
+    // Update GitHub check run with failure if we have GitHub check data
+    if (githubCheckData) {
+      try {
+        await updateGitHubCheckRun(
+          githubCheckData,
+          "completed",
+          "failure",
+          screenshotTestId,
+          `Screenshot test failed: ${error instanceof Error ? error.message : String(error)}`,
+        )
+      } catch (githubError) {
+        log.error(
+          `Failed to update GitHub check run to failure: ${githubError instanceof Error ? githubError.message : String(githubError)}`,
+        )
+      }
+    }
+
     throw error
   } finally {
     // Cleanup
@@ -334,6 +395,23 @@ export async function ingestStorybook(
     if (screenshotTest.status === "running") {
       screenshotTest.status = "failed"
       await screenshotTestRepo.save(screenshotTest)
+
+      // Update GitHub check run with cancelled if we have GitHub check data
+      if (githubCheckData) {
+        try {
+          await updateGitHubCheckRun(
+            githubCheckData,
+            "completed",
+            "cancelled",
+            screenshotTestId,
+            "Screenshot test was cancelled or timed out.",
+          )
+        } catch (error) {
+          log.error(
+            `Failed to update GitHub check run to cancelled: ${error instanceof Error ? error.message : String(error)}`,
+          )
+        }
+      }
     }
 
     log.info(
