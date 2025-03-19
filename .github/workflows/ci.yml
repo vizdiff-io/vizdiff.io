@@ -236,7 +236,7 @@ jobs:
           # Execute deployment commands on the EC2 instance
           ssh ${EC2_USER}@${EC2_HOST} << 'ENDSSH'
             # Login to ECR
-            aws ecr get-login-password --region us-east-2 | docker login --username AWS --password-stdin ${ECR_REGISTRY}
+            aws ecr get-login-password --region us-west-1 | docker login --username AWS --password-stdin ${ECR_REGISTRY}
 
             # Pull and run the containers
             cd ~/app
