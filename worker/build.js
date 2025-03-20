@@ -1,4 +1,3 @@
-/* eslint-disable no-undef */
 import * as esbuild from "esbuild"
 
 async function build() {

@@ -10,6 +10,10 @@ export default tseslint.config(
       reportUnusedDisableDirectives: "error",
     },
     languageOptions: {
+      globals: {
+        console: false,
+        process: false,
+      },
       parserOptions: {
         projectService: {
           allowDefaultProject: ["build.js", "eslint.config.js"],
