@@ -1,6 +1,6 @@
 # vizdiff.io
 
-https://vizdiff.io website, backend, cli, and worker
+https://vizdiff.io website, api, cli, and worker
 
 ## Local development
 
@@ -26,7 +26,7 @@ POSTGRES_PORT=5432
 ```
 
 5. Start Postgres and create an empty vizdiff database and test database with the `start-postgres.sh` script
-6. Start the backend: `yarn api dev`
+6. Start the api: `yarn api dev`
 7. (In another terminal) start the frontend: `yarn frontend dev`
 
 You can also run `yarn test:all` to run all test suites.

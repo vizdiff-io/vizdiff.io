@@ -7,6 +7,6 @@
       "shared": ["../shared/src"]
     }
   },
-  "include": ["src/**/*.ts", "eslint.config.js"],
+  "include": ["src/**/*.ts"],
   "references": [{ "path": "../shared" }]
 }

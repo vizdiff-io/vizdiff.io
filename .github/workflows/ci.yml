@@ -123,12 +123,12 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # Build and push backend Docker image
-      - name: Build and push backend Docker image
+      # Build and push api Docker image
+      - name: Build and push api Docker image
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: ./backend/Dockerfile
+          file: ./api/Dockerfile
           push: ${{ github.ref == 'refs/heads/main' }}
           load: ${{ github.ref != 'refs/heads/main' }}
           platforms: linux/arm64
@@ -214,7 +214,7 @@ jobs:
           cat > docker-compose.yml << EOL
           version: '3'
           services:
-            backend:
+            api:
               image: ${ECR_REGISTRY}/${ECR_REPOSITORY_BACKEND}:${IMAGE_TAG}
               restart: always
               ports:
@@ -222,16 +222,32 @@ jobs:
               environment:
                 - NODE_ENV=production
                 - PORT=80
+              volumes:
+                - ./api.env.production:/app/api/.env.production:ro
 
             worker:
               image: ${ECR_REGISTRY}/${ECR_REPOSITORY_WORKER}:${IMAGE_TAG}
               restart: always
               environment:
                 - NODE_ENV=production
+              volumes:
+                - ./worker.env.production:/app/worker/.env.production:ro
           EOL
 
-          # Copy docker-compose file to EC2
-          scp docker-compose.yml ${EC2_USER}@${EC2_HOST}:~/app/
+          # Create api.env.production file from secrets
+          cat > api.env.production << EOL
+          # API environment variables
+          ${{ secrets.API_ENV }}
+          EOL
+
+          # Create worker.env.production file from secrets
+          cat > worker.env.production << EOL
+          # Worker environment variables
+          ${{ secrets.WORKER_ENV }}
+          EOL
+
+          # Copy docker-compose file and env files to EC2
+          scp docker-compose.yml api.env.production worker.env.production ${EC2_USER}@${EC2_HOST}:~/app/
 
           # Execute deployment commands on the EC2 instance
           ssh ${EC2_USER}@${EC2_HOST} << 'ENDSSH'

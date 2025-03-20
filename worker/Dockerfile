@@ -3,18 +3,18 @@ FROM node:22-alpine AS builder
 
 WORKDIR /app
 
-# Copy package.json files for all workspaces
-COPY package.json yarn.lock ./
+# Copy yarn/tsconfig files
+COPY .yarn/releases/yarn-4.3.0.cjs ./.yarn/releases/
+COPY package.json yarn.lock .yarnrc.yml tsconfig.json tsconfig.options.json ./
 COPY worker/package.json ./worker/
 COPY shared/package.json ./shared/
 
 # Install dependencies
-RUN corepack enable && yarn install --frozen-lockfile
+RUN corepack enable && yarn install
 
 # Copy source code
 COPY worker ./worker
 COPY shared ./shared
-COPY tsconfig.json ./
 
 # Build the application
 RUN yarn workspace worker build
@@ -25,12 +25,13 @@ FROM node:22-alpine
 WORKDIR /app
 
 # Copy package.json files
-COPY package.json yarn.lock ./
+COPY .yarn/releases/yarn-4.3.0.cjs ./.yarn/releases/
+COPY package.json yarn.lock .yarnrc.yml ./
 COPY worker/package.json ./worker/
 COPY shared/package.json ./shared/
 
-# Install production dependencies only
-RUN corepack enable && yarn install --production --frozen-lockfile
+# Install dependencies
+RUN corepack enable && yarn install
 
 # Copy built application from builder stage
 COPY --from=builder /app/worker/dist ./worker/dist
@@ -40,4 +41,4 @@ COPY --from=builder /app/shared ./shared
 ENV NODE_ENV=production
 
 # Run the application
-CMD ["node", "worker/dist/index.js"]
+CMD ["node", "worker/dist/worker.mjs"]
