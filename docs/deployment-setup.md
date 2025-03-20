@@ -20,24 +20,22 @@ The following GitHub Secrets need to be configured in your repository for the de
 
 ### Environment Variables
 
-- `API_ENV`: Complete contents of the API service's .env.production file (all variables in KEY=VALUE format)
-- `WORKER_ENV`: Complete contents of the Worker service's .env.production file (all variables in KEY=VALUE format)
+- `ENV_FILE`: Complete contents of the API and worker service's .env.production files (all variables in KEY=VALUE format)
 
-## Setting Up Environment Variables
-
-Instead of maintaining individual secrets for each environment variable, we use two consolidated secrets:
-
-### API_ENV Example Content
+## `ENV_FILE` Example Content
 
 ```
+APP_URL=https://vizdiff.io
+AWS_ACCESS_KEY_ID=your_aws_access_key_id
+AWS_SECRET_ACCESS_KEY=your_aws_secret_access_key
+AWS_REGION=us-west-1
+GITHUB_APP_ID=your_github_app_id
 GITHUB_CLIENT_ID=your_github_client_id
 GITHUB_CLIENT_SECRET=your_github_client_secret
-GITHUB_APP_ID=your_github_app_id
 GITHUB_WEBHOOK_SECRET=your_webhook_secret
 GITHUB_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----
 ...
 -----END RSA PRIVATE KEY-----"
-APP_URL=https://vizdiff.io
 POSTGRES_USER=vizdiff_user
 POSTGRES_HOST=localhost
 POSTGRES_DATABASE=vizdiff
@@ -46,30 +44,12 @@ POSTGRES_PORT=5432
 JWT_SECRET=your_jwt_secret
 ```
 
-### WORKER_ENV Example Content
-
-```
-GITHUB_CLIENT_ID=your_github_client_id
-GITHUB_CLIENT_SECRET=your_github_client_secret
-GITHUB_APP_ID=your_github_app_id
-GITHUB_WEBHOOK_SECRET=your_webhook_secret
-GITHUB_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----
-...
------END RSA PRIVATE KEY-----"
-APP_URL=https://vizdiff.io
-POSTGRES_USER=vizdiff_user
-POSTGRES_HOST=localhost
-POSTGRES_DATABASE=vizdiff
-POSTGRES_PASS=vizdiff_user_password
-POSTGRES_PORT=5432
-```
-
 ## Docker Compose Configuration
 
 The workflow generates a `docker-compose.yml` file that:
 
 1. Pulls the latest container images from ECR
-2. Mounts the environment files into the containers
+2. Mounts the environment file into the containers
 3. Configures appropriate port mappings
 4. Sets up restart policies
 

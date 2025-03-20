@@ -223,7 +223,7 @@ jobs:
                 - NODE_ENV=production
                 - PORT=80
               volumes:
-                - ./api.env.production:/app/api/.env.production:ro
+                - ./.env.production:/app/api/.env.production:ro
 
             worker:
               image: ${ECR_REGISTRY}/${ECR_REPOSITORY_WORKER}:${IMAGE_TAG}
@@ -231,23 +231,16 @@ jobs:
               environment:
                 - NODE_ENV=production
               volumes:
-                - ./worker.env.production:/app/worker/.env.production:ro
+                - ./.env.production:/app/worker/.env.production:ro
           EOL
 
-          # Create api.env.production file from secrets
-          cat > api.env.production << EOL
-          # API environment variables
-          ${{ secrets.API_ENV }}
-          EOL
-
-          # Create worker.env.production file from secrets
-          cat > worker.env.production << EOL
-          # Worker environment variables
-          ${{ secrets.WORKER_ENV }}
+          # Create .env.production file from secrets
+          cat > .env.production << EOL
+          ${{ secrets.ENV_FILE }}
           EOL
 
           # Copy docker-compose file and env files to EC2
-          scp docker-compose.yml api.env.production worker.env.production ${EC2_USER}@${EC2_HOST}:~/app/
+          scp docker-compose.yml .env.production ${EC2_USER}@${EC2_HOST}:~/app/
 
           # Execute deployment commands on the EC2 instance
           ssh ${EC2_USER}@${EC2_HOST} << 'ENDSSH'
