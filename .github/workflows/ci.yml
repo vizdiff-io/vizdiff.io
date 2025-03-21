@@ -80,6 +80,182 @@ jobs:
           path: frontend/out
           retention-days: 1
 
+  docker-build:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: true
+
+      # Login to ECR
+      - name: Login to Amazon ECR
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-west-1
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # Set up environment variables for ECR and image tags
+      - name: Set up environment variables
+        run: |
+          echo "ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}" >> $GITHUB_ENV
+          echo "ECR_REPOSITORY_BACKEND=vizdiff.io/backend" >> $GITHUB_ENV
+          echo "ECR_REPOSITORY_WORKER=vizdiff.io/worker" >> $GITHUB_ENV
+          echo "IMAGE_TAG=${{ github.sha }}" >> $GITHUB_ENV
+
+      # Set up QEMU for multi-architecture builds
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: "arm64"
+
+      # Set up Docker Buildx
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Build and push api Docker image
+      - name: Build and push api Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./api/Dockerfile
+          push: ${{ github.ref == 'refs/heads/main' }}
+          load: ${{ github.ref != 'refs/heads/main' }}
+          platforms: linux/arm64
+          tags: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY_BACKEND }}:${{ env.IMAGE_TAG }},${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY_BACKEND }}:latest
+          build-args: |
+            NODE_ENV=production
+
+      # Build and push worker Docker image
+      - name: Build and push worker Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./worker/Dockerfile
+          push: ${{ github.ref == 'refs/heads/main' }}
+          load: ${{ github.ref != 'refs/heads/main' }}
+          platforms: linux/arm64
+          tags: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY_WORKER }}:${{ env.IMAGE_TAG }},${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY_WORKER }}:latest
+          build-args: |
+            NODE_ENV=production
+
+  deploy:
+    needs: [build-and-test, docker-build]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: true
+
+      - name: Download frontend build
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-build
+          path: frontend/out
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-west-1
+
+      - name: Deploy frontend to S3
+        run: |
+          aws s3 sync frontend/out s3://vizdiff.io --delete
+          aws cloudfront create-invalidation --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} --paths "/*"
+
+      # Set up environment variables for ECR and image tags
+      - name: Set up environment variables
+        run: |
+          echo "ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}" >> $GITHUB_ENV
+          echo "ECR_REPOSITORY_BACKEND=vizdiff.io/backend" >> $GITHUB_ENV
+          echo "ECR_REPOSITORY_WORKER=vizdiff.io/worker" >> $GITHUB_ENV
+          echo "IMAGE_TAG=${{ github.sha }}" >> $GITHUB_ENV
+
+      # Set up SSH for EC2 deployment
+      - name: Configure SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.EC2_SSH_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          echo "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      # Deploy to EC2
+      - name: Deploy to EC2
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          ECR_REGISTRY: ${{ env.ECR_REGISTRY }}
+          ECR_REPOSITORY_BACKEND: ${{ env.ECR_REPOSITORY_BACKEND }}
+          ECR_REPOSITORY_WORKER: ${{ env.ECR_REPOSITORY_WORKER }}
+          IMAGE_TAG: ${{ env.IMAGE_TAG }}
+        run: |
+          # Create docker-compose.yml file
+          cat > docker-compose.yml << EOL
+          version: '3'
+          services:
+            api:
+              image: ${ECR_REGISTRY}/${ECR_REPOSITORY_BACKEND}:${IMAGE_TAG}
+              restart: always
+              ports:
+                - "80:80"
+              environment:
+                - NODE_ENV=production
+                - PORT=80
+              volumes:
+                - ./.env.production:/app/api/.env.production:ro
+
+            worker:
+              image: ${ECR_REGISTRY}/${ECR_REPOSITORY_WORKER}:${IMAGE_TAG}
+              restart: always
+              environment:
+                - NODE_ENV=production
+              volumes:
+                - ./.env.production:/app/worker/.env.production:ro
+          EOL
+
+          # Create .env.production file from secrets
+          cat > .env.production << EOL
+          ${{ secrets.ENV_FILE }}
+          EOL
+
+          # Copy docker-compose file and env files to EC2
+          scp docker-compose.yml .env.production ${EC2_USER}@${EC2_HOST}:~/app/
+
+          # Execute deployment commands on the EC2 instance
+          ssh ${EC2_USER}@${EC2_HOST} << 'ENDSSH'
+            # Login to ECR
+            aws ecr get-login-password --region us-west-1 | docker login --username AWS --password-stdin ${ECR_REGISTRY}
+
+            # Pull and run the containers
+            cd ~/app
+            docker compose pull
+            docker compose up -d
+
+            # Clean up old images
+            docker image prune -a -f --filter "until=24h"
+          ENDSSH
+
   storybook:
     runs-on: ubuntu-latest
     steps:
@@ -126,29 +302,3 @@ jobs:
         env:
           CHROMATIC_PROJECT_TOKEN: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
         run: yarn chromatic --ci --exit-once-uploaded --exit-zero-on-changes --storybook-build-dir=storybook-static
-
-  deploy:
-    needs: build-and-test
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
-
-    steps:
-      - name: Download frontend build
-        uses: actions/download-artifact@v4
-        with:
-          name: frontend-build
-          path: frontend/out
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: us-east-2
-
-      - name: Deploy to S3
-        run: |
-          aws s3 sync frontend/out s3://vizdiff.io --delete
-          aws cloudfront create-invalidation --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} --paths "/*"

@@ -6,13 +6,14 @@
   "scripts": {
     "dev": "yarn node --no-warnings --loader ts-node/esm/transpile-only --experimental-specifier-resolution=node src/index.ts",
     "start": "yarn dev",
-    "build": "tsc --build",
+    "build": "node build.js",
     "test": "yarn run vitest --run",
     "lint": "eslint src"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.744.0",
     "@aws-sdk/lib-storage": "^3.744.0",
+    "@octokit/rest": "^21.1.0",
     "body-parser": "1.20.3",
     "cookie-parser": "1.4.7",
     "cors": "2.8.5",
@@ -20,7 +21,7 @@
     "express": "4.21.2",
     "express-promise-router": "4.1.1",
     "jsonwebtoken": "9.0.2",
-    "octokit": "4.1.1",
+    "octokit": "4.1.2",
     "pg": "8.13.1",
     "pino": "8.21.0",
     "pino-http": "8.6.1",
@@ -39,6 +40,7 @@
     "@types/pg": "8.11.11",
     "@types/pino-pretty": "^5.0.0",
     "@types/supertest": "6.0.2",
+    "esbuild": "^0.25.1",
     "eslint": "9.20.0",
     "pino-pretty": "10.3.1",
     "supertest": "7.0.0",

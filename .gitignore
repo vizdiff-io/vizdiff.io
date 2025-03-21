@@ -119,6 +119,16 @@ dist
 *.asc
 *.gpg
 
+# Private keys
+*.pem
+*.key
+*.crt
+*.csr
+*.p12
+*.pfx
+*.p12
+*.pfx
+
 # OS files
 .DS_Store
 

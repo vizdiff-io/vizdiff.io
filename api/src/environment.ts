@@ -20,8 +20,7 @@ export const GITHUB_APP_ID = process.env.GITHUB_APP_ID ?? ""
 export const GITHUB_WEBHOOK_SECRET = process.env.GITHUB_WEBHOOK_SECRET ?? ""
 export const GITHUB_PRIVATE_KEY = process.env.GITHUB_PRIVATE_KEY ?? ""
 
-export const APP_URL =
-  process.env.APP_URL ?? (IS_PRODUCTION ? "https://vizdiff.io" : "http://127.0.0.1:3000")
+export const APP_URL = process.env.APP_URL ?? "https://vizdiff.io"
 
 export const POSTGRES_USER = process.env.POSTGRES_USER ?? "postgres"
 export const POSTGRES_HOST = process.env.POSTGRES_HOST ?? "localhost"
