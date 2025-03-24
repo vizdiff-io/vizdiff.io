@@ -95,7 +95,7 @@ jobs:
           lfs: true
 
       # Login to ECR
-      - name: Login to Amazon ECR
+      - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
@@ -281,12 +281,12 @@ jobs:
           scp docker-compose.yml .env.production ${EC2_USER}@${EC2_HOST}:~/app/
 
           # Execute deployment commands on the EC2 instance
-          ssh ${EC2_USER}@${EC2_HOST} "ECR_REGISTRY=${ECR_REGISTRY} bash -s" << 'ENDSSH'
+          ssh ${EC2_USER}@${EC2_HOST} "ECR_REGISTRY='${ECR_REGISTRY}' bash -s" << 'ENDSSH'
             set -euo pipefail  # Make script fail on any error
 
             # Login to ECR
             echo "Logging into ECR..."
-            aws ecr get-login-password | docker login --username AWS --password-stdin ${ECR_REGISTRY}
+            aws ecr get-login-password | docker login --username AWS --password-stdin "${ECR_REGISTRY}"
 
             # Pull and run the containers
             cd ~/app
