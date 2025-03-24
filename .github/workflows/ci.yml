@@ -240,7 +240,7 @@ jobs:
           scp docker-compose.yml .env.production ${EC2_USER}@${EC2_HOST}:~/app/
 
           # Execute deployment commands on the EC2 instance
-          ssh ${EC2_USER}@${EC2_HOST} 'bash -s' << 'ENDSSH'
+          ssh ${EC2_USER}@${EC2_HOST} "ECR_REGISTRY=${ECR_REGISTRY} bash -s" << 'ENDSSH'
             set -euo pipefail  # Make script fail on any error
 
             # Login to ECR
