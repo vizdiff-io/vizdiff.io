@@ -243,23 +243,6 @@ jobs:
           ssh ${EC2_USER}@${EC2_HOST} 'bash -s' << 'ENDSSH'
             set -euo pipefail  # Make script fail on any error
 
-            # Install AWS CLI if not present
-            if ! command -v aws &> /dev/null; then
-              echo "Installing AWS CLI..."
-              curl "https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip" -o "awscliv2.zip"
-              unzip -q awscliv2.zip
-              sudo ./aws/install
-              rm -rf aws awscliv2.zip
-            fi
-
-            # Configure AWS credentials from instance role
-            TOKEN=$(curl -s -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
-            ROLE=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/iam/security-credentials/)
-            CREDENTIALS=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/iam/security-credentials/$ROLE)
-            export AWS_ACCESS_KEY_ID=$(echo $CREDENTIALS | jq -r '.AccessKeyId')
-            export AWS_SECRET_ACCESS_KEY=$(echo $CREDENTIALS | jq -r '.SecretAccessKey')
-            export AWS_SESSION_TOKEN=$(echo $CREDENTIALS | jq -r '.Token')
-
             # Login to ECR
             echo "Logging into ECR..."
             aws ecr get-login-password | docker login --username AWS --password-stdin ${ECR_REGISTRY}
