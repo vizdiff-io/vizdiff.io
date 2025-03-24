@@ -254,7 +254,6 @@ jobs:
 
           # Create docker-compose.yml file
           cat > docker-compose.yml << EOL
-          version: '3'
           services:
             api:
               image: ${ECR_REGISTRY}/${ECR_REPOSITORY_BACKEND}:${IMAGE_TAG}

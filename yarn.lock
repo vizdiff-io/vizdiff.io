@@ -17502,6 +17502,7 @@ __metadata:
   resolution: "worker@workspace:worker"
   dependencies:
     "@aws-sdk/client-s3": "npm:^3.744.0"
+    "@octokit/rest": "npm:^21.1.0"
     "@types/dotenv-flow": "npm:3.3.3"
     "@types/node": "npm:^22.13.1"
     "@types/pg": "npm:^8.11.11"

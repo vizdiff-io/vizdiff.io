@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.744.0",
+    "@octokit/rest": "^21.1.0",
     "@wdio/cli": "^9.8.0",
     "dotenv-flow": "4.1.0",
     "octokit": "4.1.2",

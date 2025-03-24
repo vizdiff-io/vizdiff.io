@@ -31,15 +31,19 @@ const httpLoggerConfig = {
   customProps: (req: DefaultRequest) => ({
     realIp: (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0] ?? req.ip,
   }),
-  transport: {
-    target: "pino-pretty",
-    options: {
-      colorize: !IS_TEST && !IS_PRODUCTION,
-      translateTime: "HH:MM:ss.l",
-      ignore: "pid,hostname,req,res,realIp,err,responseTime",
-      messageFormat: "[{realIp}] {req.method} {req.url} {res.statusCode} {responseTime}ms",
-    },
-  },
+  ...(IS_PRODUCTION
+    ? {}
+    : {
+        transport: {
+          target: "pino-pretty",
+          options: {
+            colorize: !IS_TEST && !IS_PRODUCTION,
+            translateTime: "HH:MM:ss.l",
+            ignore: "pid,hostname,req,res,realIp,err,responseTime",
+            messageFormat: "[{realIp}] {req.method} {req.url} {res.statusCode} {responseTime}ms",
+          },
+        },
+      }),
 }
 
 const httpLogger = pinoHttp(httpLoggerConfig)
