@@ -80,7 +80,62 @@ jobs:
           path: frontend/out
           retention-days: 1
 
-  docker-build:
+  docker-build-api:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          lfs: true
+
+      # Login to ECR
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-west-1
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # Set up environment variables for ECR and image tags
+      - name: Set up environment variables
+        run: |
+          echo "ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}" >> $GITHUB_ENV
+          echo "ECR_REPOSITORY_BACKEND=vizdiff.io/backend" >> $GITHUB_ENV
+          echo "IMAGE_TAG=${{ github.sha }}" >> $GITHUB_ENV
+
+      # Set up QEMU for multi-architecture builds
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: "arm64"
+
+      # Set up Docker Buildx
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Build and push api Docker image
+      - name: Build and push api Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./api/Dockerfile
+          push: ${{ github.ref == 'refs/heads/main' }}
+          load: ${{ github.ref != 'refs/heads/main' }}
+          platforms: linux/arm64
+          tags: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY_BACKEND }}:${{ env.IMAGE_TAG }},${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY_BACKEND }}:latest
+          build-args: |
+            NODE_ENV=production
+
+  docker-build-worker:
     needs: build-and-test
     runs-on: ubuntu-latest
     permissions:
@@ -109,7 +164,6 @@ jobs:
       - name: Set up environment variables
         run: |
           echo "ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}" >> $GITHUB_ENV
-          echo "ECR_REPOSITORY_BACKEND=vizdiff.io/backend" >> $GITHUB_ENV
           echo "ECR_REPOSITORY_WORKER=vizdiff.io/worker" >> $GITHUB_ENV
           echo "IMAGE_TAG=${{ github.sha }}" >> $GITHUB_ENV
 
@@ -122,19 +176,6 @@ jobs:
       # Set up Docker Buildx
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-
-      # Build and push api Docker image
-      - name: Build and push api Docker image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./api/Dockerfile
-          push: ${{ github.ref == 'refs/heads/main' }}
-          load: ${{ github.ref != 'refs/heads/main' }}
-          platforms: linux/arm64
-          tags: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY_BACKEND }}:${{ env.IMAGE_TAG }},${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY_BACKEND }}:latest
-          build-args: |
-            NODE_ENV=production
 
       # Build and push worker Docker image
       - name: Build and push worker Docker image
@@ -150,7 +191,7 @@ jobs:
             NODE_ENV=production
 
   deploy:
-    needs: [build-and-test, docker-build]
+    needs: [build-and-test, docker-build-api, docker-build-worker]
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
@@ -240,12 +281,12 @@ jobs:
           scp docker-compose.yml .env.production ${EC2_USER}@${EC2_HOST}:~/app/
 
           # Execute deployment commands on the EC2 instance
-          ssh ${EC2_USER}@${EC2_HOST} 'bash -s' << 'ENDSSH'
+          ssh ${EC2_USER}@${EC2_HOST} "ECR_REGISTRY='${ECR_REGISTRY}' bash -s" << 'ENDSSH'
             set -euo pipefail  # Make script fail on any error
 
             # Login to ECR
             echo "Logging into ECR..."
-            aws ecr get-login-password | docker login --username AWS --password-stdin ${ECR_REGISTRY}
+            aws ecr get-login-password | docker login --username AWS --password-stdin "${ECR_REGISTRY}"
 
             # Pull and run the containers
             cd ~/app
