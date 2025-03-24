@@ -176,11 +176,6 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: us-west-1
 
-      - name: Deploy frontend to S3
-        run: |
-          aws s3 sync frontend/out s3://vizdiff.io --delete
-          aws cloudfront create-invalidation --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} --paths "/*"
-
       # Set up environment variables for ECR and image tags
       - name: Set up environment variables
         run: |
@@ -196,12 +191,12 @@ jobs:
           SSH_KNOWN_HOSTS: ${{ secrets.EC2_SSH_KNOWN_HOSTS }}
         run: |
           mkdir -p ~/.ssh
-          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
           echo "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
 
-      # Deploy to EC2
-      - name: Deploy to EC2
+      # Deploy backend services to EC2
+      - name: Deploy backend to EC2
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USER: ${{ secrets.EC2_USER }}
@@ -209,7 +204,10 @@ jobs:
           ECR_REPOSITORY_BACKEND: ${{ env.ECR_REPOSITORY_BACKEND }}
           ECR_REPOSITORY_WORKER: ${{ env.ECR_REPOSITORY_WORKER }}
           IMAGE_TAG: ${{ env.IMAGE_TAG }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
         run: |
+          set -euo pipefail  # Make script fail on any error
+
           # Create docker-compose.yml file
           cat > docker-compose.yml << EOL
           version: '3'
@@ -242,19 +240,68 @@ jobs:
           # Copy docker-compose file and env files to EC2
           scp docker-compose.yml .env.production ${EC2_USER}@${EC2_HOST}:~/app/
 
-          # Execute deployment commands on the EC2 instance
-          ssh ${EC2_USER}@${EC2_HOST} << 'ENDSSH'
+          # Execute deployment commands on the EC2 instance with AWS_REGION passed through
+          ssh ${EC2_USER}@${EC2_HOST} AWS_REGION=${AWS_REGION} 'bash -s' << 'ENDSSH'
+            set -euo pipefail  # Make script fail on any error
+
+            # Install AWS CLI if not present
+            if ! command -v aws &> /dev/null; then
+              echo "Installing AWS CLI..."
+              curl "https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip" -o "awscliv2.zip"
+              unzip -q awscliv2.zip
+              sudo ./aws/install
+              rm -rf aws awscliv2.zip
+            fi
+
+            # Configure AWS credentials from instance role
+            TOKEN=$(curl -s -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+            ROLE=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/iam/security-credentials/)
+            CREDENTIALS=$(curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/iam/security-credentials/$ROLE)
+            export AWS_ACCESS_KEY_ID=$(echo $CREDENTIALS | jq -r '.AccessKeyId')
+            export AWS_SECRET_ACCESS_KEY=$(echo $CREDENTIALS | jq -r '.SecretAccessKey')
+            export AWS_SESSION_TOKEN=$(echo $CREDENTIALS | jq -r '.Token')
+
             # Login to ECR
-            aws ecr get-login-password --region us-west-1 | docker login --username AWS --password-stdin ${ECR_REGISTRY}
+            echo "Logging into ECR..."
+            aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY}
 
             # Pull and run the containers
             cd ~/app
+            echo "Pulling latest images..."
             docker compose pull
+            if [ $? -ne 0 ]; then
+              echo "Failed to pull images"
+              exit 1
+            fi
+
+            echo "Starting containers..."
             docker compose up -d
+            if [ $? -ne 0 ]; then
+              echo "Failed to start containers"
+              exit 1
+            fi
+
+            # Verify containers are running
+            echo "Verifying containers..."
+            sleep 10
+            if ! docker compose ps | grep -q "Up"; then
+              echo "Containers failed to start properly"
+              docker compose logs
+              exit 1
+            fi
 
             # Clean up old images
+            echo "Cleaning up old images..."
             docker image prune -a -f --filter "until=24h"
           ENDSSH
+
+      - name: Deploy frontend
+        run: |
+          echo "Deploying frontend to S3..."
+          aws s3 sync frontend/out s3://vizdiff.io --delete
+
+          echo "Invalidating CloudFront cache..."
+          aws cloudfront create-invalidation --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} --paths "/*"
 
   storybook:
     runs-on: ubuntu-latest
