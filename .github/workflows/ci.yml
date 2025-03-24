@@ -204,7 +204,6 @@ jobs:
           ECR_REPOSITORY_BACKEND: ${{ env.ECR_REPOSITORY_BACKEND }}
           ECR_REPOSITORY_WORKER: ${{ env.ECR_REPOSITORY_WORKER }}
           IMAGE_TAG: ${{ env.IMAGE_TAG }}
-          AWS_REGION: ${{ secrets.AWS_REGION }}
         run: |
           set -euo pipefail  # Make script fail on any error
 
@@ -240,8 +239,8 @@ jobs:
           # Copy docker-compose file and env files to EC2
           scp docker-compose.yml .env.production ${EC2_USER}@${EC2_HOST}:~/app/
 
-          # Execute deployment commands on the EC2 instance with AWS_REGION passed through
-          ssh ${EC2_USER}@${EC2_HOST} AWS_REGION=${AWS_REGION} 'bash -s' << 'ENDSSH'
+          # Execute deployment commands on the EC2 instance
+          ssh ${EC2_USER}@${EC2_HOST} 'bash -s' << 'ENDSSH'
             set -euo pipefail  # Make script fail on any error
 
             # Install AWS CLI if not present
@@ -263,23 +262,15 @@ jobs:
 
             # Login to ECR
             echo "Logging into ECR..."
-            aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY}
+            aws ecr get-login-password | docker login --username AWS --password-stdin ${ECR_REGISTRY}
 
             # Pull and run the containers
             cd ~/app
             echo "Pulling latest images..."
             docker compose pull
-            if [ $? -ne 0 ]; then
-              echo "Failed to pull images"
-              exit 1
-            fi
 
             echo "Starting containers..."
             docker compose up -d
-            if [ $? -ne 0 ]; then
-              echo "Failed to start containers"
-              exit 1
-            fi
 
             # Verify containers are running
             echo "Verifying containers..."
