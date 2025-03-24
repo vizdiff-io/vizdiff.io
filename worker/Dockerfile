@@ -14,7 +14,7 @@ COPY shared ./shared
 
 # Install dependencies and build
 RUN corepack enable && \
-    yarn install --immutable && \
+    yarn install && \
     yarn workspace worker build && \
     yarn workspaces focus worker shared --production && \
     # Clean up source files, keeping only what's needed for runtime
