@@ -60,9 +60,7 @@ export async function ingestStorybook(
         "Processing Storybook components for visual testing...",
       )
     } catch (error) {
-      log.error(
-        `Failed to update GitHub check run to in-progress: ${error instanceof Error ? error.message : String(error)}`,
-      )
+      log.error(error, "Failed to update GitHub check run to in-progress")
       // Continue with the ingest process even if the GitHub API call fails
     }
   }
@@ -347,9 +345,7 @@ export async function ingestStorybook(
               summary,
             )
           } catch (error) {
-            log.error(
-              `Failed to update GitHub check run to completed: ${error instanceof Error ? error.message : String(error)}`,
-            )
+            log.error(error, "Failed to update GitHub check run to completed")
             // Continue even if the GitHub API call fails
           }
         }
@@ -363,7 +359,8 @@ export async function ingestStorybook(
     }
   } catch (error) {
     log.error(
-      `Failed to process storybook in test ${screenshotTest.id} (build #${screenshotTest.buildNumber}): ${error instanceof Error ? error.message : String(error)}`,
+      error,
+      `Failed to process storybook in test ${screenshotTest.id} (build #${screenshotTest.buildNumber})`,
     )
     screenshotTest.status = "failed"
     await screenshotTestRepo.save(screenshotTest)
@@ -379,9 +376,7 @@ export async function ingestStorybook(
           `Screenshot test failed: ${error instanceof Error ? error.message : String(error)}`,
         )
       } catch (githubError) {
-        log.error(
-          `Failed to update GitHub check run to failure: ${githubError instanceof Error ? githubError.message : String(githubError)}`,
-        )
+        log.error(githubError, "Failed to update GitHub check run to failure")
       }
     }
 
@@ -407,9 +402,7 @@ export async function ingestStorybook(
             "Screenshot test was cancelled or timed out.",
           )
         } catch (error) {
-          log.error(
-            `Failed to update GitHub check run to cancelled: ${error instanceof Error ? error.message : String(error)}`,
-          )
+          log.error(error, "Failed to update GitHub check run to cancelled")
         }
       }
     }

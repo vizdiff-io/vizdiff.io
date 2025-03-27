@@ -54,15 +54,22 @@ async function main() {
 
     const taskQueueId = typeof payload === "string" ? parseInt(payload, 10) : payload
     if (isNaN(taskQueueId)) {
-      log.error("Invalid task queue ID:", payload)
+      log.error(`Invalid task queue ID: ${payload}`)
       return
     }
 
-    startTask(taskQueueId).catch((err: unknown) => log.error("Error processing task:", err))
+    startTask(taskQueueId).catch((err: unknown) => log.error(err, "Error processing task"))
   })
 
   subscriber.events.on("error", (error) => {
-    log.error("Fatal database connection error:", error)
+    if (error instanceof AggregateError) {
+      for (const err of error.errors) {
+        log.error(err, "Database subscriber aggregate error")
+      }
+    } else {
+      log.error(error, "Database subscriber error")
+    }
+    log.fatal("Exiting worker due to database subscriber error(s)")
     process.exit(1)
   })
 
@@ -98,7 +105,7 @@ export function pollForNewTasks(): void {
             setTimeout(() => pollForNewTasks(), POLL_INTERVAL_MS)
           })
           .catch((err: unknown) => {
-            log.error(`Error sweeping for stuck builds: ${err}`)
+            log.error(err, "Error sweeping for stuck builds")
             setTimeout(() => pollForNewTasks(), POLL_INTERVAL_MS)
           })
         return
@@ -133,7 +140,7 @@ export function pollForNewTasks(): void {
           process.nextTick(() => pollForNewTasks())
         })
         .catch((err: unknown) => {
-          log.error(`Error processing task ${taskQueueId}: ${err}`)
+          log.error(err, `Error processing task ${taskQueueId}`)
 
           // Update retry count and calculate next retry with exponential backoff
           const taskFailureInfo = failedTasksMap.get(taskQueueId) ?? {
@@ -167,7 +174,7 @@ export function pollForNewTasks(): void {
         })
     })
     .catch((err: unknown) => {
-      log.error("Error fetching latest task queue ID:", err)
+      log.error(err, "Error fetching latest task queue ID")
       setTimeout(() => pollForNewTasks(), POLL_INTERVAL_MS)
     })
 }
@@ -194,7 +201,7 @@ export async function startTask(taskQueueId: number): Promise<void> {
     // If we got here, the task was successful, so clear it from the failed tasks map
     clearFailedTaskId(taskQueueId)
   } catch (error) {
-    log.error(`Error processing task ${taskQueueId}:`, error)
+    log.error(error, `Error processing task ${taskQueueId}`)
     throw error
   } finally {
     currentTaskId = undefined
@@ -238,7 +245,7 @@ export async function processTask(
 
 export function shutdown(): void {
   subscriber.close().catch((err: unknown) => {
-    log.error("Error during shutdown:", err)
+    log.error(err, "Error during shutdown")
     process.exit(1)
   })
 }
@@ -332,12 +339,12 @@ export async function sweepStuckBuilds(): Promise<number> {
 
     return stuckBuilds.length
   } catch (error) {
-    log.error(`Error while sweeping for stuck builds: ${error}`)
+    log.error(error, "Error while sweeping for stuck builds")
     throw error
   }
 }
 
 // Entry point
 main().catch((err: unknown) => {
-  log.error(`Fatal error: ${err}`)
+  log.error(err, "Uncaught error in main()")
 })

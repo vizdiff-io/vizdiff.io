@@ -85,10 +85,10 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
   try {
     const result = await upload.done()
     void result // Ignore the result
-  } catch (err) {
-    const errorMessage = err instanceof Error ? err.message : String(err)
-    log.error(`Failed to upload ${Key} to S3: ${errorMessage}`)
-    throw new Error(`Failed to upload to S3: ${errorMessage}`)
+  } catch (error) {
+    log.error(error, `Failed to upload ${Key} to S3`)
+    const msg = error instanceof Error ? error.message : String(error)
+    throw new Error(`Failed to upload to S3: ${msg}`)
   }
 
   log.info(

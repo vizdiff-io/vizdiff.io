@@ -257,6 +257,7 @@ jobs:
           services:
             api:
               image: ${ECR_REGISTRY}/${ECR_REPOSITORY_BACKEND}:${IMAGE_TAG}
+              container_name: vizdiff-api
               restart: always
               ports:
                 - "80:80"
@@ -268,6 +269,7 @@ jobs:
 
             worker:
               image: ${ECR_REGISTRY}/${ECR_REPOSITORY_WORKER}:${IMAGE_TAG}
+              container_name: vizdiff-worker
               restart: always
               environment:
                 - NODE_ENV=production

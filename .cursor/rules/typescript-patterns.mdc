@@ -1,6 +1,7 @@
 ---
 description: TypeScript patterns and best practices for the vizdiff.io codebase
 globs: **/*.ts
+alwaysApply: false
 ---
 ---
 description: TypeScript patterns and best practices for the vizdiff.io codebase
@@ -148,6 +149,8 @@ sections:
 
       3. Use error for failures:
       ```typescript
+      log.error(err, "GitHub user request failed")
+      // or without an error object:
       log.error(`GitHub user response did not contain "login": ${json}`)
       ```
 

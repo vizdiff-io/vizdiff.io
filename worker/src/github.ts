@@ -75,9 +75,7 @@ export async function updateGitHubCheckRun(
 
     log.info(`Successfully updated GitHub check run ${githubCheckData.checkRunId}`)
   } catch (error) {
-    log.error(
-      `Failed to update GitHub check run: ${error instanceof Error ? error.message : String(error)}`,
-    )
+    log.error(error, "Failed to update GitHub check run")
     throw error
   }
 }
