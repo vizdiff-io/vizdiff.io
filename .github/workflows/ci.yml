@@ -266,6 +266,8 @@ jobs:
                 - PORT=80
               volumes:
                 - ./.env.production:/app/api/.env.production:ro
+              extra_hosts:
+                - "host.docker.internal:host-gateway"
 
             worker:
               image: ${ECR_REGISTRY}/${ECR_REPOSITORY_WORKER}:${IMAGE_TAG}
@@ -275,6 +277,8 @@ jobs:
                 - NODE_ENV=production
               volumes:
                 - ./.env.production:/app/worker/.env.production:ro
+              extra_hosts:
+                - "host.docker.internal:host-gateway"
           EOL
 
           # Create .env.production file from secrets
