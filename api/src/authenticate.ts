@@ -82,7 +82,7 @@ async function refreshJWT(userId: number, req: Request, res: Response): Promise<
 
     return true
   } catch (err) {
-    log.error(`Failed to refresh JWT: ${err}`)
+    log.error(err, "Failed to refresh JWT")
     return false
   }
 }

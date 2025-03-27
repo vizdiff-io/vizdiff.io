@@ -112,7 +112,7 @@ app.use("/api", router)
 
 // Error handling
 app.use((err: Error, _req: DefaultRequest, res: DefaultResponse, _next: Express.NextFunction) => {
-  log.error(`${err.message}\n${err.stack}`)
+  log.error(err, "Unhandled error")
   res.err = err
   res.status(500).json({ error: err.message })
 })

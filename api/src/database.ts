@@ -49,11 +49,7 @@ export async function Database(): Promise<DataSource> {
         // Define relationships after database is initialized but before any queries
         defineRelationships()
       } catch (error) {
-        if (error instanceof Error) {
-          log.error("Failed to define relationships:", error.message)
-        } else {
-          log.error("Failed to define relationships with unknown error")
-        }
+        log.error(error, "Failed to define relationships")
       }
       return db
     })
@@ -67,9 +63,8 @@ export async function InitializeDatabase(): Promise<void> {
   try {
     const db = await Database()
     log.debug(`Database initialized: ${db.isInitialized}`)
-  } catch (err) {
-    const errWithCode = err as { code?: string }
-    log.error(`Database initialization failed: ${errWithCode.code ?? err}`)
+  } catch (error) {
+    log.error(error, "Database initialization failed")
     setTimeout(() => process.exit(1), 1000).unref()
   }
 }

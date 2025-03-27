@@ -225,8 +225,7 @@ export async function githubCheckSuiteWebhook(
       testId: screenshotTest.id,
     })
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error)
-    log.error(`Error processing check_suite webhook: ${errorMessage}`)
+    log.error(error, "Error processing check_suite webhook")
     res.status(500).json({ error: "Internal server error" })
   }
 }

@@ -83,9 +83,7 @@ export async function syncUserInstallations(
           `Created GitHub installation ${installation.id} with creator ${installation.creatorId}`,
         )
       } catch (error) {
-        if (error instanceof Error) {
-          log.error(`Failed to save installation: ${error.message}`)
-        }
+        log.error(error, "Failed to save installation")
         throw error
       }
     } else if (
