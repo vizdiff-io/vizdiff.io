@@ -6967,6 +6967,49 @@ __metadata:
   languageName: node
   linkType: hard
 
+"api@workspace:api":
+  version: 0.0.0-use.local
+  resolution: "api@workspace:api"
+  dependencies:
+    "@aws-sdk/client-s3": "npm:3.744.0"
+    "@aws-sdk/lib-storage": "npm:^3.744.0"
+    "@octokit/rest": "npm:^21.1.0"
+    "@types/cookie-parser": "npm:1.4.8"
+    "@types/cors": "npm:2.8.17"
+    "@types/dotenv-flow": "npm:3.3.3"
+    "@types/express": "npm:4.17.21"
+    "@types/jsonwebtoken": "npm:9.0.8"
+    "@types/node": "npm:22.13.1"
+    "@types/pg": "npm:8.11.11"
+    "@types/pino-pretty": "npm:^5.0.0"
+    "@types/supertest": "npm:6.0.2"
+    body-parser: "npm:1.20.3"
+    cookie-parser: "npm:1.4.7"
+    cors: "npm:2.8.5"
+    dd-trace: "npm:^5.45.0"
+    dotenv-flow: "npm:4.1.0"
+    esbuild: "npm:^0.25.1"
+    eslint: "npm:9.20.0"
+    express: "npm:4.21.2"
+    express-promise-router: "npm:4.1.1"
+    jsonwebtoken: "npm:9.0.2"
+    octokit: "npm:4.1.2"
+    pg: "npm:8.13.1"
+    pino: "npm:8.21.0"
+    pino-http: "npm:8.6.1"
+    pino-pretty: "npm:10.3.1"
+    reflect-metadata: "npm:0.2.2"
+    supertest: "npm:7.0.0"
+    ts-node: "npm:10.9.2"
+    tsconfig-paths: "npm:^4.2.0"
+    typeorm: "npm:0.3.20"
+    typescript: "npm:5.7.3"
+    undici: "npm:5.28.5"
+    uuidv7: "npm:1.0.2"
+    vitest: "npm:^3.0.5"
+  languageName: unknown
+  linkType: soft
+
 "app-root-path@npm:^3.1.0":
   version: 3.1.0
   resolution: "app-root-path@npm:3.1.0"
@@ -17610,49 +17653,6 @@ __metadata:
   checksum: 10/63bf6474d314e0694489d23236a6aebd4f2173b40e47f861824668fe4b3dde5b6b95d30134acc7b1a0694c0b82b4996deb7ebc7c0ae62cb58823ff51cdcadbe1
   languageName: node
   linkType: hard
-
-"vizdiff-api@workspace:api":
-  version: 0.0.0-use.local
-  resolution: "vizdiff-api@workspace:api"
-  dependencies:
-    "@aws-sdk/client-s3": "npm:3.744.0"
-    "@aws-sdk/lib-storage": "npm:^3.744.0"
-    "@octokit/rest": "npm:^21.1.0"
-    "@types/cookie-parser": "npm:1.4.8"
-    "@types/cors": "npm:2.8.17"
-    "@types/dotenv-flow": "npm:3.3.3"
-    "@types/express": "npm:4.17.21"
-    "@types/jsonwebtoken": "npm:9.0.8"
-    "@types/node": "npm:22.13.1"
-    "@types/pg": "npm:8.11.11"
-    "@types/pino-pretty": "npm:^5.0.0"
-    "@types/supertest": "npm:6.0.2"
-    body-parser: "npm:1.20.3"
-    cookie-parser: "npm:1.4.7"
-    cors: "npm:2.8.5"
-    dd-trace: "npm:^5.45.0"
-    dotenv-flow: "npm:4.1.0"
-    esbuild: "npm:^0.25.1"
-    eslint: "npm:9.20.0"
-    express: "npm:4.21.2"
-    express-promise-router: "npm:4.1.1"
-    jsonwebtoken: "npm:9.0.2"
-    octokit: "npm:4.1.2"
-    pg: "npm:8.13.1"
-    pino: "npm:8.21.0"
-    pino-http: "npm:8.6.1"
-    pino-pretty: "npm:10.3.1"
-    reflect-metadata: "npm:0.2.2"
-    supertest: "npm:7.0.0"
-    ts-node: "npm:10.9.2"
-    tsconfig-paths: "npm:^4.2.0"
-    typeorm: "npm:0.3.20"
-    typescript: "npm:5.7.3"
-    undici: "npm:5.28.5"
-    uuidv7: "npm:1.0.2"
-    vitest: "npm:^3.0.5"
-  languageName: unknown
-  linkType: soft
 
 "vizdiff@workspace:.":
   version: 0.0.0-use.local
