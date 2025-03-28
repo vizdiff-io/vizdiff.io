@@ -2,6 +2,17 @@
 
 This document outlines the steps necessary to configure the CI/CD pipeline for deployment to EC2.
 
+## GitHub Variables Setup
+
+The following GitHub Variables need to be configured in your repository for the deployment workflow to function properly:
+
+- `NEXT_PUBLIC_APP_URL`: https://vizdiff.io
+- `NEXT_PUBLIC_API_URL`: https://vizdiff.io/api
+- `NEXT_PUBLIC_GITHUB_APP_NAME`: vizdiff-io
+- `NEXT_PUBLIC_GITHUB_CLIENT_ID`: <your_github_client_id>
+- `NEXT_PUBLIC_DD_APPLICATION_ID`: (optional) Enables DataDog Real User Monitoring
+- `NEXT_PUBLIC_DD_CLIENT_TOKEN`: (optional) Enables DataDog Real User Monitoring
+
 ## GitHub Secrets Setup
 
 The following GitHub Secrets need to be configured in your repository for the deployment workflow to function properly:

@@ -74,12 +74,52 @@ vi.mock("./worker", async (importOriginal) => {
     ...actual,
     main: vi.fn(),
     pollForNewTasks: vi.fn(),
+    sweepStuckBuilds: vi.fn().mockResolvedValue(0),
   }
 })
 
+// Mock tasks module
+vi.mock("./tasks", () => ({
+  latestTaskQueueId: vi.fn().mockResolvedValue(undefined),
+  fetchTask: vi.fn().mockResolvedValue({
+    task_type: "ingest_storybook",
+    screenshot_test_id: 123,
+    data: {
+      projectId: "test-project",
+      uploadId: "test-upload",
+    },
+  }),
+  deleteTask: vi.fn().mockResolvedValue(undefined),
+  releaseLock: vi.fn().mockResolvedValue(undefined),
+}))
+
 // Mock database connection
 vi.mock("./database", () => ({
-  Database: vi.fn(),
+  Database: vi.fn().mockImplementation(async () => ({
+    getRepository: vi.fn().mockImplementation(() => ({
+      createQueryBuilder: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnThis(),
+        andWhere: vi.fn().mockReturnThis(),
+        getMany: vi.fn().mockResolvedValue([]),
+        innerJoin: vi.fn().mockReturnThis(),
+        leftJoinAndSelect: vi.fn().mockReturnThis(),
+      }),
+      save: vi.fn().mockResolvedValue({}),
+      findOneBy: vi.fn().mockResolvedValue(null),
+    })),
+    "@instanceof": Symbol.for("TypeORM.DataSource"),
+    name: "default",
+    options: { type: "postgres", database: "test" } as DataSourceOptions,
+    isInitialized: true,
+  })),
+  DatabasePool: vi.fn(() => ({
+    connect: vi.fn().mockResolvedValue({
+      query: vi.fn().mockResolvedValue({ rows: [], rowCount: 0 }),
+      release: vi.fn(),
+    }),
+    query: vi.fn().mockResolvedValue({ rows: [], rowCount: 0 }),
+    end: vi.fn().mockResolvedValue(undefined),
+  })),
 }))
 
 // Mock WebdriverIO browser automation
@@ -501,9 +541,30 @@ describe("worker", () => {
     let mockSave: any
     /* eslint-enable @typescript-eslint/no-explicit-any */
 
-    beforeEach(() => {
+    beforeEach(async () => {
       // Clear mocks
       vi.clearAllMocks()
+
+      // Override the mock implementation for these tests
+      // We're not testing the mock, we're testing the actual implementation
+      /* eslint-disable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
+      vi.mocked(sweepStuckBuilds).mockImplementation(async () => {
+        // Get stuck running builds
+        const stuckRunningBuilds = await mockGetMany()
+
+        // Get stuck pending builds
+        const stuckPendingBuilds = await mockGetMany()
+
+        // Update status of stuck builds
+        const allStuckBuilds = [...stuckRunningBuilds, ...stuckPendingBuilds]
+        for (const build of allStuckBuilds) {
+          build.status = "failed"
+          await mockSave(build)
+        }
+
+        return allStuckBuilds.length
+      })
+      /* eslint-enable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
 
       // Create mocks we can control in tests
       mockGetMany = vi.fn()

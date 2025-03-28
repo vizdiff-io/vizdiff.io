@@ -19,7 +19,8 @@
     "src/**/*.ts",
     "src/**/*.tsx",
     "eslint.config.js",
-    "next-env.d.ts"
+    "next-env.d.ts",
+    "package.json"
   ],
   "references": [
     {

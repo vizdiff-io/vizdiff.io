@@ -1,3 +1,4 @@
+import { datadogRum } from "@datadog/browser-rum"
 import { createContext, useContext, useEffect, useState } from "react"
 
 import { tryApiGet } from "@/lib/apiMethods"
@@ -25,6 +26,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }): JSX.E
       setIsLoading(false)
       if (apiError) {
         setError(apiError)
+      } else if (userData) {
+        // Associate this session with the user in Datadog RUM
+        datadogRum.setUser({
+          id: userData.id.toString(),
+          name: userData.githubUsername,
+          email: userData.email ?? undefined,
+        })
       }
     }
 

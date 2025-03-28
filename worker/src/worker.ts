@@ -1,3 +1,4 @@
+import "./datadog"
 import createPgSubscriber from "pg-listen"
 import { ScreenshotTest } from "shared"
 

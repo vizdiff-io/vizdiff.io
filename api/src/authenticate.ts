@@ -6,6 +6,7 @@ import jwt from "jsonwebtoken"
 import { Project, User } from "shared"
 
 import { Database } from "./database"
+import { tracer } from "./datadog"
 import {
   JWT_SECRET,
   GITHUB_APP_ID,
@@ -153,6 +154,13 @@ export async function requireUser(_req: Request, res: Response, next: NextFuncti
     res.status(401).json({ error: "User not found" })
     return
   }
+
+  // Associate this request with the user in Datadog
+  tracer.setUser({
+    id: user.id.toString(),
+    name: user.githubUsername,
+    email: user.email ?? undefined,
+  })
 
   locals.user = user
   next()

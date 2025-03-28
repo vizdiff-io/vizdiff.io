@@ -29,4 +29,4 @@ ENV PORT=3001
 EXPOSE 3001
 
 # Run the application
-CMD ["node", "api/dist/index.mjs"]
+CMD ["node", "--import", "dd-trace/register.js", "api/dist/index.mjs"]

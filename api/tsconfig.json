@@ -7,6 +7,6 @@
       "shared": ["../shared/src"]
     }
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "package.json"],
   "references": [{ "path": "../shared" }]
 }
