@@ -25,4 +25,4 @@ RUN corepack enable && \
 ENV NODE_ENV=production
 
 # Run the application
-CMD ["node", "worker/dist/worker.mjs"]
+CMD ["node", "--import", "dd-trace/register.js", "worker/dist/worker.mjs"]

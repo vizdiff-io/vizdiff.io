@@ -1,5 +1,7 @@
 import "@/styles/globals.css"
 import "@/styles/theme.css"
+import { TrackingConsent } from "@datadog/browser-core"
+import { datadogRum } from "@datadog/browser-rum"
 import { CssBaseline, ThemeProvider } from "@mui/material"
 import type { AppProps } from "next/app"
 import { Inter } from "next/font/google"
@@ -7,6 +9,26 @@ import { Inter } from "next/font/google"
 import DarkMode from "@/components/DarkMode"
 import useAppTheme from "@/hooks/useAppTheme"
 import { AuthProvider } from "@/hooks/useAuth"
+
+import { version } from "../../package.json"
+
+const ddApplicationId = process.env.NEXT_PUBLIC_DD_APPLICATION_ID
+const ddClientToken = process.env.NEXT_PUBLIC_DD_CLIENT_TOKEN
+
+if (ddApplicationId && ddClientToken) {
+  datadogRum.init({
+    applicationId: ddApplicationId,
+    clientToken: ddClientToken,
+    site: "us3.datadoghq.com",
+    service: "vizdiff.io",
+    env: "production",
+    version,
+    sessionSampleRate: 100,
+    sessionReplaySampleRate: 20,
+    defaultPrivacyLevel: "mask-user-input",
+    trackingConsent: TrackingConsent.GRANTED,
+  })
+}
 
 const inter = Inter({ subsets: ["latin"] })
 
