@@ -1,4 +1,4 @@
-import * as dd from "dd-trace"
+import dd from "dd-trace"
 
 // Skip Datadog initialization in test environment
 if (process.env.NODE_ENV !== "test" && process.env.VITEST !== "true") {
