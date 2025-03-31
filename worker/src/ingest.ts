@@ -138,6 +138,8 @@ export async function ingestStorybook(
     log.info("Initializing WebdriverIO in headless Chrome mode")
     const config: Capabilities.WebdriverIOConfig = {
       outputDir: path.join(tmpDir, "wdio-logs"),
+      hostname: "localhost",
+      port: 4444,
       capabilities: {
         browserName: "chrome",
         "goog:chromeOptions": {

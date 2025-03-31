@@ -10,7 +10,7 @@ import DarkMode from "@/components/DarkMode"
 import useAppTheme from "@/hooks/useAppTheme"
 import { AuthProvider } from "@/hooks/useAuth"
 
-import { version } from "../../package.json"
+import packageJson from "../../package.json"
 
 const ddApplicationId = process.env.NEXT_PUBLIC_DD_APPLICATION_ID
 const ddClientToken = process.env.NEXT_PUBLIC_DD_CLIENT_TOKEN
@@ -22,7 +22,7 @@ if (ddApplicationId && ddClientToken) {
     site: "us3.datadoghq.com",
     service: "vizdiff.io",
     env: "production",
-    version,
+    version: packageJson.version,
     sessionSampleRate: 100,
     sessionReplaySampleRate: 20,
     defaultPrivacyLevel: "mask-user-input",

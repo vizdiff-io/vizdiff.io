@@ -21,7 +21,7 @@ server {
     ssl_certificate_key /etc/ssl/certs/cert.key;
 
     location /api/ {
-        proxy_pass http://host.docker.internal:3001/;
+        proxy_pass http://host.docker.internal:3001/api/;
         proxy_set_header X-Forwarded-For \$remote_addr;
     }
     location / {
