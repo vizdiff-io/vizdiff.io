@@ -32,7 +32,7 @@ export async function uploadStorybook(opts: UploadStorybookOpts): Promise<void> 
   }
 
   // Check that the storybook build manifest exists
-  const projectJsonPath = path.join(storybookDir, "project.json")
+  const projectJsonPath = path.resolve(storybookDir, "project.json")
   try {
     await fs.access(projectJsonPath, fs.constants.R_OK)
   } catch (err: unknown) {
