@@ -361,7 +361,7 @@ jobs:
           BASE_BRANCH: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.ref || 'main' }}
           BASE_COMMIT: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || 'N/A' }}
           VIZDIFF_PROJECT_TOKEN: ${{ secrets.VIZDIFF_PROJECT_TOKEN }}
-        run: yarn cli upload --commit "${{ env.COMMIT_SHA }}" --branch "${{ env.BRANCH_NAME }}" --base-branch "${{ env.BASE_BRANCH }}" --base-commit "${{ env.BASE_COMMIT }}" --storybook-directory "frontend/storybook-static"
+        run: yarn cli upload --commit "${{ env.COMMIT_SHA }}" --branch "${{ env.BRANCH_NAME }}" --base-branch "${{ env.BASE_BRANCH }}" --base-commit "${{ env.BASE_COMMIT }}" "frontend/storybook-static"
 
       - name: Publish to Chromatic
         working-directory: frontend
