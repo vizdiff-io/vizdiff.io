@@ -43,8 +43,8 @@ export default function Home(): JSX.Element {
                 lineHeight: 1.6,
               }}
             >
-              Catch visual bugs before they ship. Take automated screenshots of your app, get
-              notified when they change, and compare with previous versions.
+              Catch visual bugs before they ship. Take automated screenshots of your app, compare
+              with previous versions, and get notified when they change.
             </Typography>
             <Box sx={{ display: "flex", gap: 2 }}>
               <Button variant="contained" color="primary" size="large">
