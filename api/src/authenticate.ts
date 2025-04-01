@@ -14,6 +14,7 @@ import {
   GITHUB_CLIENT_ID,
   GITHUB_CLIENT_SECRET,
   IS_PRODUCTION,
+  S3_BUCKET,
 } from "./environment"
 import { getInstallationsForUserId } from "./github"
 import { log } from "./log"
@@ -185,5 +186,5 @@ export async function getProjectByToken(token: string): Promise<Project | undefi
 }
 
 export async function getS3BucketForProject(_project: Project): Promise<string> {
-  return "vizdiffio-testing"
+  return S3_BUCKET
 }

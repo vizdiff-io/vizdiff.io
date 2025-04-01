@@ -47,6 +47,7 @@ GITHUB_WEBHOOK_SECRET=your_webhook_secret
 GITHUB_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----
 ...
 -----END RSA PRIVATE KEY-----"
+S3_BUCKET=vizdiffio
 POSTGRES_USER=vizdiff_user
 POSTGRES_HOST=localhost
 POSTGRES_DATABASE=vizdiff

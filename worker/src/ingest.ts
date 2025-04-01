@@ -13,6 +13,7 @@ import { remote } from "webdriverio"
 
 import { Database } from "./database"
 import { downloadWithTimeout } from "./download"
+import { S3_BUCKET } from "./environment"
 import { updateGitHubCheckRun, type GitHubCheckData } from "./github"
 import { log } from "./log"
 import { processStory } from "./stories"
@@ -416,5 +417,5 @@ export async function ingestStorybook(
 }
 
 async function getS3BucketForProjectId(_projectId: string): Promise<string> {
-  return "vizdiffio-testing"
+  return S3_BUCKET
 }
