@@ -96,16 +96,6 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
     `Uploaded ${Key} to S3 bucket ${Bucket} (project=${project.id}, upload=${uploadId}, length=${length})`,
   )
 
-  // Create a row in `screenshot_tests` for this upload
-  const screenshotTest = await createScreenshotTest(
-    project,
-    commitSha,
-    branch,
-    uploadId,
-    baseCommitSha,
-    baseBranch,
-  )
-
   // Extract the GitHub owner and repo from the GitHub repository URL
   const [owner, repo] = project.githubRepoUrl.split("/").slice(-2)
   if (!owner || !repo) {
@@ -125,14 +115,14 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
     repo,
     ref: commitSha,
   })
-  let checkRunId = checkRuns.data.check_runs.find((run) => run.name === "Visual Tests")?.id
+  let githubCheckRunId = checkRuns.data.check_runs.find((run) => run.name === "Visual Tests")?.id
 
-  if (checkRunId) {
+  if (githubCheckRunId) {
     // Update the existing check run and put it into pending status
     await octokit.rest.checks.update({
       owner,
       repo,
-      check_run_id: checkRunId,
+      check_run_id: githubCheckRunId,
       status: "in_progress",
       output: {
         title: "Visual Tests",
@@ -152,8 +142,19 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
         summary: "Processing storybook upload",
       },
     })
-    checkRunId = checkRunResponse.data.id
+    githubCheckRunId = checkRunResponse.data.id
   }
+
+  // Create a row in `screenshot_tests` for this upload
+  const screenshotTest = await createScreenshotTest(
+    project,
+    commitSha,
+    branch,
+    uploadId,
+    baseCommitSha,
+    baseBranch,
+    githubCheckRunId,
+  )
 
   // Add a task to the queue to process this screenshot test
   const task = new WorkTask()
@@ -165,7 +166,7 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
     githubCheckData: {
       owner,
       repo,
-      checkRunId,
+      checkRunId: githubCheckRunId,
       installationId: installation.installationId,
     },
   })

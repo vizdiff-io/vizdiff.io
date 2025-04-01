@@ -9,6 +9,7 @@ export async function createScreenshotTest(
   uploadId: string,
   baseCommitSha?: string,
   baseBranch?: string,
+  githubCheckRunId?: number,
 ): Promise<ScreenshotTest> {
   if (!commitSha || !branch || !uploadId) {
     throw new Error("Missing required parameters")
@@ -37,6 +38,7 @@ export async function createScreenshotTest(
     screenshotTest.baseBranch = baseBranch
     screenshotTest.uploadId = uploadId
     screenshotTest.status = "pending"
+    screenshotTest.githubCheckRunId = githubCheckRunId
 
     return await manager.save(screenshotTest)
   })
