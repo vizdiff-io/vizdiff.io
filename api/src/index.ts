@@ -60,17 +60,17 @@ if (!IS_TEST) {
 app.use(httpLogger)
 
 app.use(cookieParser())
-app.use(bodyParser.json())
 app.disable("x-powered-by")
 app.set("trust proxy", ["loopback", "linklocal", "uniquelocal"])
 
-// Special raw body parser for GitHub webhooks to verify signatures
-const rawBodyParser = bodyParser.json({
+// Body parser that captures both raw and JSON parsed body
+const rawBodyAndJsonParser = bodyParser.json({
   verify: (req: Express.Request & { rawBody?: Buffer }, _res, buf) => {
     req.rawBody = buf
   },
 })
 
+app.use(rawBodyAndJsonParser)
 // Configure CORS
 app.use(
   cors({
@@ -107,8 +107,8 @@ router.post("/tests/:id/status/:status", authenticateJWT, requireUser, Approval.
 router.get("/users/me", authenticateJWT, requireUser, User.me)
 router.post("/upload/storybook", Upload.uploadStorybook) // ?token=<project_token>
 
-// GitHub webhook route - use special middleware for raw body
-router.post("/webhooks/github", rawBodyParser, Webhooks.githubCheckSuiteWebhook)
+// GitHub webhook route
+router.post("/webhooks/github", Webhooks.githubCheckSuiteWebhook)
 
 app.use("/api", router)
 
