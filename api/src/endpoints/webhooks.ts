@@ -184,15 +184,14 @@ export async function githubCheckSuiteWebhook(
     const octokit = await getOctokitForInstallation(installationId)
 
     // Create a check run
-    const checkRunResponse = await octokit.rest.checks.create({
+    const checkRunResponse = await octokit.checks.create({
       owner: repoOwner,
       repo: repoName,
-      name: "UI Tests",
+      name: "Visual Tests",
       head_sha: headSha,
-      status: "completed",
-      conclusion: "neutral",
+      status: "queued",
       output: {
-        title: "UI Tests",
+        title: "Visual Tests",
         summary: "Waiting for storybook upload (optional)",
       },
     })

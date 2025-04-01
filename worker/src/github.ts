@@ -68,7 +68,7 @@ export async function updateGitHubCheckRun(
       conclusion: status === "completed" ? conclusion : undefined,
       details_url: `${APP_URL}/build?id=${testId}`,
       output: {
-        title: "UI Tests",
+        title: "Visual Tests",
         summary,
       },
     })

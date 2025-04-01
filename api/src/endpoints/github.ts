@@ -81,7 +81,7 @@ export const repos: RequestHandler = async (req, res) => {
   await syncUserInstallations(user)
 
   const installation = org
-    ? await getInstallationForOrg(user, org)
+    ? await getInstallationForOrg(user.id, org)
     : (await getInstallationsForUserId(user.id)).find((i) => i.accountType === "User")
 
   if (!installation) {
