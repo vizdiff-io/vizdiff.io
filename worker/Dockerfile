@@ -2,6 +2,11 @@ FROM node:22-alpine
 
 WORKDIR /app
 
+# Build args
+ARG DD_GIT_REPOSITORY_URL
+ARG DD_GIT_COMMIT_SHA
+ARG NODE_ENV=production
+
 # Install Chromium and its dependencies
 RUN apk add --no-cache \
     chromium \
@@ -48,7 +53,9 @@ RUN corepack enable && \
     rm -rf shared/src
 
 # Set environment variables
-ENV NODE_ENV=production \
+ENV DD_GIT_COMMIT_SHA=$DD_GIT_COMMIT_SHA \
+    DD_GIT_REPOSITORY_URL=$DD_GIT_REPOSITORY_URL \
+    NODE_ENV=$NODE_ENV \
     HOME=/home/webuser
 
 # Switch to non-root user
@@ -56,7 +63,7 @@ USER webuser
 WORKDIR /home/webuser
 
 # Create startup script in the home directory (after all other operations)
-RUN printf '#!/bin/sh\nchromedriver --port=4444 --whitelisted-ips="127.0.0.1" &\nsleep 2\nexec node --import /app/node_modules/dd-trace/register.js /app/worker/dist/worker.mjs\n' > start.sh && chmod +x start.sh
+RUN printf '#!/bin/sh\nchromedriver --port=4444 --whitelisted-ips="127.0.0.1" &\nsleep 2\nexec node --enable-source-maps --import /app/node_modules/dd-trace/register.js /app/worker/dist/worker.mjs\n' > start.sh && chmod +x start.sh
 
 # Run the application
 CMD ["./start.sh"]

@@ -2,6 +2,11 @@ FROM node:22-alpine
 
 WORKDIR /app
 
+# Build args
+ARG DD_GIT_REPOSITORY_URL
+ARG DD_GIT_COMMIT_SHA
+ARG NODE_ENV=production
+
 # Copy yarn/tsconfig files
 COPY .yarn/releases/yarn-4.3.0.cjs ./.yarn/releases/
 COPY package.json yarn.lock .yarnrc.yml tsconfig.json tsconfig.options.json ./
@@ -22,11 +27,13 @@ RUN corepack enable && \
     rm -rf shared/src
 
 # Set environment variables
-ENV NODE_ENV=production
-ENV PORT=3001
+ENV DD_GIT_COMMIT_SHA=$DD_GIT_COMMIT_SHA \
+    DD_GIT_REPOSITORY_URL=$DD_GIT_REPOSITORY_URL \
+    NODE_ENV=$NODE_ENV \
+    PORT=3001
 
 # Expose the port
 EXPOSE 3001
 
 # Run the application
-CMD ["node", "--import", "dd-trace/register.js", "api/dist/index.mjs"]
+CMD ["node", "--enable-source-maps", "--import", "dd-trace/register.js", "api/dist/index.mjs"]
