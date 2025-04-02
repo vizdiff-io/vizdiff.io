@@ -48,7 +48,7 @@ export const approveOrDeny: RequestHandler = async (req, res) => {
       // Extract the GitHub owner and repo from the GitHub repository URL
       const [owner, repo] = test.project.githubRepoUrl.split("/").slice(-2)
       if (!owner || !repo) {
-        log.warn(`Invalid GitHub repository URL: ${test.project.githubRepoUrl}`)
+        log.error(`Invalid GitHub repository URL: ${test.project.githubRepoUrl}`)
       } else {
         // Get the installation ID for this project
         const installation = await getInstallationForOrg(user.id, owner)
@@ -73,15 +73,15 @@ export const approveOrDeny: RequestHandler = async (req, res) => {
           )
 
           log.info(
-            `Updated GitHub check run ${test.githubCheckRunId} for test ${test.id} with conclusion: ${conclusion}`,
+            `Updated GitHub check run ${test.githubCheckRunId} for ${test.toString()} with conclusion: ${conclusion}`,
           )
         } else {
-          log.warn(`GitHub App installation not found for ${owner}`)
+          log.error(`GitHub App installation not found for ${owner}`)
         }
       }
     } catch (err) {
       const error = err
-      log.error(error, `Failed to update GitHub check run for test ${test.id}`)
+      log.error(error, `Failed to update GitHub check run for ${test.toString()}`)
       // Don't fail the API call if GitHub update fails
     }
   }

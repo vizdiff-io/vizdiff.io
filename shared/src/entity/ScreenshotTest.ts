@@ -70,4 +70,8 @@ export class ScreenshotTest {
 
   @UpdateDateColumn({ name: "updated_at", type: "timestamptz", nullable: false })
   updatedAt!: Date
+
+  toString(): string {
+    return `[test_id=${this.id} ${this.project.githubRepoUrl}#${this.commitSha}]`
+  }
 }
