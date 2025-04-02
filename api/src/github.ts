@@ -1,9 +1,16 @@
-import { Octokit } from "@octokit/rest"
+import { createAppAuth } from "@octokit/auth-app"
 import type { RestEndpointMethodTypes } from "@octokit/rest"
+import { Octokit } from "@octokit/rest"
 import { GitHubInstallation, User } from "shared"
 
 import { Database } from "./database"
-import { GITHUB_APP_ID } from "./environment"
+import {
+  GITHUB_APP_ID,
+  GITHUB_CLIENT_ID,
+  GITHUB_CLIENT_SECRET,
+  GITHUB_PRIVATE_KEY,
+  APP_URL,
+} from "./environment"
 import { log } from "./log"
 
 type Installation =
@@ -13,6 +20,76 @@ interface GitHubAccount {
   id: number
   login: string
   type: "User" | "Organization"
+}
+
+export interface GitHubCheckData {
+  owner: string
+  repo: string
+  checkRunId: number
+  installationId: number
+}
+
+// <https://docs.github.com/en/rest/checks/runs?apiVersion=2022-11-28#update-a-check-run>
+export type GitHubCheckConclusion =
+  | "action_required"
+  | "cancelled"
+  | "failure"
+  | "neutral"
+  | "skipped"
+  | "stale"
+  | "success"
+  | "timed_out"
+
+/**
+ * Get an authenticated Octokit instance for a specific installation
+ */
+export async function getOctokitForInstallation(installationId: number): Promise<Octokit> {
+  const auth = createAppAuth({
+    appId: GITHUB_APP_ID,
+    privateKey: GITHUB_PRIVATE_KEY,
+    clientId: GITHUB_CLIENT_ID,
+    clientSecret: GITHUB_CLIENT_SECRET,
+  })
+
+  const installationAuth = await auth({ type: "installation", installationId })
+  return new Octokit({ auth: installationAuth.token })
+}
+
+/**
+ * Update a GitHub check run with the results of a screenshot test
+ */
+export async function updateGitHubCheckRun(
+  githubCheckData: GitHubCheckData,
+  status: "completed" | "in_progress",
+  conclusion: GitHubCheckConclusion | undefined,
+  testId: number,
+  summary: string,
+): Promise<void> {
+  try {
+    log.info(
+      `Updating GitHub check run ${githubCheckData.checkRunId} with status: ${status}, conclusion: ${conclusion}`,
+    )
+
+    const octokit = await getOctokitForInstallation(githubCheckData.installationId)
+
+    await octokit.checks.update({
+      owner: githubCheckData.owner,
+      repo: githubCheckData.repo,
+      check_run_id: githubCheckData.checkRunId,
+      status,
+      conclusion: status === "completed" ? conclusion : undefined,
+      details_url: `${APP_URL}/build?id=${testId}`,
+      output: {
+        title: "Visual Tests",
+        summary,
+      },
+    })
+
+    log.info(`Successfully updated GitHub check run ${githubCheckData.checkRunId}`)
+  } catch (error) {
+    log.error(error, "Failed to update GitHub check run")
+    throw error
+  }
 }
 
 export async function syncUserInstallations(
@@ -150,7 +227,7 @@ export async function getInstallationsForUserId(userId: number): Promise<GitHubI
 }
 
 export async function getInstallationForOrg(
-  user: User,
+  userId: number,
   orgName: string,
 ): Promise<GitHubInstallation | null> {
   const db = await Database()
@@ -158,7 +235,7 @@ export async function getInstallationForOrg(
     .createQueryBuilder(GitHubInstallation, "inst")
     .innerJoin("user_github_installations", "ui", "ui.installation_id = inst.id")
     .where("(ui.user_id = :userId OR inst.creator_id = :userId) AND inst.accountName = :orgName", {
-      userId: user.id,
+      userId,
       orgName,
     })
     .getOne()

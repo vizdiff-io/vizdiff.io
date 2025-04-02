@@ -1,7 +1,10 @@
 import { ScreenshotTest } from "shared"
 
 import { Database } from "../database"
+import { getInstallationForOrg, updateGitHubCheckRun } from "../github"
+import type { GitHubCheckConclusion } from "../github"
 import { getParamInt } from "../http"
+import { log } from "../log"
 import type { RequestHandler } from "../types"
 
 export const approveOrDeny: RequestHandler = async (req, res) => {
@@ -38,6 +41,50 @@ export const approveOrDeny: RequestHandler = async (req, res) => {
   // Update the screenshot test status
   test.status = status
   await testTable.save(test)
+
+  // Update GitHub check run if available
+  if (test.githubCheckRunId) {
+    try {
+      // Extract the GitHub owner and repo from the GitHub repository URL
+      const [owner, repo] = test.project.githubRepoUrl.split("/").slice(-2)
+      if (!owner || !repo) {
+        log.warn(`Invalid GitHub repository URL: ${test.project.githubRepoUrl}`)
+      } else {
+        // Get the installation ID for this project
+        const installation = await getInstallationForOrg(user.id, owner)
+        if (installation) {
+          const conclusion: GitHubCheckConclusion = status === "approved" ? "success" : "failure"
+          const summary =
+            status === "approved"
+              ? `Visual tests approved by ${user.githubUsername}`
+              : `Visual tests denied by ${user.githubUsername}`
+
+          await updateGitHubCheckRun(
+            {
+              owner,
+              repo,
+              checkRunId: test.githubCheckRunId,
+              installationId: installation.installationId,
+            },
+            "completed",
+            conclusion,
+            test.id,
+            summary,
+          )
+
+          log.info(
+            `Updated GitHub check run ${test.githubCheckRunId} for test ${test.id} with conclusion: ${conclusion}`,
+          )
+        } else {
+          log.warn(`GitHub App installation not found for ${owner}`)
+        }
+      }
+    } catch (err) {
+      const error = err
+      log.error(error, `Failed to update GitHub check run for test ${test.id}`)
+      // Don't fail the API call if GitHub update fails
+    }
+  }
 
   res.json({ success: true })
 }

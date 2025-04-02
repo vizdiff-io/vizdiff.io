@@ -1,7 +1,7 @@
 import { createAppAuth } from "@octokit/auth-app"
 import { Octokit } from "@octokit/rest"
-import crypto, { randomUUID } from "crypto"
-import { Project, WorkTask } from "shared"
+import crypto from "crypto"
+import { Project, ScreenshotTest } from "shared"
 
 import { Database } from "../database"
 import {
@@ -10,11 +10,9 @@ import {
   GITHUB_CLIENT_SECRET,
   GITHUB_PRIVATE_KEY,
   GITHUB_WEBHOOK_SECRET,
-  APP_URL,
 } from "../environment"
 import { log } from "../log"
 import type { CheckSuitePayload } from "../schemas/CheckSuitePayload"
-import { createScreenshotTest } from "../screenshotTests"
 import type { DefaultRequest, DefaultResponse } from "../types"
 
 // Extend the DefaultRequest type to include rawBody
@@ -126,18 +124,19 @@ export async function githubCheckSuiteWebhook(
   // Check for the GitHub event type
   const eventName = req.headers["x-github-event"]
   if (eventName !== "check_suite") {
-    log.info(`Ignoring non-check_suite webhook event: ${eventName}`)
+    log.debug(`Ignoring non-check_suite webhook event: ${eventName}`)
     res.status(202).json({ message: "Event ignored" })
     return
   }
 
+  let subject = "(unknown)"
   try {
     const payload = req.body as CheckSuitePayload
     const action = payload.action
 
     // Only process requested or rerequested actions
     if (action !== "requested" && action !== "rerequested") {
-      log.info(`Ignoring check_suite action: ${action}`)
+      log.debug(`Ignoring check_suite action: ${action}`)
       res.status(202).json({ message: "Action ignored" })
       return
     }
@@ -154,78 +153,59 @@ export async function githubCheckSuiteWebhook(
       return
     }
 
-    log.info(
-      `Processing check_suite ${action} event for ${repoOwner}/${repoName}@${headSha} (branch: ${branch})`,
-    )
+    subject = `${repoOwner}/${repoName}@${headSha} (branch: ${branch})`
+    log.info(`Processing check_suite "${action}" event for ${subject}`)
 
     // Find the project associated with this repository
     const project = await findProjectByRepo(repoOwner, repoName)
     if (!project) {
-      log.error(`No project found for repository ${repoOwner}/${repoName}`)
+      log.error(`No project found for ${subject}`)
       res.status(404).json({ error: "No project found for this repository" })
       return
     }
 
-    // Create a unique upload ID for this test run
-    const uploadId = randomUUID()
+    // Check if a screenshot test already exists for this commit SHA
+    const db = await Database()
+    const screenshotTestRepository = db.getRepository(ScreenshotTest)
+    const existingTest = await screenshotTestRepository.findOne({
+      where: {
+        commitSha: headSha,
+        project: { id: project.id },
+      },
+    })
 
-    // Create a screenshot test record
-    const screenshotTest = await createScreenshotTest(project, headSha, branch, uploadId)
+    if (existingTest) {
+      log.warn(`Screenshot test already exists for ${subject}, skipping check run creation`)
+      res.status(200).json({ message: "Screenshot test already exists" })
+      return
+    }
 
     // Create an Octokit instance for the installation
     const octokit = await getOctokitForInstallation(installationId)
 
-    // Create an in-progress check run
-    const checkRunResponse = await octokit.rest.checks.create({
+    // Create a check run
+    const checkRunResponse = await octokit.checks.create({
       owner: repoOwner,
       repo: repoName,
-      name: "UI Tests",
+      name: "Visual Tests",
       head_sha: headSha,
-      status: "in_progress",
-      details_url: `${APP_URL}/build?id=${screenshotTest.id}`,
+      status: "queued",
       output: {
-        title: "UI Tests",
-        summary: "Running visual regression tests...",
+        title: "Visual Tests",
+        summary: "Waiting for storybook upload (optional)",
       },
     })
 
     const checkRunId = checkRunResponse.data.id
 
-    // Create a task to process this screenshot test
-    const task = new WorkTask()
-    task.screenshotTest = screenshotTest
-    task.taskType = "ingest_storybook"
-    task.data = JSON.stringify({
-      projectId: project.id,
-      uploadId,
-      githubCheckData: {
-        owner: repoOwner,
-        repo: repoName,
-        checkRunId,
-        installationId,
-      },
-    })
-    task.createdAt = new Date()
-    task.updatedAt = task.createdAt
-
-    const db = await Database()
-    const tasks = db.getRepository(WorkTask)
-    const savedTask = await tasks.save(task)
-
-    // Notify the worker of the new task
-    await db.query(`NOTIFY task_queue, '${savedTask.id}'`)
-
-    log.info(
-      `Created check run ${checkRunId} and queued task for screenshot test ${screenshotTest.id}`,
-    )
+    log.info(`Created check run ${checkRunId} with neutral status for ${subject}`)
 
     res.status(200).json({
       message: "Check suite event processed successfully",
       checkRunId,
-      testId: screenshotTest.id,
     })
   } catch (error) {
-    log.error(error, "Error processing check_suite webhook")
+    log.error(error, `Error processing check_suite webhook for ${subject}`)
     res.status(500).json({ error: "Internal server error" })
   }
 }

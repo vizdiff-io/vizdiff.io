@@ -1,6 +1,7 @@
 import { S3Client } from "@aws-sdk/client-s3"
 import { Upload as S3Upload } from "@aws-sdk/lib-storage"
 import { WorkTask } from "shared"
+import { getInstallationForOrg, getOctokitForInstallation } from "src/github"
 import { uuidv7 } from "uuidv7"
 
 import { getProjectByToken, getS3BucketForProject } from "../authenticate"
@@ -95,6 +96,55 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
     `Uploaded ${Key} to S3 bucket ${Bucket} (project=${project.id}, upload=${uploadId}, length=${length})`,
   )
 
+  // Extract the GitHub owner and repo from the GitHub repository URL
+  const [owner, repo] = project.githubRepoUrl.split("/").slice(-2)
+  if (!owner || !repo) {
+    throw new Error(`Invalid GitHub repository URL: ${project.githubRepoUrl}`)
+  }
+
+  // Get the installation ID for this project
+  const installation = await getInstallationForOrg(project.user.id, owner)
+  if (!installation) {
+    throw new Error(`GitHub App installation not found for ${owner}`)
+  }
+
+  // Check GitHub for the latest check run ID for this commit
+  const octokit = await getOctokitForInstallation(installation.installationId)
+  const checkRuns = await octokit.rest.checks.listForRef({
+    owner,
+    repo,
+    ref: commitSha,
+  })
+  let githubCheckRunId = checkRuns.data.check_runs.find((run) => run.name === "Visual Tests")?.id
+
+  if (githubCheckRunId) {
+    // Update the existing check run and put it into pending status
+    await octokit.rest.checks.update({
+      owner,
+      repo,
+      check_run_id: githubCheckRunId,
+      status: "in_progress",
+      output: {
+        title: "Visual Tests",
+        summary: "Processing storybook upload",
+      },
+    })
+  } else {
+    // Create a new check run
+    const checkRunResponse = await octokit.rest.checks.create({
+      owner,
+      repo,
+      name: "Visual Tests",
+      head_sha: commitSha,
+      status: "in_progress",
+      output: {
+        title: "Visual Tests",
+        summary: "Processing storybook upload",
+      },
+    })
+    githubCheckRunId = checkRunResponse.data.id
+  }
+
   // Create a row in `screenshot_tests` for this upload
   const screenshotTest = await createScreenshotTest(
     project,
@@ -103,13 +153,23 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
     uploadId,
     baseCommitSha,
     baseBranch,
+    githubCheckRunId,
   )
 
   // Add a task to the queue to process this screenshot test
   const task = new WorkTask()
   task.screenshotTest = screenshotTest
   task.taskType = "ingest_storybook"
-  task.data = JSON.stringify({ projectId: project.id, uploadId })
+  task.data = JSON.stringify({
+    projectId: project.id,
+    uploadId,
+    githubCheckData: {
+      owner,
+      repo,
+      checkRunId: githubCheckRunId,
+      installationId: installation.installationId,
+    },
+  })
   task.createdAt = new Date()
   task.updatedAt = task.createdAt
 
