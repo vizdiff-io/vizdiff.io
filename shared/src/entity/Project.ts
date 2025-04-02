@@ -17,7 +17,7 @@ export class Project {
   @PrimaryGeneratedColumn()
   id!: number
 
-  @ManyToOne("User", "projects", { onDelete: "CASCADE", nullable: false })
+  @ManyToOne("User", "projects", { onDelete: "CASCADE", nullable: false, eager: true })
   @JoinColumn({ name: "user_id", referencedColumnName: "id" })
   user!: User
 
