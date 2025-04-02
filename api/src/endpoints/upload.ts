@@ -108,7 +108,7 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
     throw new Error(`GitHub App installation not found for ${owner}`)
   }
 
-  // Check GitHub for the latest check run ID for this commit
+  // Check GitHub for the latest "Visual Tests" check_run for this commit
   const octokit = await getOctokitForInstallation(installation.installationId)
   const checkRuns = await octokit.rest.checks.listForRef({
     owner,
@@ -130,7 +130,7 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
       },
     })
   } else {
-    // Create a new check run
+    // Create a new "Visual Tests" check_run
     const checkRunResponse = await octokit.rest.checks.create({
       owner,
       repo,

@@ -1,16 +1,8 @@
-import { createAppAuth } from "@octokit/auth-app"
-import { Octokit } from "@octokit/rest"
 import crypto from "crypto"
 import { Project, ScreenshotTest } from "shared"
 
 import { Database } from "../database"
-import {
-  GITHUB_APP_ID,
-  GITHUB_CLIENT_ID,
-  GITHUB_CLIENT_SECRET,
-  GITHUB_PRIVATE_KEY,
-  GITHUB_WEBHOOK_SECRET,
-} from "../environment"
+import { GITHUB_WEBHOOK_SECRET } from "../environment"
 import { log } from "../log"
 import type { CheckSuitePayload } from "../schemas/CheckSuitePayload"
 import type { DefaultRequest, DefaultResponse } from "../types"
@@ -52,20 +44,6 @@ export function verifyWebhookSignature(
   }
 
   return false
-}
-
-/**
- * Get an authenticated Octokit instance for a specific installation
- */
-async function getOctokitForInstallation(installationId: number): Promise<Octokit> {
-  const auth = createAppAuth({
-    appId: GITHUB_APP_ID,
-    privateKey: GITHUB_PRIVATE_KEY,
-    clientId: GITHUB_CLIENT_ID,
-    clientSecret: GITHUB_CLIENT_SECRET,
-  })
-  const installationAuth = await auth({ type: "installation", installationId })
-  return new Octokit({ auth: installationAuth.token })
 }
 
 /**
@@ -174,35 +152,20 @@ export async function githubCheckSuiteWebhook(
       },
     })
 
-    if (existingTest) {
-      log.warn(`Screenshot test already exists for ${subject}, skipping check run creation`)
-      res.status(200).json({ message: "Screenshot test already exists" })
-      return
+    if (existingTest?.status === "failed") {
+      // TASK: Queue a worker task to re-run the screenshot test
+      log.warn(`TODO: Re-run screenshot test after failure for ${subject}`)
+    } else if (action === "rerequested") {
+      log.warn(
+        `GitHub check_suite re-requested for ${subject}, current status: ${existingTest?.status ?? "(none)"}`,
+      )
+    } else {
+      // This is the normal case, a check_suite webhook comes in before the storybook upload
+      log.info(`GitHub check_suite (action=${action}) received for ${subject}`)
     }
-
-    // Create an Octokit instance for the installation
-    const octokit = await getOctokitForInstallation(installationId)
-
-    // Create a check run
-    const checkRunResponse = await octokit.checks.create({
-      owner: repoOwner,
-      repo: repoName,
-      name: "Visual Tests",
-      head_sha: headSha,
-      status: "queued",
-      output: {
-        title: "Visual Tests",
-        summary: "Waiting for storybook upload (optional)",
-      },
-    })
-
-    const checkRunId = checkRunResponse.data.id
-
-    log.info(`Created check run ${checkRunId} with neutral status for ${subject}`)
 
     res.status(200).json({
       message: "Check suite event processed successfully",
-      checkRunId,
     })
   } catch (error) {
     log.error(error, `Error processing check_suite webhook for ${subject}`)
