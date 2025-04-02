@@ -56,7 +56,7 @@ USER webuser
 WORKDIR /home/webuser
 
 # Create startup script in the home directory (after all other operations)
-RUN printf '#!/bin/sh\nchromedriver --port=4444 --whitelisted-ips="127.0.0.1" &\nsleep 2\nexec node --import /app/node_modules/dd-trace/register.js /app/worker/dist/worker.mjs\n' > start.sh && chmod +x start.sh
+RUN printf '#!/bin/sh\nchromedriver --port=4444 --whitelisted-ips="127.0.0.1" &\nsleep 2\nexec node --enable-source-maps --import /app/node_modules/dd-trace/register.js /app/worker/dist/worker.mjs\n' > start.sh && chmod +x start.sh
 
 # Run the application
 CMD ["./start.sh"]
