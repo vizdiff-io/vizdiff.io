@@ -17,7 +17,7 @@ export class GitHubInstallation {
   @PrimaryGeneratedColumn()
   id!: number
 
-  @Column({ name: "installation_id", type: "integer", nullable: false })
+  @Column({ name: "installation_id", type: "bigint", nullable: false })
   installationId!: number
 
   @Column({ name: "account_id", type: "text", nullable: false })

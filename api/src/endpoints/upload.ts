@@ -1,11 +1,11 @@
 import { S3Client } from "@aws-sdk/client-s3"
 import { Upload as S3Upload } from "@aws-sdk/lib-storage"
 import { WorkTask } from "shared"
-import { getInstallationForOrg, getOctokitForInstallation } from "src/github"
 import { uuidv7 } from "uuidv7"
 
 import { getProjectByToken, getS3BucketForProject } from "../authenticate"
 import { Database } from "../database"
+import { getInstallationForOrg, getOctokitForInstallation } from "../github"
 import { getQueryString } from "../http"
 import { log } from "../log"
 import { createScreenshotTest } from "../screenshotTests"

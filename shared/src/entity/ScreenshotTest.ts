@@ -56,7 +56,7 @@ export class ScreenshotTest {
   @Column({ type: "text", nullable: false })
   status!: string
 
-  @Column({ name: "github_check_run_id", type: "integer", nullable: true })
+  @Column({ name: "github_check_run_id", type: "bigint", nullable: true })
   githubCheckRunId!: number | undefined
 
   @Column({ name: "tag", type: "text", nullable: true })
