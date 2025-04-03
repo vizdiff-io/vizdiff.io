@@ -13,7 +13,9 @@
  * - Compression (zip-a-folder)
  */
 
+import { PathLike } from "fs"
 import * as fs from "fs/promises"
+import * as os from "os"
 import * as path from "path"
 import { fetch } from "undici"
 import { expect, describe, it, beforeEach, vi, afterEach } from "vitest"
@@ -36,6 +38,11 @@ type FetchOptions = {
   body: Buffer
 }
 
+function str(filepath: PathLike | fs.FileHandle): string {
+  // eslint-disable-next-line @typescript-eslint/no-base-to-string
+  return filepath.toString()
+}
+
 describe("upload-storybook", () => {
   // Test fixtures
   const validOpts: UploadStorybookOpts = {
@@ -52,6 +59,14 @@ describe("upload-storybook", () => {
     framework: { name: "react" },
   }
 
+  const mockIndexJson = {
+    v: 5,
+    entries: {
+      "story-1": { name: "Story 1", type: "story", importPath: "./stories/1.js", tags: ["a"] },
+      "story-2": { name: "Story 2", type: "story", importPath: "./stories/2.js", tags: ["b"] },
+    },
+  }
+
   const mockTarballContent = Buffer.from("mock tarball content")
 
   beforeEach(() => {
@@ -61,10 +76,20 @@ describe("upload-storybook", () => {
     // Mock successful file system operations
     vi.mocked(fs.access).mockResolvedValue(undefined)
     vi.mocked(fs.readFile).mockImplementation(async (filepath) => {
-      if (filepath === path.join(validOpts.storybookDir, "project.json")) {
+      const resolvedPath = path.resolve(str(filepath))
+      if (resolvedPath === path.resolve(validOpts.storybookDir, "project.json")) {
         return JSON.stringify(mockProjectJson)
       }
+      if (resolvedPath === path.resolve(validOpts.storybookDir, "index.json")) {
+        return JSON.stringify(mockIndexJson)
+      }
+      // Check if it's the tarball path (random name in tmpdir)
+      if (str(filepath).includes(os.tmpdir())) {
+        return mockTarballContent
+      }
+      // Default case or error? For now, let's assume it's the tarball
       return mockTarballContent
+      // throw new Error(`Unexpected readFile call: ${filepath}`); // Stricter alternative
     })
     vi.mocked(fs.unlink).mockResolvedValue(undefined)
 
@@ -105,20 +130,98 @@ describe("upload-storybook", () => {
 
   describe("storybook manifest validation", () => {
     it("should throw if project.json doesn't exist", async () => {
-      vi.mocked(fs.access).mockRejectedValue(new Error("ENOENT"))
+      vi.mocked(fs.access).mockImplementation(async (filepath) => {
+        if (filepath === path.resolve(validOpts.storybookDir, "project.json")) {
+          throw new Error("ENOENT")
+        }
+      })
       await expect(uploadStorybook(validOpts)).rejects.toThrow(
         "Storybook build manifest does not exist",
       )
     })
 
     it("should throw if project.json is invalid JSON", async () => {
-      vi.mocked(fs.readFile).mockResolvedValue("invalid json")
+      vi.mocked(fs.readFile).mockImplementation(async (filepath) => {
+        if (str(filepath) === path.resolve(validOpts.storybookDir, "project.json")) {
+          return "invalid json"
+        }
+        if (str(filepath) === path.resolve(validOpts.storybookDir, "index.json")) {
+          return JSON.stringify(mockIndexJson)
+        }
+        return mockTarballContent
+      })
       await expect(uploadStorybook(validOpts)).rejects.toThrow("Failed to parse project.json file")
     })
 
     it("should throw if project.json is missing required fields", async () => {
-      vi.mocked(fs.readFile).mockResolvedValue(JSON.stringify({}))
+      vi.mocked(fs.readFile).mockImplementation(async (filepath) => {
+        if (str(filepath) === path.resolve(validOpts.storybookDir, "project.json")) {
+          return JSON.stringify({})
+        }
+        if (str(filepath) === path.resolve(validOpts.storybookDir, "index.json")) {
+          return JSON.stringify(mockIndexJson)
+        }
+        return mockTarballContent
+      })
       await expect(uploadStorybook(validOpts)).rejects.toThrow("Invalid project.json file")
+    })
+  })
+
+  describe("index.json validation", () => {
+    it("should throw if index.json cannot be read", async () => {
+      vi.mocked(fs.readFile).mockImplementation(async (filepath) => {
+        if (str(filepath) === path.resolve(validOpts.storybookDir, "project.json")) {
+          return JSON.stringify(mockProjectJson)
+        }
+        if (str(filepath) === path.resolve(validOpts.storybookDir, "index.json")) {
+          throw new Error("Read error")
+        }
+        return mockTarballContent
+      })
+      await expect(uploadStorybook(validOpts)).rejects.toThrow("Failed to parse index.json file")
+    })
+
+    it("should throw if index.json is invalid JSON", async () => {
+      vi.mocked(fs.readFile).mockImplementation(async (filepath) => {
+        if (str(filepath) === path.resolve(validOpts.storybookDir, "project.json")) {
+          return JSON.stringify(mockProjectJson)
+        }
+        if (str(filepath) === path.resolve(validOpts.storybookDir, "index.json")) {
+          return "invalid json"
+        }
+        return mockTarballContent
+      })
+      await expect(uploadStorybook(validOpts)).rejects.toThrow("Failed to parse index.json file")
+    })
+
+    it("should throw if index.json has no entries", async () => {
+      vi.mocked(fs.readFile).mockImplementation(async (filepath) => {
+        if (str(filepath) === path.resolve(validOpts.storybookDir, "project.json")) {
+          return JSON.stringify(mockProjectJson)
+        }
+        if (str(filepath) === path.resolve(validOpts.storybookDir, "index.json")) {
+          return JSON.stringify({ v: 5, entries: {} }) // Empty entries
+        }
+        return mockTarballContent
+      })
+      await expect(uploadStorybook(validOpts)).rejects.toThrow(
+        "No stories found in index.json file",
+      )
+    })
+
+    it("should throw if index.json is missing entries field", async () => {
+      vi.mocked(fs.readFile).mockImplementation(async (filepath) => {
+        if (str(filepath) === path.resolve(validOpts.storybookDir, "project.json")) {
+          return JSON.stringify(mockProjectJson)
+        }
+        if (str(filepath) === path.resolve(validOpts.storybookDir, "index.json")) {
+          return JSON.stringify({ v: 5 }) // Missing entries
+        }
+        return mockTarballContent
+      })
+      await expect(uploadStorybook(validOpts)).rejects.toThrow(
+        "No stories found in index.json file",
+      )
     })
   })
 

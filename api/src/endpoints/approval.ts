@@ -1,4 +1,4 @@
-import { ScreenshotTest } from "shared"
+import { ScreenshotTest, TestResult } from "shared"
 
 import { Database } from "../database"
 import { getInstallationForOrg, updateGitHubCheckRun } from "../github"
@@ -45,6 +45,15 @@ export const approveOrDeny: RequestHandler = async (req, res) => {
   // Update GitHub check run if available
   if (test.githubCheckRunId) {
     try {
+      // Count the number of visual changes that were approved or denied
+      const testResultTable = db.getRepository(TestResult)
+      const testResults = await testResultTable.find({
+        where: { screenshotTest: { id: test.id } },
+      })
+      const changeCount = testResults.filter(
+        (r) => r.changeStatus === "new" || r.changeStatus === "changed",
+      ).length
+
       // Extract the GitHub owner and repo from the GitHub repository URL
       const [owner, repo] = test.project.githubRepoUrl.split("/").slice(-2)
       if (!owner || !repo) {
@@ -54,10 +63,7 @@ export const approveOrDeny: RequestHandler = async (req, res) => {
         const installation = await getInstallationForOrg(user.id, owner)
         if (installation) {
           const conclusion: GitHubCheckConclusion = status === "approved" ? "success" : "failure"
-          const summary =
-            status === "approved"
-              ? `Visual tests approved by ${user.githubUsername}`
-              : `Visual tests denied by ${user.githubUsername}`
+          const summary = `${changeCount} change${changeCount === 1 ? "" : "s"} ${status} by ${user.githubUsername}.`
 
           await updateGitHubCheckRun(
             {

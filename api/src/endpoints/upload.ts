@@ -1,6 +1,8 @@
 import { S3Client } from "@aws-sdk/client-s3"
 import { Upload as S3Upload } from "@aws-sdk/lib-storage"
-import { WorkTask } from "shared"
+import type { Logger } from "pino"
+import { ScreenshotTest, WorkTask } from "shared"
+import { APP_URL } from "src/environment"
 import { uuidv7 } from "uuidv7"
 
 import { getProjectByToken, getS3BucketForProject } from "../authenticate"
@@ -66,9 +68,18 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
   const Bucket = await getS3BucketForProject(project)
   const Key = `projects/${project.id}/${uploadId}.tar.gz`
 
-  log.debug(
-    `Uploading ${Key} to S3 bucket ${Bucket} (project=${project.id}, upload=${uploadId}, length=${length})`,
-  )
+  const logChild = log.child({
+    userId: project.user.id,
+    projectId: project.id,
+    repo: project.githubRepoUrl,
+    uploadId,
+    uploadLength: length,
+    commitSha,
+    branch,
+    baseCommitSha,
+    baseBranch,
+  })
+  logChild.debug(`Uploading ${length} bytes to ${Bucket}/${Key}`)
 
   // Proxy the .tar.gz upload to S3
   const s3Client = new S3Client()
@@ -87,13 +98,13 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
     const result = await upload.done()
     void result // Ignore the result
   } catch (error) {
-    log.error(error, `Failed to upload ${Key} to S3`)
+    logChild.error(error, `Failed to upload ${Key} to S3`)
     const msg = error instanceof Error ? error.message : String(error)
     throw new Error(`Failed to upload to S3: ${msg}`)
   }
 
-  log.info(
-    `Uploaded ${Key} to S3 bucket ${Bucket} (project=${project.id}, upload=${uploadId}, length=${length})`,
+  logChild.info(
+    `Uploaded ${length} bytes to ${Bucket}/${Key} for ${project.githubRepoUrl}#${commitSha}`,
   )
 
   // Extract the GitHub owner and repo from the GitHub repository URL
@@ -108,43 +119,6 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
     throw new Error(`GitHub App installation not found for ${owner}`)
   }
 
-  // Check GitHub for the latest "Visual Tests" check_run for this commit
-  const octokit = await getOctokitForInstallation(installation.installationId)
-  const checkRuns = await octokit.rest.checks.listForRef({
-    owner,
-    repo,
-    ref: commitSha,
-  })
-  let githubCheckRunId = checkRuns.data.check_runs.find((run) => run.name === "Visual Tests")?.id
-
-  if (githubCheckRunId) {
-    // Update the existing check run and put it into pending status
-    await octokit.rest.checks.update({
-      owner,
-      repo,
-      check_run_id: githubCheckRunId,
-      status: "in_progress",
-      output: {
-        title: "Visual Tests",
-        summary: "Processing storybook upload",
-      },
-    })
-  } else {
-    // Create a new "Visual Tests" check_run
-    const checkRunResponse = await octokit.rest.checks.create({
-      owner,
-      repo,
-      name: "Visual Tests",
-      head_sha: commitSha,
-      status: "in_progress",
-      output: {
-        title: "Visual Tests",
-        summary: "Processing storybook upload",
-      },
-    })
-    githubCheckRunId = checkRunResponse.data.id
-  }
-
   // Create a row in `screenshot_tests` for this upload
   const screenshotTest = await createScreenshotTest(
     project,
@@ -153,8 +127,24 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
     uploadId,
     baseCommitSha,
     baseBranch,
-    githubCheckRunId,
   )
+
+  // Create or update the GitHub check_run for this project
+  const githubCheckRunId = await createGitHubCheckRun(
+    logChild,
+    installation.installationId,
+    owner,
+    repo,
+    commitSha,
+    screenshotTest.id,
+  )
+
+  const db = await Database()
+
+  // Update the screenshot test with the GitHub check_run ID
+  screenshotTest.githubCheckRunId = githubCheckRunId
+  const screenshotTestTable = db.getRepository(ScreenshotTest)
+  await screenshotTestTable.save(screenshotTest)
 
   // Add a task to the queue to process this screenshot test
   const task = new WorkTask()
@@ -173,7 +163,6 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
   task.createdAt = new Date()
   task.updatedAt = task.createdAt
 
-  const db = await Database()
   const tasks = db.getRepository(WorkTask)
   const savedTask = await tasks.save(task)
 
@@ -181,6 +170,63 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
   await db.query(`NOTIFY task_queue, '${savedTask.id}'`)
 
   res.json({ success: true, uploadId, testId: screenshotTest.id })
+}
+
+// Create or update a GitHub check_run for a screenshot test and mark it `in_progress`
+async function createGitHubCheckRun(
+  logChild: Logger,
+  installationId: number,
+  owner: string,
+  repo: string,
+  commitSha: string,
+  screenshotTestId: number,
+): Promise<number> {
+  // Check GitHub for the latest "Visual Tests" check_run for this commit
+  const octokit = await getOctokitForInstallation(installationId)
+  const checkRuns = await octokit.rest.checks.listForRef({
+    owner,
+    repo,
+    ref: commitSha,
+  })
+  let githubCheckRunId = checkRuns.data.check_runs.find((run) => run.name === "Visual Tests")?.id
+
+  if (githubCheckRunId) {
+    // Update the existing check_run and put it into pending status
+    logChild.warn(
+      { screenshotTestId, githubCheckRunId },
+      `Updating existing GitHub check_run to in_progress`,
+    )
+    await octokit.rest.checks.update({
+      owner,
+      repo,
+      check_run_id: githubCheckRunId,
+      details_url: `${APP_URL}/build?id=${screenshotTestId}`,
+      status: "in_progress",
+      output: {
+        title: "Processing storybook upload…",
+        summary: "Processing storybook upload…",
+      },
+    })
+    return githubCheckRunId
+  }
+
+  // Create a new "Visual Tests" check_run
+  logChild.info({ screenshotTestId }, `Creating new GitHub check_run`)
+  const checkRunResponse = await octokit.rest.checks.create({
+    owner,
+    repo,
+    name: "Visual Tests",
+    head_sha: commitSha,
+    status: "in_progress",
+    details_url: `${APP_URL}/build?id=${screenshotTestId}`,
+    output: {
+      title: "Processing storybook upload",
+      summary: "Processing storybook upload",
+    },
+  })
+  githubCheckRunId = checkRunResponse.data.id
+  logChild.info({ screenshotTestId, githubCheckRunId }, `Created new GitHub check_run`)
+  return githubCheckRunId
 }
 
 function isValidGitCommitHash(hash: string): boolean {

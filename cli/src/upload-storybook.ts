@@ -54,6 +54,24 @@ export async function uploadStorybook(opts: UploadStorybookOpts): Promise<void> 
     throw new Error(`Invalid project.json file: ${projectJsonPath}`)
   }
 
+  // Read and parse the index.json file
+  const indexJsonPath = path.resolve(storybookDir, "index.json")
+  let index: Record<string, unknown> | undefined | null
+  try {
+    const json = await fs.readFile(indexJsonPath, "utf8")
+    index = JSON.parse(json) as Record<string, unknown> | null
+  } catch (error) {
+    throw new Error(`Failed to parse index.json file: ${error}`)
+  }
+
+  // Count the number of stories in the index.json file
+  const storyCount =
+    index?.entries && typeof index.entries === "object" ? Object.keys(index.entries).length : 0
+  if (storyCount === 0) {
+    throw new Error(`No stories found in index.json file: ${indexJsonPath}`)
+  }
+  info(`Found ${storyCount} ${storyCount === 1 ? "story" : "stories"}`)
+
   // Create a tarball of the storybook build folder
   const tarballFilename = path.join(os.tmpdir(), `${randHexString()}.tar.gz`)
   const error = await tar(storybookDir, tarballFilename, { compression: COMPRESSION_LEVEL.medium })

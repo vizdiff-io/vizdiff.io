@@ -57,7 +57,7 @@ export async function ingestStorybook(
         "in_progress",
         undefined,
         screenshotTestId,
-        "Processing Storybook components for visual testing...",
+        "Rendering Storybook components…",
       )
     } catch (error) {
       log.error(error, "Failed to update GitHub check run to in-progress")
@@ -317,31 +317,31 @@ export async function ingestStorybook(
           `Successfully processed all ${Object.keys(stories).length} stories for test ${screenshotTest.id} (build #${screenshotTest.buildNumber})`,
         )
 
-        let noChanges = true
+        let changeCount = 0
         for (const testResult of testResults) {
           if (testResult.changeStatus !== "unchanged") {
-            noChanges = false
-            break
+            changeCount++
           }
         }
 
         // Update the screenshot test status to completed
         const startedSec = screenshotTest.createdAt.getTime() / 1000
-        screenshotTest.status = noChanges ? "no_changes" : "unapproved"
+        screenshotTest.status = changeCount > 0 ? "unapproved" : "no_changes"
         screenshotTest.buildDurationSec = Date.now() / 1000 - startedSec
         await screenshotTestRepo.save(screenshotTest)
 
         // Update GitHub check run with result if we have GitHub check data
         if (githubCheckData) {
-          const conclusion = noChanges ? "success" : "neutral"
-          const summary = noChanges
-            ? "No visual changes detected in any components."
-            : `Visual changes detected in ${testResults.filter((r) => r.changeStatus !== "unchanged").length} components. Please review and approve the changes.`
+          const conclusion = changeCount > 0 ? undefined : "success"
+          const summary =
+            changeCount > 0
+              ? `${changeCount} change${changeCount === 1 ? "" : "s"} to review.`
+              : "No visual changes detected."
 
           try {
             await updateGitHubCheckRun(
               githubCheckData,
-              "completed",
+              changeCount > 0 ? "in_progress" : "completed",
               conclusion,
               screenshotTestId,
               summary,
@@ -375,7 +375,7 @@ export async function ingestStorybook(
           "completed",
           "failure",
           screenshotTestId,
-          `Screenshot test failed: ${error instanceof Error ? error.message : String(error)}`,
+          `Failed to render Storybook components.`,
         )
       } catch (githubError) {
         log.error(githubError, "Failed to update GitHub check run to failure")
@@ -401,7 +401,7 @@ export async function ingestStorybook(
             "completed",
             "cancelled",
             screenshotTestId,
-            "Screenshot test was cancelled or timed out.",
+            "Storybook rendering was cancelled or timed out.",
           )
         } catch (error) {
           log.error(error, "Failed to update GitHub check run to cancelled")
