@@ -131,7 +131,7 @@ export async function githubCheckSuiteWebhook(
       return
     }
 
-    subject = `${repoOwner}/${repoName}@${headSha} (branch: ${branch})`
+    subject = `${repoOwner}/${repoName}#${headSha} (branch: ${branch})`
     log.info(`Processing check_suite "${action}" event for ${subject}`)
 
     // Find the project associated with this repository
