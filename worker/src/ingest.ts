@@ -6,14 +6,21 @@ import os from "node:os"
 import path from "node:path"
 import { Readable } from "node:stream"
 import pLimit from "p-limit"
-import { TestResult, ScreenshotTest } from "shared"
+import {
+  TestResult,
+  ScreenshotTest,
+  createSummaryForBuild,
+  createMarkdownForBuildResult,
+  createSummaryForFailedBuild,
+} from "shared"
 import { extract } from "tar"
 import { Not, In } from "typeorm"
 import { remote } from "webdriverio"
 
 import { Database } from "./database"
 import { downloadWithTimeout } from "./download"
-import { updateGitHubCheckRun, type GitHubCheckData } from "./github"
+import { APP_URL } from "./environment"
+import { getOctokitForInstallation, updateGitHubCheckRun, type GitHubCheckData } from "./github"
 import { log } from "./log"
 import { processStory } from "./stories"
 
@@ -52,13 +59,16 @@ export async function ingestStorybook(
   // Update GitHub check run to in-progress if we have GitHub check data
   if (githubCheckData) {
     try {
-      await updateGitHubCheckRun(
-        githubCheckData,
-        "in_progress",
-        undefined,
-        screenshotTestId,
-        "Rendering Storybook components…",
-      )
+      await updateGitHubCheckRun({
+        owner: githubCheckData.owner,
+        repo: githubCheckData.repo,
+        installationId: githubCheckData.installationId,
+        checkRunId: githubCheckData.checkRunId,
+        testId: screenshotTestId,
+        status: "in_progress",
+        title: "Rendering storybook components…",
+        summary: createSummaryForBuild(screenshotTest),
+      })
     } catch (error) {
       log.error(error, "Failed to update GitHub check run to in-progress")
       // Continue with the ingest process even if the GitHub API call fails
@@ -326,29 +336,58 @@ export async function ingestStorybook(
 
         // Update the screenshot test status to completed
         const startedSec = screenshotTest.createdAt.getTime() / 1000
-        screenshotTest.status = changeCount > 0 ? "unapproved" : "no_changes"
+        const hasChanges = changeCount > 0
+        screenshotTest.status = hasChanges ? "unapproved" : "no_changes"
         screenshotTest.buildDurationSec = Date.now() / 1000 - startedSec
         await screenshotTestRepo.save(screenshotTest)
 
-        // Update GitHub check run with result if we have GitHub check data
         if (githubCheckData) {
-          const conclusion = changeCount > 0 ? undefined : "success"
-          const summary =
-            changeCount > 0
-              ? `${changeCount} change${changeCount === 1 ? "" : "s"} to review.`
-              : "No visual changes detected."
-
           try {
-            await updateGitHubCheckRun(
-              githubCheckData,
-              changeCount > 0 ? "in_progress" : "completed",
-              conclusion,
-              screenshotTestId,
-              summary,
+            // Update GitHub check run "Visual Tests" with the build results
+            const { title, summary, text } = createMarkdownForBuildResult(
+              screenshotTest,
+              testResults,
             )
+            await updateGitHubCheckRun({
+              owner: githubCheckData.owner,
+              repo: githubCheckData.repo,
+              installationId: githubCheckData.installationId,
+              checkRunId: githubCheckData.checkRunId,
+              testId: screenshotTestId,
+              status: "completed",
+              conclusion: hasChanges ? "action_required" : "success",
+              title,
+              summary,
+              text,
+            })
+
+            if (!hasChanges) {
+              const { summary: approvalSummary } = createMarkdownForBuildResult(
+                screenshotTest,
+                testResults,
+              )
+              // Create a new check run with the success conclusion
+              const octokit = await getOctokitForInstallation(githubCheckData.installationId)
+              const result = await octokit.checks.create({
+                owner: githubCheckData.owner,
+                repo: githubCheckData.repo,
+                head_sha: screenshotTest.commitSha,
+                name: "Visual Tests Approval",
+                status: "completed",
+                conclusion: "success",
+                details_url: `${APP_URL}/build?id=${screenshotTest.id}`,
+                output: {
+                  title: "No visual changes detected.",
+                  summary: approvalSummary,
+                },
+              })
+              log.info(
+                `Created GitHub check run ${result.data.id} for ${screenshotTest.toString()} with implicit conclusion: success`,
+              )
+            }
           } catch (error) {
             log.error(error, "Failed to update GitHub check run to completed")
-            // Continue even if the GitHub API call fails
+            // Continue even if the GitHub API calls fail
           }
         }
       } finally {
@@ -370,13 +409,17 @@ export async function ingestStorybook(
     // Update GitHub check run with failure if we have GitHub check data
     if (githubCheckData) {
       try {
-        await updateGitHubCheckRun(
-          githubCheckData,
-          "completed",
-          "failure",
-          screenshotTestId,
-          `Failed to render Storybook components.`,
-        )
+        await updateGitHubCheckRun({
+          owner: githubCheckData.owner,
+          repo: githubCheckData.repo,
+          installationId: githubCheckData.installationId,
+          checkRunId: githubCheckData.checkRunId,
+          testId: screenshotTestId,
+          status: "completed",
+          conclusion: "failure",
+          title: "⚠️ Failed to render storybook components.",
+          summary: createSummaryForFailedBuild(screenshotTest, error),
+        })
       } catch (githubError) {
         log.error(githubError, "Failed to update GitHub check run to failure")
       }
@@ -396,13 +439,17 @@ export async function ingestStorybook(
       // Update GitHub check run with cancelled if we have GitHub check data
       if (githubCheckData) {
         try {
-          await updateGitHubCheckRun(
-            githubCheckData,
-            "completed",
-            "cancelled",
-            screenshotTestId,
-            "Storybook rendering was cancelled or timed out.",
-          )
+          await updateGitHubCheckRun({
+            owner: githubCheckData.owner,
+            repo: githubCheckData.repo,
+            installationId: githubCheckData.installationId,
+            checkRunId: githubCheckData.checkRunId,
+            testId: screenshotTestId,
+            status: "completed",
+            conclusion: "cancelled",
+            title: "Storybook rendering was cancelled or timed out.",
+            summary: createSummaryForFailedBuild(screenshotTest, "Cancelled or timed out"),
+          })
         } catch (error) {
           log.error(error, "Failed to update GitHub check run to cancelled")
         }
