@@ -157,7 +157,8 @@ async function getBaseCommitShaAndBranch(
 
   // Get the default branch name
   const defaultBranch = await git.revparse(["--abbrev-ref", `${defaultRemote.name}/HEAD`])
-  const actualBaseBranch = baseBranch ?? defaultBranch.replace("origin/", "")
+  const actualBaseBranch =
+    baseBranch != undefined && baseBranch !== "" ? baseBranch : defaultBranch.replace("origin/", "")
 
   if (branch === actualBaseBranch) {
     // If we're on the default branch, use the previous commit as the base commit
@@ -170,7 +171,9 @@ async function getBaseCommitShaAndBranch(
     const mergeBase = await git.raw(["merge-base", branch, actualBaseBranch])
     return [mergeBase.trim(), actualBaseBranch]
   } catch (err: unknown) {
-    throw new Error(`Failed to find merge base between ${branch} and ${actualBaseBranch}: ${err}`)
+    throw new Error(
+      `Failed to find merge base between "${branch}" and "${actualBaseBranch}": ${err}`,
+    )
   }
 }
 
