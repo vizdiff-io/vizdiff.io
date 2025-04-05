@@ -52,7 +52,7 @@ async function vizdiff(storybookDir: string, options: CommandArgs): Promise<void
   const [baseCommitSha, baseBranch] =
     options.baseCommit && options.baseBranch
       ? [options.baseCommit, options.baseBranch]
-      : await getBaseCommitShaAndBranch(storybookDir, commitSha, branch)
+      : await getBaseCommitShaAndBranch(storybookDir, commitSha, branch, options.baseBranch)
 
   try {
     await uploadStorybook({
@@ -135,6 +135,7 @@ async function getBaseCommitShaAndBranch(
   storybookDir: string,
   commitSha: string,
   branch: string,
+  baseBranch?: string,
 ): Promise<[string | undefined, string | undefined]> {
   const gitDir = findGitRoot(storybookDir)
   if (!gitDir) {
@@ -156,20 +157,23 @@ async function getBaseCommitShaAndBranch(
 
   // Get the default branch name
   const defaultBranch = await git.revparse(["--abbrev-ref", `${defaultRemote.name}/HEAD`])
-  const baseBranch = defaultBranch.replace("origin/", "")
+  const actualBaseBranch =
+    baseBranch != undefined && baseBranch !== "" ? baseBranch : defaultBranch.replace("origin/", "")
 
-  if (branch === baseBranch) {
+  if (branch === actualBaseBranch) {
     // If we're on the default branch, use the previous commit as the base commit
     const baseCommit = await git.revparse([`${commitSha}~1`])
-    return [baseCommit, baseBranch]
+    return [baseCommit, actualBaseBranch]
   }
 
   // Find merge base between current branch and default branch
   try {
-    const mergeBase = await git.raw(["merge-base", branch, baseBranch])
-    return [mergeBase.trim(), baseBranch]
+    const mergeBase = await git.raw(["merge-base", branch, actualBaseBranch])
+    return [mergeBase.trim(), actualBaseBranch]
   } catch (err: unknown) {
-    throw new Error(`Failed to find merge base between ${branch} and ${baseBranch}: ${err}`)
+    throw new Error(
+      `Failed to find merge base between "${branch}" and "${actualBaseBranch}": ${err}`,
+    )
   }
 }
 

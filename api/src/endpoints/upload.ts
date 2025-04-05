@@ -1,12 +1,12 @@
 import { S3Client } from "@aws-sdk/client-s3"
 import { Upload as S3Upload } from "@aws-sdk/lib-storage"
 import type { Logger } from "pino"
-import { ScreenshotTest, WorkTask } from "shared"
-import { APP_URL } from "src/environment"
+import { createSummaryForBuild, ScreenshotTest, WorkTask } from "shared"
 import { uuidv7 } from "uuidv7"
 
 import { getProjectByToken, getS3BucketForProject } from "../authenticate"
 import { Database } from "../database"
+import { APP_URL } from "../environment"
 import { getInstallationForOrg, getOctokitForInstallation } from "../github"
 import { getQueryString } from "../http"
 import { log } from "../log"
@@ -129,14 +129,14 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
     baseBranch,
   )
 
-  // Create or update the GitHub check_run for this project
+  // Create a GitHub check_run for this upload
   const githubCheckRunId = await createGitHubCheckRun(
     logChild,
     installation.installationId,
     owner,
     repo,
     commitSha,
-    screenshotTest.id,
+    screenshotTest,
   )
 
   const db = await Database()
@@ -172,59 +172,31 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
   res.json({ success: true, uploadId, testId: screenshotTest.id })
 }
 
-// Create or update a GitHub check_run for a screenshot test and mark it `in_progress`
+// Create a GitHub check_run for a new upload
 async function createGitHubCheckRun(
   logChild: Logger,
   installationId: number,
   owner: string,
   repo: string,
   commitSha: string,
-  screenshotTestId: number,
+  screenshotTest: ScreenshotTest,
 ): Promise<number> {
-  // Check GitHub for the latest "Visual Tests" check_run for this commit
+  const screenshotTestId = screenshotTest.id
   const octokit = await getOctokitForInstallation(installationId)
-  const checkRuns = await octokit.rest.checks.listForRef({
-    owner,
-    repo,
-    ref: commitSha,
-  })
-  let githubCheckRunId = checkRuns.data.check_runs.find((run) => run.name === "Visual Tests")?.id
-
-  if (githubCheckRunId) {
-    // Update the existing check_run and put it into pending status
-    logChild.warn(
-      { screenshotTestId, githubCheckRunId },
-      `Updating existing GitHub check_run to in_progress`,
-    )
-    await octokit.rest.checks.update({
-      owner,
-      repo,
-      check_run_id: githubCheckRunId,
-      details_url: `${APP_URL}/build?id=${screenshotTestId}`,
-      status: "in_progress",
-      output: {
-        title: "Processing storybook upload…",
-        summary: "Processing storybook upload…",
-      },
-    })
-    return githubCheckRunId
-  }
-
-  // Create a new "Visual Tests" check_run
   logChild.info({ screenshotTestId }, `Creating new GitHub check_run`)
   const checkRunResponse = await octokit.rest.checks.create({
     owner,
     repo,
-    name: "Visual Tests",
     head_sha: commitSha,
-    status: "in_progress",
+    name: "Visual Tests",
+    status: "queued",
     details_url: `${APP_URL}/build?id=${screenshotTestId}`,
     output: {
-      title: "Processing storybook upload",
-      summary: "Processing storybook upload",
+      title: "Queued storybook upload for rendering",
+      summary: createSummaryForBuild(screenshotTest),
     },
   })
-  githubCheckRunId = checkRunResponse.data.id
+  const githubCheckRunId = checkRunResponse.data.id
   logChild.info({ screenshotTestId, githubCheckRunId }, `Created new GitHub check_run`)
   return githubCheckRunId
 }

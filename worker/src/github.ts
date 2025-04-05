@@ -18,6 +18,9 @@ export interface GitHubCheckData {
 }
 
 // <https://docs.github.com/en/rest/checks/runs?apiVersion=2022-11-28#update-a-check-run>
+export type GitHubCheckStatus = "queued" | "completed" | "in_progress"
+
+// <https://docs.github.com/en/rest/checks/runs?apiVersion=2022-11-28#update-a-check-run>
 export type GitHubCheckConclusion =
   | "action_required"
   | "cancelled"
@@ -46,34 +49,45 @@ export async function getOctokitForInstallation(installationId: number): Promise
 /**
  * Update a GitHub check run with the results of a screenshot test
  */
-export async function updateGitHubCheckRun(
-  githubCheckData: GitHubCheckData,
-  status: "completed" | "in_progress",
-  conclusion: GitHubCheckConclusion | undefined,
-  testId: number,
-  summary: string,
-): Promise<void> {
+export async function updateGitHubCheckRun({
+  owner,
+  repo,
+  installationId,
+  checkRunId,
+  status,
+  conclusion,
+  testId,
+  title,
+  summary,
+  text,
+}: GitHubCheckData & {
+  status: GitHubCheckStatus
+  conclusion?: GitHubCheckConclusion
+  testId: number
+  title: string
+  summary: string
+  text?: string
+}): Promise<void> {
   try {
     log.info(
-      `Updating GitHub check run ${githubCheckData.checkRunId} with status: ${status}, conclusion: ${conclusion}`,
+      `Updating GitHub check run ${checkRunId} with status: ${status}, conclusion: ${conclusion}`,
     )
 
-    const octokit = await getOctokitForInstallation(githubCheckData.installationId)
+    const octokit = await getOctokitForInstallation(installationId)
 
     await octokit.checks.update({
-      owner: githubCheckData.owner,
-      repo: githubCheckData.repo,
-      check_run_id: githubCheckData.checkRunId,
+      owner,
+      repo,
+      check_run_id: checkRunId,
       status,
       conclusion: status === "completed" ? conclusion : undefined,
       details_url: `${APP_URL}/build?id=${testId}`,
-      output: {
-        title: summary,
-        summary,
-      },
+      output: { title, summary, text },
     })
 
-    log.info(`Successfully updated GitHub check run ${githubCheckData.checkRunId}`)
+    log.info(
+      `Successfully updated GitHub check run ${checkRunId} with status: ${status}, conclusion: ${conclusion}`,
+    )
   } catch (error) {
     log.error(error, "Failed to update GitHub check run")
     throw error
