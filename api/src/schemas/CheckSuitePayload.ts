@@ -1,31 +1,33 @@
+export interface CheckSuite {
+  id: number
+  head_branch: string
+  head_sha: string
+  status: string
+  conclusion: string | null
+  pull_requests: Array<{
+    number: number
+    head: {
+      ref: string
+      sha: string
+      repo: {
+        id: number
+        name: string
+      }
+    }
+    base: {
+      ref: string
+      sha: string
+      repo: {
+        id: number
+        name: string
+      }
+    }
+  }>
+}
+
 export interface CheckSuitePayload {
   action: string
-  check_suite: {
-    id: number
-    head_branch: string
-    head_sha: string
-    status: string
-    conclusion: string | null
-    pull_requests: Array<{
-      number: number
-      head: {
-        ref: string
-        sha: string
-        repo: {
-          id: number
-          name: string
-        }
-      }
-      base: {
-        ref: string
-        sha: string
-        repo: {
-          id: number
-          name: string
-        }
-      }
-    }>
-  }
+  check_suite: CheckSuite
   repository: {
     id: number
     name: string
