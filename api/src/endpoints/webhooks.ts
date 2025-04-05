@@ -259,16 +259,14 @@ async function githubCheckRunRequestedAction(
   await screenshotTestRepository.save(test)
 
   // Update GitHub check run
-  const approved = status === "approved"
-  const conclusion = approved ? "success" : "failure"
   const { title, summary, text } = createMarkdownForBuildApproval(
     test,
     testResults,
-    approved,
     payload.sender.login,
   )
 
   // Create a new check run with the success or failure conclusion
+  const conclusion = status === "approved" ? "success" : "failure"
   const octokit = await getOctokitForInstallation(payload.installation.id)
   const result = await octokit.checks.create({
     owner,

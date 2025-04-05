@@ -63,16 +63,14 @@ export const approveOrDeny: RequestHandler = async (req, res) => {
         throw new Error(`GitHub App installation not found for ${owner}`)
       }
 
-      const approved = status === "approved"
-      const conclusion = approved ? "success" : "failure"
       const { title, summary, text } = createMarkdownForBuildApproval(
         test,
         testResults,
-        approved,
         user.githubUsername,
       )
 
       // Create a new check run with the success or failure conclusion
+      const conclusion = status === "approved" ? "success" : "failure"
       const octokit = await getOctokitForInstallation(installation.installationId)
       const result = await octokit.checks.create({
         owner,

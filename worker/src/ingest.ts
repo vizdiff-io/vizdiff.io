@@ -362,13 +362,13 @@ export async function ingestStorybook(
               actions: hasChanges
                 ? [
                     {
-                      label: "Approve",
-                      description: "Approve the visual changes",
+                      label: "✅ Approve",
+                      description: `Approve ${changeCount} visual change${changeCount === 1 ? "" : "s"}`,
                       identifier: "approved",
                     },
                     {
-                      label: "Deny",
-                      description: "Deny the visual changes",
+                      label: "❌ Deny",
+                      description: `Deny ${changeCount} visual change${changeCount === 1 ? "" : "s"}`,
                       identifier: "denied",
                     },
                   ]

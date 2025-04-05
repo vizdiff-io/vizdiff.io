@@ -81,7 +81,6 @@ jobs:
           retention-days: 1
 
   docker-build-api:
-    needs: build-and-test
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -136,7 +135,6 @@ jobs:
             NODE_ENV=production
 
   docker-build-worker:
-    needs: build-and-test
     runs-on: ubuntu-latest
     permissions:
       id-token: write
