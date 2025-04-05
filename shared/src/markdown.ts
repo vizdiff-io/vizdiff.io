@@ -65,20 +65,22 @@ export function createMarkdownForBuildResult(
       : "No visual changes detected."
 
   // Create the summary that appears at the top of this status check's details page
-  const statusText =
-    changeCount === 0 ? "$${\\color{green}Approved}$$" : "$${\\color{goldenrod}Pending}$$"
+  const statusText = getStatusHeader(build)
   let summary =
     `|**${testCount}**|**${changeCount}**|**${statusText}**|\n` +
     `|-|-|:-:|\n` +
-    `|Tests|Changes|Status|\n` +
+    `|Tests|Changes|Status|\n\n` +
     `Review [build #${build.buildNumber}](https://vizdiff.io/build?id=${build.id}) on vizdiff.io for a detailed comparison.`
   if (failedCount > 0) {
     summary += `\n---\n ⚠️ ${failedCount} test${failedCount === 1 ? "" : "s"} failed to render.`
   }
 
+  // Sort test results to show failed/changed/new/unchanged in that order
+  const sortedTestResults = getSortedTestResults(testResults)
+
   // Create the detailed text that appears below the summary on this status check's details page
   let text = "### Visual Tests\n"
-  for (const testResult of testResults) {
+  for (const testResult of sortedTestResults) {
     text += `> **${testResult.name}**\n`
     // Before image
     if (testResult.changeStatus === "new") {
@@ -91,31 +93,15 @@ export function createMarkdownForBuildResult(
     }
     // After image
     if (testResult.changeStatus === "failed") {
-      text += `> <img src="${FAILED_IMAGE_URL}" alt="Failed" width="250" />\n`
+      text += `<img src="${FAILED_IMAGE_URL}" alt="Failed" width="250" />\n`
     } else {
       text +=
-        `> <a href="${testResult.newImageUrl}">` +
+        `<a href="${testResult.newImageUrl}">` +
         `<img src="${testResult.newImageUrl}" alt="${testResult.screenshotTest.commitSha}" width="250" />` +
         `</a>\n`
     }
     // Status line
-    switch (testResult.changeStatus) {
-      case "new":
-        text += `> 🟡 New\n`
-        break
-      case "unchanged":
-        text += `> 🟢 Unchanged\n`
-        break
-      case "changed":
-        text += `> 🟡 Changed\n`
-        break
-      case "failed":
-        text += `> 🔴 Failed\n`
-        break
-      default:
-        throw new Error(`Unknown change status: ${testResult.changeStatus}`)
-    }
-    text += `\n`
+    text += `> ${getChangeStatusText(testResult)}\n\n`
   }
 
   return { title, summary, text }
@@ -124,19 +110,85 @@ export function createMarkdownForBuildResult(
 export function createMarkdownForBuildApproval(
   build: ScreenshotTest,
   testResults: TestResult[],
-  approved: boolean,
   username: string,
 ): { title: string; summary: string; text?: string } {
-  const status = approved ? "approved" : "denied"
-  const changeCount = getChangeCount(testResults)
-  const title = `${changeCount} change${changeCount === 1 ? "" : "s"} ${status} by ${username}.`
+  if (build.status !== "approved" && build.status !== "denied") {
+    throw new Error(
+      `Cannot generate approval markdown for test ${build.id} status: ${build.status}`,
+    )
+  }
 
-  let { summary } = createMarkdownForBuildResult(build, testResults)
+  const approved = build.status === "approved"
+  const changeCount = getChangeCount(testResults)
+  const title = `${changeCount} change${changeCount === 1 ? "" : "s"} ${build.status} by ${username}.`
+
+  let { summary, text } = createMarkdownForBuildResult(build, testResults)
   summary += `\n---\n ${approved ? "✅ Approved" : "❌ Rejected"} by ${username}`
 
-  return { title, summary, text: undefined }
+  return { title, summary, text }
 }
 
 function getChangeCount(testResults: TestResult[]): number {
   return testResults.filter((r) => r.changeStatus === "new" || r.changeStatus === "changed").length
+}
+
+function getStatusHeader(build: ScreenshotTest): string {
+  switch (build.status) {
+    case "pending":
+      return "⏳ $${\\color{goldenrod}Pending}$$"
+    case "running":
+      return "🚧 $${\\color{goldenrod}Running}$$"
+    case "no_changes":
+      return "🟢 $${\\color{green}No Changes}$$"
+    case "unapproved":
+      return "🟡 $${\\color{goldenrod}In Review}$$"
+    case "approved":
+      return "✅ $${\\color{green}Approved}$$"
+    case "denied":
+      return "❌ $${\\color{red}Denied}$$"
+    case "failed":
+      return "❗ $${\\color{red}Failed}$$"
+    default:
+      throw new Error(`Unknown build status: ${build.status}`)
+  }
+}
+
+function getChangeStatusText(testResult: TestResult): string {
+  switch (testResult.changeStatus) {
+    case "new":
+      return `🟡 New`
+    case "unchanged":
+      return `🟢 Unchanged`
+    case "changed": {
+      const changePct = testResult.diffRatio ? ` (${(testResult.diffRatio * 100).toFixed(2)}%)` : ""
+      return `🟡 Changed${changePct}`
+    }
+    case "failed":
+      return `🔴 Failed`
+    default:
+      throw new Error(`Unknown change status: ${testResult.changeStatus}`)
+  }
+}
+
+function getSortedTestResults(testResults: TestResult[]): TestResult[] {
+  // Create a copy of test results sorted by change status
+  // (failed, changed, new, unchanged), then by name
+  const statusOrder: { [key: string]: number } = {
+    failed: 0,
+    changed: 1,
+    new: 2,
+    unchanged: 3,
+  }
+  const sortedTestResults = testResults.slice().sort((a, b) => {
+    const statusA = statusOrder[a.changeStatus] ?? 99
+    const statusB = statusOrder[b.changeStatus] ?? 99
+
+    if (statusA !== statusB) {
+      return statusA - statusB // Sort by status priority
+    }
+    // If statuses are the same, sort by name alphabetically
+    return a.name.localeCompare(b.name)
+  })
+
+  return sortedTestResults
 }
