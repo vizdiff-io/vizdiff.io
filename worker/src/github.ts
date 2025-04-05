@@ -31,6 +31,15 @@ export type GitHubCheckConclusion =
   | "success"
   | "timed_out"
 
+export type GitHubCheckAction = {
+  /** @description The text to be displayed on a button in the web UI. The maximum size is 20 characters. */
+  label: string
+  /** @description A short explanation of what this action would do. The maximum size is 40 characters. */
+  description: string
+  /** @description A reference for the action on the integrator's system. The maximum size is 20 characters. */
+  identifier: string
+}
+
 /**
  * Get an authenticated Octokit instance for a specific installation
  */
@@ -60,6 +69,7 @@ export async function updateGitHubCheckRun({
   title,
   summary,
   text,
+  actions,
 }: GitHubCheckData & {
   status: GitHubCheckStatus
   conclusion?: GitHubCheckConclusion
@@ -67,6 +77,7 @@ export async function updateGitHubCheckRun({
   title: string
   summary: string
   text?: string
+  actions?: GitHubCheckAction[]
 }): Promise<void> {
   try {
     log.info(
@@ -79,10 +90,12 @@ export async function updateGitHubCheckRun({
       owner,
       repo,
       check_run_id: checkRunId,
+      external_id: String(testId),
       status,
       conclusion: status === "completed" ? conclusion : undefined,
       details_url: `${APP_URL}/build?id=${testId}`,
       output: { title, summary, text },
+      actions,
     })
 
     log.info(

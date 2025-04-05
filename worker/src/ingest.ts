@@ -359,6 +359,20 @@ export async function ingestStorybook(
               title,
               summary,
               text,
+              actions: hasChanges
+                ? [
+                    {
+                      label: "Approve",
+                      description: "Approve the visual changes",
+                      identifier: "approved",
+                    },
+                    {
+                      label: "Deny",
+                      description: "Deny the visual changes",
+                      identifier: "denied",
+                    },
+                  ]
+                : undefined,
             })
 
             if (!hasChanges) {
@@ -372,7 +386,8 @@ export async function ingestStorybook(
                 owner: githubCheckData.owner,
                 repo: githubCheckData.repo,
                 head_sha: screenshotTest.commitSha,
-                name: "Visual Tests Approval",
+                external_id: String(screenshotTest.id),
+                name: "Visual Tests",
                 status: "completed",
                 conclusion: "success",
                 details_url: `${APP_URL}/build?id=${screenshotTest.id}`,

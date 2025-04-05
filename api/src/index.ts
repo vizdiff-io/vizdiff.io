@@ -108,7 +108,7 @@ router.get("/users/me", authenticateJWT, requireUser, User.me)
 router.post("/upload/storybook", Upload.uploadStorybook) // ?token=<project_token>
 
 // GitHub webhook route
-router.post("/webhooks/github", Webhooks.githubCheckSuiteWebhook)
+router.post("/webhooks/github", Webhooks.githubWebhook)
 
 app.use("/api", router)
 

@@ -1,9 +1,11 @@
 import crypto from "crypto"
-import { Project, ScreenshotTest } from "shared"
+import { createMarkdownForBuildApproval, Project, ScreenshotTest, TestResult } from "shared"
 
 import { Database } from "../database"
-import { GITHUB_WEBHOOK_SECRET } from "../environment"
+import { APP_URL, GITHUB_WEBHOOK_SECRET } from "../environment"
+import { getOctokitForInstallation } from "../github"
 import { log } from "../log"
+import type { CheckRunPayload } from "../schemas/CheckRunPayload"
 import type { CheckSuitePayload } from "../schemas/CheckSuitePayload"
 import type { DefaultRequest, DefaultResponse } from "../types"
 
@@ -69,13 +71,7 @@ async function findProjectByRepo(
   })
 }
 
-/**
- * Handler for the check_suite webhook event
- */
-export async function githubCheckSuiteWebhook(
-  req: WebhookRequest,
-  res: DefaultResponse,
-): Promise<void> {
+export async function githubWebhook(req: WebhookRequest, res: DefaultResponse): Promise<void> {
   // Get the raw body from Express
   const rawBody = req.rawBody
 
@@ -101,18 +97,38 @@ export async function githubCheckSuiteWebhook(
 
   // Check for the GitHub event type
   const eventName = req.headers["x-github-event"]
-  if (eventName !== "check_suite") {
-    log.debug(`Ignoring non-check_suite webhook event: ${eventName}`)
+  if (eventName === "check_suite") {
+    const payload = req.body as CheckSuitePayload
+    if (payload.action === "requested" || payload.action === "rerequested") {
+      await githubCheckSuiteRequested(res, payload)
+    } else {
+      log.info(`Ignoring GitHub check_suite action: "${payload.action}"`)
+      res.status(202).json({ message: "Action ignored" })
+    }
+  } else if (eventName === "check_run") {
+    const payload = req.body as CheckRunPayload
+    if (payload.action === "requested_action") {
+      await githubCheckRunRequestedAction(res, payload)
+    } else {
+      log.info(`Ignoring GitHub check_run action: "${payload.action}"`)
+      res.status(202).json({ message: "Action ignored" })
+    }
+  } else {
+    log.info(`Ignoring GitHub webhook event type: "${eventName}"`)
     res.status(202).json({ message: "Event ignored" })
     return
   }
+}
 
+async function githubCheckSuiteRequested(
+  res: DefaultResponse,
+  payload: CheckSuitePayload,
+): Promise<void> {
   let subject = "(unknown)"
   try {
-    const payload = req.body as CheckSuitePayload
     const action = payload.action
 
-    // Only process requested or rerequested actions
+    // Only process requested or rerequested_actions
     if (action !== "requested" && action !== "rerequested") {
       log.debug(`Ignoring check_suite action: ${action}`)
       res.status(202).json({ message: "Action ignored" })
@@ -171,4 +187,101 @@ export async function githubCheckSuiteWebhook(
     log.error(error, `Error processing check_suite webhook for ${subject}`)
     res.status(500).json({ error: "Internal server error" })
   }
+}
+
+async function githubCheckRunRequestedAction(
+  res: DefaultResponse,
+  payload: CheckRunPayload,
+): Promise<void> {
+  const githubCheckRunId = payload.check_run.id
+
+  // Extract the requested_action identifier
+  const status = payload.requested_action?.identifier
+  if (!status) {
+    log.error("Missing requested_action identifier")
+    res.status(400).json({ error: "Missing requested_action identifier" })
+    return
+  }
+
+  // Extract the owner and repo from the repository full_name
+  const [owner, repo] = payload.repository.full_name.split("/")
+  if (!owner || !repo) {
+    log.error(`Invalid repository full_name: ${payload.repository.full_name}`)
+    res.status(400).json({ error: "Invalid repository full_name" })
+    return
+  }
+
+  // Retrieve the test ID from the check_run payload
+  const testId = Number(payload.check_run.external_id)
+  if (!testId || isNaN(testId)) {
+    log.error(`Missing or invalid test ID: "${payload.check_run.external_id}"`)
+    res.status(400).json({ error: "Missing or invalid test ID" })
+    return
+  }
+
+  // Validate the requested_action identifier
+  if (status !== "approved" && status !== "denied") {
+    log.error(`Invalid requested_action identifier: "${status}"`)
+    res.status(400).json({ error: "Invalid requested_action identifier" })
+    return
+  }
+
+  log.info(`GitHub check_run requested_action "${status}" for test ${testId}`)
+
+  // Look up the screenshot test
+  const db = await Database()
+  const screenshotTestRepository = db.getRepository(ScreenshotTest)
+  const test = await screenshotTestRepository.findOne({
+    where: { id: testId },
+  })
+
+  if (!test) {
+    log.error(`Screenshot test not found for ID: ${testId}`)
+    res.status(400).json({ error: "Screenshot test not found" })
+    return
+  }
+
+  if (test.status !== "unapproved") {
+    log.error(`Cannot approve/deny screenshot test ${testId}, status is ${test.status}`)
+    res.status(400).json({ error: "Screenshot test is not unapproved" })
+    return
+  }
+
+  // Retrieve test results for this screenshot test
+  const testResultTable = db.getRepository(TestResult)
+  const testResults = await testResultTable.find({
+    where: { screenshotTest: { id: test.id } },
+  })
+
+  // Update the screenshot test status
+  test.status = status
+  test.githubCheckRunId ??= githubCheckRunId
+  await screenshotTestRepository.save(test)
+
+  // Update GitHub check run
+  const approved = status === "approved"
+  const conclusion = approved ? "success" : "failure"
+  const { title, summary, text } = createMarkdownForBuildApproval(
+    test,
+    testResults,
+    approved,
+    payload.sender.login,
+  )
+
+  // Create a new check run with the success or failure conclusion
+  const octokit = await getOctokitForInstallation(payload.installation.id)
+  const result = await octokit.checks.create({
+    owner,
+    repo,
+    head_sha: test.commitSha,
+    external_id: String(test.id),
+    name: "Visual Tests",
+    status: "completed",
+    conclusion,
+    details_url: `${APP_URL}/build?id=${test.id}`,
+    output: { title, summary, text },
+  })
+  log.info(
+    `Created GitHub check run ${result.data.id} from webhook for ${test.toString()} with conclusion: ${conclusion}`,
+  )
 }
