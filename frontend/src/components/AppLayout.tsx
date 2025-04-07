@@ -1,8 +1,18 @@
-import { Container, Typography, AppBar, Toolbar, Button, Box, Avatar } from "@mui/material"
+import {
+  Container,
+  AppBar,
+  Toolbar,
+  Button,
+  Box,
+  Avatar,
+  Breadcrumbs,
+  type SxProps,
+} from "@mui/material"
 import { Inter } from "next/font/google"
 import { useEffect, useState } from "react"
 
 import useAuth from "@/hooks/useAuth"
+import { useBreadcrumbs } from "@/hooks/useBreadcrumbs"
 
 const inter = Inter({ subsets: ["latin"] })
 void inter
@@ -11,9 +21,19 @@ interface AppLayoutProps {
   children: React.ReactNode
 }
 
+const breadcrumbNoLinkStyle: SxProps = {
+  cursor: "default",
+  "&:hover, &:active, &.Mui-focusVisible, &:focus": {
+    background: "transparent",
+    boxShadow: "none",
+  },
+  pointerEvents: "none",
+}
+
 export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   const { user } = useAuth()
   const [avatarUrl, setAvatarUrl] = useState<string | undefined>(undefined)
+  const { breadcrumbData } = useBreadcrumbs()
 
   useEffect(() => {
     const updateAvatarUrl = async () => {
@@ -42,6 +62,41 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     void updateAvatarUrl()
   }, [user])
 
+  const breadcrumbs = [
+    <Button color="primary" variant="text" key="1" href="/">
+      vizdiff.io
+    </Button>,
+    <Button color="primary" variant="text" key="2" href="/projects">
+      Projects
+    </Button>,
+  ]
+
+  if (breadcrumbData.projectId && breadcrumbData.projectName) {
+    if (breadcrumbData.buildId) {
+      breadcrumbs.push(
+        <Button
+          color="primary"
+          variant="text"
+          key="3"
+          href={`/project?id=${breadcrumbData.projectId}`}
+        >
+          {breadcrumbData.projectName}
+        </Button>,
+      )
+      breadcrumbs.push(
+        <Button color="primary" variant="text" key="4" sx={breadcrumbNoLinkStyle}>
+          Build #{breadcrumbData.buildNumber}
+        </Button>,
+      )
+    } else {
+      breadcrumbs.push(
+        <Button color="primary" variant="text" key="3" sx={breadcrumbNoLinkStyle}>
+          {breadcrumbData.projectName}
+        </Button>,
+      )
+    }
+  }
+
   return (
     <Box
       sx={{
@@ -55,19 +110,18 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
         <Toolbar sx={{ px: { xs: 2, sm: 4, md: 6 } }}>
           {/* Left side */}
           <Box sx={{ display: "flex", alignItems: "center" }}>
-            <Typography
-              variant="h6"
-              component="a"
-              href="/projects"
+            <Breadcrumbs
+              separator="›"
+              aria-label="breadcrumb"
               sx={{
-                fontWeight: 600,
-                fontSize: "1.25rem",
-                textDecoration: "none",
                 mr: 4,
+                "& .MuiBreadcrumbs-separator": { color: "var(--text-primary)", opacity: 0.5 },
+                "& a": { color: "var(--text-primary)", textDecoration: "none" },
+                "& a:hover": { textDecoration: "underline" },
               }}
             >
-              vizdiff.io
-            </Typography>
+              {breadcrumbs}
+            </Breadcrumbs>
           </Box>
 
           {/* Right side */}

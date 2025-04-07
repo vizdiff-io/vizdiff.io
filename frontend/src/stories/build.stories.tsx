@@ -16,6 +16,7 @@ const oneMinuteAgo = Math.floor(Date.now() / 1000) - 60
 const mockBuildData: TestResponse = {
   id: 123,
   projectId: 456,
+  projectName: "Cat Photos",
   buildNumber: 42,
   githubRepoUrl: "https://github.com/cats/cat-photos",
   commitSha: "abc123",
@@ -52,6 +53,7 @@ const mockBuildData: TestResponse = {
   parent: {
     id: 789,
     projectId: 456,
+    projectName: "Cat Photos",
     buildNumber: 41,
     githubRepoUrl: "https://github.com/cats/cat-photos",
     branch: "main",

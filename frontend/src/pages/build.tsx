@@ -21,6 +21,7 @@ import TestResultCard from "@/components/TestResultCard"
 import TestResultDialog from "@/components/TestResultDialog"
 import useApiGet from "@/hooks/useApiGet"
 import useAppTheme from "@/hooks/useAppTheme"
+import { useBreadcrumbs } from "@/hooks/useBreadcrumbs"
 import type { ScreenshotTestResponse, TestResponse, TestResultResponse } from "@/lib/apiTypes"
 import { getStatusColor } from "@/lib/colors"
 import { getBranchUrl, getCommitUrl } from "@/lib/links"
@@ -48,23 +49,45 @@ function getStatusText(status: ScreenshotTestResponse["status"]): string {
 
 export default function Build(): JSX.Element {
   const router = useRouter()
+  const { setBreadcrumbData } = useBreadcrumbs()
   const { id } = router.query
 
   // Validate ID before making the API request
-  const isValidId = typeof id === "string" && /^\d+$/.test(id)
-  const [data, loading, error] = useApiGet<TestResponse>(isValidId ? `/api/tests/${id}` : undefined)
+  const buildId = getBuildId(id)
+  const [data, loading, error] = useApiGet<TestResponse>(
+    buildId ? `/api/tests/${buildId}` : undefined,
+  )
+  const { projectId, projectName, buildNumber } = data ?? {}
   const [selectedResult, setSelectedResult] = useState<TestResultResponse | null>(null)
   const theme = useAppTheme()
 
   // Handle invalid ID with useEffect for client-side navigation
   useEffect(() => {
-    if (!isValidId && router.isReady) {
+    if (!buildId && router.isReady) {
       void router.push("/projects")
     }
-  }, [isValidId, router, router.isReady])
+  }, [buildId, router, router.isReady])
+
+  useEffect(() => {
+    setBreadcrumbData({
+      projectId,
+      projectName,
+      buildId,
+      buildNumber,
+    })
+
+    return () => {
+      setBreadcrumbData({
+        projectId: undefined,
+        projectName: undefined,
+        buildId: undefined,
+        buildNumber: undefined,
+      })
+    }
+  }, [projectId, projectName, buildId, buildNumber, setBreadcrumbData])
 
   // Show loading state while redirecting or if the page is not yet ready
-  if (!router.isReady || !isValidId) {
+  if (!router.isReady || !buildId) {
     return (
       <AppLayout>
         <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
@@ -272,4 +295,12 @@ export default function Build(): JSX.Element {
       </AppLayout>
     </>
   )
+}
+
+function getBuildId(id: string | string[] | undefined): number | undefined {
+  if (typeof id === "string") {
+    const parsedId = parseInt(id, 10)
+    return isNaN(parsedId) ? undefined : parsedId
+  }
+  return undefined
 }
