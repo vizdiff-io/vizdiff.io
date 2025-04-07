@@ -102,6 +102,7 @@ export const list: RequestHandler = async (req, res) => {
   const responses: ScreenshotTestSummaryResponse[] = screenshotTestsWithStats.map((test) => ({
     id: test.screenshot_test_id,
     projectId,
+    projectName: project.name,
     githubRepoUrl: project.githubRepoUrl,
     buildNumber: test.screenshot_test_build_number,
     commitSha: test.screenshot_test_git_commit,
@@ -135,15 +136,7 @@ export const get: RequestHandler = async (req, res) => {
     res.status(404).json({ error: "Screenshot test not found" })
     return
   }
-  const projectId = screenshotTest.project.id
-
-  const projectTable = db.getRepository(Project)
-  const project = await projectTable.findOneBy({ id: projectId })
-  if (!project) {
-    log.error(`Project not found: projectId=${projectId}`)
-    res.status(404).json({ error: "Project not found" })
-    return
-  }
+  const project = screenshotTest.project
 
   // Get the most recent test result for each test name
   const testResultTable = db.getRepository(TestResult)
@@ -164,7 +157,8 @@ export const get: RequestHandler = async (req, res) => {
 
   const response: TestResponse = {
     id: screenshotTest.id,
-    projectId: screenshotTest.project.id,
+    projectId: project.id,
+    projectName: project.name,
     githubRepoUrl: project.githubRepoUrl,
     buildNumber: screenshotTest.buildNumber,
     commitSha: screenshotTest.commitSha,
@@ -251,16 +245,24 @@ export const listActivity: RequestHandler = async (_req, res) => {
       "screenshot_test.status",
       "screenshot_test.tag",
       "project.id as project_id",
+      "project.name as project_name",
       "project.github_repo_url as project_github_repo_url",
       "COALESCE(test_counts.testcount, '0') as testcount",
     ])
     .orderBy("screenshot_test.createdAt", "DESC")
     .take(10)
-    .getRawMany<ScreenshotTestWithStats & { project_id: number; project_github_repo_url: string }>()
+    .getRawMany<
+      ScreenshotTestWithStats & {
+        project_id: number
+        project_name: string
+        project_github_repo_url: string
+      }
+    >()
 
   const responses: ScreenshotTestResponse[] = screenshotTests.map((test) => ({
     id: test.screenshot_test_id,
     projectId: test.project_id,
+    projectName: test.project_name,
     buildNumber: test.screenshot_test_build_number,
     githubRepoUrl: test.project_github_repo_url,
     commitSha: test.screenshot_test_git_commit,

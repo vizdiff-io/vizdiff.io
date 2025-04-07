@@ -37,6 +37,7 @@ export type ProjectResponse = {
 export type ScreenshotTestResponse = {
   id: number
   projectId: number
+  projectName: string
   githubRepoUrl: string
   buildNumber: number
   commitSha: string
