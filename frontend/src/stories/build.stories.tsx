@@ -146,6 +146,22 @@ export const Running: Story = {
   },
 }
 
+export const NoTests: Story = {
+  args: {
+    mode: "light",
+  },
+  parameters: {
+    msw: {
+      handlers: [
+        userHandler,
+        http.get("/api/tests/:id", () =>
+          HttpResponse.json({ ...mockBuildData, status: "unapproved", testResults: [] }),
+        ),
+      ],
+    },
+  },
+}
+
 export const NoChanges: Story = {
   args: {
     mode: "light",
