@@ -139,9 +139,9 @@ function getStatusHeader(build: ScreenshotTest): string {
     case "running":
       return "🚧 $${\\color{goldenrod}Running}$$"
     case "no_changes":
-      return "🟢 $${\\color{green}No Changes}$$"
+      return "🟢 $${\\color{green}Unchanged}$$"
     case "unapproved":
-      return "🟡 $${\\color{goldenrod}In Review}$$"
+      return "🟡 $${\\color{goldenrod}Pending}$$"
     case "approved":
       return "✅ $${\\color{green}Approved}$$"
     case "denied":
