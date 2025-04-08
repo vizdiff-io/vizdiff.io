@@ -9,6 +9,7 @@ import { Inter } from "next/font/google"
 import DarkMode from "@/components/DarkMode"
 import useAppTheme from "@/hooks/useAppTheme"
 import { AuthProvider } from "@/hooks/useAuth"
+import { BreadcrumbProvider } from "@/hooks/useBreadcrumbs"
 
 import packageJson from "../../package.json"
 
@@ -37,14 +38,16 @@ export default function App({ Component, pageProps }: AppProps): JSX.Element {
 
   return (
     <AuthProvider>
-      <DarkMode>
-        <ThemeProvider theme={theme}>
-          <CssBaseline />
-          <div className={inter.className}>
-            <Component {...pageProps} />
-          </div>
-        </ThemeProvider>
-      </DarkMode>
+      <BreadcrumbProvider>
+        <DarkMode>
+          <ThemeProvider theme={theme}>
+            <CssBaseline />
+            <div className={inter.className}>
+              <Component {...pageProps} />
+            </div>
+          </ThemeProvider>
+        </DarkMode>
+      </BreadcrumbProvider>
     </AuthProvider>
   )
 }
