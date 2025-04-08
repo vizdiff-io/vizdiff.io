@@ -14,6 +14,8 @@ import { useEffect, useState } from "react"
 import useAuth from "@/hooks/useAuth"
 import { useBreadcrumbs } from "@/hooks/useBreadcrumbs"
 
+import ProtectedRoute from "./ProtectedRoute"
+
 const inter = Inter({ subsets: ["latin"] })
 void inter
 
@@ -98,56 +100,62 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   }
 
   return (
-    <Box
-      sx={{
-        minHeight: "100vh",
-        display: "flex",
-        flexDirection: "column",
-        transition: "background-color 0.2s ease",
-      }}
-    >
-      <AppBar position="static">
-        <Toolbar sx={{ px: { xs: 2, sm: 4, md: 6 } }}>
-          {/* Left side */}
-          <Box sx={{ display: "flex", alignItems: "center" }}>
-            <Breadcrumbs
-              separator="›"
-              aria-label="breadcrumb"
-              sx={{
-                mr: 4,
-                "& .MuiBreadcrumbs-separator": { color: "var(--text-primary)", opacity: 0.5 },
-                "& a": { color: "var(--text-primary)", textDecoration: "none" },
-                "& a:hover": { textDecoration: "underline" },
-              }}
-            >
-              {breadcrumbs}
-            </Breadcrumbs>
-          </Box>
-
-          {/* Right side */}
-          <Box sx={{ flexGrow: 1 }} />
-          <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
-            {user && (
-              <>
-                <Avatar src={avatarUrl} alt={user.githubUsername} sx={{ width: 32, height: 32 }} />
-                <Button href="/api/auth/logout" variant="outlined" size="small">
-                  Logout
-                </Button>
-              </>
-            )}
-          </Box>
-        </Toolbar>
-      </AppBar>
+    <ProtectedRoute>
       <Box
         sx={{
-          flex: 1,
+          minHeight: "100vh",
+          display: "flex",
+          flexDirection: "column",
           transition: "background-color 0.2s ease",
         }}
       >
-        <Container maxWidth="lg" sx={{ py: 4 }}>
-          {children}
-        </Container>
+        <AppBar position="static">
+          <Toolbar sx={{ px: { xs: 2, sm: 4, md: 6 } }}>
+            {/* Left side */}
+            <Box sx={{ display: "flex", alignItems: "center" }}>
+              <Breadcrumbs
+                separator="›"
+                aria-label="breadcrumb"
+                sx={{
+                  mr: 4,
+                  "& .MuiBreadcrumbs-separator": { color: "var(--text-primary)", opacity: 0.5 },
+                  "& a": { color: "var(--text-primary)", textDecoration: "none" },
+                  "& a:hover": { textDecoration: "underline" },
+                }}
+              >
+                {breadcrumbs}
+              </Breadcrumbs>
+            </Box>
+
+            {/* Right side */}
+            <Box sx={{ flexGrow: 1 }} />
+            <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
+              {user && (
+                <>
+                  <Avatar
+                    src={avatarUrl}
+                    alt={user.githubUsername}
+                    sx={{ width: 32, height: 32 }}
+                  />
+                  <Button href="/api/auth/logout" variant="outlined" size="small">
+                    Logout
+                  </Button>
+                </>
+              )}
+            </Box>
+          </Toolbar>
+        </AppBar>
+        <Box
+          sx={{
+            flex: 1,
+            transition: "background-color 0.2s ease",
+          }}
+        >
+          <Container maxWidth="lg" sx={{ py: 4 }}>
+            {children}
+          </Container>
+        </Box>
       </Box>
-    </Box>
+    </ProtectedRoute>
   )
 }

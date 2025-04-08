@@ -2,7 +2,7 @@ import axios, { AxiosError } from "axios"
 
 const TIMEOUT_MS = 1000 * 30
 
-function isAuthenticated(): boolean {
+export function isAuthenticated(): boolean {
   return document.cookie.split("; ").find((row) => row === "authenticated=true") != undefined
 }
 

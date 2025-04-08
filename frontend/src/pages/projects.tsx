@@ -13,6 +13,7 @@ import {
   ListItemButton,
   ListItemText,
   ListItemIcon,
+  CircularProgress,
 } from "@mui/material"
 import Head from "next/head"
 import Link from "next/link"
@@ -36,6 +37,17 @@ export default function Projects(): JSX.Element {
   const theme = useAppTheme()
   const projects = projectsResponse ?? []
   const activity = activityResponse ?? []
+
+  // Show loading state if the page is not yet ready
+  if (loading) {
+    return (
+      <AppLayout>
+        <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+          <CircularProgress />
+        </Box>
+      </AppLayout>
+    )
+  }
 
   return (
     <>
@@ -94,9 +106,7 @@ export default function Projects(): JSX.Element {
               </Paper>
             )}
 
-            {loading ? (
-              <Typography>Loading projects...</Typography>
-            ) : projects.length === 0 ? (
+            {projects.length === 0 ? (
               <Typography>No projects yet</Typography>
             ) : (
               <Box>
