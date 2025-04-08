@@ -5,6 +5,7 @@ import { datadogRum } from "@datadog/browser-rum"
 import { CssBaseline, ThemeProvider } from "@mui/material"
 import type { AppProps } from "next/app"
 import { Inter } from "next/font/google"
+import Head from "next/head"
 
 import DarkMode from "@/components/DarkMode"
 import useAppTheme from "@/hooks/useAppTheme"
@@ -37,17 +38,22 @@ export default function App({ Component, pageProps }: AppProps): JSX.Element {
   const theme = useAppTheme()
 
   return (
-    <AuthProvider>
-      <BreadcrumbProvider>
-        <DarkMode>
-          <ThemeProvider theme={theme}>
-            <CssBaseline />
-            <div className={inter.className}>
-              <Component {...pageProps} />
-            </div>
-          </ThemeProvider>
-        </DarkMode>
-      </BreadcrumbProvider>
-    </AuthProvider>
+    <>
+      <Head>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+      </Head>
+      <AuthProvider>
+        <BreadcrumbProvider>
+          <DarkMode>
+            <ThemeProvider theme={theme}>
+              <CssBaseline />
+              <div className={inter.className}>
+                <Component {...pageProps} />
+              </div>
+            </ThemeProvider>
+          </DarkMode>
+        </BreadcrumbProvider>
+      </AuthProvider>
+    </>
   )
 }

@@ -98,7 +98,6 @@ export default function Project(): JSX.Element {
       <Head>
         <title>{project?.name ? `${project.name} - vizdiff.io` : "vizdiff.io"}</title>
         <meta name="description" content="Project builds and details" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
       <AppLayout>
         <Box sx={{ px: 3, py: 4 }}>

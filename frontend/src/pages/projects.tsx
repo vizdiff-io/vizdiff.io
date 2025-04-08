@@ -54,7 +54,6 @@ export default function Projects(): JSX.Element {
       <Head>
         <title>Projects - vizdiff.io</title>
         <meta name="description" content="Project listing" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
       <AppLayout>
         <Box sx={{ display: "flex", gap: 3, px: 3, py: 4, minHeight: "calc(100vh - 64px)" }}>

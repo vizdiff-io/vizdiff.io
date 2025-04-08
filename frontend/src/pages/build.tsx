@@ -281,7 +281,6 @@ export default function Build(): JSX.Element {
       <Head>
         <title>{data?.buildNumber ? `Build ${data.buildNumber}` : "Build"} - vizdiff.io</title>
         <meta name="description" content="Build details and test results" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
       <AppLayout>
         <Box sx={{ px: 3, py: 4 }}>
