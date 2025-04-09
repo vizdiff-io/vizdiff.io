@@ -1,4 +1,5 @@
 import CloseIcon from "@mui/icons-material/Close"
+import GitHubIcon from "@mui/icons-material/GitHub"
 import RefreshIcon from "@mui/icons-material/Refresh"
 import {
   List,
@@ -9,12 +10,16 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
+  Button,
+  Typography,
+  Box,
 } from "@mui/material"
 import type { Endpoints } from "@octokit/types"
 import React, { useState, useEffect, useCallback } from "react"
 
 import useAuthenticatedFetch from "@/hooks/useApiGet"
 import { apiGet, apiPost } from "@/lib/apiMethods"
+import { GITHUB_APP_NAME } from "@/lib/environment"
 
 type NewProjectDialogProps = {
   onClose: () => void
@@ -112,6 +117,11 @@ export default function NewProjectDialog({
     onClose()
   }
 
+  const handleInstallApp = () => {
+    const installUrl = `https://github.com/apps/${GITHUB_APP_NAME}/installations/new`
+    window.open(installUrl, "_blank")
+  }
+
   // Define a minimum loading time (in ms) to ensure loading states are visible
   const MIN_LOADING_TIME = 300
 
@@ -132,7 +142,30 @@ export default function NewProjectDialog({
         sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", pb: 2 }}
       >
         Add GitHub Repository
-        <div style={{ display: "flex", gap: "8px" }}>
+        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+          {!isOrgsLoading && !loading && loadingStartTime == null && orgs && orgs.length > 0 && (
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={handleInstallApp}
+              startIcon={<GitHubIcon />}
+              sx={{
+                height: "32px",
+                textTransform: "none",
+                color: "black",
+                borderColor: "rgba(0, 0, 0, 0.23)",
+                "& .MuiSvgIcon-root": {
+                  color: "black",
+                },
+                "&:hover": {
+                  borderColor: "rgba(0, 0, 0, 0.5)",
+                  backgroundColor: "rgba(0, 0, 0, 0.04)",
+                },
+              }}
+            >
+              Configure GitHub App
+            </Button>
+          )}
           <IconButton onClick={handleRefresh} size="small" title="Refresh organizations">
             <RefreshIcon />
           </IconButton>
@@ -169,19 +202,54 @@ export default function NewProjectDialog({
             <>
               <div style={{ width: "49%" }}>
                 <h4>Organizations</h4>
-                <List
-                  component="nav"
-                  sx={{
-                    overflowY: "scroll",
-                    maxHeight: "60vh",
-                  }}
-                >
-                  {orgs?.map((org) => (
-                    <ListItemButton key={org.id} onClick={() => handleOrgClick(org.login)}>
-                      <ListItemText primary={org.login} />
-                    </ListItemButton>
-                  ))}
-                </List>
+                {orgs?.length === 0 ? (
+                  <Box
+                    sx={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      textAlign: "center",
+                      p: 3,
+                      gap: 2,
+                    }}
+                  >
+                    <Typography>
+                      Install the vizdiff GitHub App to enable screenshot testing for your
+                      repositories.
+                    </Typography>
+                    <Button
+                      variant="contained"
+                      size="large"
+                      onClick={handleInstallApp}
+                      startIcon={<GitHubIcon />}
+                      sx={{
+                        bgcolor: "white",
+                        color: "black",
+                        "&:hover": {
+                          bgcolor: "#f5f5f5",
+                        },
+                        boxShadow: "0 2px 4px rgba(0,0,0,0.15)",
+                      }}
+                    >
+                      Install GitHub App
+                    </Button>
+                  </Box>
+                ) : (
+                  <List
+                    component="nav"
+                    sx={{
+                      overflowY: "scroll",
+                      maxHeight: "60vh",
+                    }}
+                  >
+                    {orgs?.map((org) => (
+                      <ListItemButton key={org.id} onClick={() => handleOrgClick(org.login)}>
+                        <ListItemText primary={org.login} />
+                      </ListItemButton>
+                    ))}
+                  </List>
+                )}
               </div>
               <div
                 style={{
