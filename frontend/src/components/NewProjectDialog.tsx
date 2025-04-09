@@ -17,6 +17,7 @@ import { apiGet, apiPost } from "@/lib/apiMethods"
 
 type NewProjectDialogProps = {
   onClose: () => void
+  initialSelectedOrg?: string
 }
 
 type GithubOrg = Endpoints["GET /user/orgs"]["response"]["data"][0]
@@ -25,10 +26,14 @@ type GithubRepo = Endpoints["GET /orgs/{org}/repos"]["response"]["data"][0]
 const API_ORGS_URL = "/api/github/orgs"
 const API_REPOS_URL = "/api/github/repos"
 
-export default function NewProjectDialog({ onClose }: NewProjectDialogProps): JSX.Element {
+export default function NewProjectDialog({
+  onClose,
+  initialSelectedOrg,
+}: NewProjectDialogProps): JSX.Element {
   const [repos, setRepos] = useState<GithubRepo[]>([])
   const [loading, setLoading] = useState(true)
   const [_error, setError] = useState<string | null>(null)
+  const [_selectedOrg, setSelectedOrg] = useState<string | undefined>(initialSelectedOrg)
 
   const [orgs, isOrgsLoading, _orgsErr] = useAuthenticatedFetch<GithubOrg[]>(API_ORGS_URL)
 
@@ -38,14 +43,25 @@ export default function NewProjectDialog({ onClose }: NewProjectDialogProps): JS
     }
   }, [isOrgsLoading])
 
+  const handleOrgClick = useCallback(
+    async (org: string) => {
+      setLoading(true)
+      const [orgRepos, _orgReposError] = await apiGet(`${API_REPOS_URL}?org=${org}`)
+      setRepos((orgRepos as [] | null) ?? [])
+      setSelectedOrg(org)
+      updateLoading()
+    },
+    [updateLoading],
+  )
+
   useEffect(() => updateLoading(), [updateLoading])
 
-  const handleOrgClick = async (org: string) => {
-    setLoading(true)
-    const [orgRepos, _orgReposError] = await apiGet(`${API_REPOS_URL}?org=${org}`)
-    setRepos((orgRepos as [] | null) ?? [])
-    updateLoading()
-  }
+  // Fetch repos for initialSelectedOrg when orgs are loaded
+  useEffect(() => {
+    if (initialSelectedOrg && orgs && orgs.length > 0 && !isOrgsLoading) {
+      void handleOrgClick(initialSelectedOrg)
+    }
+  }, [initialSelectedOrg, orgs, isOrgsLoading, handleOrgClick])
 
   const handleRepoClick = async (repo: GithubRepo) => {
     setLoading(true)
