@@ -13,6 +13,7 @@ export type UploadStorybookOpts = {
   projectToken: string
   baseCommitSha?: string
   baseBranch?: string
+  prNumber?: number
 }
 
 type UploadResponse = { success: boolean; testId?: string; uploadId?: string; error?: string }
@@ -21,7 +22,8 @@ type UploadResponse = { success: boolean; testId?: string; uploadId?: string; er
  * Packages a storybook build folder and uploads it to the vizdiff CDN.
  */
 export async function uploadStorybook(opts: UploadStorybookOpts): Promise<void> {
-  const { storybookDir, commitSha, branch, projectToken, baseCommitSha, baseBranch } = opts
+  const { storybookDir, commitSha, branch, projectToken, baseCommitSha, baseBranch, prNumber } =
+    opts
 
   // Sanity check input params
   if (!isValidGitCommitHash(commitSha)) {
@@ -102,6 +104,7 @@ export async function uploadStorybook(opts: UploadStorybookOpts): Promise<void> 
         "X-Vizdiff-Branch": branch,
         ...(baseCommitSha && { "X-Vizdiff-Base-Commit-Sha": baseCommitSha }),
         ...(baseBranch && { "X-Vizdiff-Base-Branch": baseBranch }),
+        ...(prNumber && { "X-Vizdiff-PR-Number": prNumber.toString() }),
       },
       body: await fs.readFile(tarballFilename),
     })

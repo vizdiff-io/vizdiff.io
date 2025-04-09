@@ -21,7 +21,7 @@ import useApiGet from "@/hooks/useApiGet"
 import { useBreadcrumbs } from "@/hooks/useBreadcrumbs"
 import type { ProjectResponse, ScreenshotTestSummaryResponse } from "@/lib/apiTypes"
 import { getStatusColor } from "@/lib/colors"
-import { getBranchUrl, getCommitUrl } from "@/lib/links"
+import { getBranchUrl, getCommitUrl, getPullRequestUrl } from "@/lib/links"
 import { plural } from "@/lib/text"
 
 export default function Project(): JSX.Element {
@@ -207,7 +207,11 @@ export default function Project(): JSX.Element {
                         Created {formatDistanceToNow(build.initiatedStampSec * 1000)} ago •{" "}
                         <Tooltip title={build.commitSha}>
                           <MuiLink
-                            href={getCommitUrl(build.commitSha, project?.githubRepoUrl)}
+                            href={getCommitUrl(
+                              build.commitSha,
+                              project?.githubRepoUrl,
+                              build.prNumber,
+                            )}
                             target="_blank"
                             rel="noopener noreferrer"
                             onClick={(e) => e.stopPropagation()} // Prevent triggering the parent Link
@@ -225,9 +229,31 @@ export default function Project(): JSX.Element {
                           href={getBranchUrl(build.branch, project?.githubRepoUrl)}
                           target="_blank"
                           rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()} // Prevent triggering the parent Link
+                          sx={{
+                            textDecoration: "none",
+                            "&:hover": { textDecoration: "underline" },
+                          }}
                         >
                           {build.branch}
                         </MuiLink>
+                        {build.prNumber && (
+                          <>
+                            {" • "}
+                            <MuiLink
+                              href={getPullRequestUrl(build.prNumber, project?.githubRepoUrl)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()} // Prevent triggering the parent Link
+                              sx={{
+                                textDecoration: "none",
+                                "&:hover": { textDecoration: "underline" },
+                              }}
+                            >
+                              {`PR #${build.prNumber}`}
+                            </MuiLink>
+                          </>
+                        )}
                       </Typography>
                     </Box>
                     <Box sx={{ display: "flex", gap: 4, ml: 2 }}>

@@ -24,7 +24,7 @@ import useAppTheme from "@/hooks/useAppTheme"
 import { useBreadcrumbs } from "@/hooks/useBreadcrumbs"
 import type { ScreenshotTestResponse, TestResponse, TestResultResponse } from "@/lib/apiTypes"
 import { getStatusColor } from "@/lib/colors"
-import { getBranchUrl, getCommitUrl } from "@/lib/links"
+import { getBranchUrl, getCommitUrl, getPullRequestUrl } from "@/lib/links"
 
 function getStatusText(status: ScreenshotTestResponse["status"]): string {
   switch (status) {
@@ -175,7 +175,7 @@ export default function Build(): JSX.Element {
               Created {formatDistanceToNow(data.initiatedStampSec * 1000)} ago •{" "}
               <Tooltip title={data.commitSha}>
                 <MuiLink
-                  href={getCommitUrl(data.commitSha, data.githubRepoUrl)}
+                  href={getCommitUrl(data.commitSha, data.githubRepoUrl, data.prNumber)}
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={(e) => e.stopPropagation()} // Prevent triggering the parent Link
@@ -196,6 +196,23 @@ export default function Build(): JSX.Element {
               >
                 {data.branch}
               </MuiLink>
+              {data.prNumber && (
+                <>
+                  {" • "}
+                  <MuiLink
+                    href={getPullRequestUrl(data.prNumber, data.githubRepoUrl)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()} // Prevent triggering the parent Link
+                    sx={{
+                      textDecoration: "none",
+                      "&:hover": { textDecoration: "underline" },
+                    }}
+                  >
+                    {`PR #${data.prNumber}`}
+                  </MuiLink>
+                </>
+              )}
             </Typography>
             {data.parent && (
               <Typography variant="body2" sx={{ mb: 2 }}>

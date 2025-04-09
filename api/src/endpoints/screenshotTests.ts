@@ -18,6 +18,7 @@ type ScreenshotTestWithStats = {
   screenshot_test_git_commit: string
   screenshot_test_base_commit_sha: string
   screenshot_test_base_branch: string
+  screenshot_test_pr_number?: number
   screenshot_test_build_number: number
   screenshot_test_upload_id: string
   screenshot_test_status: string
@@ -88,6 +89,7 @@ export const list: RequestHandler = async (req, res) => {
       "screenshot_test.commitSha as screenshot_test_git_commit",
       "screenshot_test.baseCommitSha as screenshot_test_base_commit_sha",
       "screenshot_test.baseBranch as screenshot_test_base_branch",
+      "screenshot_test.prNumber as screenshot_test_pr_number",
       "screenshot_test.buildNumber as screenshot_test_build_number",
       "screenshot_test.uploadId as screenshot_test_upload_id",
       "screenshot_test.status as screenshot_test_status",
@@ -109,6 +111,7 @@ export const list: RequestHandler = async (req, res) => {
     branch: test.screenshot_test_git_branch,
     baseCommitSha: test.screenshot_test_base_commit_sha,
     baseBranch: test.screenshot_test_base_branch,
+    prNumber: test.screenshot_test_pr_number,
     uploadId: test.screenshot_test_upload_id,
     status: test.screenshot_test_status as ScreenshotTestResponse["status"],
     tag: test.screenshot_test_tag,
@@ -165,6 +168,7 @@ export const get: RequestHandler = async (req, res) => {
     branch: screenshotTest.branch,
     baseCommitSha: screenshotTest.baseCommitSha,
     baseBranch: screenshotTest.baseBranch,
+    prNumber: screenshotTest.prNumber,
     uploadId: screenshotTest.uploadId,
     status: screenshotTest.status as ScreenshotTestResponse["status"],
     tag: screenshotTest.tag,
@@ -240,6 +244,7 @@ export const listActivity: RequestHandler = async (_req, res) => {
       "screenshot_test.commitSha",
       "screenshot_test.baseCommitSha",
       "screenshot_test.baseBranch",
+      "screenshot_test.prNumber",
       "screenshot_test.buildNumber",
       "screenshot_test.uploadId",
       "screenshot_test.status",
@@ -269,6 +274,7 @@ export const listActivity: RequestHandler = async (_req, res) => {
     branch: test.screenshot_test_git_branch,
     baseCommitSha: test.screenshot_test_base_commit_sha,
     baseBranch: test.screenshot_test_base_branch,
+    prNumber: test.screenshot_test_pr_number,
     uploadId: test.screenshot_test_upload_id,
     status: test.screenshot_test_status as ScreenshotTestResponse["status"],
     tag: test.screenshot_test_tag,
