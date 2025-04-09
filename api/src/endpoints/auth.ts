@@ -14,7 +14,7 @@ import {
   JWT_SECRET,
 } from "../environment"
 import { syncUserInstallations } from "../github"
-import { parseSimpleQueryString, requiredQueryString } from "../http"
+import { isValidRedirectUrl, parseSimpleQueryString, requiredQueryString } from "../http"
 import { log } from "../log"
 import type { GithubUser } from "../schemas/GithubUser"
 import type { DefaultRequest, DefaultResponse } from "../types"
@@ -83,8 +83,9 @@ export async function githubCallback(req: DefaultRequest, res: DefaultResponse):
     finalRedirect = finalRedirect ?? `${APP_URL}/projects`
   }
 
-  if (!finalRedirect) {
-    finalRedirect = `${APP_URL}/projects` // Default fallback
+  finalRedirect ??= `${APP_URL}/projects` // Default fallback
+  if (!isValidRedirectUrl(finalRedirect)) {
+    throw new Error(`Invalid redirect URL: ${finalRedirect}`)
   }
 
   // The request to GITHUB_TOKEN_EXCHANGE requires a `redirect_uri` parameter that matches the
