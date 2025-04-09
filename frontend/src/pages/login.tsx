@@ -7,14 +7,8 @@ import { useEffect } from "react"
 
 import { MarketingLayout } from "@/components/NavBody"
 import useAuth from "@/hooks/useAuth"
-
-const githubAppName = process.env.NEXT_PUBLIC_GITHUB_APP_NAME
-const clientId = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID
-const githubAppUrl = `https://github.com/apps/${githubAppName}`
-const callbackUri = encodeURIComponent(
-  `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/github/callback`,
-)
-const scope = "read:user,user:email"
+import { githubSignIn } from "@/lib/apiMethods"
+import { APP_URL, GITHUB_APP_NAME, GITHUB_CLIENT_ID } from "@/lib/environment"
 
 export default function Login(): JSX.Element {
   const router = useRouter()
@@ -22,10 +16,7 @@ export default function Login(): JSX.Element {
 
   // Get the redirect URL from the query string
   const { redirect } = router.query
-  const redirectUri =
-    redirect && typeof redirect === "string"
-      ? redirect
-      : `${process.env.NEXT_PUBLIC_APP_URL!}/projects`
+  const redirectUri = redirect && typeof redirect === "string" ? redirect : `${APP_URL}/projects`
 
   // Redirect to the URL given in ?redirect=<URL> if the user is already logged in
   useEffect(() => {
@@ -34,19 +25,7 @@ export default function Login(): JSX.Element {
     }
   }, [user, isLoading, router, redirectUri])
 
-  const handleInstallApp = () => {
-    // Direct them to install the GitHub App
-    window.location.href = githubAppUrl
-  }
-
-  const handleSignIn = () => {
-    // Just do the OAuth flow without app installation
-    const state = encodeURIComponent(`redirect=${encodeURIComponent(redirectUri)}`)
-    const authUrl = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${callbackUri}&scope=${scope}&state=${state}`
-    void router.push(authUrl)
-  }
-
-  if (!githubAppName || !clientId) {
+  if (!GITHUB_APP_NAME || !GITHUB_CLIENT_ID) {
     return (
       <MarketingLayout>
         <Container maxWidth="lg">
@@ -118,23 +97,12 @@ export default function Login(): JSX.Element {
                 vizdiff.io
               </Box>
             </Typography>
-            <Typography
-              variant="h6"
-              sx={{
-                mb: 4,
-                fontWeight: "normal",
-                lineHeight: 1.6,
-              }}
-            >
-              Choose how you want to sign in:
-            </Typography>
             <Stack
               direction={{ xs: "column", md: "row" }}
               spacing={4}
               sx={{
                 maxWidth: { xs: "400px", md: "100%" },
                 "& > *": { flex: "1 1 0", maxWidth: { md: "400px" } },
-                minHeight: 240,
                 alignItems: "stretch",
               }}
             >
@@ -145,58 +113,16 @@ export default function Login(): JSX.Element {
                 }}
               >
                 <Box flex="1">
-                  <Typography variant="h6" sx={{ mb: 2 }}>
-                    Organization Admin
-                  </Typography>
-                  <Typography variant="body1" sx={{ mb: 1 }}>
-                    Install the GitHub App to enable screenshot testing for your repositories. This
-                    will allow us to:
-                  </Typography>
-                  <Box component="ul" sx={{ mb: 2, ml: 3 }}>
-                    <li>Get notified when a pull request is created or updated</li>
-                    <li>Post GitHub Actions statuses</li>
-                  </Box>
-                </Box>
-                <Box sx={{ pt: 3 }}>
-                  <Button
-                    variant="contained"
-                    size="large"
-                    onClick={handleInstallApp}
-                    startIcon={<GitHubIcon />}
-                    sx={{
-                      bgcolor: "white",
-                      color: "black",
-                      "&:hover": {
-                        bgcolor: "#f5f5f5",
-                      },
-                      boxShadow: "0 2px 4px rgba(0,0,0,0.15)",
-                    }}
-                  >
-                    Install GitHub App
-                  </Button>
-                </Box>
-              </Box>
-
-              <Box
-                sx={{
-                  display: "flex",
-                  flexDirection: "column",
-                }}
-              >
-                <Box flex="1">
-                  <Typography variant="h6" sx={{ mb: 2 }}>
-                    Contributor
-                  </Typography>
                   <Typography variant="body1" sx={{ mb: 2 }}>
-                    Sign in to review and approve screenshot changes in repositories where the
-                    GitHub App is already installed.
+                    Sign in to view your repositories, storybook builds, and review and approve
+                    screenshot changes.
                   </Typography>
                 </Box>
                 <Box sx={{ pt: 3 }}>
                   <Button
                     variant="contained"
                     size="large"
-                    onClick={handleSignIn}
+                    onClick={() => githubSignIn(redirectUri)}
                     startIcon={<GitHubIcon />}
                     sx={{
                       bgcolor: "white",

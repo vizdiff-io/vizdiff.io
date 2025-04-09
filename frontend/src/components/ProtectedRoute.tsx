@@ -2,7 +2,7 @@ import { useRouter } from "next/router"
 import { useEffect, useState } from "react"
 
 import useAuth from "@/hooks/useAuth"
-import { isAuthenticated } from "@/lib/apiMethods"
+import { githubSignIn, isAuthenticated } from "@/lib/apiMethods"
 
 export default function ProtectedRoute({
   children,
@@ -18,7 +18,7 @@ export default function ProtectedRoute({
 
     // Fast-path cookie check before the API finishes
     if (!isAuthenticated()) {
-      void router.replace(`/login?redirect=${encodeURIComponent(window.location.href)}`)
+      githubSignIn(window.location.href)
     }
   }, [router])
 
