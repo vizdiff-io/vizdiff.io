@@ -11,16 +11,14 @@ import DarkMode from "@/components/DarkMode"
 import useAppTheme from "@/hooks/useAppTheme"
 import { AuthProvider } from "@/hooks/useAuth"
 import { BreadcrumbProvider } from "@/hooks/useBreadcrumbs"
+import { DD_APPLICATION_ID, DD_CLIENT_TOKEN } from "@/lib/environment"
 
 import packageJson from "../../package.json"
 
-const ddApplicationId = process.env.NEXT_PUBLIC_DD_APPLICATION_ID
-const ddClientToken = process.env.NEXT_PUBLIC_DD_CLIENT_TOKEN
-
-if (ddApplicationId && ddClientToken) {
+if (DD_APPLICATION_ID && DD_CLIENT_TOKEN) {
   datadogRum.init({
-    applicationId: ddApplicationId,
-    clientToken: ddClientToken,
+    applicationId: DD_APPLICATION_ID,
+    clientToken: DD_CLIENT_TOKEN,
     site: "us3.datadoghq.com",
     service: "vizdiff.io",
     env: "production",
