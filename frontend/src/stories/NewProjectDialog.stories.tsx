@@ -7,36 +7,35 @@ import ThemeWrapper from "./ThemeWrapper"
 import { userHandler } from "./mocks"
 import NewProjectDialog from "../components/NewProjectDialog"
 
+const BASE_ORG_DATA = {
+  node_id: "MDEyOk9yZ2FuaXphdGlvbjE=",
+  url: "",
+  repos_url: "",
+  events_url: "",
+  hooks_url: "",
+  issues_url: "",
+  members_url: "",
+  public_members_url: "",
+  avatar_url: "",
+  description: "",
+}
+
 // Mock data for GitHub organizations
 const mockOrgs: Endpoints["GET /user/orgs"]["response"]["data"] = [
-  {
-    login: "vizdiff",
-    id: 1,
-    node_id: "MDEyOk9yZ2FuaXphdGlvbjE=",
-    url: "https://api.github.com/orgs/vizdiff",
-    repos_url: "https://api.github.com/orgs/vizdiff/repos",
-    events_url: "https://api.github.com/orgs/vizdiff/events",
-    hooks_url: "https://api.github.com/orgs/vizdiff/hooks",
-    issues_url: "https://api.github.com/orgs/vizdiff/issues",
-    members_url: "https://api.github.com/orgs/vizdiff/members{/member}",
-    public_members_url: "https://api.github.com/orgs/vizdiff/public_members{/member}",
-    avatar_url: "https://placecats.com/millie/460/460",
-    description: "Visual Diff Testing Platform",
-  },
-  {
-    login: "metaverse-industries",
-    id: 2,
-    node_id: "MDEyOk9yZ2FuaXphdGlvbjI=",
-    url: "https://api.github.com/orgs/metaverse-industries",
-    repos_url: "https://api.github.com/orgs/metaverse-industries/repos",
-    events_url: "https://api.github.com/orgs/metaverse-industries/events",
-    hooks_url: "https://api.github.com/orgs/metaverse-industries/hooks",
-    issues_url: "https://api.github.com/orgs/metaverse-industries/issues",
-    members_url: "https://api.github.com/orgs/metaverse-industries/members{/member}",
-    public_members_url: "https://api.github.com/orgs/metaverse-industries/public_members{/member}",
-    avatar_url: "https://placecats.com/neo/460/460",
-    description: "Building the metaverse",
-  },
+  { id: 1, login: "vizdiff", ...BASE_ORG_DATA },
+  { id: 2, login: "mvi-llc", ...BASE_ORG_DATA },
+  { id: 3, login: "nextjs", ...BASE_ORG_DATA },
+  { id: 4, login: "facebook", ...BASE_ORG_DATA },
+  { id: 5, login: "storybookjs", ...BASE_ORG_DATA },
+  { id: 6, login: "vercel", ...BASE_ORG_DATA },
+  { id: 7, login: "APPLE", ...BASE_ORG_DATA },
+  { id: 8, login: "google", ...BASE_ORG_DATA },
+  { id: 9, login: "microsoft", ...BASE_ORG_DATA },
+  { id: 10, login: "amazon", ...BASE_ORG_DATA },
+  { id: 11, login: "github", ...BASE_ORG_DATA },
+  { id: 12, login: "torvalds", ...BASE_ORG_DATA },
+  { id: 13, login: "Netflix", ...BASE_ORG_DATA },
+  { id: 14, login: "square", ...BASE_ORG_DATA },
 ]
 
 // Mock data for GitHub repositories
@@ -220,6 +219,32 @@ export const Loading: Story = {
         http.get("/api/github/orgs", async () => {
           await new Promise((resolve) => setTimeout(resolve, 3000))
           return HttpResponse.json(mockOrgs)
+        }),
+      ],
+    },
+  },
+}
+
+export const LoadingRepos: Story = {
+  args: {
+    initialSelectedOrg: "vizdiff",
+  },
+  parameters: {
+    msw: {
+      handlers: [
+        userHandler,
+        http.get("/api/github/orgs", () => HttpResponse.json(mockOrgs)),
+        // Delay response to simulate slow loading state for repos
+        http.get("/api/github/repos", async ({ request }) => {
+          const url = new URL(request.url)
+          const org = url.searchParams.get("org")
+
+          if (org === "vizdiff") {
+            await new Promise((resolve) => setTimeout(resolve, 3000))
+            return HttpResponse.json(mockVizdiffRepos)
+          }
+
+          return HttpResponse.json([])
         }),
       ],
     },
