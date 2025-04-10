@@ -15,7 +15,7 @@ type StoryArgs = {
 const oneMinuteAgo = Math.floor(Date.now() / 1000) - 60
 const mockProject: ProjectResponse = {
   id: 456,
-  name: "example-project",
+  name: "Cat Photos",
   githubRepoUrl: "https://github.com/example/example-project",
   token: "abc123def456",
   createdStampSec: oneMinuteAgo - 3600 * 24, // 1 day ago
@@ -28,9 +28,10 @@ const mockBuilds: ScreenshotTestSummaryResponse[] = [
   {
     id: 3,
     projectId: 456,
+    projectName: "Cat Photos",
     buildNumber: 3,
     githubRepoUrl: "https://github.com/example/example-project",
-    commitSha: "38c7f9c",
+    commitSha: "d462c7658f276eaa61cd5ca522bc5988e16e429f",
     branch: "main",
     uploadId: "123",
     initiatedStampSec: oneMinuteAgo,
@@ -42,10 +43,12 @@ const mockBuilds: ScreenshotTestSummaryResponse[] = [
   {
     id: 2,
     projectId: 456,
+    projectName: "Cat Photos",
     buildNumber: 2,
     githubRepoUrl: "https://github.com/example/example-project",
-    commitSha: "d4e5f6a",
+    commitSha: "6d2157c11dde1c14d701bbbcb1ea27062b3adf69",
     branch: "main",
+    prNumber: 123,
     uploadId: "122",
     components: 12,
     stories: 45,
@@ -57,9 +60,10 @@ const mockBuilds: ScreenshotTestSummaryResponse[] = [
   {
     id: 1,
     projectId: 456,
+    projectName: "Cat Photos",
     buildNumber: 1,
     githubRepoUrl: "https://github.com/example/example-project",
-    commitSha: "1a2b3c4",
+    commitSha: "1a2363533dcad967ac73e8219f3c9fa5d2b49a70",
     branch: "main",
     uploadId: "121",
     components: 1,
@@ -71,10 +75,12 @@ const mockBuilds: ScreenshotTestSummaryResponse[] = [
   {
     id: 1,
     projectId: 456,
+    projectName: "Cat Photos",
     buildNumber: 1,
     githubRepoUrl: "https://github.com/example/example-project",
-    commitSha: "1a2b3c4",
+    commitSha: "1a2363533dcad967ac73e8219f3c9fa5d2b49a70",
     branch: "main",
+    prNumber: 456,
     uploadId: "121",
     components: 10,
     stories: 40,

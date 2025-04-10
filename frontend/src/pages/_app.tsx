@@ -5,20 +5,20 @@ import { datadogRum } from "@datadog/browser-rum"
 import { CssBaseline, ThemeProvider } from "@mui/material"
 import type { AppProps } from "next/app"
 import { Inter } from "next/font/google"
+import Head from "next/head"
 
 import DarkMode from "@/components/DarkMode"
 import useAppTheme from "@/hooks/useAppTheme"
 import { AuthProvider } from "@/hooks/useAuth"
+import { BreadcrumbProvider } from "@/hooks/useBreadcrumbs"
+import { DD_APPLICATION_ID, DD_CLIENT_TOKEN } from "@/lib/environment"
 
 import packageJson from "../../package.json"
 
-const ddApplicationId = process.env.NEXT_PUBLIC_DD_APPLICATION_ID
-const ddClientToken = process.env.NEXT_PUBLIC_DD_CLIENT_TOKEN
-
-if (ddApplicationId && ddClientToken) {
+if (DD_APPLICATION_ID && DD_CLIENT_TOKEN) {
   datadogRum.init({
-    applicationId: ddApplicationId,
-    clientToken: ddClientToken,
+    applicationId: DD_APPLICATION_ID,
+    clientToken: DD_CLIENT_TOKEN,
     site: "us3.datadoghq.com",
     service: "vizdiff.io",
     env: "production",
@@ -36,15 +36,22 @@ export default function App({ Component, pageProps }: AppProps): JSX.Element {
   const theme = useAppTheme()
 
   return (
-    <AuthProvider>
-      <DarkMode>
-        <ThemeProvider theme={theme}>
-          <CssBaseline />
-          <div className={inter.className}>
-            <Component {...pageProps} />
-          </div>
-        </ThemeProvider>
-      </DarkMode>
-    </AuthProvider>
+    <>
+      <Head>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+      </Head>
+      <AuthProvider>
+        <BreadcrumbProvider>
+          <DarkMode>
+            <ThemeProvider theme={theme}>
+              <CssBaseline />
+              <div className={inter.className}>
+                <Component {...pageProps} />
+              </div>
+            </ThemeProvider>
+          </DarkMode>
+        </BreadcrumbProvider>
+      </AuthProvider>
+    </>
   )
 }

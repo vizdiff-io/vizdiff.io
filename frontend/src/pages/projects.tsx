@@ -13,6 +13,7 @@ import {
   ListItemButton,
   ListItemText,
   ListItemIcon,
+  CircularProgress,
 } from "@mui/material"
 import Head from "next/head"
 import Link from "next/link"
@@ -37,12 +38,22 @@ export default function Projects(): JSX.Element {
   const projects = projectsResponse ?? []
   const activity = activityResponse ?? []
 
+  // Show loading state if the page is not yet ready
+  if (loading) {
+    return (
+      <AppLayout>
+        <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+          <CircularProgress />
+        </Box>
+      </AppLayout>
+    )
+  }
+
   return (
     <>
       <Head>
         <title>Projects - vizdiff.io</title>
         <meta name="description" content="Project listing" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
       <AppLayout>
         <Box sx={{ display: "flex", gap: 3, px: 3, py: 4, minHeight: "calc(100vh - 64px)" }}>
@@ -94,9 +105,7 @@ export default function Projects(): JSX.Element {
               </Paper>
             )}
 
-            {loading ? (
-              <Typography>Loading projects...</Typography>
-            ) : projects.length === 0 ? (
+            {projects.length === 0 ? (
               <Typography>No projects yet</Typography>
             ) : (
               <Box>

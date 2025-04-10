@@ -187,8 +187,6 @@ export default function TestResultDialog({
                   width: "100%",
                   height: "100%",
                   overflow: "hidden",
-                  backgroundColor: "rgba(255, 0, 255, 0.2)",
-                  mixBlendMode: "multiply",
                 }}
               >
                 <Image
@@ -196,7 +194,10 @@ export default function TestResultDialog({
                   alt={`Diff mask for ${result.name}`}
                   fill
                   sizes="100vw"
-                  style={{ objectFit: "contain" }}
+                  style={{
+                    objectFit: "contain",
+                    filter: "brightness(0) invert(1) sepia(1) hue-rotate(-100deg) saturate(10000%)",
+                  }}
                   priority
                 />
               </Box>

@@ -8,36 +8,76 @@ import {
   IconButton,
   Tooltip,
   Link as MuiLink,
+  CircularProgress,
 } from "@mui/material"
 import { formatDistanceToNow } from "date-fns"
 import Head from "next/head"
 import Link from "next/link"
 import { useRouter } from "next/router"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 
 import { AppLayout } from "@/components/AppLayout"
 import useApiGet from "@/hooks/useApiGet"
+import { useBreadcrumbs } from "@/hooks/useBreadcrumbs"
 import type { ProjectResponse, ScreenshotTestSummaryResponse } from "@/lib/apiTypes"
 import { getStatusColor } from "@/lib/colors"
-import { getBranchUrl, getCommitUrl } from "@/lib/links"
+import { getBranchUrl, getCommitUrl, getPullRequestUrl } from "@/lib/links"
 import { plural } from "@/lib/text"
 
 export default function Project(): JSX.Element {
   const router = useRouter()
+  const { setBreadcrumbData } = useBreadcrumbs()
   const theme = useTheme()
   const { id } = router.query
-  const isValidId = typeof id === "string" && /^\d+$/.test(id)
+  const projectId = getProjectId(id)
   const [project, projectLoading, projectError] = useApiGet<ProjectResponse>(
-    isValidId ? `/api/projects/${id}` : undefined,
+    projectId ? `/api/projects/${projectId}` : undefined,
   )
+  const projectName = project?.name
   const [buildsResponse, buildsLoading, buildsError] = useApiGet<ScreenshotTestSummaryResponse[]>(
-    isValidId ? `/api/projects/${id}/builds` : undefined,
+    projectId ? `/api/projects/${projectId}/builds` : undefined,
   )
   const builds = buildsResponse ?? []
   const [copyTooltip, setCopyTooltip] = useState("Copy")
 
   const loading = projectLoading || buildsLoading
   const error = projectError ?? buildsError
+
+  // Handle invalid ID with useEffect for client-side navigation
+  useEffect(() => {
+    if (!projectId && router.isReady) {
+      void router.push("/projects")
+    }
+  }, [projectId, router, router.isReady])
+
+  useEffect(() => {
+    setBreadcrumbData({
+      projectId,
+      projectName,
+      buildId: undefined,
+      buildNumber: undefined,
+    })
+
+    return () => {
+      setBreadcrumbData({
+        projectId: undefined,
+        projectName: undefined,
+        buildId: undefined,
+        buildNumber: undefined,
+      })
+    }
+  }, [projectId, projectName, setBreadcrumbData])
+
+  // Show loading state while redirecting or if the page is not yet ready
+  if (!router.isReady || !projectId) {
+    return (
+      <AppLayout>
+        <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+          <CircularProgress />
+        </Box>
+      </AppLayout>
+    )
+  }
 
   const handleCopyToken = async () => {
     if (project?.token) {
@@ -58,7 +98,6 @@ export default function Project(): JSX.Element {
       <Head>
         <title>{project?.name ? `${project.name} - vizdiff.io` : "vizdiff.io"}</title>
         <meta name="description" content="Project builds and details" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
       <AppLayout>
         <Box sx={{ px: 3, py: 4 }}>
@@ -168,7 +207,11 @@ export default function Project(): JSX.Element {
                         Created {formatDistanceToNow(build.initiatedStampSec * 1000)} ago •{" "}
                         <Tooltip title={build.commitSha}>
                           <MuiLink
-                            href={getCommitUrl(build.commitSha, project?.githubRepoUrl)}
+                            href={getCommitUrl(
+                              build.commitSha,
+                              project?.githubRepoUrl,
+                              build.prNumber,
+                            )}
                             target="_blank"
                             rel="noopener noreferrer"
                             onClick={(e) => e.stopPropagation()} // Prevent triggering the parent Link
@@ -186,9 +229,31 @@ export default function Project(): JSX.Element {
                           href={getBranchUrl(build.branch, project?.githubRepoUrl)}
                           target="_blank"
                           rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()} // Prevent triggering the parent Link
+                          sx={{
+                            textDecoration: "none",
+                            "&:hover": { textDecoration: "underline" },
+                          }}
                         >
                           {build.branch}
                         </MuiLink>
+                        {build.prNumber && (
+                          <>
+                            {" • "}
+                            <MuiLink
+                              href={getPullRequestUrl(build.prNumber, project?.githubRepoUrl)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()} // Prevent triggering the parent Link
+                              sx={{
+                                textDecoration: "none",
+                                "&:hover": { textDecoration: "underline" },
+                              }}
+                            >
+                              {`PR #${build.prNumber}`}
+                            </MuiLink>
+                          </>
+                        )}
                       </Typography>
                     </Box>
                     <Box sx={{ display: "flex", gap: 4, ml: 2 }}>
@@ -214,4 +279,12 @@ export default function Project(): JSX.Element {
       </AppLayout>
     </>
   )
+}
+
+function getProjectId(id: string | string[] | undefined): number | undefined {
+  if (typeof id === "string") {
+    const parsedId = parseInt(id, 10)
+    return isNaN(parsedId) ? undefined : parsedId
+  }
+  return undefined
 }

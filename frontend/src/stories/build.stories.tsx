@@ -16,10 +16,12 @@ const oneMinuteAgo = Math.floor(Date.now() / 1000) - 60
 const mockBuildData: TestResponse = {
   id: 123,
   projectId: 456,
+  projectName: "Cat Photos",
   buildNumber: 42,
   githubRepoUrl: "https://github.com/cats/cat-photos",
-  commitSha: "abc123",
+  commitSha: "abc123433dcad967ac73e8219f3c9fa5d2b49a70",
   branch: "main",
+  prNumber: 123,
   uploadId: "upload-123",
   status: "approved",
   initiatedStampSec: oneMinuteAgo,
@@ -52,6 +54,7 @@ const mockBuildData: TestResponse = {
   parent: {
     id: 789,
     projectId: 456,
+    projectName: "Cat Photos",
     buildNumber: 41,
     githubRepoUrl: "https://github.com/cats/cat-photos",
     branch: "main",
@@ -140,6 +143,22 @@ export const Running: Story = {
             status: "running",
             testResults: mockBuildData.testResults.slice(0, 1),
           }),
+        ),
+      ],
+    },
+  },
+}
+
+export const NoTests: Story = {
+  args: {
+    mode: "light",
+  },
+  parameters: {
+    msw: {
+      handlers: [
+        userHandler,
+        http.get("/api/tests/:id", () =>
+          HttpResponse.json({ ...mockBuildData, status: "unapproved", testResults: [] }),
         ),
       ],
     },

@@ -43,12 +43,14 @@ export type ProjectResponse = {
 export type ScreenshotTestResponse = {
   id: number
   projectId: number
+  projectName: string
   buildNumber: number
   githubRepoUrl: string
   commitSha: string
   branch: string
   baseCommitSha?: string
   baseBranch?: string
+  prNumber?: number
   uploadId: string
   status: "pending" | "running" | "no_changes" | "unapproved" | "approved" | "denied" | "failed"
   tag?: string

@@ -58,6 +58,12 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
     }
   }
 
+  const pr = req.header("x-vizdiff-pr-number")
+  const prNumber = pr ? parseInt(pr) : undefined
+  if (prNumber != undefined && (isNaN(prNumber) || prNumber < 1)) {
+    throw new Error(`Invalid pull request number: "${pr}"`)
+  }
+
   const uploadId = uuidv7()
   const project = await getProjectByToken(token)
   if (!project) {
@@ -78,6 +84,7 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
     branch,
     baseCommitSha,
     baseBranch,
+    prNumber,
   })
   logChild.debug(`Uploading ${length} bytes to ${Bucket}/${Key}`)
 
@@ -127,6 +134,7 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
     uploadId,
     baseCommitSha,
     baseBranch,
+    prNumber,
   )
 
   // Create a GitHub check_run for this upload

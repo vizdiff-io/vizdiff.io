@@ -1,8 +1,20 @@
-import { Container, Typography, AppBar, Toolbar, Button, Box, Avatar } from "@mui/material"
+import {
+  Container,
+  AppBar,
+  Toolbar,
+  Button,
+  Box,
+  Avatar,
+  Breadcrumbs,
+  type SxProps,
+} from "@mui/material"
 import { Inter } from "next/font/google"
 import { useEffect, useState } from "react"
 
 import useAuth from "@/hooks/useAuth"
+import { useBreadcrumbs } from "@/hooks/useBreadcrumbs"
+
+import ProtectedRoute from "./ProtectedRoute"
 
 const inter = Inter({ subsets: ["latin"] })
 void inter
@@ -11,9 +23,19 @@ interface AppLayoutProps {
   children: React.ReactNode
 }
 
+const breadcrumbNoLinkStyle: SxProps = {
+  cursor: "default",
+  "&:hover, &:active, &.Mui-focusVisible, &:focus": {
+    background: "transparent",
+    boxShadow: "none",
+  },
+  pointerEvents: "none",
+}
+
 export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   const { user } = useAuth()
   const [avatarUrl, setAvatarUrl] = useState<string | undefined>(undefined)
+  const { breadcrumbData } = useBreadcrumbs()
 
   useEffect(() => {
     const updateAvatarUrl = async () => {
@@ -42,58 +64,98 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     void updateAvatarUrl()
   }, [user])
 
-  return (
-    <Box
-      sx={{
-        minHeight: "100vh",
-        display: "flex",
-        flexDirection: "column",
-        transition: "background-color 0.2s ease",
-      }}
-    >
-      <AppBar position="static">
-        <Toolbar sx={{ px: { xs: 2, sm: 4, md: 6 } }}>
-          {/* Left side */}
-          <Box sx={{ display: "flex", alignItems: "center" }}>
-            <Typography
-              variant="h6"
-              component="a"
-              href="/projects"
-              sx={{
-                fontWeight: 600,
-                fontSize: "1.25rem",
-                textDecoration: "none",
-                mr: 4,
-              }}
-            >
-              vizdiff.io
-            </Typography>
-          </Box>
+  const breadcrumbs = [
+    <Button color="primary" variant="text" key="1" href="/">
+      vizdiff.io
+    </Button>,
+    <Button color="primary" variant="text" key="2" href="/projects">
+      Projects
+    </Button>,
+  ]
 
-          {/* Right side */}
-          <Box sx={{ flexGrow: 1 }} />
-          <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
-            {user && (
-              <>
-                <Avatar src={avatarUrl} alt={user.githubUsername} sx={{ width: 32, height: 32 }} />
-                <Button href="/api/auth/logout" variant="outlined" size="small">
-                  Logout
-                </Button>
-              </>
-            )}
-          </Box>
-        </Toolbar>
-      </AppBar>
+  if (breadcrumbData.projectId && breadcrumbData.projectName) {
+    if (breadcrumbData.buildId) {
+      breadcrumbs.push(
+        <Button
+          color="primary"
+          variant="text"
+          key="3"
+          href={`/project?id=${breadcrumbData.projectId}`}
+        >
+          {breadcrumbData.projectName}
+        </Button>,
+      )
+      breadcrumbs.push(
+        <Button color="primary" variant="text" key="4" sx={breadcrumbNoLinkStyle}>
+          Build #{breadcrumbData.buildNumber}
+        </Button>,
+      )
+    } else {
+      breadcrumbs.push(
+        <Button color="primary" variant="text" key="3" sx={breadcrumbNoLinkStyle}>
+          {breadcrumbData.projectName}
+        </Button>,
+      )
+    }
+  }
+
+  return (
+    <ProtectedRoute>
       <Box
         sx={{
-          flex: 1,
+          minHeight: "100vh",
+          display: "flex",
+          flexDirection: "column",
           transition: "background-color 0.2s ease",
         }}
       >
-        <Container maxWidth="lg" sx={{ py: 4 }}>
-          {children}
-        </Container>
+        <AppBar position="static">
+          <Toolbar sx={{ px: { xs: 2, sm: 4, md: 6 } }}>
+            {/* Left side */}
+            <Box sx={{ display: "flex", alignItems: "center" }}>
+              <Breadcrumbs
+                separator="›"
+                aria-label="breadcrumb"
+                sx={{
+                  mr: 4,
+                  "& .MuiBreadcrumbs-separator": { color: "var(--text-primary)", opacity: 0.5 },
+                  "& a": { color: "var(--text-primary)", textDecoration: "none" },
+                  "& a:hover": { textDecoration: "underline" },
+                }}
+              >
+                {breadcrumbs}
+              </Breadcrumbs>
+            </Box>
+
+            {/* Right side */}
+            <Box sx={{ flexGrow: 1 }} />
+            <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
+              {user && (
+                <>
+                  <Avatar
+                    src={avatarUrl}
+                    alt={user.githubUsername}
+                    sx={{ width: 32, height: 32 }}
+                  />
+                  <Button href="/api/auth/logout" variant="outlined" size="small">
+                    Logout
+                  </Button>
+                </>
+              )}
+            </Box>
+          </Toolbar>
+        </AppBar>
+        <Box
+          sx={{
+            flex: 1,
+            transition: "background-color 0.2s ease",
+          }}
+        >
+          <Container maxWidth="lg" sx={{ py: 4 }}>
+            {children}
+          </Container>
+        </Box>
       </Box>
-    </Box>
+    </ProtectedRoute>
   )
 }

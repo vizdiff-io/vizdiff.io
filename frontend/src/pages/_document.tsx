@@ -7,7 +7,8 @@ export default function Document(): JSX.Element {
     <Html lang="en">
       <Head>
         <FallbackStyles />
-        <link rel="icon" href="/favicon.ico" />
+        <link rel="icon" href="/icon.png" type="image/png" sizes="1024x1024" />
+        <link rel="icon" href="/favicon.ico" type="image/x-icon" />
       </Head>
       <body>
         <MagicScriptTag />

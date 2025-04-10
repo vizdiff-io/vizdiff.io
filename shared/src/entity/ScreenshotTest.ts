@@ -49,6 +49,9 @@ export class ScreenshotTest {
   @Column({ name: "base_branch", type: "text", nullable: true })
   baseBranch!: string | undefined
 
+  @Column({ name: "pr_number", type: "integer", nullable: true })
+  prNumber!: number | undefined
+
   @Column({ name: "upload_id", type: "text", unique: true, nullable: false })
   uploadId!: string
 
