@@ -14,7 +14,7 @@ import {
 import { formatDistanceToNow } from "date-fns"
 import Head from "next/head"
 import { useRouter } from "next/router"
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 
 import { AppLayout } from "@/components/AppLayout"
 import TestResultCard from "@/components/TestResultCard"
@@ -86,6 +86,20 @@ export default function Build(): JSX.Element {
     }
   }, [projectId, projectName, buildId, buildNumber, setBreadcrumbData])
 
+  const status = data?.status
+  const isPending = status === "pending" || status === "running"
+  const testResults = data?.testResults
+  const sortedTestResults = useMemo(
+    () => (isPending ? [] : getSortedTestResults(testResults ?? [])),
+    [isPending, testResults],
+  )
+  const tests = isPending ? undefined : sortedTestResults.length
+  const changes = isPending
+    ? undefined
+    : sortedTestResults.filter((result) => result.changeStatus !== "unchanged").length
+  const approveEnabled = status === "unapproved" || status === "denied"
+  const denyEnabled = status === "unapproved" || status === "approved"
+
   // Show loading state while redirecting or if the page is not yet ready
   if (!router.isReady || !buildId) {
     return (
@@ -136,15 +150,6 @@ export default function Build(): JSX.Element {
       console.error("Error denying build:", err)
     }
   }
-
-  const status = data?.status
-  const isPending = status === "pending" || status === "running"
-  const tests = isPending ? undefined : data?.testResults.length
-  const changes = isPending
-    ? undefined
-    : data?.testResults.filter((result) => result.changeStatus !== "unchanged").length
-  const approveEnabled = status === "unapproved" || status === "denied"
-  const denyEnabled = status === "unapproved" || status === "approved"
 
   let content: JSX.Element
 
@@ -273,13 +278,13 @@ export default function Build(): JSX.Element {
           <Typography variant="body1" sx={{ textAlign: "center", py: 4 }}>
             Tests are currently being rendered.
           </Typography>
-        ) : data.testResults.length === 0 ? (
+        ) : sortedTestResults.length === 0 ? (
           <Typography variant="body1" sx={{ textAlign: "center", py: 4 }}>
             This build does not contain any tests.
           </Typography>
         ) : (
           <ImageList sx={{ width: "100%", height: "100%" }} cols={3} gap={16}>
-            {data.testResults.map((result) => (
+            {sortedTestResults.map((result) => (
               <ImageListItem key={result.id}>
                 <TestResultCard result={result} onOpenFullscreen={setSelectedResult} />
               </ImageListItem>
@@ -319,4 +324,27 @@ function getBuildId(id: string | string[] | undefined): number | undefined {
     return isNaN(parsedId) ? undefined : parsedId
   }
   return undefined
+}
+
+function getSortedTestResults(testResults: TestResultResponse[]): TestResultResponse[] {
+  // Create a copy of test results sorted by change status
+  // (failed, changed, new, unchanged), then by name
+  const statusOrder: { [key: string]: number } = {
+    failed: 0,
+    changed: 1,
+    new: 2,
+    unchanged: 3,
+  }
+  const sortedTestResults = testResults.slice().sort((a, b) => {
+    const statusA = statusOrder[a.changeStatus] ?? 99
+    const statusB = statusOrder[b.changeStatus] ?? 99
+
+    if (statusA !== statusB) {
+      return statusA - statusB // Sort by status priority
+    }
+    // If statuses are the same, sort by name alphabetically
+    return a.name.localeCompare(b.name)
+  })
+
+  return sortedTestResults
 }
