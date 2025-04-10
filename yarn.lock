@@ -14971,14 +14971,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"pixelmatch@npm:^6.0.0":
-  version: 6.0.0
-  resolution: "pixelmatch@npm:6.0.0"
+"pixelmatch@npm:7.1.0":
+  version: 7.1.0
+  resolution: "pixelmatch@npm:7.1.0"
   dependencies:
     pngjs: "npm:^7.0.0"
   bin:
     pixelmatch: bin/pixelmatch
-  checksum: 10/53cce1c09696e2828c4ea92bc36d24ee55edcd9f98a7ea9706c68f13086b08b615139c7cb70984470ed4b32e3d82e903741d8c8c0a69b8969891d66b39d4b4bd
+  checksum: 10/57a122196318ea8ce74e8759b1b7b94b9f9627b495cd79e50a49d470dc23b6c679e89c38660d0f7e8f959eac3b279c55b728e52d02c276dc51505f06eaba1141
   languageName: node
   linkType: hard
 
@@ -18767,7 +18767,7 @@ __metadata:
     pg-listen: "npm:^1.7.0"
     pino: "npm:8.21.0"
     pino-pretty: "npm:10.3.1"
-    pixelmatch: "npm:^6.0.0"
+    pixelmatch: "npm:7.1.0"
     reflect-metadata: "npm:0.2.2"
     shared: "workspace:*"
     supertest: "npm:7.0.0"

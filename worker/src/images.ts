@@ -16,6 +16,8 @@ export function diffImages(
       // Matching threshold, ranges from 0 to 1. Smaller values make the comparison more
       // sensitive. 0.1 by default.
       threshold: 0.1,
+      // Include pixels detected as anti-aliasing in the diff output.
+      includeAA: true,
       // The color of differing pixels in the diff output in [R, G, B] format. [255, 0, 0]
       // by default.
       diffColor: [255, 255, 255],
