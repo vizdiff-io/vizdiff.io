@@ -38,7 +38,7 @@ export function createSummaryForFailedBuild(build: ScreenshotTest, error: unknow
     summary += build.baseBranch
       ? ` (branch [${build.baseBranch}](${build.project.githubRepoUrl}/tree/${build.baseBranch}))`
       : "."
-    summary += `\n---\nUpload ID: ${build.uploadId}\nReason: ${errString}`
+    summary += `\n\n---\nUpload ID: ${build.uploadId}\nReason: ${errString}`
     return summary
   }
 
@@ -46,7 +46,7 @@ export function createSummaryForFailedBuild(build: ScreenshotTest, error: unknow
     `⚠️ Failed to render storybook components for [build #${build.buildNumber}](https://vizdiff.io/build?id=${build.id}), ` +
     `commit [${build.commitSha}](${build.project.githubRepoUrl}/commit/${build.commitSha}) ` +
     `(branch [${build.branch}](${build.project.githubRepoUrl}/tree/${build.branch})).`
-  summary += `\n---\nUpload ID: ${build.uploadId}\nReason: ${errString}`
+  summary += `\n\n---\nUpload ID: ${build.uploadId}\nReason: ${errString}`
   return summary
 }
 
@@ -72,7 +72,7 @@ export function createMarkdownForBuildResult(
     `|Tests|Changes|Status|\n\n` +
     `Review [build #${build.buildNumber}](https://vizdiff.io/build?id=${build.id}) on vizdiff.io for a detailed comparison.`
   if (failedCount > 0) {
-    summary += `\n---\n ⚠️ ${failedCount} test${failedCount === 1 ? "" : "s"} failed to render.`
+    summary += `\n\n---\n ⚠️ ${failedCount} test${failedCount === 1 ? "" : "s"} failed to render.`
   }
 
   // Sort test results to show failed/changed/new/unchanged in that order
@@ -123,7 +123,7 @@ export function createMarkdownForBuildApproval(
   const title = `${changeCount} change${changeCount === 1 ? "" : "s"} ${build.status} by ${username}.`
 
   let { summary, text } = createMarkdownForBuildResult(build, testResults)
-  summary += `\n---\n ${approved ? "✅ Approved" : "❌ Rejected"} by ${username}`
+  summary += `\n\n---\n ${approved ? "✅ Approved" : "❌ Rejected"} by ${username}`
 
   return { title, summary, text }
 }
