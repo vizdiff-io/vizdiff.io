@@ -34,7 +34,7 @@ export class Project {
   githubRepoUrl!: string
 
   @Column({ name: "storybook_config", type: "jsonb", nullable: true })
-  storybookConfig!: Record<string, unknown>
+  storybookConfig!: object | null
 
   @CreateDateColumn({ name: "created_at", type: "timestamptz", nullable: false })
   createdAt!: Date

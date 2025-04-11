@@ -142,7 +142,7 @@ export async function githubCallback(req: DefaultRequest, res: DefaultResponse):
   // Set or update the user's info retrieved from GitHub
   user.email = ghUser.email
   user.githubUsername = ghUser.login
-  user.githubProfile = JSON.stringify(ghUser)
+  user.githubProfile = ghUser
   user.githubAccessToken = ghTokenRes.access_token
 
   user = await userTable.save(user)

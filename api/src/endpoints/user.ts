@@ -22,7 +22,7 @@ export const me: RequestHandler = async (_req, res) => {
     githubId: user.githubId,
     email: user.email,
     githubUsername: user.githubUsername,
-    githubProfile: JSON.parse(user.githubProfile) as GithubUser,
+    githubProfile: user.githubProfile as GithubUser,
     createdStampSec: user.createdAt.getTime() / 1000,
     updatedStampSec: user.updatedAt.getTime() / 1000,
     githubInstallations: installationResponses,

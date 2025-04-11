@@ -244,9 +244,12 @@ vi.mock("pngjs", () => {
 describe("processStory", () => {
   // Mock story data that would come from Storybook
   const mockStory = {
-    id: "test-story",
-    name: "Test Story",
+    id: "stories-components-teststory--mycomponent",
+    name: "My Component",
+    title: "stories/components/TestStory",
     importPath: "./stories/Test.stories.tsx",
+    componentPath: "./stories/Test.stories.tsx",
+    tags: ["dev", "test"],
   }
 
   // Mock ScreenshotTest instance
@@ -341,7 +344,9 @@ describe("processStory", () => {
     })
 
     // Verify browser interactions
-    expect(mockBrowserUrl).toHaveBeenCalledWith("http://localhost:9009/iframe.html?id=test-story")
+    expect(mockBrowserUrl).toHaveBeenCalledWith(
+      "http://localhost:9009/iframe.html?id=stories-components-teststory--mycomponent",
+    )
     expect(mockBrowserSaveScreenshot).toHaveBeenCalled()
 
     // Verify S3 upload
@@ -357,7 +362,7 @@ describe("processStory", () => {
       expect.objectContaining<S3CommandInput>({
         input: {
           Bucket: "test-bucket",
-          Key: "projects/test-project/screenshots/123/test-story.png",
+          Key: "projects/test-project/screenshots/123/stories-components-teststory--mycomponent.png",
           Body: expect.any(Buffer) as Buffer,
           ContentType: "image/png",
         },
@@ -367,8 +372,8 @@ describe("processStory", () => {
     // Verify test result
     expect(testResult.changeStatus).toBe("new")
     expect(testResult.diffRatio).toBe(0)
-    expect(testResult.name).toBe("Test Story")
-    expect(testResult.storyId).toBe("test-story")
+    expect(testResult.name).toBe("components/TestStory/My Component")
+    expect(testResult.storyId).toBe("stories-components-teststory--mycomponent")
     expect(testResult.screenshotTest.id).toBe(123)
   })
 

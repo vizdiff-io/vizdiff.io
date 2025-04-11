@@ -59,20 +59,22 @@ export async function fetchTask(taskQueueId: number): Promise<Task | undefined> 
       return undefined
     }
 
-    const task = lockRes.rows[0] as {
-      task_type: string
-      screenshot_test_id: number
-      data: Record<string, unknown> | string | undefined
+    // Validate the task entry has the expected fields and types
+    const row = lockRes.rows[0] as unknown
+    if (
+      !row ||
+      typeof row !== "object" ||
+      !("task_type" in row) ||
+      !("screenshot_test_id" in row) ||
+      !("data" in row) ||
+      typeof row.task_type !== "string" ||
+      typeof row.screenshot_test_id !== "number" ||
+      typeof row.data !== "object"
+    ) {
+      throw new Error(`Task ${taskQueueId} has invalid row: ${JSON.stringify(row)}`)
     }
 
-    if (!task.data) {
-      throw new Error(`Task ${taskQueueId} has no data`)
-    } else if (typeof task.data === "string") {
-      log.warn(`Task ${taskQueueId} has string data, parsing as JSON`)
-      task.data = JSON.parse(task.data) as Record<string, unknown>
-    }
-
-    return task as Task
+    return row as Task
   } finally {
     client.release()
   }

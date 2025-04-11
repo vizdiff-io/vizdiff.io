@@ -31,6 +31,9 @@ export class TestResult {
   @Column({ type: "text", name: "story_id", nullable: false })
   storyId!: string
 
+  @Column({ type: "jsonb", name: "story", nullable: true })
+  story!: object | null
+
   @Column({ type: "text", name: "baseline_image_url", nullable: false })
   baselineImageUrl!: string
 
@@ -38,10 +41,11 @@ export class TestResult {
   newImageUrl!: string
 
   @Column({ type: "text", name: "diff_image_url", nullable: true })
-  diffImageUrl?: string
+  diffImageUrl!: string | null
 
-  @Column({ type: "double precision", nullable: true })
-  diffRatio?: number
+  // NOTE: `diffRatio` is not following the snake_case naming convention, this is legacy
+  @Column({ type: "double precision", name: "diffRatio", nullable: true })
+  diffRatio!: number | null
 
   // Can be "new", "unchanged", "changed", or "failed"
   @Column({ type: "text", name: "change_status", nullable: false })
