@@ -7,6 +7,8 @@ import {
   GITHUB_CLIENT_SECRET,
   GITHUB_PRIVATE_KEY,
   APP_URL,
+  IS_PRODUCTION,
+  IS_STAGING,
 } from "./environment"
 import { log } from "./log"
 
@@ -79,13 +81,17 @@ export async function updateGitHubCheckRun({
   text?: string
   actions?: GitHubCheckAction[]
 }): Promise<void> {
+  if (!IS_PRODUCTION && !IS_STAGING) {
+    log.info(`Skipping GitHub check_run update in development environment`)
+    return
+  }
+
   try {
     log.info(
       `Updating GitHub check run ${checkRunId} with status: ${status}, conclusion: ${conclusion}`,
     )
 
     const octokit = await getOctokitForInstallation(installationId)
-
     await octokit.checks.update({
       owner,
       repo,
