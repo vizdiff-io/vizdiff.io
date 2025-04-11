@@ -28,7 +28,7 @@ const mockBuildData: TestResponse = {
   testResults: [
     {
       id: 1,
-      name: "Homepage Test",
+      name: "pages/Homepage/Homepage Test",
       changeStatus: "changed",
       screenshotUrl: "https://placecats.com/millie/800/600",
       ancestorScreenshotUrl: "https://placecats.com/neo/800/600",
@@ -37,7 +37,7 @@ const mockBuildData: TestResponse = {
     },
     {
       id: 2,
-      name: "Dashboard Test",
+      name: "components/Excessively Long Path/With Many Words/And Many More Words/Dashboard/Dashboard Test",
       changeStatus: "unchanged",
       screenshotUrl: "https://placecats.com/neo_banana/800/600",
       ancestorScreenshotUrl: "https://placecats.com/bella/800/600",
@@ -45,7 +45,7 @@ const mockBuildData: TestResponse = {
     },
     {
       id: 3,
-      name: "Login Test",
+      name: "pages/Login/Login Test",
       changeStatus: "new",
       screenshotUrl: "https://placecats.com/poppy/800/600",
       createdStampSec: oneMinuteAgo,

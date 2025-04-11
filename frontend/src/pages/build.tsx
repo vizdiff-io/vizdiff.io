@@ -6,8 +6,6 @@ import {
   Typography,
   Paper,
   CircularProgress,
-  ImageList,
-  ImageListItem,
   Tooltip,
   Link as MuiLink,
 } from "@mui/material"
@@ -283,13 +281,25 @@ export default function Build(): JSX.Element {
             This build does not contain any tests.
           </Typography>
         ) : (
-          <ImageList sx={{ width: "100%", height: "100%" }} cols={3} gap={16}>
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: "repeat(3, 1fr)",
+              gap: 2,
+              "& > *": {
+                width: "100%",
+                maxWidth: "100%",
+              },
+            }}
+          >
             {sortedTestResults.map((result) => (
-              <ImageListItem key={result.id}>
-                <TestResultCard result={result} onOpenFullscreen={setSelectedResult} />
-              </ImageListItem>
+              <TestResultCard
+                key={result.id}
+                result={result}
+                onOpenFullscreen={setSelectedResult}
+              />
             ))}
-          </ImageList>
+          </Box>
         )}
 
         {/* Fullscreen Dialog */}
