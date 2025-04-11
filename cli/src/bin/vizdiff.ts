@@ -34,7 +34,7 @@ function main(): void {
       "--base-commit <base-commit-sha>",
       "Base commit SHA for comparison (defaults to the merge base commit)",
     )
-    .option("--pr <pr-number>", "GitHub pull request number associated with this commit")
+    .option("--pr <pr-number>", "GitHub pull request number associated with this commit (optional)")
     .action((storybookDir: string, options: CommandArgs) => {
       vizdiff(storybookDir, options).catch(fatal)
     })

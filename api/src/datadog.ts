@@ -1,14 +1,24 @@
 import dd from "dd-trace"
 
-// Skip Datadog initialization in test environment
-if (process.env.NODE_ENV !== "test" && process.env.VITEST !== "true") {
+const IS_PRODUCTION = process.env.NODE_ENV === "production"
+const IS_STAGING = process.env.NODE_ENV === "staging"
+
+// Only initialize Datadog in production or staging environments
+if (IS_PRODUCTION || IS_STAGING) {
+  const service = "vizdiff-api"
+  const env = process.env.NODE_ENV
+  console.log(`Initializing ${service} Datadog tracer in "${env}" environment`)
   dd.init({
     logInjection: true,
     profiling: true,
-    service: "vizdiff-api",
-    env: process.env.NODE_ENV ?? "development",
+    service,
+    env,
     clientIpEnabled: true,
   })
 }
 
-export const tracer = dd.tracer
+export function setUser(user: dd.User): void {
+  if (IS_PRODUCTION || IS_STAGING) {
+    dd.tracer.setUser(user)
+  }
+}

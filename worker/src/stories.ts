@@ -10,6 +10,29 @@ import type { Browser } from "webdriverio"
 import { diffImages } from "./images"
 import { log } from "./log"
 
+export interface Story {
+  id: string
+  name: string
+  title: string
+  importPath: string
+  componentPath: string
+  tags: string[]
+}
+
+export type StoryInfo = {
+  story: Story
+  screenshotTest: ScreenshotTest
+  baseTestResult?: TestResult
+  bucket: string
+  tmpDir: string
+  projectId: string
+  uploadId: string
+  port: number
+  s3Client: S3Client
+  testResultTable: Repository<TestResult>
+  browser: Browser
+}
+
 // Create a mutex for browser access
 const browserMutex = {
   locked: false,
@@ -33,26 +56,6 @@ const browserMutex = {
       this.locked = false
     }
   },
-}
-
-interface Story {
-  id: string
-  name: string
-  importPath: string
-}
-
-type StoryInfo = {
-  story: Story
-  screenshotTest: ScreenshotTest
-  baseTestResult?: TestResult
-  bucket: string
-  tmpDir: string
-  projectId: string
-  uploadId: string
-  port: number
-  s3Client: S3Client
-  testResultTable: Repository<TestResult>
-  browser: Browser
 }
 
 export async function processStory({
@@ -181,22 +184,22 @@ export async function processStory({
   }
 
   // Create test result record
-  const sanitizedName = story.name.substring(0, 255)
-  log.debug(
-    `Creating test result record for build #${screenshotTest.buildNumber} story "${sanitizedName}" (${storyId})`,
-  )
+  const name = getStoryName(story)
+  const buildNumber = screenshotTest.buildNumber
+  log.debug(`Creating test result record for build #${buildNumber} story "${name}" (${storyId})`)
   const testResult = new TestResult()
-  testResult.name = sanitizedName
+  testResult.name = name
   testResult.screenshotTest = screenshotTest
   testResult.storyId = storyId
+  testResult.story = story
   testResult.newImageUrl = newImageUrl
   testResult.baselineImageUrl = baselineImageUrl
-  testResult.diffImageUrl = diffImageUrl
+  testResult.diffImageUrl = diffImageUrl ?? null
   testResult.diffRatio = diffRatio
   testResult.changeStatus = changeStatus
   await testResultTable.save(testResult)
   log.debug(
-    `Successfully saved test result record ${testResult.id} (${testResult.name}) for build #${screenshotTest.buildNumber}`,
+    `Successfully saved test result record ${testResult.id} (${testResult.name}) for build #${buildNumber}`,
   )
 
   return testResult
@@ -266,4 +269,13 @@ async function takeScreenshotWithRetry(
     }
   }
   throw new Error("Screenshot failed after max retries")
+}
+
+function getStoryName(story: Story): string {
+  // Stories have `title` fields that look like "stories/components/NewProjectDialog" and `name`
+  // fields based on the exported variable name in the file. Strip the leading "stories/" (if any)
+  // and append "/${name}" to get the full story name, then trim down to the last 255 characters.
+  const { name, title } = story
+  const cleanedTitle = title.startsWith("stories/") ? title.slice(8) : title
+  return `${cleanedTitle}/${name}`.slice(-255)
 }

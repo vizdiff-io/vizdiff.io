@@ -22,13 +22,7 @@ import { downloadWithTimeout } from "./download"
 import { APP_URL } from "./environment"
 import { getOctokitForInstallation, updateGitHubCheckRun, type GitHubCheckData } from "./github"
 import { log } from "./log"
-import { processStory } from "./stories"
-
-interface Story {
-  id: string
-  name: string
-  importPath: string
-}
+import { type Story, processStory } from "./stories"
 
 type StorybookWindow = {
   __STORYBOOK_PREVIEW__?: {

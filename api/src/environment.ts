@@ -10,6 +10,7 @@ const envPath = path.join(dirname, "..")
 configEnv({ path: envPath, node_env: process.env.NODE_ENV ?? "development" })
 
 export const IS_PRODUCTION = process.env.NODE_ENV === "production"
+export const IS_STAGING = process.env.NODE_ENV === "staging"
 export const IS_TEST = process.env.NODE_ENV === "test"
 
 export const PORT = parseInt(process.env.PORT ?? "") || (IS_TEST ? 3002 : 3001)

@@ -23,13 +23,13 @@ export class WorkTask {
   taskType!: string
 
   @Column({ type: "jsonb", nullable: false })
-  data!: string
+  data!: object
 
   @Column({ name: "locked_at", type: "timestamptz", nullable: true })
-  lockedAt?: Date
+  lockedAt!: Date | null
 
   @Column({ name: "locked_by", type: "text", nullable: true })
-  lockedBy?: string
+  lockedBy!: string | null
 
   @CreateDateColumn({ name: "created_at", type: "timestamptz", nullable: false })
   createdAt!: Date

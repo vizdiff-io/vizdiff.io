@@ -26,7 +26,7 @@ export class User {
   githubUsername!: string
 
   @Column({ name: "github_profile", type: "jsonb", nullable: false })
-  githubProfile!: string
+  githubProfile!: object
 
   @Column({ name: "github_access_token", type: "text", nullable: false })
   githubAccessToken!: string

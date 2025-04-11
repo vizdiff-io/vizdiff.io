@@ -23,6 +23,7 @@ server {
     location /api/ {
         proxy_pass http://host.docker.internal:3001/api/;
         proxy_set_header X-Forwarded-For \$remote_addr;
+        client_max_body_size 100M;
     }
     location / {
         proxy_pass http://host.docker.internal:3000/;

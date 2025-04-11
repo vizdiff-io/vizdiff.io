@@ -62,7 +62,7 @@ export const list: RequestHandler = async (req, res) => {
         qb
           .select([
             "tr.screenshotTestId as screenshotTestId",
-            "COUNT(DISTINCT tr.testName) as testcount",
+            "COUNT(DISTINCT tr.story_id) as testcount",
             "SUM(CASE WHEN tr.changeStatus = 'changed' OR tr.changeStatus = 'new' THEN 1 ELSE 0 END) as changecount",
           ])
           .from(
@@ -71,8 +71,9 @@ export const list: RequestHandler = async (req, res) => {
                 .select([
                   "tr2.screenshot_test_id as screenshotTestId",
                   "tr2.name as testName",
+                  "tr2.story_id as story_id",
                   "tr2.change_status as changeStatus",
-                  "ROW_NUMBER() OVER (PARTITION BY tr2.screenshot_test_id, tr2.name ORDER BY tr2.id DESC) as rn",
+                  "ROW_NUMBER() OVER (PARTITION BY tr2.screenshot_test_id, tr2.story_id ORDER BY tr2.id DESC) as rn",
                 ])
                 .from("test_results", "tr2"),
             "tr",
@@ -148,10 +149,10 @@ export const get: RequestHandler = async (req, res) => {
     .innerJoin(
       (qb) =>
         qb
-          .select(["tr.name as name", "MAX(tr.id) as latest_id"])
+          .select(["tr.story_id as story_id", "MAX(tr.id) as latest_id"])
           .from(TestResult, "tr")
           .where("tr.screenshot_test_id = :screenshotTestId", { screenshotTestId })
-          .groupBy("tr.name"),
+          .groupBy("tr.story_id"),
       "latest_results",
       "latest_results.latest_id = result.id",
     )
@@ -166,22 +167,22 @@ export const get: RequestHandler = async (req, res) => {
     buildNumber: screenshotTest.buildNumber,
     commitSha: screenshotTest.commitSha,
     branch: screenshotTest.branch,
-    baseCommitSha: screenshotTest.baseCommitSha,
-    baseBranch: screenshotTest.baseBranch,
-    prNumber: screenshotTest.prNumber,
+    baseCommitSha: screenshotTest.baseCommitSha ?? undefined,
+    baseBranch: screenshotTest.baseBranch ?? undefined,
+    prNumber: screenshotTest.prNumber ?? undefined,
     uploadId: screenshotTest.uploadId,
     status: screenshotTest.status as ScreenshotTestResponse["status"],
-    tag: screenshotTest.tag,
+    tag: screenshotTest.tag ?? undefined,
     initiatedStampSec: screenshotTest.createdAt.getTime() / 1000,
-    buildDurationSec: screenshotTest.buildDurationSec,
+    buildDurationSec: screenshotTest.buildDurationSec ?? undefined,
     testResults: testResults.map((result) => ({
       id: result.id,
       name: result.name,
       changeStatus: result.changeStatus as TestResultResponse["changeStatus"],
       screenshotUrl: result.newImageUrl,
       ancestorScreenshotUrl: result.baselineImageUrl,
-      diffMaskUrl: result.diffImageUrl,
-      diffRatio: result.diffRatio,
+      diffMaskUrl: result.diffImageUrl ?? undefined,
+      diffRatio: result.diffRatio ?? undefined,
       createdStampSec: result.createdAt.getTime() / 1000,
     })),
   }
@@ -219,7 +220,7 @@ export const listActivity: RequestHandler = async (_req, res) => {
         qb
           .select([
             "tr.screenshotTestId as screenshotTestId",
-            "COUNT(DISTINCT tr.testName) as testcount",
+            "COUNT(DISTINCT tr.story_id) as testcount",
           ])
           .from(
             (subQuery) =>
@@ -227,7 +228,8 @@ export const listActivity: RequestHandler = async (_req, res) => {
                 .select([
                   "tr2.screenshot_test_id as screenshotTestId",
                   "tr2.name as testName",
-                  "ROW_NUMBER() OVER (PARTITION BY tr2.screenshot_test_id, tr2.name ORDER BY tr2.id DESC) as rn",
+                  "tr2.story_id as story_id",
+                  "ROW_NUMBER() OVER (PARTITION BY tr2.screenshot_test_id, tr2.story_id ORDER BY tr2.id DESC) as rn",
                 ])
                 .from("test_results", "tr2"),
             "tr",

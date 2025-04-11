@@ -35,12 +35,12 @@ export async function createScreenshotTest(
     screenshotTest.buildNumber = buildNumber
     screenshotTest.commitSha = commitSha
     screenshotTest.branch = branch
-    screenshotTest.baseCommitSha = baseCommitSha
-    screenshotTest.baseBranch = baseBranch
-    screenshotTest.prNumber = prNumber
+    screenshotTest.baseCommitSha = baseCommitSha ?? null
+    screenshotTest.baseBranch = baseBranch ?? null
+    screenshotTest.prNumber = prNumber ?? null
     screenshotTest.uploadId = uploadId
     screenshotTest.status = "pending"
-    screenshotTest.githubCheckRunId = githubCheckRunId
+    screenshotTest.githubCheckRunId = githubCheckRunId ?? null
 
     return await manager.save(screenshotTest)
   })

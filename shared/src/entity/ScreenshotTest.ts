@@ -29,7 +29,7 @@ export class ScreenshotTest {
   buildNumber!: number
 
   @Column({ name: "build_duration_sec", type: "double precision", nullable: true })
-  buildDurationSec!: number | undefined
+  buildDurationSec!: number | null
 
   @OneToMany("TestResult", "screenshotTest")
   testResults!: Promise<TestResult[]>
@@ -44,13 +44,13 @@ export class ScreenshotTest {
   branch!: string
 
   @Column({ name: "base_commit_sha", type: "text", nullable: true })
-  baseCommitSha!: string | undefined
+  baseCommitSha!: string | null
 
   @Column({ name: "base_branch", type: "text", nullable: true })
-  baseBranch!: string | undefined
+  baseBranch!: string | null
 
   @Column({ name: "pr_number", type: "integer", nullable: true })
-  prNumber!: number | undefined
+  prNumber!: number | null
 
   @Column({ name: "upload_id", type: "text", unique: true, nullable: false })
   uploadId!: string
@@ -60,13 +60,13 @@ export class ScreenshotTest {
   status!: string
 
   @Column({ name: "github_check_run_id", type: "bigint", nullable: true })
-  githubCheckRunId!: number | undefined
+  githubCheckRunId!: number | null
 
   @Column({ name: "tag", type: "text", nullable: true })
-  tag!: string | undefined
+  tag!: string | null
 
   @Column({ name: "total_changes", type: "integer", nullable: true })
-  totalChanges!: number | undefined
+  totalChanges!: number | null
 
   @CreateDateColumn({ name: "created_at", type: "timestamptz", nullable: false })
   createdAt!: Date

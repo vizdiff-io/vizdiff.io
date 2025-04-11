@@ -102,8 +102,24 @@ export default function TestResultDialog({
           pb: 1,
         }}
       >
-        <Box>
-          <Typography variant="h6" component="div">
+        <Box
+          sx={{
+            flex: "1 1 65%",
+            maxWidth: "65%",
+            overflow: "hidden",
+          }}
+        >
+          <Typography
+            variant="h6"
+            component="div"
+            sx={{
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              direction: "rtl",
+              textAlign: "left",
+            }}
+          >
             {result.name}
           </Typography>
           <Typography variant="body2" color={changeStatusColor(result.changeStatus)}>
