@@ -30,3 +30,5 @@ export const POSTGRES_PASS = process.env.POSTGRES_PASS ?? "postgres"
 export const POSTGRES_PORT = parseInt(process.env.POSTGRES_PORT ?? "5432")
 
 export const JWT_SECRET = process.env.JWT_SECRET ?? "secret"
+
+export const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY

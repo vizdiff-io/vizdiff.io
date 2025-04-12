@@ -16,6 +16,7 @@ import * as Auth from "./endpoints/auth"
 import * as Github from "./endpoints/github"
 import * as Projects from "./endpoints/projects"
 import * as ScreenshotTests from "./endpoints/screenshotTests"
+import * as StripeEndpoints from "./endpoints/stripe"
 import * as Upload from "./endpoints/upload"
 import * as User from "./endpoints/user"
 import * as Webhooks from "./endpoints/webhooks"
@@ -106,6 +107,8 @@ router.post("/tests/:id/status/:status", authenticateJWT, requireUser, Approval.
 
 router.get("/users/me", authenticateJWT, requireUser, User.me)
 router.post("/upload/storybook", Upload.uploadStorybook) // ?token=<project_token>
+
+router.post("/stripe/checkout", authenticateJWT, requireUser, StripeEndpoints.createCheckoutSession)
 
 // GitHub webhook route
 router.post("/webhooks/github", Webhooks.githubWebhook)

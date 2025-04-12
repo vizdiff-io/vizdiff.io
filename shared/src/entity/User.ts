@@ -40,6 +40,12 @@ export class User {
   @OneToMany("GitHubInstallation", "creator")
   createdInstallations!: Promise<GitHubInstallation[]>
 
+  @Column({ name: "stripe_customer_id", type: "text", nullable: true })
+  stripeCustomerId!: string | null
+
+  @Column({ name: "stripe_subscription_id", type: "text", nullable: true })
+  stripeSubscriptionId!: string | null
+
   @CreateDateColumn({ name: "created_at", type: "timestamptz", nullable: false })
   createdAt!: Date
 
