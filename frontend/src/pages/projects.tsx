@@ -1,8 +1,5 @@
 import AddIcon from "@mui/icons-material/Add"
 import CircleIcon from "@mui/icons-material/Circle"
-import FolderIcon from "@mui/icons-material/Folder"
-import ReceiptIcon from "@mui/icons-material/Receipt"
-import SettingsIcon from "@mui/icons-material/Settings"
 import {
   Box,
   Button,
@@ -10,7 +7,6 @@ import {
   Paper,
   List,
   ListItem,
-  ListItemButton,
   ListItemText,
   ListItemIcon,
   CircularProgress,
@@ -20,6 +16,7 @@ import Link from "next/link"
 import { useState } from "react"
 
 import { AppLayout } from "@/components/AppLayout"
+import LeftSidebar from "@/components/LeftSidebar"
 import NewProjectDialog from "@/components/NewProjectDialog"
 import useApiGet from "@/hooks/useApiGet"
 import useAppTheme from "@/hooks/useAppTheme"
@@ -57,29 +54,7 @@ export default function Projects(): JSX.Element {
       </Head>
       <AppLayout>
         <Box sx={{ display: "flex", gap: 3, px: 3, py: 4, minHeight: "calc(100vh - 64px)" }}>
-          {/* Left Sidebar */}
-          <Box sx={{ width: 200, flexShrink: 0 }}>
-            <List>
-              <ListItemButton selected>
-                <ListItemIcon>
-                  <FolderIcon />
-                </ListItemIcon>
-                <ListItemText primary="Projects" />
-              </ListItemButton>
-              <ListItemButton>
-                <ListItemIcon>
-                  <ReceiptIcon />
-                </ListItemIcon>
-                <ListItemText primary="Billing" />
-              </ListItemButton>
-              <ListItemButton>
-                <ListItemIcon>
-                  <SettingsIcon />
-                </ListItemIcon>
-                <ListItemText primary="Settings" />
-              </ListItemButton>
-            </List>
-          </Box>
+          <LeftSidebar />
 
           {/* Main Content */}
           <Box sx={{ flex: 1 }}>
