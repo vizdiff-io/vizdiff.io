@@ -7,12 +7,7 @@ import { getOctokitForInstallation } from "../github"
 import { log } from "../log"
 import type { CheckRunPayload } from "../schemas/CheckRunPayload"
 import type { CheckSuitePayload } from "../schemas/CheckSuitePayload"
-import type { DefaultRequest, DefaultResponse } from "../types"
-
-// Extend the DefaultRequest type to include rawBody
-interface WebhookRequest extends DefaultRequest {
-  rawBody?: Buffer
-}
+import type { RequestWithRawBody, DefaultResponse } from "../types"
 
 /**
  * Verify the GitHub webhook signature
@@ -71,7 +66,7 @@ async function findProjectByRepo(
   })
 }
 
-export async function githubWebhook(req: WebhookRequest, res: DefaultResponse): Promise<void> {
+export async function githubWebhook(req: RequestWithRawBody, res: DefaultResponse): Promise<void> {
   // Get the raw body from Express
   const rawBody = req.rawBody
 

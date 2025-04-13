@@ -46,6 +46,12 @@ export class User {
   @Column({ name: "stripe_subscription_id", type: "text", nullable: true })
   stripeSubscriptionId!: string | null
 
+  @Column({ name: "subscription_plan", type: "text", nullable: true })
+  subscriptionPlan!: string | null
+
+  @Column({ name: "subscription_interval", type: "text", nullable: true })
+  subscriptionInterval!: string | null
+
   @CreateDateColumn({ name: "created_at", type: "timestamptz", nullable: false })
   createdAt!: Date
 

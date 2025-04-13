@@ -53,6 +53,8 @@ POSTGRES_DATABASE=vizdiff
 POSTGRES_PASS=vizdiff_user_password
 POSTGRES_PORT=5432
 JWT_SECRET=your_jwt_secret
+STRIPE_SECRET_KEY=sk_live_stripesecretkey
+STRIPE_WEBHOOK_SECRET=whsec_stripewebhooksecret
 ```
 
 ## Docker Compose Configuration

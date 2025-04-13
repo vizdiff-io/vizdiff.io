@@ -7,6 +7,10 @@ export interface DefaultRequest extends Request {
   user?: never
 }
 
+export interface RequestWithRawBody extends Request {
+  rawBody?: Buffer
+}
+
 export type DefaultResponse = Response
 
 // Express uses locals for request-scoped data

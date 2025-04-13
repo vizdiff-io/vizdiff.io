@@ -109,6 +109,7 @@ router.get("/users/me", authenticateJWT, requireUser, User.me)
 router.post("/upload/storybook", Upload.uploadStorybook) // ?token=<project_token>
 
 router.post("/stripe/checkout", authenticateJWT, requireUser, StripeEndpoints.createCheckoutSession)
+router.post("/stripe/webhook", StripeEndpoints.stripeWebhook)
 
 // GitHub webhook route
 router.post("/webhooks/github", Webhooks.githubWebhook)
