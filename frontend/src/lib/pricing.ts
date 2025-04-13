@@ -2,6 +2,7 @@ export const PRICING_PLANS = [
   {
     name: "Starter",
     monthlyPrice: "49",
+    annualPrice: "470",
     annualMonthlyPrice: "39.17",
     monthlyUrl: "/signup?interval=monthly&plan=starter",
     annualUrl: "/signup?interval=yearly&plan=starter",
@@ -18,6 +19,7 @@ export const PRICING_PLANS = [
   {
     name: "Team",
     monthlyPrice: "149",
+    annualPrice: "1430",
     annualMonthlyPrice: "119.17",
     monthlyUrl: "/signup?interval=monthly&plan=team",
     annualUrl: "/signup?interval=yearly&plan=team",
@@ -34,6 +36,7 @@ export const PRICING_PLANS = [
   {
     name: "Pro",
     monthlyPrice: "499",
+    annualPrice: "4790",
     annualMonthlyPrice: "399.17",
     monthlyUrl: "/signup?interval=monthly&plan=pro",
     annualUrl: "/signup?interval=yearly&plan=pro",

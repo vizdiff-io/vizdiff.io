@@ -54,7 +54,7 @@ export default function Projects(): JSX.Element {
       </Head>
       <AppLayout>
         <Box sx={{ display: "flex", gap: 3, px: 3, py: 4, minHeight: "calc(100vh - 64px)" }}>
-          <LeftSidebar />
+          <LeftSidebar selectedItem="projects" />
 
           {/* Main Content */}
           <Box sx={{ flex: 1 }}>
