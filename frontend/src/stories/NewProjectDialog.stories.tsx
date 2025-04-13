@@ -4,7 +4,7 @@ import { http, HttpResponse } from "msw"
 import { type ComponentType } from "react"
 
 import ThemeWrapper from "./ThemeWrapper"
-import { userHandler } from "./mocks"
+import { catchAllHandler, userHandler } from "./mocks"
 import NewProjectDialog from "../components/NewProjectDialog"
 
 const BASE_ORG_DATA = {
@@ -194,6 +194,11 @@ const meta: Meta<typeof NewProjectDialog> = {
       )
     },
   ],
+  parameters: {
+    msw: {
+      handlers: [userHandler, catchAllHandler],
+    },
+  },
 }
 
 export default meta
@@ -204,7 +209,11 @@ export const Empty: Story = {
   args: {},
   parameters: {
     msw: {
-      handlers: [userHandler, http.get("/api/github/orgs", () => HttpResponse.json([]))],
+      handlers: [
+        userHandler,
+        http.get("/api/github/orgs", () => HttpResponse.json([])),
+        catchAllHandler,
+      ],
     },
   },
 }
@@ -220,6 +229,7 @@ export const Loading: Story = {
           await new Promise((resolve) => setTimeout(resolve, 3000))
           return HttpResponse.json(mockOrgs)
         }),
+        catchAllHandler,
       ],
     },
   },
@@ -246,6 +256,7 @@ export const LoadingRepos: Story = {
 
           return HttpResponse.json([])
         }),
+        catchAllHandler,
       ],
     },
   },
@@ -268,6 +279,7 @@ export const OrgsView: Story = {
 
           return HttpResponse.json([])
         }),
+        catchAllHandler,
       ],
     },
   },
@@ -292,6 +304,7 @@ export const ReposView: Story = {
 
           return HttpResponse.json([])
         }),
+        catchAllHandler,
       ],
     },
   },

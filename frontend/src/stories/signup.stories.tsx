@@ -6,6 +6,7 @@ import { type ComponentType, useEffect } from "react"
 import type { UserResponse } from "@/lib/apiTypes"
 
 import ThemeWrapper from "./ThemeWrapper"
+import { catchAllHandler } from "./mocks"
 import SignupComponent from "../pages/signup"
 
 type StoryArgs = {
@@ -130,6 +131,7 @@ const meta: Meta<typeof SignupComponent> = {
         http.post("/api/stripe/checkout", () => {
           return HttpResponse.json({ url: "https://example.com/checkout" })
         }),
+        catchAllHandler,
       ],
     },
   },
@@ -176,6 +178,7 @@ export const WithStarterMonthlyPlan: Story = {
             }),
           )
         }),
+        catchAllHandler,
       ],
     },
   },
@@ -201,6 +204,7 @@ export const WithTeamYearlyPlan: Story = {
             }),
           )
         }),
+        catchAllHandler,
       ],
     },
   },
@@ -226,6 +230,7 @@ export const WithProMonthlyPlan: Story = {
             }),
           )
         }),
+        catchAllHandler,
       ],
     },
   },
@@ -248,6 +253,7 @@ export const CheckoutLoading: Story = {
           await new Promise((resolve) => setTimeout(resolve, 10000))
           return HttpResponse.json({ url: "#" })
         }),
+        catchAllHandler,
       ],
     },
   },
@@ -287,6 +293,7 @@ export const CheckoutError: Story = {
             { status: 400 },
           )
         }),
+        catchAllHandler,
       ],
     },
   },

@@ -5,7 +5,7 @@ import { type ComponentType } from "react"
 import type { TestResponse } from "@/lib/apiTypes"
 
 import ThemeWrapper from "./ThemeWrapper"
-import { userHandler } from "./mocks"
+import { catchAllHandler, userHandler } from "./mocks"
 import BuildComponent from "../pages/build"
 
 type StoryArgs = {
@@ -77,10 +77,8 @@ const meta: Meta<typeof BuildComponent> = {
   },
   decorators: [
     (Story: ComponentType, context: StoryContext<StoryArgs>): JSX.Element => {
-      // Set authentication cookie for Storybook
-      document.cookie = "authenticated=true; path=/"
       return (
-        <ThemeWrapper mode={context.args.mode ?? "light"}>
+        <ThemeWrapper mode={context.args.mode ?? "light"} isAuthenticated={true}>
           <Story />
         </ThemeWrapper>
       )
@@ -93,7 +91,11 @@ const meta: Meta<typeof BuildComponent> = {
       },
     },
     msw: {
-      handlers: [userHandler, http.get("/api/tests/:id", () => HttpResponse.json(mockBuildData))],
+      handlers: [
+        userHandler,
+        http.get("/api/tests/:id", () => HttpResponse.json(mockBuildData)),
+        catchAllHandler,
+      ],
     },
   },
 }
@@ -124,6 +126,7 @@ export const Pending: Story = {
         http.get("/api/tests/:id", () =>
           HttpResponse.json({ ...mockBuildData, status: "pending", testResults: [] }),
         ),
+        catchAllHandler,
       ],
     },
   },
@@ -144,6 +147,7 @@ export const Running: Story = {
             testResults: mockBuildData.testResults.slice(0, 1),
           }),
         ),
+        catchAllHandler,
       ],
     },
   },
@@ -160,6 +164,7 @@ export const NoTests: Story = {
         http.get("/api/tests/:id", () =>
           HttpResponse.json({ ...mockBuildData, status: "unapproved", testResults: [] }),
         ),
+        catchAllHandler,
       ],
     },
   },
@@ -176,6 +181,7 @@ export const NoChanges: Story = {
         http.get("/api/tests/:id", () =>
           HttpResponse.json({ ...mockBuildData, status: "no_changes" }),
         ),
+        catchAllHandler,
       ],
     },
   },
@@ -192,6 +198,7 @@ export const Unapproved: Story = {
         http.get("/api/tests/:id", () =>
           HttpResponse.json({ ...mockBuildData, status: "unapproved" }),
         ),
+        catchAllHandler,
       ],
     },
   },
@@ -206,6 +213,7 @@ export const Denied: Story = {
       handlers: [
         userHandler,
         http.get("/api/tests/:id", () => HttpResponse.json({ ...mockBuildData, status: "denied" })),
+        catchAllHandler,
       ],
     },
   },
@@ -220,6 +228,7 @@ export const Failed: Story = {
       handlers: [
         userHandler,
         http.get("/api/tests/:id", () => HttpResponse.json({ ...mockBuildData, status: "failed" })),
+        catchAllHandler,
       ],
     },
   },

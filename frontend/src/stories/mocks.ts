@@ -16,8 +16,17 @@ const mockUser: UserResponse = {
     email: null,
   },
   githubInstallations: [],
+  subscription: {
+    plan: "starter",
+    interval: "month",
+  },
   createdStampSec: oneMinuteAgo,
   updatedStampSec: oneMinuteAgo,
 }
 
 export const userHandler = http.get("/api/users/me", () => HttpResponse.json(mockUser))
+
+export const catchAllHandler = http.all("/api/*", ({ request }) => {
+  console.warn(`Unhandled API request in Storybook: ${request.method} ${request.url}`)
+  return HttpResponse.json({ message: "Unhandled API request" }, { status: 500 })
+})

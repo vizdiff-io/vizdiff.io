@@ -5,7 +5,7 @@ import { type ComponentType } from "react"
 import type { ProjectResponse, ScreenshotTestSummaryResponse } from "@/lib/apiTypes"
 
 import ThemeWrapper from "./ThemeWrapper"
-import { userHandler } from "./mocks"
+import { catchAllHandler, userHandler } from "./mocks"
 import ProjectComponent from "../pages/project"
 
 type StoryArgs = {
@@ -122,6 +122,7 @@ const meta: Meta<typeof ProjectComponent> = {
         userHandler,
         http.get("/api/projects/:id", () => HttpResponse.json(mockProject)),
         http.get("/api/projects/:projectId/builds", () => HttpResponse.json(mockBuilds)),
+        catchAllHandler,
       ],
     },
   },
@@ -152,6 +153,7 @@ export const NoBuilds: Story = {
         userHandler,
         http.get("/api/projects/:id", () => HttpResponse.json(mockProject)),
         http.get("/api/projects/:projectId/builds", () => HttpResponse.json([])),
+        catchAllHandler,
       ],
     },
   },

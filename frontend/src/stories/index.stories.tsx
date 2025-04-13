@@ -2,11 +2,12 @@ import type { Meta, StoryObj, StoryContext } from "@storybook/react"
 import { type ComponentType } from "react"
 
 import ThemeWrapper from "./ThemeWrapper"
-import { userHandler } from "./mocks"
+import { catchAllHandler, userHandler } from "./mocks"
 import HomeComponent from "../pages/index"
 
 type StoryArgs = {
   mode?: "light" | "dark"
+  isAuthenticated?: boolean
 }
 
 const meta: Meta<typeof HomeComponent> = {
@@ -18,17 +19,24 @@ const meta: Meta<typeof HomeComponent> = {
       options: ["light", "dark"],
       defaultValue: "light",
     },
+    isAuthenticated: {
+      control: "boolean",
+      defaultValue: false,
+    },
   },
   decorators: [
     (Story: ComponentType, context: StoryContext<StoryArgs>): JSX.Element => (
-      <ThemeWrapper mode={context.args.mode ?? "light"}>
+      <ThemeWrapper
+        mode={context.args.mode ?? "light"}
+        isAuthenticated={context.args.isAuthenticated}
+      >
         <Story />
       </ThemeWrapper>
     ),
   ],
   parameters: {
     msw: {
-      handlers: [userHandler],
+      handlers: [userHandler, catchAllHandler],
     },
   },
 }
@@ -39,11 +47,23 @@ type Story = StoryObj<typeof HomeComponent>
 export const Light: Story = {
   args: {
     mode: "light",
+    isAuthenticated: false,
   },
+  parameters: { msw: { handlers: [catchAllHandler] } },
 }
 
 export const Dark: Story = {
   args: {
     mode: "dark",
+    isAuthenticated: false,
   },
+  parameters: { msw: { handlers: [catchAllHandler] } },
+}
+
+export const Authenticated: Story = {
+  args: {
+    mode: "light",
+    isAuthenticated: true,
+  },
+  parameters: { msw: { handlers: [catchAllHandler] } },
 }
