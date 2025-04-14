@@ -136,7 +136,10 @@ export async function githubCallback(req: DefaultRequest, res: DefaultResponse):
   let user = await userTable.findOneBy({ githubId })
   if (!user) {
     // Create a new user
-    log.info(`Creating new user for GitHub user ${ghUser.login} (${ghUser.id})`)
+    log.info(
+      { event: "user_created", githubUser: ghUser },
+      `Creating new user for GitHub user ${ghUser.login} (${ghUser.id})`,
+    )
     user = new User()
     user.githubId = githubId
   }
