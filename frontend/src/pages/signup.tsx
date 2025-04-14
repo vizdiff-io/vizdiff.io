@@ -26,6 +26,7 @@ import { v4 as uuidv4 } from "uuid"
 import { AppLayout } from "@/components/AppLayout"
 import LeftSidebar from "@/components/LeftSidebar"
 import useAuth from "@/hooks/useAuth"
+import { trackEvent, AnalyticsEvents } from "@/lib/analytics"
 import { apiPost } from "@/lib/apiMethods"
 import { PRICING_PLANS } from "@/lib/pricing"
 
@@ -54,6 +55,16 @@ export default function Signup(): JSX.Element {
       setError(null)
 
       try {
+        // Track plan selection
+        trackEvent({
+          action: AnalyticsEvents.PLAN_SELECTED,
+          category: "Pricing",
+          label: `${plan}_${interval}`,
+          plan,
+          interval,
+          userId: user.id,
+        })
+
         const [response, apiError] = await apiPost<StripeCheckoutResponse>("/api/stripe/checkout", {
           plan,
           interval,
@@ -82,9 +93,15 @@ export default function Signup(): JSX.Element {
     const { plan: planName, interval, checkout } = router.query
 
     // Handle checkout status returns
-    if (checkout === "success") {
-      // Could show success message or redirect
-    } else if (checkout === "cancel") {
+    if (checkout === "success" && user) {
+      // Track successful checkout return
+      trackEvent({
+        action: AnalyticsEvents.PLAN_PURCHASED,
+        category: "Pricing",
+        label: "checkout_success",
+        userId: user.id,
+      })
+    } else if (checkout === "cancel" && user) {
       setError("Checkout was cancelled.")
     }
 
@@ -105,7 +122,7 @@ export default function Signup(): JSX.Element {
     if (interval && typeof interval === "string") {
       setBillingInterval(interval === "yearly" || interval === "annual" ? "yearly" : "monthly")
     }
-  }, [router.query, redirectToCheckout])
+  }, [router.query, redirectToCheckout, user])
 
   // Check if the user has the current plan
   const isCurrentPlan = useCallback(

@@ -1,6 +1,6 @@
-import { datadogRum } from "@datadog/browser-rum"
-import { createContext, useContext, useState, useCallback } from "react"
+import { createContext, useContext, useState, useCallback, useEffect } from "react"
 
+import { setAnalyticsUser } from "@/lib/analytics"
 import { tryApiGet } from "@/lib/apiMethods"
 import type { UserResponse } from "@/lib/apiTypes"
 
@@ -32,14 +32,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }): JSX.E
     setIsLoading(false)
     if (apiError) {
       setError(apiError)
-    } else if (userData) {
-      datadogRum.setUser({
-        id: userData.id.toString(),
-        name: userData.githubUsername,
-        email: userData.email ?? undefined,
-      })
     }
   }, [isLoading, user])
+
+  // Set analytics user whenever user data changes
+  useEffect(() => {
+    if (user) {
+      setAnalyticsUser({
+        id: user.id,
+        name: user.githubUsername,
+        email: user.email ?? undefined,
+      })
+    }
+  }, [user])
 
   return (
     <AuthContext.Provider value={{ user, isLoading, error, fetchUser }}>

@@ -12,6 +12,7 @@ The following GitHub Variables need to be configured in your repository for the 
 - `NEXT_PUBLIC_GITHUB_CLIENT_ID`: <your_github_client_id>
 - `NEXT_PUBLIC_DD_APPLICATION_ID`: (optional) Enables DataDog Real User Monitoring
 - `NEXT_PUBLIC_DD_CLIENT_TOKEN`: (optional) Enables DataDog Real User Monitoring
+- `NEXT_PUBLIC_GA_ID`: (optional) Enables Google Analytics
 
 ## GitHub Secrets Setup
 
