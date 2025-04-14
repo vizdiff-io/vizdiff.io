@@ -292,11 +292,12 @@ export default function Build(): JSX.Element {
               },
             }}
           >
-            {sortedTestResults.map((result) => (
+            {sortedTestResults.map((result, index) => (
               <TestResultCard
                 key={result.id}
                 result={result}
                 onOpenFullscreen={setSelectedResult}
+                isPriority={index < 6}
               />
             ))}
           </Box>

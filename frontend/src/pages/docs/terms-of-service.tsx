@@ -97,7 +97,7 @@ export default function TermsOfService(): JSX.Element {
   return (
     <>
       <Head>
-        <title>vizdiff.io - Terms of Service</title>
+        <title>Terms of Service - vizdiff.io</title>
         <meta name="description" content="Terms of Service for vizdiff.io" />
       </Head>
       <MarketingLayout>

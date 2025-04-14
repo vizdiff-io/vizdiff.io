@@ -18,6 +18,7 @@ import type { Endpoints } from "@octokit/types"
 import React, { useState, useEffect, useCallback } from "react"
 
 import useAuthenticatedFetch from "@/hooks/useApiGet"
+import { AnalyticsEvents, trackEvent } from "@/lib/analytics"
 import { apiGet, apiPost } from "@/lib/apiMethods"
 import { GITHUB_APP_NAME } from "@/lib/environment"
 
@@ -113,12 +114,28 @@ export default function NewProjectDialog({
     updateLoading()
     if (projectError) {
       setError(projectError.message)
+    } else {
+      trackEvent({
+        action: AnalyticsEvents.PROJECT_CREATED,
+        category: "Projects",
+        label: repo.private ? `(private)` : repo.full_name,
+        isPrivate: repo.private,
+      })
     }
     onClose()
   }
 
   const handleInstallApp = () => {
     const installUrl = `https://github.com/apps/${GITHUB_APP_NAME}/installations/new`
+    // Use beacon transport in case the user's browser does not open a new window/tab
+    trackEvent(
+      {
+        action: AnalyticsEvents.INSTALL_APP,
+        category: "Projects",
+        label: "Install GitHub App",
+      },
+      { sendBeforeNavigation: true },
+    )
     window.open(installUrl, "_blank")
   }
 

@@ -5,7 +5,7 @@ import { type ComponentType } from "react"
 import type { ProjectResponse, ScreenshotTestResponse } from "@/lib/apiTypes"
 
 import ThemeWrapper from "./ThemeWrapper"
-import { userHandler } from "./mocks"
+import { catchAllHandler, userHandler } from "./mocks"
 import ProjectsComponent from "../pages/projects"
 
 type StoryArgs = {
@@ -141,10 +141,8 @@ const meta: Meta<typeof ProjectsComponent> = {
   },
   decorators: [
     (Story: ComponentType, context: StoryContext<StoryArgs>): JSX.Element => {
-      // Set authentication cookie for Storybook
-      document.cookie = "authenticated=true; path=/"
       return (
-        <ThemeWrapper mode={context.args.mode ?? "light"}>
+        <ThemeWrapper mode={context.args.mode ?? "light"} isAuthenticated={true}>
           <Story />
         </ThemeWrapper>
       )
@@ -156,6 +154,7 @@ const meta: Meta<typeof ProjectsComponent> = {
         userHandler,
         http.get("/api/projects", () => HttpResponse.json(mockProjects)),
         http.get("/api/activity", () => HttpResponse.json(mockActivity)),
+        catchAllHandler,
       ],
     },
   },
@@ -164,9 +163,13 @@ const meta: Meta<typeof ProjectsComponent> = {
 export default meta
 type Story = StoryObj<typeof ProjectsComponent>
 
-export const Light: Story = { args: { mode: "light" } }
+export const Light: Story = {
+  args: { mode: "light" },
+}
 
-export const Dark: Story = { args: { mode: "dark" } }
+export const Dark: Story = {
+  args: { mode: "dark" },
+}
 
 export const EmptyProjects: Story = {
   args: { mode: "light" },
@@ -176,6 +179,7 @@ export const EmptyProjects: Story = {
         userHandler,
         http.get("/api/projects", () => HttpResponse.json([])),
         http.get("/api/activity", () => HttpResponse.json([])),
+        catchAllHandler,
       ],
     },
   },

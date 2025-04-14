@@ -17,6 +17,11 @@ export const me: RequestHandler = async (_req, res) => {
     createdStampSec: installation.createdAt.getTime() / 1000,
   }))
 
+  const subscription =
+    user.subscriptionPlan && user.subscriptionInterval
+      ? { plan: user.subscriptionPlan, interval: user.subscriptionInterval }
+      : null
+
   const response: UserResponse = {
     id: user.id,
     githubId: user.githubId,
@@ -26,6 +31,7 @@ export const me: RequestHandler = async (_req, res) => {
     createdStampSec: user.createdAt.getTime() / 1000,
     updatedStampSec: user.updatedAt.getTime() / 1000,
     githubInstallations: installationResponses,
+    subscription,
   }
   res.json(response)
 }

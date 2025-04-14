@@ -3,16 +3,16 @@ import { type ComponentType } from "react"
 
 import ThemeWrapper from "./ThemeWrapper"
 import { catchAllHandler, userHandler } from "./mocks"
-import HomeComponent from "../pages/index"
+import PricingComponent from "../pages/pricing"
 
 type StoryArgs = {
   mode?: "light" | "dark"
   isAuthenticated?: boolean
 }
 
-const meta: Meta<typeof HomeComponent> = {
-  title: "stories/pages/Home",
-  component: HomeComponent,
+const meta: Meta<typeof PricingComponent> = {
+  title: "stories/pages/Pricing",
+  component: PricingComponent,
   argTypes: {
     mode: {
       control: "radio",
@@ -42,7 +42,7 @@ const meta: Meta<typeof HomeComponent> = {
 }
 
 export default meta
-type Story = StoryObj<typeof HomeComponent>
+type Story = StoryObj<typeof PricingComponent>
 
 export const Light: Story = {
   args: {

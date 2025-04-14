@@ -2,6 +2,7 @@ import type { Meta, StoryObj, StoryContext } from "@storybook/react"
 import { type ComponentType } from "react"
 
 import ThemeWrapper from "./ThemeWrapper"
+import { catchAllHandler } from "./mocks"
 import TermsOfServiceComponent from "../pages/docs/terms-of-service"
 
 type StoryArgs = {
@@ -21,12 +22,13 @@ const meta: Meta<typeof TermsOfServiceComponent> = {
   decorators: [
     (Story: ComponentType, context: StoryContext<StoryArgs>): JSX.Element => {
       return (
-        <ThemeWrapper mode={context.args.mode ?? "light"}>
+        <ThemeWrapper mode={context.args.mode ?? "light"} isAuthenticated={false}>
           <Story />
         </ThemeWrapper>
       )
     },
   ],
+  parameters: { msw: { handlers: [catchAllHandler] } },
 }
 
 export default meta

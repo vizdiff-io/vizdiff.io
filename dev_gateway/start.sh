@@ -25,6 +25,14 @@ server {
         proxy_set_header X-Forwarded-For \$remote_addr;
         client_max_body_size 100M;
     }
+    location /_next/webpack-hmr {
+        proxy_pass http://host.docker.internal:3000/_next/webpack-hmr;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "Upgrade";
+        proxy_set_header Host \$host;
+        proxy_set_header X-Forwarded-For \$remote_addr;
+    }
     location / {
         proxy_pass http://host.docker.internal:3000/;
         proxy_set_header X-Forwarded-For \$remote_addr;

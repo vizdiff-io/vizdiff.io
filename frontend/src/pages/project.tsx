@@ -1,5 +1,6 @@
 import CircleIcon from "@mui/icons-material/Circle"
 import ContentCopyIcon from "@mui/icons-material/ContentCopy"
+import RefreshIcon from "@mui/icons-material/Refresh"
 import {
   Box,
   Typography,
@@ -19,6 +20,7 @@ import { useEffect, useState } from "react"
 import { AppLayout } from "@/components/AppLayout"
 import useApiGet from "@/hooks/useApiGet"
 import { useBreadcrumbs } from "@/hooks/useBreadcrumbs"
+import { apiPost } from "@/lib/apiMethods"
 import type { ProjectResponse, ScreenshotTestSummaryResponse } from "@/lib/apiTypes"
 import { getStatusColor } from "@/lib/colors"
 import { getBranchUrl, getCommitUrl, getPullRequestUrl } from "@/lib/links"
@@ -39,6 +41,9 @@ export default function Project(): JSX.Element {
   )
   const builds = buildsResponse ?? []
   const [copyTooltip, setCopyTooltip] = useState("Copy")
+  const [resetTokenLoading, setResetTokenLoading] = useState(false)
+  const [resetTokenTooltip, setResetTokenTooltip] = useState("Reset Token")
+  const [currentToken, setCurrentToken] = useState<string | undefined>(project?.token)
 
   const loading = projectLoading || buildsLoading
   const error = projectError ?? buildsError
@@ -68,6 +73,13 @@ export default function Project(): JSX.Element {
     }
   }, [projectId, projectName, setBreadcrumbData])
 
+  // Update token state when project data changes
+  useEffect(() => {
+    if (project?.token) {
+      setCurrentToken(project.token)
+    }
+  }, [project?.token])
+
   // Show loading state while redirecting or if the page is not yet ready
   if (!router.isReady || !projectId) {
     return (
@@ -93,6 +105,37 @@ export default function Project(): JSX.Element {
     }
   }
 
+  const handleResetToken = async () => {
+    if (!projectId) {
+      return
+    }
+
+    setResetTokenLoading(true)
+    setResetTokenTooltip("Resetting...")
+
+    try {
+      const [updatedProject, apiError] = await apiPost<ProjectResponse>(
+        `/api/projects/${projectId}/reset-token`,
+        {},
+      )
+
+      if (apiError) {
+        console.error("Failed to reset token:", apiError)
+        setResetTokenTooltip("Failed!")
+      } else if (updatedProject?.token) {
+        // Update the token in the UI
+        setCurrentToken(updatedProject.token)
+        setResetTokenTooltip("Success!")
+      }
+    } catch (err) {
+      console.error("Failed to reset token:", err)
+      setResetTokenTooltip("Failed!")
+    } finally {
+      setResetTokenLoading(false)
+      setTimeout(() => setResetTokenTooltip("Reset Token"), 2000)
+    }
+  }
+
   return (
     <>
       <Head>
@@ -107,7 +150,7 @@ export default function Project(): JSX.Element {
             </Paper>
           )}
 
-          {project?.token && (
+          {project && currentToken && (
             <Paper
               sx={{
                 p: 2,
@@ -117,7 +160,7 @@ export default function Project(): JSX.Element {
               }}
             >
               <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                <Typography variant="caption">
                   <strong>VIZDIFF_PROJECT_TOKEN</strong>
                 </Typography>
                 <Typography
@@ -130,14 +173,21 @@ export default function Project(): JSX.Element {
                     borderRadius: 1,
                   }}
                 >
-                  {project.token}
+                  {currentToken}
                 </Typography>
               </Box>
-              <Tooltip title={copyTooltip}>
-                <IconButton onClick={handleCopyToken} size="small">
-                  <ContentCopyIcon />
-                </IconButton>
-              </Tooltip>
+              <Box sx={{ display: "flex" }}>
+                <Tooltip title={copyTooltip}>
+                  <IconButton onClick={handleCopyToken} size="small">
+                    <ContentCopyIcon />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title={resetTokenTooltip}>
+                  <IconButton onClick={handleResetToken} size="small" disabled={resetTokenLoading}>
+                    {resetTokenLoading ? <CircularProgress size={20} /> : <RefreshIcon />}
+                  </IconButton>
+                </Tooltip>
+              </Box>
             </Paper>
           )}
 

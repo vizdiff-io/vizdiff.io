@@ -156,10 +156,14 @@ export async function requireUser(_req: Request, res: Response, next: NextFuncti
   }
 
   // Associate this request with the user in Datadog
+  const name = (user.githubProfile as { name?: string }).name ?? user.githubUsername
   setUser({
     id: user.id.toString(),
-    name: user.githubUsername,
+    name,
     email: user.email ?? undefined,
+    githubUsername: user.githubUsername,
+    subscriptionPlan: user.subscriptionPlan ?? undefined,
+    subscriptionInterval: user.subscriptionInterval ?? undefined,
   })
 
   locals.user = user

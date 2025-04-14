@@ -115,7 +115,7 @@ export default function PrivacyPolicy(): JSX.Element {
   return (
     <>
       <Head>
-        <title>vizdiff.io - Privacy Policy</title>
+        <title>Privacy Policy - vizdiff.io</title>
         <meta name="description" content="Privacy Policy for the vizdiff.io service" />
       </Head>
       <MarketingLayout>

@@ -3675,6 +3675,18 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@next/third-parties@npm:^15.3.0":
+  version: 15.3.0
+  resolution: "@next/third-parties@npm:15.3.0"
+  dependencies:
+    third-party-capital: "npm:1.0.20"
+  peerDependencies:
+    next: ^13.0.0 || ^14.0.0 || ^15.0.0
+    react: ^18.2.0 || 19.0.0-rc-de68d2f4-20241204 || ^19.0.0
+  checksum: 10/882f13429822ce1fcc8cc9725b2e48b684cce3e2d0c50728310353158a1b94dc055f34e1357aae41ba506ab4d093ccacf1a391810b6debbf9ad1cef6d91bf054
+  languageName: node
+  linkType: hard
+
 "@nodelib/fs.scandir@npm:2.1.5":
   version: 2.1.5
   resolution: "@nodelib/fs.scandir@npm:2.1.5"
@@ -5948,12 +5960,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/node@npm:*, @types/node@npm:>=13.7.0, @types/node@npm:^22.13.1, @types/node@npm:^22.5.5":
-  version: 22.13.14
-  resolution: "@types/node@npm:22.13.14"
+"@types/node@npm:*, @types/node@npm:>=13.7.0, @types/node@npm:>=8.1.0, @types/node@npm:^22.13.1, @types/node@npm:^22.5.5":
+  version: 22.14.1
+  resolution: "@types/node@npm:22.14.1"
   dependencies:
-    undici-types: "npm:~6.20.0"
-  checksum: 10/5fafad441c7bb27f963aa8fdfa0787ffb1142b27f4dd2047a2cc27a39f981b432acc71a9b5a428a258f93daeb72f12b7468ab9163a41fe4f98584bc5d42ade6e
+    undici-types: "npm:~6.21.0"
+  checksum: 10/561b1ad98ef5176d6da856ffbbe494f16655149f6a7d561de0423c8784910c81267d7d6459f59d68a97b3cbae9b5996b3b5dfe64f4de3de2239d295dcf4a4dcc
   languageName: node
   linkType: hard
 
@@ -6175,7 +6187,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/uuid@npm:^9.0.1":
+"@types/uuid@npm:^9.0.0, @types/uuid@npm:^9.0.1":
   version: 9.0.8
   resolution: "@types/uuid@npm:9.0.8"
   checksum: 10/b8c60b7ba8250356b5088302583d1704a4e1a13558d143c549c408bf8920535602ffc12394ede77f8a8083511b023704bc66d1345792714002bfa261b17c5275
@@ -6502,6 +6514,33 @@ __metadata:
   checksum: 10/83d62d5703a3210a2f137c25dc4e797a7a1d74d5d2e14ecc33b274c7710304fa8b5099101c98bc8d66cc2bf18a14f88ebf21f0996a99d0ee1439ae23b49f3961
   languageName: node
   linkType: hard
+
+"@vizdiff/cli@workspace:cli":
+  version: 0.0.0-use.local
+  resolution: "@vizdiff/cli@workspace:cli"
+  dependencies:
+    "@foxglove/eslint-plugin": "npm:2.0.0"
+    "@types/node": "npm:22.13.1"
+    "@typescript-eslint/eslint-plugin": "npm:8.23.0"
+    "@typescript-eslint/parser": "npm:8.23.0"
+    commander: "npm:13.1.0"
+    eslint: "npm:9.20.0"
+    eslint-config-prettier: "npm:10.0.1"
+    eslint-plugin-es: "npm:4.1.0"
+    eslint-plugin-filenames: "npm:1.3.2"
+    eslint-plugin-import: "npm:2.31.0"
+    eslint-plugin-prettier: "npm:5.2.3"
+    prettier: "npm:3.4.2"
+    simple-git: "npm:^3.27.0"
+    ts-node: "npm:10.9.2"
+    typescript: "npm:5.7.3"
+    undici: "npm:5.28.5"
+    vitest: "npm:^3.0.5"
+    zip-a-folder: "npm:1.1.7"
+  bin:
+    vizdiff: dist/src/bin/vizdiff.js
+  languageName: unknown
+  linkType: soft
 
 "@wdio/cli@npm:^9.8.0":
   version: 9.8.0
@@ -7056,6 +7095,7 @@ __metadata:
     pino-http: "npm:8.6.1"
     pino-pretty: "npm:10.3.1"
     reflect-metadata: "npm:0.2.2"
+    stripe: "npm:^18.0.0"
     supertest: "npm:7.0.0"
     ts-node: "npm:10.9.2"
     tsconfig-paths: "npm:^4.2.0"
@@ -8233,33 +8273,6 @@ __metadata:
   checksum: 10/b58876fbf0310a8a35c79b72ecfcf579b354e18ad04e6b20588724ea2b522799a758507a37dfe132fafaf93a9922cafd9514d9e1598e6b2cd46694853aed099f
   languageName: node
   linkType: hard
-
-"cli@workspace:cli":
-  version: 0.0.0-use.local
-  resolution: "cli@workspace:cli"
-  dependencies:
-    "@foxglove/eslint-plugin": "npm:2.0.0"
-    "@types/node": "npm:22.13.1"
-    "@typescript-eslint/eslint-plugin": "npm:8.23.0"
-    "@typescript-eslint/parser": "npm:8.23.0"
-    commander: "npm:13.1.0"
-    eslint: "npm:9.20.0"
-    eslint-config-prettier: "npm:10.0.1"
-    eslint-plugin-es: "npm:4.1.0"
-    eslint-plugin-filenames: "npm:1.3.2"
-    eslint-plugin-import: "npm:2.31.0"
-    eslint-plugin-prettier: "npm:5.2.3"
-    prettier: "npm:3.4.2"
-    simple-git: "npm:^3.27.0"
-    ts-node: "npm:10.9.2"
-    typescript: "npm:5.7.3"
-    undici: "npm:5.28.5"
-    vitest: "npm:^3.0.5"
-    zip-a-folder: "npm:1.1.7"
-  bin:
-    vizdiff: dist/src/bin/vizdiff.js
-  languageName: unknown
-  linkType: soft
 
 "client-only@npm:0.0.1":
   version: 0.0.1
@@ -11054,6 +11067,7 @@ __metadata:
     "@foxglove/eslint-plugin": "npm:^2.0.0"
     "@mui/icons-material": "npm:5.16.14"
     "@mui/material": "npm:5.16.14"
+    "@next/third-parties": "npm:^15.3.0"
     "@octokit/rest": "npm:^21.1.0"
     "@octokit/types": "npm:13.8.0"
     "@storybook/addon-essentials": "npm:8.5.3"
@@ -11066,6 +11080,7 @@ __metadata:
     "@types/node": "npm:22.13.1"
     "@types/react": "npm:18.0.31"
     "@types/react-dom": "npm:19.0.3"
+    "@types/uuid": "npm:^9.0.0"
     axios: "npm:1.7.9"
     chromatic: "npm:^11.25.2"
     date-fns: "npm:^4.1.0"
@@ -11081,7 +11096,7 @@ __metadata:
     storybook: "npm:8.5.3"
     terser: "npm:^5.38.1"
     typescript: "npm:5.7.3"
-    use-async-effect: "npm:2.2.7"
+    uuid: "npm:^9.0.1"
   languageName: unknown
   linkType: soft
 
@@ -17173,6 +17188,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"stripe@npm:^18.0.0":
+  version: 18.0.0
+  resolution: "stripe@npm:18.0.0"
+  dependencies:
+    "@types/node": "npm:>=8.1.0"
+    qs: "npm:^6.11.0"
+  checksum: 10/94f081c14ed0fb26d10748be7f41695d24fce8852f25a27abe67a67fab06eddcfca32f067e6bc84d1d91e220c9aa2ab4ca8ff006e407bae904068b6aa31c922c
+  languageName: node
+  linkType: hard
+
 "strnum@npm:^1.0.5":
   version: 1.0.5
   resolution: "strnum@npm:1.0.5"
@@ -17428,6 +17453,13 @@ __metadata:
   dependencies:
     any-promise: "npm:^1.0.0"
   checksum: 10/486e1283a867440a904e36741ff1a177faa827cf94d69506f7e3ae4187b9afdf9ec368b3d8da225c192bfe2eb943f3f0080594156bf39f21b57cd1411e2e7f6d
+  languageName: node
+  linkType: hard
+
+"third-party-capital@npm:1.0.20":
+  version: 1.0.20
+  resolution: "third-party-capital@npm:1.0.20"
+  checksum: 10/40e2531b428a21f05531fc62ef82859c0071211eff09588baf75d4b525096bbdb4f93e17e2d538849db8d4fc3cceb074933d7be59fddc26f86718fbbe852a97f
   languageName: node
   linkType: hard
 
@@ -17973,6 +18005,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"undici-types@npm:~6.21.0":
+  version: 6.21.0
+  resolution: "undici-types@npm:6.21.0"
+  checksum: 10/ec8f41aa4359d50f9b59fa61fe3efce3477cc681908c8f84354d8567bb3701fafdddf36ef6bff307024d3feb42c837cf6f670314ba37fc8145e219560e473d14
+  languageName: node
+  linkType: hard
+
 "undici@npm:5.28.5":
   version: 5.28.5
   resolution: "undici@npm:5.28.5"
@@ -18200,15 +18239,6 @@ __metadata:
   version: 10.0.0
   resolution: "urlpattern-polyfill@npm:10.0.0"
   checksum: 10/346819dbe718e929988298d02a988b8ddfa601d08daaa7e69b1148eab699c86c0f0f933d68d8c8cf913166fe64156ed28904e673200d18ef7e9ed6b58cea3fc7
-  languageName: node
-  linkType: hard
-
-"use-async-effect@npm:2.2.7":
-  version: 2.2.7
-  resolution: "use-async-effect@npm:2.2.7"
-  peerDependencies:
-    react: ^16.8.0 || ^17.0.0 || ^18.0.0
-  checksum: 10/1fb98976082fa4344a89e01003b92b207080af2a78f3491f43e0a651413e10aab8fbadb92445e54886ae15a9b8ce1e1c49282702ae46d5c310d7feeec72be127
   languageName: node
   linkType: hard
 

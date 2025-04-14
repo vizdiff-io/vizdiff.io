@@ -1,6 +1,7 @@
 import { Octokit } from "@octokit/rest"
 import jwt from "jsonwebtoken"
 import { User } from "shared"
+import { Stripe } from "stripe"
 import { fetch } from "undici"
 
 import { Database } from "../database"
@@ -12,6 +13,8 @@ import {
   GITHUB_PRIVATE_KEY,
   IS_PRODUCTION,
   JWT_SECRET,
+  STRIPE_SECRET_KEY,
+  STRIPE_API_VERSION,
 } from "../environment"
 import { syncUserInstallations } from "../github"
 import { isValidRedirectUrl, parseSimpleQueryString, requiredQueryString } from "../http"
@@ -134,7 +137,10 @@ export async function githubCallback(req: DefaultRequest, res: DefaultResponse):
   let user = await userTable.findOneBy({ githubId })
   if (!user) {
     // Create a new user
-    log.info(`Creating new user for GitHub user ${ghUser.login} (${ghUser.id})`)
+    log.info(
+      { event: "user_created", githubUser: ghUser },
+      `Creating new user for GitHub user ${ghUser.login} (${ghUser.id})`,
+    )
     user = new User()
     user.githubId = githubId
   }
@@ -146,6 +152,33 @@ export async function githubCallback(req: DefaultRequest, res: DefaultResponse):
   user.githubAccessToken = ghTokenRes.access_token
 
   user = await userTable.save(user)
+
+  // Ensure user has a Stripe customer ID
+  if (STRIPE_SECRET_KEY && !user.stripeCustomerId) {
+    try {
+      log.debug(`Creating Stripe customer for GitHub user ${ghUser.login} (${ghUser.id})`)
+      const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: STRIPE_API_VERSION })
+      const customer = await stripe.customers.create({
+        email: ghUser.email ?? `${ghUser.login}@github.login`,
+        name: ghUser.name ?? ghUser.login,
+        metadata: {
+          github_id: githubId,
+          github_username: ghUser.login,
+          user_id: user.id.toString(),
+        },
+        description: `GitHub user: ${ghUser.login}`,
+      })
+
+      user.stripeCustomerId = customer.id
+      log.info(`Created Stripe customer ${customer.id} for GitHub user ${ghUser.login}`)
+
+      // Update the user record with the customer ID
+      user = await userTable.save(user)
+    } catch (error) {
+      // Don't block user creation if Stripe fails
+      log.error(error, `Failed to create Stripe customer for GitHub user ${ghUser.login}`)
+    }
+  }
 
   // Sync GitHub App installations for this user, passing the installation ID if available
   await syncUserInstallations(user, installationId)

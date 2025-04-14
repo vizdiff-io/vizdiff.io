@@ -7,11 +7,13 @@ import { changeStatusColor, changeStatusMessage } from "@/lib/changeStatus"
 interface TestResultCardProps {
   result: TestResultResponse
   onOpenFullscreen: (result: TestResultResponse) => void
+  isPriority?: boolean
 }
 
 export default function TestResultCard({
   result,
   onOpenFullscreen,
+  isPriority = false,
 }: TestResultCardProps): JSX.Element {
   return (
     <Paper
@@ -67,17 +69,17 @@ export default function TestResultCard({
             <Image
               src={result.screenshotUrl}
               alt={`Screenshot for ${result.name}`}
-              layout="fill"
-              objectFit="contain"
+              fill
+              style={{ objectFit: "contain" }}
+              priority={isPriority}
             />
           )}
           {result.diffMaskUrl && (
             <Image
               src={result.diffMaskUrl}
               alt={`Diff mask for ${result.name}`}
-              layout="fill"
-              objectFit="contain"
-              style={{ opacity: 0.5 }}
+              fill
+              style={{ objectFit: "contain", opacity: 0.5 }}
             />
           )}
         </Box>

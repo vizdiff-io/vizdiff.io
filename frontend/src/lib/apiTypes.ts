@@ -27,6 +27,10 @@ export type UserResponse = {
   createdStampSec: number
   updatedStampSec: number
   githubInstallations: GitHubInstallationResponse[]
+  subscription: {
+    plan: string
+    interval: string
+  } | null
 }
 
 export type ProjectResponse = {

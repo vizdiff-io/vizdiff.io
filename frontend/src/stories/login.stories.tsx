@@ -3,6 +3,7 @@ import { HttpResponse, http } from "msw"
 import { type ComponentType } from "react"
 
 import ThemeWrapper from "./ThemeWrapper"
+import { catchAllHandler } from "./mocks"
 import LoginComponent from "../pages/login"
 
 type StoryArgs = {
@@ -33,7 +34,10 @@ const meta: Meta<typeof LoginComponent> = {
       },
     },
     msw: {
-      handlers: [http.get("/api/users/me", () => new HttpResponse(null, { status: 401 }))],
+      handlers: [
+        http.get("/api/users/me", () => new HttpResponse(null, { status: 401 })),
+        catchAllHandler,
+      ],
     },
   },
 }

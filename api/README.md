@@ -23,6 +23,7 @@ GITHUB_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----
 AWS_ACCESS_KEY_ID=<aws_access_key_id>
 AWS_SECRET_ACCESS_KEY=<aws_secret_access_key>
 AWS_REGION=<aws_region>
+STRIPE_SECRET_KEY=<sk_test_key>
 ```
 
 3. Run `yarn test`

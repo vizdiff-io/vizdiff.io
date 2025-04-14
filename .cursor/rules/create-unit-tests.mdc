@@ -1,6 +1,7 @@
 ---
 description: Guidelines for creating comprehensive unit tests with proper mocking and test organization
-globs: */*.test.ts, **/*.test.tsx
+globs: *.test.ts,*.test.tsx
+alwaysApply: false
 ---
 ---
 description: Guidelines for creating comprehensive unit tests with proper mocking and test organization

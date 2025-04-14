@@ -1,5 +1,6 @@
 import axios, { AxiosError } from "axios"
 
+import { AnalyticsEvents, trackEvent } from "./analytics"
 import { APP_URL, GITHUB_CLIENT_ID } from "./environment"
 
 const TIMEOUT_MS = 1000 * 30
@@ -9,6 +10,11 @@ export function isAuthenticated(): boolean {
 }
 
 export function githubSignIn(redirectUri: string): void {
+  trackEvent(
+    { action: AnalyticsEvents.LOGIN, category: "Auth", label: "github_signin" },
+    { sendBeforeNavigation: true },
+  )
+
   // GitHub OAuth flow
   const callbackUri = encodeURIComponent(`${APP_URL}/api/auth/github/callback`)
   const scope = "read:user,user:email"
