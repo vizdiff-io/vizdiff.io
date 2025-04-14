@@ -20,7 +20,7 @@ import { remote } from "webdriverio"
 
 import { Database } from "./database"
 import { downloadWithTimeout } from "./download"
-import { APP_URL, STRIPE_SECRET_KEY } from "./environment"
+import { APP_URL, STRIPE_API_VERSION, STRIPE_SECRET_KEY } from "./environment"
 import { getOctokitForInstallation, updateGitHubCheckRun, type GitHubCheckData } from "./github"
 import { log } from "./log"
 import { type Story, processStory } from "./stories"
@@ -516,7 +516,7 @@ async function reportScreenshotUsageToStripe(
 
     const idempotencyKey = `screenshot-usage-${screenshotTest.id}`
 
-    const stripe = new Stripe(STRIPE_SECRET_KEY)
+    const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: STRIPE_API_VERSION })
     await stripe.billing.meterEvents.create(
       {
         event_name: "screenshots",

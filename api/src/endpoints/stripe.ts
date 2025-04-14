@@ -2,7 +2,12 @@ import { User } from "shared"
 import { Stripe } from "stripe"
 
 import { Database } from "../database"
-import { APP_URL, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET } from "../environment"
+import {
+  APP_URL,
+  STRIPE_API_VERSION,
+  STRIPE_SECRET_KEY,
+  STRIPE_WEBHOOK_SECRET,
+} from "../environment"
 import { log } from "../log"
 import { PRICE_IDS } from "../pricing"
 import type { RequestWithRawBody, RequestHandler, DefaultResponse } from "../types"
@@ -28,7 +33,7 @@ export const createCheckoutSession: RequestHandler = async (req, res) => {
   }
 
   const { user } = res.locals
-  const stripe = new Stripe(STRIPE_SECRET_KEY)
+  const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: STRIPE_API_VERSION })
 
   // Create a Stripe checkout session
   log.info(
@@ -114,7 +119,7 @@ export async function stripeWebhook(req: RequestWithRawBody, res: DefaultRespons
     throw new Error("Stripe environment variables not set")
   }
 
-  const stripe = new Stripe(STRIPE_SECRET_KEY)
+  const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: STRIPE_API_VERSION })
   const signature = req.headers["stripe-signature"]
 
   if (!req.rawBody || !signature) {

@@ -14,6 +14,7 @@ import {
   IS_PRODUCTION,
   JWT_SECRET,
   STRIPE_SECRET_KEY,
+  STRIPE_API_VERSION,
 } from "../environment"
 import { syncUserInstallations } from "../github"
 import { isValidRedirectUrl, parseSimpleQueryString, requiredQueryString } from "../http"
@@ -156,7 +157,7 @@ export async function githubCallback(req: DefaultRequest, res: DefaultResponse):
   if (STRIPE_SECRET_KEY && !user.stripeCustomerId) {
     try {
       log.debug(`Creating Stripe customer for GitHub user ${ghUser.login} (${ghUser.id})`)
-      const stripe = new Stripe(STRIPE_SECRET_KEY)
+      const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: STRIPE_API_VERSION })
       const customer = await stripe.customers.create({
         email: ghUser.email ?? `${ghUser.login}@github.login`,
         name: ghUser.name ?? ghUser.login,
