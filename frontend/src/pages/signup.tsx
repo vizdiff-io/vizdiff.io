@@ -90,7 +90,7 @@ export default function Signup(): JSX.Element {
 
   // Handle redirect based on URL parameters
   useEffect(() => {
-    const { plan: planName, interval, checkout } = router.query
+    const { checkout, interval } = router.query
 
     // Handle checkout status returns
     if (checkout === "success" && user) {
@@ -105,24 +105,11 @@ export default function Signup(): JSX.Element {
       setError("Checkout was cancelled.")
     }
 
-    // Handle direct checkout from URL params
-    if (planName && interval && typeof planName === "string" && typeof interval === "string") {
-      const plan = PRICING_PLANS.find((p) => p.name.toLowerCase() === planName.toLowerCase())
-
-      if (plan) {
-        const intervalValue = interval === "yearly" || interval === "annual" ? "yearly" : "monthly"
-        // Redirect to checkout via our server endpoint
-        void redirectToCheckout(planName.toLowerCase(), intervalValue)
-      } else {
-        setError(`Unknown plan name: ${planName}`)
-      }
-    }
-
     // Set the initial billing interval from URL if provided
     if (interval && typeof interval === "string") {
       setBillingInterval(interval === "yearly" || interval === "annual" ? "yearly" : "monthly")
     }
-  }, [router.query, redirectToCheckout, user])
+  }, [router.query, user])
 
   // Check if the user has the current plan
   const isCurrentPlan = useCallback(
