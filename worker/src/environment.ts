@@ -26,5 +26,8 @@ export const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET ?? ""
 export const GITHUB_PRIVATE_KEY = process.env.GITHUB_PRIVATE_KEY ?? ""
 export const GITHUB_WEBHOOK_SECRET = process.env.GITHUB_WEBHOOK_SECRET ?? ""
 
+// Stripe settings
+export const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY
+
 // Application URLs
 export const APP_URL = process.env.APP_URL ?? "https://vizdiff.io"
