@@ -12,7 +12,7 @@
   ],
   "scripts": {
     "api": "yarn workspace api",
-    "cli": "yarn workspace cli",
+    "cli": "yarn workspace @vizdiff/cli",
     "frontend": "yarn workspace frontend",
     "worker": "yarn workspace worker",
     "build:all": "yarn workspace shared build && yarn workspaces foreach --all -p run build",
