@@ -68,6 +68,9 @@ export class ScreenshotTest {
   @Column({ name: "total_changes", type: "integer", nullable: true })
   totalChanges!: number | null
 
+  @Column({ name: "browser_version", type: "text", nullable: true })
+  browserVersion!: string | null
+
   @CreateDateColumn({ name: "created_at", type: "timestamptz", nullable: false })
   createdAt!: Date
 

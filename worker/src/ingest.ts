@@ -140,7 +140,7 @@ export async function ingestStorybook(
     log.debug(`Successfully extracted storybook build`)
 
     // Initialize WebdriverIO
-    log.info("Initializing WebdriverIO in headless Chrome mode")
+    log.debug("Initializing WebdriverIO in headless Chrome mode")
     const config: Capabilities.WebdriverIOConfig = {
       outputDir: path.join(tmpDir, "wdio-logs"),
       hostname: "localhost",
@@ -153,9 +153,10 @@ export async function ingestStorybook(
       },
     }
     const browser = await remote(config)
-    log.debug(
-      `Successfully initialized WebdriverIO [${browser.capabilities.browserName}] ` +
-        `[${browser.capabilities.browserVersion}] [${browser.capabilities.platformName}]`,
+    screenshotTest.browserVersion = `${browser.capabilities.browserName}-${browser.capabilities.platformName}-${browser.capabilities.browserVersion}`
+    log.info(
+      { capabilities: browser.capabilities },
+      `Successfully initialized WebdriverIO ${screenshotTest.browserVersion}`,
     )
 
     try {
