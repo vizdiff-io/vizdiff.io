@@ -69,7 +69,7 @@ const mockActivity: ScreenshotTestResponse[] = [
     buildNumber: 5,
     githubRepoUrl: "https://github.com/example/example-project",
     commitSha: "84a516841ba77a5b4648de2cd0dfcb30ea46dbb4",
-    branch: "main",
+    branch: "someone/made/a/very/long/branch/name/that/doesnt/fit/in/the/activity/list",
     uploadId: "upload-5",
     status: "running",
     initiatedStampSec: oneMinuteAgo - 3600 * 24, // 1 day ago
@@ -91,7 +91,7 @@ const mockActivity: ScreenshotTestResponse[] = [
   {
     id: 4,
     projectId: 4,
-    projectName: "MyAwesomeProject",
+    projectName: "MyAwesomeProject Except It Has A Very Long Name",
     buildNumber: 3,
     githubRepoUrl: "https://github.com/test/MyAwesomeProject",
     commitSha: "58e6b3a414a1e090dfc6029add0f3555ccba127f",

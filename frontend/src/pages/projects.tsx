@@ -144,7 +144,12 @@ export default function Projects(): JSX.Element {
                     style={{ textDecoration: "none", color: "inherit" }}
                   >
                     <ListItem
-                      sx={{ px: 0, py: 1, "&:hover": { bgcolor: "var(--five-percent-opacity)" } }}
+                      sx={{
+                        px: 0,
+                        py: 1,
+                        overflow: "hidden",
+                        "&:hover": { bgcolor: "var(--five-percent-opacity)" },
+                      }}
                     >
                       <ListItemIcon sx={{ minWidth: 32 }}>
                         <CircleIcon
@@ -155,10 +160,35 @@ export default function Projects(): JSX.Element {
                         />
                       </ListItemIcon>
                       <ListItemText
-                        primary={`Build #${test.buildNumber}`}
-                        secondary={formatTimeAgo(test.initiatedStampSec * 1000)}
-                        primaryTypographyProps={{ variant: "body2" }}
-                        secondaryTypographyProps={{ variant: "caption" }}
+                        primary={`Build #${test.buildNumber} • ${test.projectName}`}
+                        secondary={
+                          <>
+                            {formatTimeAgo(test.initiatedStampSec * 1000)} on{" "}
+                            <Typography
+                              component="span"
+                              variant="caption"
+                              sx={{ fontFamily: "monospace" }}
+                            >
+                              {test.branch}
+                            </Typography>
+                          </>
+                        }
+                        primaryTypographyProps={{
+                          variant: "body2",
+                          noWrap: true,
+                          sx: {
+                            textOverflow: "ellipsis",
+                            overflow: "hidden",
+                          },
+                        }}
+                        secondaryTypographyProps={{
+                          variant: "caption",
+                          noWrap: true,
+                          sx: {
+                            textOverflow: "ellipsis",
+                            overflow: "hidden",
+                          },
+                        }}
                       />
                     </ListItem>
                   </Link>
