@@ -106,6 +106,7 @@ router.get("/tests/:id", authenticateJWT, requireUser, ScreenshotTests.get)
 router.post("/tests/:id/status/:status", authenticateJWT, requireUser, Approval.approveOrDeny)
 
 router.get("/users/me", authenticateJWT, requireUser, User.me)
+router.delete("/users/me", authenticateJWT, requireUser, User.deleteAccount)
 router.post("/upload/storybook", Upload.uploadStorybook) // ?token=<project_token>
 
 router.post("/stripe/checkout", authenticateJWT, requireUser, StripeEndpoints.createCheckoutSession)

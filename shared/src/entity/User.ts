@@ -52,6 +52,9 @@ export class User {
   @Column({ name: "subscription_interval", type: "text", nullable: true })
   subscriptionInterval!: string | null
 
+  @Column({ name: "trial_ends_at", type: "timestamptz", nullable: true })
+  trialEndsAt!: Date | null
+
   @CreateDateColumn({ name: "created_at", type: "timestamptz", nullable: false })
   createdAt!: Date
 

@@ -15,6 +15,7 @@ import {
   JWT_SECRET,
   STRIPE_SECRET_KEY,
   STRIPE_API_VERSION,
+  TRIAL_PERIOD_MS,
 } from "../environment"
 import { syncUserInstallations } from "../github"
 import { isValidRedirectUrl, parseSimpleQueryString, requiredQueryString } from "../http"
@@ -144,6 +145,9 @@ export async function githubCallback(req: DefaultRequest, res: DefaultResponse):
     user = new User()
     user.githubId = githubId
   }
+
+  // Set the trial end date to 14 days from now if it's not already set
+  user.trialEndsAt ??= new Date(Date.now() + TRIAL_PERIOD_MS)
 
   // Set or update the user's info retrieved from GitHub
   user.email = ghUser.email

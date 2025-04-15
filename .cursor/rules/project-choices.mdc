@@ -29,4 +29,4 @@ vizdiff.io is a visual screenshot testing SaaS platform offering tight integrati
 
 - Strict tsc and eslint settings are enforced
 - Create storybooks for all components and pages in @`frontend/src/stories/`
-- Create unit tests for exported interfaces using vitest. @`worker/src/worker.test.ts` is an example of a complex suite of tests involving several mocked external services
+- For non-frontend projects, create unit tests for exported interfaces using vitest. @`worker/src/worker.test.ts` is an example of a complex suite of tests involving several mocked external services

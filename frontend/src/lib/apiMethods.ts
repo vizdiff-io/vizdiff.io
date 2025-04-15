@@ -38,6 +38,7 @@ export async function apiGet<T>(endpoint: string): Promise<[T | null, AxiosError
     const axErr = err as AxiosError
     console.warn(`Failed to GET ${endpoint}`, axErr)
     redirectIfUnauthorized(axErr)
+    extractServerErrorMessage(axErr)
     return [null, axErr]
   }
 }
@@ -54,7 +55,8 @@ export async function tryApiGet<T>(endpoint: string): Promise<[T | null, AxiosEr
     return [response.data, null]
   } catch (err) {
     const axErr = err as AxiosError
-    console.info(`GET ${endpoint}`, axErr)
+    extractServerErrorMessage(axErr)
+    console.info(`[!] GET ${endpoint}`, axErr)
     return [null, axErr]
   }
 }
@@ -81,6 +83,7 @@ export async function apiPost<T>(
     const axErr = err as AxiosError
     console.error(`Failed to POST ${endpoint}`, axErr)
     redirectIfUnauthorized(axErr)
+    extractServerErrorMessage(axErr)
     return [undefined, axErr]
   }
 }
@@ -101,6 +104,7 @@ export async function apiDelete<T>(
     const axErr = err as AxiosError
     console.error(`Failed to DELETE ${endpoint}`, axErr)
     redirectIfUnauthorized(axErr)
+    extractServerErrorMessage(axErr)
     return [undefined, axErr]
   }
 }
@@ -108,5 +112,15 @@ export async function apiDelete<T>(
 function redirectIfUnauthorized(err: AxiosError): void {
   if (err.response?.status === 401) {
     githubSignIn(window.location.href)
+  }
+}
+
+function extractServerErrorMessage(axErr: AxiosError): void {
+  // Extract error message from response if available
+  if (axErr.response?.data && typeof axErr.response.data === "object") {
+    const apiErrorMsg = (axErr.response.data as { error?: string }).error
+    if (apiErrorMsg) {
+      axErr.message = apiErrorMsg
+    }
   }
 }

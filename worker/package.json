@@ -25,6 +25,7 @@
     "pixelmatch": "7.1.0",
     "reflect-metadata": "0.2.2",
     "shared": "workspace:*",
+    "stripe": "^18.0.0",
     "tar": "^7.4.3",
     "typeorm": "^0.3.20",
     "webdriverio": "^9.8.0"

@@ -20,6 +20,9 @@ type StoryArgs = {
   checkoutError?: string | null
 }
 
+const oneMinuteAgo = Math.floor(Date.now() / 1000) - 60
+const fixedDate = new Date("2025-04-01T08:00:00Z")
+
 // Create base mock user
 const createMockUser = (subscription: StoryArgs["subscription"]): UserResponse => ({
   id: 123,
@@ -28,13 +31,15 @@ const createMockUser = (subscription: StoryArgs["subscription"]): UserResponse =
   githubUsername: "user123",
   githubProfile: {
     login: "user123",
+    name: "User 123",
     id: 123,
     node_id: "node123",
     avatar_url: "https://github.com/avatar.png",
     email: "user@example.com",
   },
-  createdStampSec: Date.now() / 1000,
-  updatedStampSec: Date.now() / 1000,
+  trialEndStampSec: oneMinuteAgo,
+  createdStampSec: fixedDate.getTime() / 1000,
+  updatedStampSec: oneMinuteAgo,
   githubInstallations: [],
   subscription: subscription ?? null,
 })
