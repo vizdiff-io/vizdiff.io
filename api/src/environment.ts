@@ -34,3 +34,5 @@ export const JWT_SECRET = process.env.JWT_SECRET ?? "secret"
 export const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY
 export const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET
 export const STRIPE_API_VERSION = "2025-03-31.basil"
+
+export const TRIAL_PERIOD_MS = 14 * 24 * 60 * 60 * 1000 // 14 days

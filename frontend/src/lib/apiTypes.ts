@@ -24,6 +24,7 @@ export type UserResponse = {
   email: string | null
   githubUsername: string
   githubProfile: GithubUser
+  trialEndStampSec: number
   createdStampSec: number
   updatedStampSec: number
   githubInstallations: GitHubInstallationResponse[]

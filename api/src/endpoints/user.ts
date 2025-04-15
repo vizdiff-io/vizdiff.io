@@ -1,3 +1,5 @@
+import { TRIAL_PERIOD_MS } from "src/environment"
+
 import type { GitHubInstallationResponse, UserResponse } from "../apiTypes"
 import { getInstallationsForUserId } from "../github"
 import type { GithubUser } from "../schemas/GithubUser"
@@ -22,12 +24,15 @@ export const me: RequestHandler = async (_req, res) => {
       ? { plan: user.subscriptionPlan, interval: user.subscriptionInterval }
       : null
 
+  const trialEndStampSec = user.trialEndsAt?.getTime() ?? user.createdAt.getTime() + TRIAL_PERIOD_MS
+
   const response: UserResponse = {
     id: user.id,
     githubId: user.githubId,
     email: user.email,
     githubUsername: user.githubUsername,
     githubProfile: user.githubProfile as GithubUser,
+    trialEndStampSec,
     createdStampSec: user.createdAt.getTime() / 1000,
     updatedStampSec: user.updatedAt.getTime() / 1000,
     githubInstallations: installationResponses,
