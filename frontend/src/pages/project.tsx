@@ -19,6 +19,7 @@ import { useEffect, useState } from "react"
 
 import { AppLayout } from "@/components/AppLayout"
 import useApiGet from "@/hooks/useApiGet"
+import useAuth from "@/hooks/useAuth"
 import { useBreadcrumbs } from "@/hooks/useBreadcrumbs"
 import { apiPost } from "@/lib/apiMethods"
 import type { ProjectResponse, ScreenshotTestSummaryResponse } from "@/lib/apiTypes"
@@ -29,6 +30,7 @@ import { plural } from "@/lib/text"
 export default function Project(): JSX.Element {
   const router = useRouter()
   const { setBreadcrumbData } = useBreadcrumbs()
+  const { user } = useAuth()
   const theme = useTheme()
   const { id } = router.query
   const projectId = getProjectId(id)
@@ -80,16 +82,7 @@ export default function Project(): JSX.Element {
     }
   }, [project?.token])
 
-  // Show loading state while redirecting or if the page is not yet ready
-  if (!router.isReady || !projectId) {
-    return (
-      <AppLayout>
-        <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
-          <CircularProgress />
-        </Box>
-      </AppLayout>
-    )
-  }
+  const isProjectOwner = project != undefined && project.ownerId === user?.id
 
   const handleCopyToken = async () => {
     if (project?.token) {
@@ -136,6 +129,17 @@ export default function Project(): JSX.Element {
     }
   }
 
+  // Show loading state while redirecting or if the page is not yet ready
+  if (!router.isReady || !projectId) {
+    return (
+      <AppLayout>
+        <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+          <CircularProgress />
+        </Box>
+      </AppLayout>
+    )
+  }
+
   return (
     <>
       <Head>
@@ -147,6 +151,41 @@ export default function Project(): JSX.Element {
           {error && (
             <Paper sx={{ p: 2, mb: 3, bgcolor: "error.light", color: "error.contrastText" }}>
               {error.message}
+            </Paper>
+          )}
+
+          {/* Show error banner if project does not have an active subscription */}
+          {project?.hasActiveSubscription === false && (
+            <Paper
+              sx={{
+                p: 2,
+                mb: 3,
+                bgcolor: "warning.main",
+                color: "warning.contrastText",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <Typography color="var(--text-on-primary)">
+                {isProjectOwner ? (
+                  <>
+                    ⚠️ Your project does not have an active subscription.{" "}
+                    <MuiLink
+                      href="/signup"
+                      sx={{ color: "inherit", textDecoration: "underline", fontWeight: 600 }}
+                    >
+                      Subscribe to a paid plan
+                    </MuiLink>{" "}
+                    to enable full functionality.
+                  </>
+                ) : (
+                  <>
+                    ⚠️ This project does not have an active subscription. Please contact the project
+                    owner to subscribe to a paid plan.
+                  </>
+                )}
+              </Typography>
             </Paper>
           )}
 
@@ -173,7 +212,7 @@ export default function Project(): JSX.Element {
                     borderRadius: 1,
                   }}
                 >
-                  {currentToken}
+                  {project.hasActiveSubscription ? currentToken : maskToken(currentToken)}
                 </Typography>
               </Box>
               <Box sx={{ display: "flex" }}>
@@ -182,11 +221,17 @@ export default function Project(): JSX.Element {
                     <ContentCopyIcon />
                   </IconButton>
                 </Tooltip>
-                <Tooltip title={resetTokenTooltip}>
-                  <IconButton onClick={handleResetToken} size="small" disabled={resetTokenLoading}>
-                    {resetTokenLoading ? <CircularProgress size={20} /> : <RefreshIcon />}
-                  </IconButton>
-                </Tooltip>
+                {isProjectOwner && (
+                  <Tooltip title={resetTokenTooltip}>
+                    <IconButton
+                      onClick={handleResetToken}
+                      size="small"
+                      disabled={resetTokenLoading}
+                    >
+                      {resetTokenLoading ? <CircularProgress size={20} /> : <RefreshIcon />}
+                    </IconButton>
+                  </Tooltip>
+                )}
               </Box>
             </Paper>
           )}
@@ -337,4 +382,12 @@ function getProjectId(id: string | string[] | undefined): number | undefined {
     return isNaN(parsedId) ? undefined : parsedId
   }
   return undefined
+}
+
+/** Replace all but the first four characters of the token with asterisks. */
+function maskToken(token: string): string {
+  if (token.length <= 4) {
+    return token
+  }
+  return token.slice(0, 4) + "*".repeat(token.length - 4)
 }

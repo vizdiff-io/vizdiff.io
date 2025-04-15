@@ -19,6 +19,7 @@ export const mockUser: UserResponse = {
     email: null,
   },
   githubInstallations: [],
+  ownedProjectCount: 2,
   subscription: {
     plan: "starter",
     interval: "monthly",

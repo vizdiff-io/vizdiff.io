@@ -37,6 +37,7 @@ const createMockUser = (subscription: StoryArgs["subscription"]): UserResponse =
     avatar_url: "https://github.com/avatar.png",
     email: "user@example.com",
   },
+  ownedProjectCount: 1,
   trialEndStampSec: oneMinuteAgo,
   createdStampSec: fixedDate.getTime() / 1000,
   updatedStampSec: oneMinuteAgo,

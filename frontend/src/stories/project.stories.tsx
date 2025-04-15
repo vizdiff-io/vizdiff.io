@@ -18,10 +18,23 @@ const mockProject: ProjectResponse = {
   name: "Cat Photos",
   githubRepoUrl: "https://github.com/example/example-project",
   token: "abc123def456",
+  ownerId: 123,
+  hasActiveSubscription: true,
   createdStampSec: oneMinuteAgo - 3600 * 24, // 1 day ago
   lastBuildStampSec: oneMinuteAgo,
   builds: 15,
   tests: 45,
+}
+
+const mockProjectWithExpiredTrial: ProjectResponse = {
+  ...mockProject,
+  hasActiveSubscription: false,
+}
+
+const mockProjectWithExpiredTrialNotOwner: ProjectResponse = {
+  ...mockProject,
+  hasActiveSubscription: false,
+  ownerId: 456,
 }
 
 const mockBuilds: ScreenshotTestSummaryResponse[] = [
@@ -152,6 +165,54 @@ export const NoBuilds: Story = {
       handlers: [
         userHandler,
         http.get("/api/projects/:id", () => HttpResponse.json(mockProject)),
+        http.get("/api/projects/:projectId/builds", () => HttpResponse.json([])),
+        catchAllHandler,
+      ],
+    },
+  },
+}
+
+export const ExpiredTrial: Story = {
+  args: {
+    mode: "light",
+  },
+  parameters: {
+    msw: {
+      handlers: [
+        userHandler,
+        http.get("/api/projects/:id", () => HttpResponse.json(mockProjectWithExpiredTrial)),
+        http.get("/api/projects/:projectId/builds", () => HttpResponse.json([])),
+        catchAllHandler,
+      ],
+    },
+  },
+}
+
+export const ExpiredTrialDark: Story = {
+  args: {
+    mode: "dark",
+  },
+  parameters: {
+    msw: {
+      handlers: [
+        userHandler,
+        http.get("/api/projects/:id", () => HttpResponse.json(mockProjectWithExpiredTrial)),
+        http.get("/api/projects/:projectId/builds", () => HttpResponse.json([])),
+        catchAllHandler,
+      ],
+    },
+  },
+}
+
+export const ExpiredTrialNotOwner: Story = {
+  args: {
+    mode: "light",
+  },
+  parameters: {
+    msw: {
+      handlers: [
+        userHandler,
+        http.get("/api/projects/:id", () => HttpResponse.json(mockProjectWithExpiredTrialNotOwner)),
         http.get("/api/projects/:projectId/builds", () => HttpResponse.json([])),
         catchAllHandler,
       ],
