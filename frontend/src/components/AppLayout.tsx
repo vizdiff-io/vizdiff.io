@@ -7,9 +7,10 @@ import {
   Avatar,
   Breadcrumbs,
   type SxProps,
+  Link,
 } from "@mui/material"
 import { Inter } from "next/font/google"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 
 import useAuth from "@/hooks/useAuth"
 import { useBreadcrumbs } from "@/hooks/useBreadcrumbs"
@@ -64,40 +65,53 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     void updateAvatarUrl()
   }, [user])
 
-  const breadcrumbs = [
-    <Button color="primary" variant="text" key="1" href="/">
-      vizdiff.io
-    </Button>,
-    <Button color="primary" variant="text" key="2" href="/projects">
-      Projects
-    </Button>,
-  ]
+  const breadcrumbs = useMemo(() => {
+    const crumbs = [
+      <Button color="primary" variant="text" key="1" href="/">
+        vizdiff.io
+      </Button>,
+      <Button color="primary" variant="text" key="2" href="/projects">
+        Projects
+      </Button>,
+    ]
 
-  if (breadcrumbData.projectId && breadcrumbData.projectName) {
-    if (breadcrumbData.buildId) {
-      breadcrumbs.push(
-        <Button
-          color="primary"
-          variant="text"
-          key="3"
-          href={`/project?id=${breadcrumbData.projectId}`}
-        >
-          {breadcrumbData.projectName}
-        </Button>,
-      )
-      breadcrumbs.push(
-        <Button color="primary" variant="text" key="4" sx={breadcrumbNoLinkStyle}>
-          Build #{breadcrumbData.buildNumber}
-        </Button>,
-      )
-    } else {
-      breadcrumbs.push(
-        <Button color="primary" variant="text" key="3" sx={breadcrumbNoLinkStyle}>
-          {breadcrumbData.projectName}
-        </Button>,
-      )
+    if (breadcrumbData.projectId && breadcrumbData.projectName) {
+      if (breadcrumbData.buildId) {
+        crumbs.push(
+          <Button
+            color="primary"
+            variant="text"
+            key="3"
+            href={`/project?id=${breadcrumbData.projectId}`}
+          >
+            {breadcrumbData.projectName}
+          </Button>,
+        )
+        crumbs.push(
+          <Button color="primary" variant="text" key="4" sx={breadcrumbNoLinkStyle}>
+            Build #{breadcrumbData.buildNumber}
+          </Button>,
+        )
+      } else {
+        crumbs.push(
+          <Button color="primary" variant="text" key="3" sx={breadcrumbNoLinkStyle}>
+            {breadcrumbData.projectName}
+          </Button>,
+        )
+      }
     }
-  }
+
+    return crumbs
+  }, [breadcrumbData])
+
+  const trialDaysLeft = useMemo(() => {
+    // Don't show the trial banner if the user failed to load, has an active
+    // subscription, or doesn't own any projects
+    if (!user || user.subscription || user.ownedProjectCount === 0) {
+      return undefined
+    }
+    return Math.ceil((user.trialEndStampSec - Date.now() / 1000) / 86400)
+  }, [user])
 
   return (
     <ProtectedRoute>
@@ -130,13 +144,38 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
             {/* Right side */}
             <Box sx={{ flexGrow: 1 }} />
             <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
+              {trialDaysLeft != undefined && (
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 2,
+                    px: 2,
+                    py: 1,
+                    borderRadius: 1,
+                    backgroundColor: "var(--bg-paper)",
+                    color: "var(--text-primary)",
+                  }}
+                >
+                  <Box sx={{ fontSize: "0.875rem" }}>
+                    {trialDaysLeft > 0
+                      ? `${trialDaysLeft} day${trialDaysLeft === 1 ? "" : "s"} left in your free trial`
+                      : "Your free trial has expired."}
+                  </Box>
+                  <Button color="primary" href="/signup" variant="contained" size="small">
+                    {trialDaysLeft > 0 ? "Upgrade Now" : "Subscribe"}
+                  </Button>
+                </Box>
+              )}
               {user && (
                 <>
-                  <Avatar
-                    src={avatarUrl}
-                    alt={user.githubUsername}
-                    sx={{ width: 32, height: 32 }}
-                  />
+                  <Link href="/settings">
+                    <Avatar
+                      src={avatarUrl}
+                      alt={user.githubUsername}
+                      sx={{ width: 32, height: 32 }}
+                    />
+                  </Link>
                   <Button href="/api/auth/logout" variant="outlined" size="small">
                     Logout
                   </Button>
