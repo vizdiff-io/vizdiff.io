@@ -9,10 +9,8 @@ import {
   STRIPE_WEBHOOK_SECRET,
 } from "../environment"
 import { log } from "../log"
-import { PRICE_IDS } from "../pricing"
+import { getPriceIds, getPlanInfoFromPriceId } from "../stripe"
 import type { RequestWithRawBody, RequestHandler, DefaultResponse } from "../types"
-
-type StripeLineItem = Stripe.Checkout.SessionCreateParams.LineItem
 
 interface CheckoutBody {
   plan: string
@@ -29,6 +27,16 @@ export const createCheckoutSession: RequestHandler = async (req, res) => {
   const { plan, interval, key } = req.body as Partial<CheckoutBody>
   if (!plan || !interval || !key) {
     res.status(400).json({ error: "Missing required parameters: plan, interval, key" })
+    return
+  }
+
+  // Validate plan and interval
+  if (plan !== "starter" && plan !== "team" && plan !== "pro") {
+    res.status(400).json({ error: "Invalid plan" })
+    return
+  }
+  if (interval !== "monthly" && interval !== "yearly") {
+    res.status(400).json({ error: "Invalid interval" })
     return
   }
 
@@ -62,56 +70,6 @@ export const createCheckoutSession: RequestHandler = async (req, res) => {
 
   // Return the checkout session URL for the client to redirect to
   res.json({ url: session.url })
-}
-
-function getPriceIds(plan: string, interval: string): StripeLineItem[] {
-  const priceIds: StripeLineItem[] = []
-  if (interval === "monthly") {
-    if (plan === "starter") {
-      priceIds.push({ price: PRICE_IDS.plan_starter_monthly, quantity: 1 })
-      priceIds.push({ price: PRICE_IDS.usage_screenshots_starter_monthly })
-    } else if (plan === "team") {
-      priceIds.push({ price: PRICE_IDS.plan_team_monthly, quantity: 1 })
-      priceIds.push({ price: PRICE_IDS.usage_screenshots_team_monthly })
-    } else if (plan === "pro") {
-      priceIds.push({ price: PRICE_IDS.plan_pro_monthly, quantity: 1 })
-      priceIds.push({ price: PRICE_IDS.usage_screenshots_pro_monthly })
-    } else {
-      throw new Error("Invalid plan")
-    }
-  } else if (interval === "yearly") {
-    if (plan === "starter") {
-      priceIds.push({ price: PRICE_IDS.plan_starter_yearly, quantity: 1 })
-      priceIds.push({ price: PRICE_IDS.usage_screenshots_starter_monthly })
-    } else if (plan === "team") {
-      priceIds.push({ price: PRICE_IDS.plan_team_yearly, quantity: 1 })
-      priceIds.push({ price: PRICE_IDS.usage_screenshots_team_monthly })
-    } else if (plan === "pro") {
-      priceIds.push({ price: PRICE_IDS.plan_pro_yearly, quantity: 1 })
-      priceIds.push({ price: PRICE_IDS.usage_screenshots_pro_monthly })
-    } else {
-      throw new Error("Invalid plan")
-    }
-  } else {
-    throw new Error("Invalid interval")
-  }
-  return priceIds
-}
-
-// Function to extract plan and interval from Stripe price ID
-function getPlanInfoFromPriceId(priceId: string): { plan: string; interval: string } | null {
-  // Match price ID to the corresponding plan and interval
-  for (const [key, value] of Object.entries(PRICE_IDS)) {
-    if (value === priceId) {
-      // Parse the key to extract plan and interval
-      // Format is expected to be: plan_[planName]_[intervalName]
-      const parts = key.split("_")
-      if (parts.length >= 3 && parts[0] === "plan") {
-        return { plan: parts[1]!, interval: parts[2]! }
-      }
-    }
-  }
-  return null
 }
 
 export async function stripeWebhook(req: RequestWithRawBody, res: DefaultResponse): Promise<void> {

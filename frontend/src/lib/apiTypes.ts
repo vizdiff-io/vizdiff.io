@@ -3,6 +3,7 @@ export type TestResultStatus = "new" | "unchanged" | "changed" | "failed"
 export type GithubUser = {
   login: string
   id: number
+  name: string | null
   node_id: string
   avatar_url: string
   email: string | null

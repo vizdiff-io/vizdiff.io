@@ -92,6 +92,7 @@ export function setAnalyticsUser(user: {
 
 // Common analytics events
 export const AnalyticsEvents = {
+  DELETE_ACCOUNT: "delete_account",
   INSTALL_APP: "install_app",
   LOGIN: "login",
   PLAN_PURCHASED: "plan_purchased",
