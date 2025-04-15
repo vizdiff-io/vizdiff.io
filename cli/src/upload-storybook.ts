@@ -109,9 +109,27 @@ export async function uploadStorybook(opts: UploadStorybookOpts): Promise<void> 
       body: await fs.readFile(tarballFilename),
     })
     if (!response.ok) {
-      throw new Error(
-        `Failed to upload storybook build folder to vizdiff CDN: ${response.statusText} (${response.status})`,
-      )
+      let errorJson: unknown
+      let errorString: string | undefined =
+        `Failed to upload storybook build folder to vizdiff CDN: ${response.statusText} (${response.status})`
+      try {
+        if (response.headers.get("content-type")?.includes("application/json")) {
+          errorJson = await response.json()
+          if (
+            errorJson &&
+            typeof errorJson === "object" &&
+            "error" in errorJson &&
+            typeof (errorJson as Record<string, unknown>).error === "string"
+          ) {
+            errorString = (errorJson as { error: string }).error
+          }
+        }
+      } catch {
+        // ignore JSON parse errors
+      }
+      const uploadError = new Error(errorString) as Error & { statusCode?: number }
+      uploadError.statusCode = response.status
+      throw uploadError
     }
     const res = (await response.json()) as UploadResponse
     if (!res.success) {

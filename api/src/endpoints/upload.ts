@@ -1,7 +1,7 @@
 import { S3Client } from "@aws-sdk/client-s3"
 import { Upload as S3Upload } from "@aws-sdk/lib-storage"
 import type { Logger } from "pino"
-import { createSummaryForBuild, ScreenshotTest, WorkTask } from "shared"
+import { createSummaryForBuild, ScreenshotTest, User, WorkTask } from "shared"
 import { uuidv7 } from "uuidv7"
 
 import { getProjectByToken, getS3BucketForProject } from "../authenticate"
@@ -71,9 +71,6 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
     return
   }
 
-  const Bucket = await getS3BucketForProject(project)
-  const Key = `projects/${project.id}/${uploadId}.tar.gz`
-
   const logChild = log.child({
     userId: project.user.id,
     projectId: project.id,
@@ -86,6 +83,33 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
     baseBranch,
     prNumber,
   })
+
+  // Ensure the project owner has a valid subscription or trial
+  const db = await Database()
+  const userTable = db.getRepository(User)
+  const projectOwner = await userTable.findOne({ where: { id: project.user.id } })
+  if (!projectOwner) {
+    throw new Error(`Project owner not found: ${project.user.id}`)
+  }
+  if (projectOwner.subscriptionPlan == null) {
+    const owner = projectOwner.githubUsername
+    if (projectOwner.trialEndsAt == null) {
+      throw new Error(`Project owner "${owner}" has no valid subscription or trial`)
+    }
+    if (projectOwner.trialEndsAt < new Date()) {
+      // Return a 402 Payment Required error
+      logChild.warn({ projectOwner }, `Storybook upload rejected, trial expired for "${owner}"`)
+      res.status(402).json({
+        error:
+          `Free trial expired for "${owner}". Please subscribe at <https://vizdiff.io/signup> ` +
+          `to continue uploading storybook builds.`,
+      })
+      return
+    }
+  }
+
+  const Bucket = await getS3BucketForProject(project)
+  const Key = `projects/${project.id}/${uploadId}.tar.gz`
   logChild.debug(`Uploading ${length} bytes to ${Bucket}/${Key}`)
 
   // Proxy the .tar.gz upload to S3
@@ -146,8 +170,6 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
     commitSha,
     screenshotTest,
   )
-
-  const db = await Database()
 
   // Update the screenshot test with the GitHub check_run ID
   screenshotTest.githubCheckRunId = githubCheckRunId
