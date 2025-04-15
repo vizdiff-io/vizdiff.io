@@ -16,6 +16,7 @@ export type DefaultResponse = Response
 // Express uses locals for request-scoped data
 export interface RequestLocals {
   user: User
+  ownedProjectCount: number
 }
 
 // This type extends Express's Request while enforcing our user requirement

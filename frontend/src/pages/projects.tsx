@@ -102,6 +102,7 @@ export default function Projects(): JSX.Element {
                     >
                       <Box>
                         <Typography variant="h6" component="h2" sx={{ mb: 1 }}>
+                          {!project.hasActiveSubscription && "⚠️ "}
                           {project.name}
                         </Typography>
                         {project.lastBuildStampSec > 0 ? (

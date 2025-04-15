@@ -24,6 +24,12 @@ const mockUserWithExpiredTrial: UserResponse = {
   subscription: null,
   trialEndStampSec: oneMinuteAgo,
 }
+const mockUserWithExpiredTrialNoProjects: UserResponse = {
+  ...mockUser,
+  subscription: null,
+  trialEndStampSec: oneMinuteAgo,
+  ownedProjectCount: 0,
+}
 
 const meta: Meta<typeof SettingsComponent> = {
   title: "stories/pages/Settings",
@@ -106,6 +112,23 @@ export const ExpiredTrialPeriod: Story = {
     msw: {
       handlers: [
         http.get("/api/users/me", () => HttpResponse.json(mockUserWithExpiredTrial)),
+        http.delete("/api/users/me", () =>
+          HttpResponse.json({ success: true, message: "Account deleted successfully" }),
+        ),
+        catchAllHandler,
+      ],
+    },
+  },
+}
+
+export const ExpiredNoProjects: Story = {
+  args: {
+    mode: "light",
+  },
+  parameters: {
+    msw: {
+      handlers: [
+        http.get("/api/users/me", () => HttpResponse.json(mockUserWithExpiredTrialNoProjects)),
         http.delete("/api/users/me", () =>
           HttpResponse.json({ success: true, message: "Account deleted successfully" }),
         ),

@@ -36,3 +36,4 @@ export const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET
 export const STRIPE_API_VERSION = "2025-03-31.basil"
 
 export const TRIAL_PERIOD_MS = 14 * 24 * 60 * 60 * 1000 // 14 days
+export const MAX_PROJECTS_PER_USER = 256

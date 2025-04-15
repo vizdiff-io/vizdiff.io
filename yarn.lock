@@ -6532,6 +6532,7 @@ __metadata:
     eslint-plugin-prettier: "npm:5.2.3"
     prettier: "npm:3.4.2"
     simple-git: "npm:^3.27.0"
+    supports-color: "npm:^10.0.0"
     ts-node: "npm:10.9.2"
     typescript: "npm:5.7.3"
     undici: "npm:5.28.5"
@@ -17279,6 +17280,13 @@ __metadata:
     methods: "npm:^1.1.2"
     superagent: "npm:^9.0.1"
   checksum: 10/73bf2a37e13856a1b3e6a37b9df5cec8e506aa0360a5f5ecd989d1f4b0edf168883e306012e81e371d5252c17d4c7bef4ba30633dbf3877cbf52fc7af51cca9b
+  languageName: node
+  linkType: hard
+
+"supports-color@npm:^10.0.0":
+  version: 10.0.0
+  resolution: "supports-color@npm:10.0.0"
+  checksum: 10/0475bf167d132955139ee0047a59eff1a2fc964c0f896071818a416a18fec4a5a77caa1140b3cafad09212cde78574c905f917d37976eeb45604e0cb320c0461
   languageName: node
   linkType: hard
 

@@ -68,9 +68,15 @@ async function vizdiff(storybookDir: string, options: CommandArgs): Promise<void
       prNumber,
     })
   } catch (err: unknown) {
+    const statusCode =
+      typeof err === "object" && err != null && "statusCode" in err
+        ? (err as { statusCode?: number }).statusCode
+        : undefined
     const errMessage = err instanceof Error ? err.message : String(err)
-    if (errMessage.includes("401")) {
+    if (statusCode === 401) {
       fatal("Invalid project token. Please check that the token is correct.")
+    } else if (statusCode === 402) {
+      fatal(errMessage)
     } else if (errMessage === "fetch failed") {
       fatal("Storybook upload failed")
     } else {

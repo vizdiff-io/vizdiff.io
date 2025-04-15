@@ -62,13 +62,13 @@ export default function Settings(): JSX.Element {
       return ""
     }
     if (user.subscription) {
-      return `${sentenceCase(user.subscription.plan)} (${user.subscription.interval})`
+      return `✅ ${sentenceCase(user.subscription.plan)} (${user.subscription.interval})`
     }
     // Check if the user's trial is over
     const trialEnd = new Date(user.trialEndStampSec * 1000)
     const now = new Date()
     if (trialEnd < now) {
-      return "Trial period has ended. Choose a plan to continue screenshot testing."
+      return "⚠️ Trial period has ended. Choose a plan to continue screenshot testing."
     }
     const daysLeft = Math.ceil((trialEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
     return `Trial ends in ${daysLeft} day${daysLeft === 1 ? "" : "s"}`

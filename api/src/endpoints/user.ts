@@ -35,6 +35,7 @@ export const me: RequestHandler = async (_req, res) => {
     email: user.email,
     githubUsername: user.githubUsername,
     githubProfile: user.githubProfile as GithubUser,
+    ownedProjectCount: res.locals.ownedProjectCount,
     trialEndStampSec,
     createdStampSec: user.createdAt.getTime() / 1000,
     updatedStampSec: user.updatedAt.getTime() / 1000,

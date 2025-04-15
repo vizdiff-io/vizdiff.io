@@ -13,6 +13,7 @@ import useAppTheme from "@/hooks/useAppTheme"
 import { AuthProvider } from "@/hooks/useAuth"
 import { BreadcrumbProvider } from "@/hooks/useBreadcrumbs"
 import { DD_APPLICATION_ID, DD_CLIENT_TOKEN, GA_ID, IS_PRODUCTION } from "@/lib/environment"
+import { PRIMARY_COLOR } from "@/lib/theme"
 
 import packageJson from "../../package.json"
 
@@ -40,6 +41,7 @@ export default function App({ Component, pageProps }: AppProps): JSX.Element {
     <>
       <Head>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="theme-color" content={PRIMARY_COLOR} />
       </Head>
       {GA_ID && <GoogleAnalytics gaId={GA_ID} debugMode={!IS_PRODUCTION} />}
       <AuthProvider>

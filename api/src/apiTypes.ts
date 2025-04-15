@@ -18,6 +18,7 @@ export type UserResponse = {
   email: string | null
   githubUsername: string
   githubProfile: GithubUser
+  ownedProjectCount: number
   trialEndStampSec: number
   createdStampSec: number
   updatedStampSec: number
@@ -33,6 +34,8 @@ export type ProjectResponse = {
   name: string
   githubRepoUrl: string
   token: string
+  ownerId: number
+  hasActiveSubscription: boolean
   createdStampSec: number
   lastBuildStampSec: number
   builds: number
