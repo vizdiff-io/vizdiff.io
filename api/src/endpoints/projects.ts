@@ -1,5 +1,6 @@
 import { randomBytes } from "crypto"
-import { Project } from "shared"
+import { Project, User } from "shared"
+import { MAX_PROJECTS_PER_USER, TRIAL_PERIOD_MS } from "src/environment"
 
 import type { ProjectResponse } from "../apiTypes"
 import { Database } from "../database"
@@ -12,6 +13,9 @@ type ProjectWithStats = {
   project_github_repo_url: string
   project_token: string
   project_created_at: Date
+  owner_id: number
+  owner_subscription_plan: string | null
+  owner_trial_ends_at: Date | null
   lastbuildstamp: Date | null
   buildcount: string
   testcount: string
@@ -99,10 +103,14 @@ async function getProjectWithStats(
       "project.githubRepoUrl",
       "project.token",
       "project.createdAt",
+      "project.user as owner_id",
+      "user.subscriptionPlan as owner_subscription_plan",
+      "user.trialEndsAt as owner_trial_ends_at",
       "latest_test.screatedAt as lastbuildstamp",
       "latest_test.buildcount as buildcount",
       "latest_test.tcount as testcount",
     ])
+    .innerJoin("project.user", "user")
     .where("project.id = :projectId AND project.user = :userId", { projectId, userId })
     .getRawOne<ProjectWithStats>()
 
@@ -118,6 +126,11 @@ function convertToProjectResponse(project: ProjectWithStats): ProjectResponse {
     name: project.project_name,
     githubRepoUrl: project.project_github_repo_url,
     token: project.project_token,
+    ownerId: project.owner_id,
+    hasActiveSubscription: userSubscriptionIsActive(
+      project.owner_subscription_plan,
+      project.owner_trial_ends_at,
+    ),
     createdStampSec: project.project_created_at.getTime() / 1000,
     lastBuildStampSec: project.lastbuildstamp ? project.lastbuildstamp.getTime() / 1000 : 0,
     builds: parseInt(project.buildcount) || 0,
@@ -126,7 +139,7 @@ function convertToProjectResponse(project: ProjectWithStats): ProjectResponse {
 }
 
 export const create: RequestHandler = async (req, res) => {
-  const { user } = res.locals
+  const { user, ownedProjectCount } = res.locals
   const body = req.body as Partial<CreateProjectBody>
   const name = body.name
   const githubRepoUrl = body.githubRepoUrl
@@ -140,13 +153,26 @@ export const create: RequestHandler = async (req, res) => {
     return
   }
 
+  if (ownedProjectCount >= MAX_PROJECTS_PER_USER) {
+    res.status(400).json({ error: "Max projects reached" })
+    return
+  }
+
+  const db = await Database()
+
+  if (user.trialEndsAt == undefined) {
+    // Start the trial period now that the user has created their first project
+    user.trialEndsAt = new Date(Date.now() + TRIAL_PERIOD_MS)
+    const userTable = db.getRepository(User)
+    await userTable.save(user)
+  }
+
   const project = new Project()
   project.name = name
   project.githubRepoUrl = githubRepoUrl
   project.user = user
   project.token = generateProjectToken()
 
-  const db = await Database()
   const projectTable = db.getRepository(Project)
   await projectTable.save(project)
 
@@ -155,6 +181,8 @@ export const create: RequestHandler = async (req, res) => {
     name: project.name,
     githubRepoUrl: project.githubRepoUrl,
     token: project.token,
+    ownerId: user.id,
+    hasActiveSubscription: userSubscriptionIsActive(user.subscriptionPlan, user.trialEndsAt),
     createdStampSec: project.createdAt.getTime() / 1000,
     lastBuildStampSec: 0,
     builds: 0,
@@ -257,10 +285,14 @@ export const list: RequestHandler = async (_req, res) => {
       "project.githubRepoUrl",
       "project.token",
       "project.createdAt",
+      "project.user as owner_id",
+      "user.subscriptionPlan as owner_subscription_plan",
+      "user.trialEndsAt as owner_trial_ends_at",
       "latest_test.screatedAt as lastbuildstamp",
       "latest_test.buildcount as buildcount",
       "latest_test.tcount as testcount",
     ])
+    .innerJoin("project.user", "user")
     .where("project.user = :userId", { userId: user.id })
     .getRawMany<ProjectWithStats>()
 
@@ -318,6 +350,11 @@ export const resetToken: RequestHandler = async (req, res) => {
       name: project.name,
       githubRepoUrl: project.githubRepoUrl,
       token: project.token,
+      ownerId: project.user.id,
+      hasActiveSubscription: userSubscriptionIsActive(
+        project.user.subscriptionPlan,
+        project.user.trialEndsAt,
+      ),
       createdStampSec: project.createdAt.getTime() / 1000,
       lastBuildStampSec: 0,
       builds: 0,
@@ -334,4 +371,12 @@ export const resetToken: RequestHandler = async (req, res) => {
 /** Generate a random 16-character hex string to use as a project token. */
 function generateProjectToken(): string {
   return randomBytes(8).toString("hex") // 8 bytes = 16 hex chars
+}
+
+/** Returns true if the user has an active subscription or a trial that is still active. */
+function userSubscriptionIsActive(
+  subscriptionPlan: string | null,
+  trialEndsAt: Date | null,
+): boolean {
+  return subscriptionPlan != undefined || (trialEndsAt != undefined && trialEndsAt > new Date())
 }

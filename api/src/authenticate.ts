@@ -155,6 +155,9 @@ export async function requireUser(_req: Request, res: Response, next: NextFuncti
     return
   }
 
+  // Count the number of projects owned by this user
+  const ownedProjectCount = await db.manager.count(Project, { where: { user } })
+
   // Associate this request with the user in Datadog
   const name = (user.githubProfile as { name?: string }).name ?? user.githubUsername
   setUser({
@@ -162,11 +165,13 @@ export async function requireUser(_req: Request, res: Response, next: NextFuncti
     name,
     email: user.email ?? undefined,
     githubUsername: user.githubUsername,
+    ownedProjectCount: ownedProjectCount.toString(),
     subscriptionPlan: user.subscriptionPlan ?? undefined,
     subscriptionInterval: user.subscriptionInterval ?? undefined,
   })
 
   locals.user = user
+  locals.ownedProjectCount = ownedProjectCount
   next()
 }
 
