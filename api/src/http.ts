@@ -2,9 +2,15 @@ import type { Request } from "express"
 import { parse as parseQs, stringify as stringifyQs } from "qs"
 import { URL } from "url"
 
+import { APP_URL } from "./environment"
 import type { DefaultRequest } from "./types"
 
-const ALLOWED_REDIRECT_DOMAINS = new Set(["localhost", "127.0.0.1", "vizdiff.io"])
+const ALLOWED_REDIRECT_DOMAINS = new Set([
+  new URL(APP_URL).hostname,
+  "vizdiff.io",
+  "localhost",
+  "127.0.0.1",
+])
 
 export function getParamInt(name: string, req: Request): number | undefined {
   const value = req.params[name]
@@ -87,16 +93,4 @@ export function encodeQueryParams(params: Record<string, string>): string {
 
 export function buildQueryString(params: Record<string, string>): string {
   return stringifyQs(params)
-}
-
-export function validateRedirectUrl(url: string): string | undefined {
-  try {
-    const parsed = new URL(url)
-    if (ALLOWED_REDIRECT_DOMAINS.has(parsed.hostname)) {
-      return url
-    }
-  } catch {
-    // Ignore parse errors
-  }
-  return undefined
 }

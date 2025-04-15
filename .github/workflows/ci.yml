@@ -13,6 +13,9 @@ env:
   NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL }}
   NEXT_PUBLIC_GITHUB_APP_NAME: vizdiff-io
   NEXT_PUBLIC_GITHUB_CLIENT_ID: ${{ vars.NEXT_PUBLIC_GITHUB_CLIENT_ID }}
+  NEXT_PUBLIC_DD_APPLICATION_ID: ${{ vars.NEXT_PUBLIC_DD_APPLICATION_ID }}
+  NEXT_PUBLIC_DD_CLIENT_TOKEN: ${{ vars.NEXT_PUBLIC_DD_CLIENT_TOKEN }}
+  NEXT_PUBLIC_GA_ID: ${{ vars.NEXT_PUBLIC_GA_ID }}
   NEXT_TELEMETRY_DISABLED: 1
 
 jobs:
@@ -131,6 +134,8 @@ jobs:
           load: ${{ github.ref != 'refs/heads/main' }}
           platforms: linux/arm64
           tags: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY_BACKEND }}:${{ env.IMAGE_TAG }},${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY_BACKEND }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
           build-args: |
             NODE_ENV=production
 
@@ -185,6 +190,8 @@ jobs:
           load: ${{ github.ref != 'refs/heads/main' }}
           platforms: linux/arm64
           tags: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY_WORKER }}:${{ env.IMAGE_TAG }},${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY_WORKER }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
           build-args: |
             NODE_ENV=production
 
@@ -358,8 +365,9 @@ jobs:
           BRANCH_NAME: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || github.ref_name }}
           BASE_BRANCH: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.ref || '' }}
           BASE_COMMIT: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || '' }}
+          PR_NUMBER: ${{ github.event.pull_request.number || '' }}
           VIZDIFF_PROJECT_TOKEN: ${{ secrets.VIZDIFF_PROJECT_TOKEN }}
-        run: yarn cli upload --commit "${{ env.COMMIT_SHA }}" --branch "${{ env.BRANCH_NAME }}" --base-branch "${{ env.BASE_BRANCH }}" --base-commit "${{ env.BASE_COMMIT }}" "../frontend/storybook-static"
+        run: yarn cli upload --commit "${{ env.COMMIT_SHA }}" --branch "${{ env.BRANCH_NAME }}" --base-branch "${{ env.BASE_BRANCH }}" --base-commit "${{ env.BASE_COMMIT }}" --pr "${{ env.PR_NUMBER }}" "../frontend/storybook-static"
 
       - name: Publish to Chromatic
         working-directory: frontend

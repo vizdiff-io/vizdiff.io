@@ -102,8 +102,24 @@ export default function TestResultDialog({
           pb: 1,
         }}
       >
-        <Box>
-          <Typography variant="h6" component="div">
+        <Box
+          sx={{
+            flex: "1 1 65%",
+            maxWidth: "65%",
+            overflow: "hidden",
+          }}
+        >
+          <Typography
+            variant="h6"
+            component="div"
+            sx={{
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              direction: "rtl",
+              textAlign: "left",
+            }}
+          >
             {result.name}
           </Typography>
           <Typography variant="body2" color={changeStatusColor(result.changeStatus)}>
@@ -187,8 +203,6 @@ export default function TestResultDialog({
                   width: "100%",
                   height: "100%",
                   overflow: "hidden",
-                  backgroundColor: "rgba(255, 0, 255, 0.2)",
-                  mixBlendMode: "multiply",
                 }}
               >
                 <Image
@@ -196,7 +210,10 @@ export default function TestResultDialog({
                   alt={`Diff mask for ${result.name}`}
                   fill
                   sizes="100vw"
-                  style={{ objectFit: "contain" }}
+                  style={{
+                    objectFit: "contain",
+                    filter: "brightness(0) invert(1) sepia(1) hue-rotate(-100deg) saturate(10000%)",
+                  }}
                   priority
                 />
               </Box>

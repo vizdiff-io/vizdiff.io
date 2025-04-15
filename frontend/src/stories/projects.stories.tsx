@@ -5,7 +5,7 @@ import { type ComponentType } from "react"
 import type { ProjectResponse, ScreenshotTestResponse } from "@/lib/apiTypes"
 
 import ThemeWrapper from "./ThemeWrapper"
-import { userHandler } from "./mocks"
+import { catchAllHandler, userHandler } from "./mocks"
 import ProjectsComponent from "../pages/projects"
 
 type StoryArgs = {
@@ -49,13 +49,14 @@ const mockActivity: ScreenshotTestResponse[] = [
   {
     id: 1,
     projectId: 1,
+    projectName: "vizdiff.io",
     buildNumber: 6,
     githubRepoUrl: "https://github.com/mvi-llc/vizdiff.io",
-    commitSha: "abc123def456",
+    commitSha: "86f7e437faa5a7fce15d1ddcb9eaeaea377667b8",
     branch: "main",
-    baseCommitSha: "abc123def456",
+    baseCommitSha: "e9d71f5ee7c92d6dc9e92ffdad17b8bd49418f98",
     baseBranch: "main",
-    uploadId: "abc123def456",
+    uploadId: "upload-6",
     status: "pending",
     tag: "v1.0.0",
     initiatedStampSec: oneMinuteAgo - 3600, // 1 hour ago
@@ -64,11 +65,12 @@ const mockActivity: ScreenshotTestResponse[] = [
   {
     id: 2,
     projectId: 2,
+    projectName: "Cat Photos",
     buildNumber: 5,
     githubRepoUrl: "https://github.com/example/example-project",
-    commitSha: "abc123def456",
+    commitSha: "84a516841ba77a5b4648de2cd0dfcb30ea46dbb4",
     branch: "main",
-    uploadId: "abc123def456",
+    uploadId: "upload-5",
     status: "running",
     initiatedStampSec: oneMinuteAgo - 3600 * 24, // 1 day ago
     buildDurationSec: 100,
@@ -76,11 +78,12 @@ const mockActivity: ScreenshotTestResponse[] = [
   {
     id: 3,
     projectId: 3,
+    projectName: "MyAwesomeProject",
     buildNumber: 4,
     githubRepoUrl: "https://github.com/test/MyAwesomeProject",
-    commitSha: "abc123def456",
+    commitSha: "3c363836cf4e16666669a25da280a1865c2d2874",
     branch: "main",
-    uploadId: "abc123def456",
+    uploadId: "upload-4",
     status: "no_changes",
     initiatedStampSec: oneMinuteAgo - 3600 * 24 * 30, // 1 month ago
     buildDurationSec: 100,
@@ -88,11 +91,12 @@ const mockActivity: ScreenshotTestResponse[] = [
   {
     id: 4,
     projectId: 4,
+    projectName: "MyAwesomeProject",
     buildNumber: 3,
     githubRepoUrl: "https://github.com/test/MyAwesomeProject",
-    commitSha: "abc123def456",
+    commitSha: "58e6b3a414a1e090dfc6029add0f3555ccba127f",
     branch: "main",
-    uploadId: "abc123def456",
+    uploadId: "upload-3",
     status: "failed",
     initiatedStampSec: oneMinuteAgo - 3600 * 24 * 30, // 1 month ago
     buildDurationSec: 100,
@@ -100,11 +104,12 @@ const mockActivity: ScreenshotTestResponse[] = [
   {
     id: 5,
     projectId: 5,
+    projectName: "MyAwesomeProject",
     buildNumber: 2,
     githubRepoUrl: "https://github.com/test/MyAwesomeProject",
-    commitSha: "abc123def456",
+    commitSha: "4a0a19218e082a343a1b17e5333409af9d98f0f5",
     branch: "main",
-    uploadId: "abc123def456",
+    uploadId: "upload-2",
     status: "approved",
     initiatedStampSec: oneMinuteAgo - 3600 * 24 * 30, // 1 month ago
     buildDurationSec: 100,
@@ -112,11 +117,12 @@ const mockActivity: ScreenshotTestResponse[] = [
   {
     id: 6,
     projectId: 6,
+    projectName: "MyAwesomeProject",
     buildNumber: 1,
     githubRepoUrl: "https://github.com/test/MyAwesomeProject",
-    commitSha: "abc123def456",
+    commitSha: "54fd1711209fb1c0781092374132c66e79e2241b",
     branch: "main",
-    uploadId: "abc123def456",
+    uploadId: "upload-1",
     status: "unapproved",
     initiatedStampSec: oneMinuteAgo - 3600 * 24 * 30, // 1 month ago
     buildDurationSec: 100,
@@ -135,10 +141,8 @@ const meta: Meta<typeof ProjectsComponent> = {
   },
   decorators: [
     (Story: ComponentType, context: StoryContext<StoryArgs>): JSX.Element => {
-      // Set authentication cookie for Storybook
-      document.cookie = "authenticated=true; path=/"
       return (
-        <ThemeWrapper mode={context.args.mode ?? "light"}>
+        <ThemeWrapper mode={context.args.mode ?? "light"} isAuthenticated={true}>
           <Story />
         </ThemeWrapper>
       )
@@ -150,6 +154,7 @@ const meta: Meta<typeof ProjectsComponent> = {
         userHandler,
         http.get("/api/projects", () => HttpResponse.json(mockProjects)),
         http.get("/api/activity", () => HttpResponse.json(mockActivity)),
+        catchAllHandler,
       ],
     },
   },
@@ -158,9 +163,13 @@ const meta: Meta<typeof ProjectsComponent> = {
 export default meta
 type Story = StoryObj<typeof ProjectsComponent>
 
-export const Light: Story = { args: { mode: "light" } }
+export const Light: Story = {
+  args: { mode: "light" },
+}
 
-export const Dark: Story = { args: { mode: "dark" } }
+export const Dark: Story = {
+  args: { mode: "dark" },
+}
 
 export const EmptyProjects: Story = {
   args: { mode: "light" },
@@ -170,6 +179,7 @@ export const EmptyProjects: Story = {
         userHandler,
         http.get("/api/projects", () => HttpResponse.json([])),
         http.get("/api/activity", () => HttpResponse.json([])),
+        catchAllHandler,
       ],
     },
   },

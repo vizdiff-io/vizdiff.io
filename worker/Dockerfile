@@ -1,8 +1,5 @@
-FROM node:22-alpine
-
-WORKDIR /app
-
-# Install Chromium and its dependencies
+# Base image with Chromium dependencies
+FROM node:22-alpine AS base
 RUN apk add --no-cache \
     chromium \
     chromium-chromedriver \
@@ -12,10 +9,9 @@ RUN apk add --no-cache \
     harfbuzz \
     ca-certificates \
     ttf-freefont && \
-    # Create symlink for WebdriverIO compatibility
     ln -s /usr/bin/chromium-browser /usr/bin/google-chrome
 
-# Add Chrome flags and debugging
+# Add Puppeteer/Chrome flags to make WebDriver work with Chromium
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
     PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser \
     CHROME_BIN=/usr/bin/chromium-browser \
@@ -25,31 +21,40 @@ ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
 RUN addgroup -S webuser && adduser -S -G webuser webuser \
     && mkdir -p /home/webuser/Downloads /home/webuser/.cache \
     && chown -R webuser:webuser /home/webuser \
-    && chmod 755 /home/webuser \
-    && chown -R webuser:webuser /app
+    && chmod 755 /home/webuser
 
-# Copy yarn/tsconfig files
+WORKDIR /app
+
+# Install dependencies separately (cached independently)
+FROM base AS deps
+RUN corepack enable
 COPY .yarn/releases/yarn-4.3.0.cjs ./.yarn/releases/
 COPY package.json yarn.lock .yarnrc.yml tsconfig.json tsconfig.options.json ./
 COPY worker/package.json ./worker/
 COPY shared/package.json ./shared/
 
-# Copy source code needed for build
+RUN yarn install
+
+# Build workspace separately (cached until source changes)
+FROM deps AS builder
 COPY worker ./worker
 COPY shared ./shared
+RUN yarn workspace worker build \
+  && yarn workspaces focus worker shared --production \
+  && chown -R webuser:webuser /app
 
-# Install dependencies and build
-RUN corepack enable && \
-    yarn install && \
-    yarn workspace worker build && \
-    yarn workspaces focus worker shared --production && \
-    # Clean up source files, keeping only what's needed for runtime
-    rm -rf worker/src && \
-    rm -rf shared/src
-
-# Set environment variables
+# Final production image
+FROM base
 ENV NODE_ENV=production \
     HOME=/home/webuser
+
+# Copy built files and dependencies from builder stage
+COPY --from=builder /app/node_modules /app/node_modules
+COPY --from=builder /app/package.json /app/package.json
+COPY --from=builder /app/worker/package.json /app/worker/package.json
+COPY --from=builder /app/shared/package.json /app/shared/package.json
+COPY --from=builder /app/worker/dist /app/worker/dist
+COPY --from=builder /app/shared /app/shared
 
 # Switch to non-root user
 USER webuser

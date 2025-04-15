@@ -12,6 +12,7 @@ The following GitHub Variables need to be configured in your repository for the 
 - `NEXT_PUBLIC_GITHUB_CLIENT_ID`: <your_github_client_id>
 - `NEXT_PUBLIC_DD_APPLICATION_ID`: (optional) Enables DataDog Real User Monitoring
 - `NEXT_PUBLIC_DD_CLIENT_TOKEN`: (optional) Enables DataDog Real User Monitoring
+- `NEXT_PUBLIC_GA_ID`: (optional) Enables Google Analytics
 
 ## GitHub Secrets Setup
 
@@ -53,6 +54,8 @@ POSTGRES_DATABASE=vizdiff
 POSTGRES_PASS=vizdiff_user_password
 POSTGRES_PORT=5432
 JWT_SECRET=your_jwt_secret
+STRIPE_SECRET_KEY=sk_live_stripesecretkey
+STRIPE_WEBHOOK_SECRET=whsec_stripewebhooksecret
 ```
 
 ## Docker Compose Configuration

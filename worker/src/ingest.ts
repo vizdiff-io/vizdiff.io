@@ -13,22 +13,17 @@ import {
   createMarkdownForBuildResult,
   createSummaryForFailedBuild,
 } from "shared"
+import { Stripe } from "stripe"
 import { extract } from "tar"
 import { Not, In } from "typeorm"
 import { remote } from "webdriverio"
 
 import { Database } from "./database"
 import { downloadWithTimeout } from "./download"
-import { APP_URL } from "./environment"
+import { APP_URL, STRIPE_API_VERSION, STRIPE_SECRET_KEY } from "./environment"
 import { getOctokitForInstallation, updateGitHubCheckRun, type GitHubCheckData } from "./github"
 import { log } from "./log"
-import { processStory } from "./stories"
-
-interface Story {
-  id: string
-  name: string
-  importPath: string
-}
+import { type Story, processStory } from "./stories"
 
 type StorybookWindow = {
   __STORYBOOK_PREVIEW__?: {
@@ -145,7 +140,7 @@ export async function ingestStorybook(
     log.debug(`Successfully extracted storybook build`)
 
     // Initialize WebdriverIO
-    log.info("Initializing WebdriverIO in headless Chrome mode")
+    log.debug("Initializing WebdriverIO in headless Chrome mode")
     const config: Capabilities.WebdriverIOConfig = {
       outputDir: path.join(tmpDir, "wdio-logs"),
       hostname: "localhost",
@@ -158,9 +153,10 @@ export async function ingestStorybook(
       },
     }
     const browser = await remote(config)
-    log.debug(
-      `Successfully initialized WebdriverIO [${browser.capabilities.browserName}] ` +
-        `[${browser.capabilities.browserVersion}] [${browser.capabilities.platformName}]`,
+    screenshotTest.browserVersion = `${browser.capabilities.browserName}-${browser.capabilities.platformName}-${browser.capabilities.browserVersion}`
+    log.info(
+      { capabilities: browser.capabilities },
+      `Successfully initialized WebdriverIO ${screenshotTest.browserVersion}`,
     )
 
     try {
@@ -336,74 +332,23 @@ export async function ingestStorybook(
 
         // Update the screenshot test status to completed
         const startedSec = screenshotTest.createdAt.getTime() / 1000
-        const hasChanges = changeCount > 0
-        screenshotTest.status = hasChanges ? "unapproved" : "no_changes"
+        screenshotTest.status = changeCount > 0 ? "unapproved" : "no_changes"
         screenshotTest.buildDurationSec = Date.now() / 1000 - startedSec
         await screenshotTestRepo.save(screenshotTest)
 
+        // Update GitHub check run "Visual Tests" with the build results
         if (githubCheckData) {
-          try {
-            // Update GitHub check run "Visual Tests" with the build results
-            const { title, summary, text } = createMarkdownForBuildResult(
-              screenshotTest,
-              testResults,
-            )
-            await updateGitHubCheckRun({
-              owner: githubCheckData.owner,
-              repo: githubCheckData.repo,
-              installationId: githubCheckData.installationId,
-              checkRunId: githubCheckData.checkRunId,
-              testId: screenshotTestId,
-              status: "completed",
-              conclusion: hasChanges ? "action_required" : "success",
-              title,
-              summary,
-              text,
-              actions: hasChanges
-                ? [
-                    {
-                      label: "✅ Approve",
-                      description: `Approve ${changeCount} visual change${changeCount === 1 ? "" : "s"}`,
-                      identifier: "approved",
-                    },
-                    {
-                      label: "❌ Deny",
-                      description: `Deny ${changeCount} visual change${changeCount === 1 ? "" : "s"}`,
-                      identifier: "denied",
-                    },
-                  ]
-                : undefined,
-            })
+          await updateGitHubCheckRunWithBuildResults(
+            githubCheckData,
+            screenshotTest,
+            testResults,
+            changeCount,
+          )
+        }
 
-            if (!hasChanges) {
-              const { summary: approvalSummary } = createMarkdownForBuildResult(
-                screenshotTest,
-                testResults,
-              )
-              // Create a new check run with the success conclusion
-              const octokit = await getOctokitForInstallation(githubCheckData.installationId)
-              const result = await octokit.checks.create({
-                owner: githubCheckData.owner,
-                repo: githubCheckData.repo,
-                head_sha: screenshotTest.commitSha,
-                external_id: String(screenshotTest.id),
-                name: "Visual Tests",
-                status: "completed",
-                conclusion: "success",
-                details_url: `${APP_URL}/build?id=${screenshotTest.id}`,
-                output: {
-                  title: "No visual changes detected.",
-                  summary: approvalSummary,
-                },
-              })
-              log.info(
-                `Created GitHub check run ${result.data.id} for ${screenshotTest.toString()} with implicit conclusion: success`,
-              )
-            }
-          } catch (error) {
-            log.error(error, "Failed to update GitHub check run to completed")
-            // Continue even if the GitHub API calls fail
-          }
+        // Report screenshot usage to Stripe
+        if (STRIPE_SECRET_KEY) {
+          await reportScreenshotUsageToStripe(screenshotTest, testResults)
         }
       } finally {
         log.debug("Shutting down local server")
@@ -474,6 +419,128 @@ export async function ingestStorybook(
     log.info(
       `Storybook ingestion completed for ${screenshotTest.id} (build #${screenshotTest.buildNumber}) with status: ${screenshotTest.status}`,
     )
+  }
+}
+
+async function updateGitHubCheckRunWithBuildResults(
+  githubCheckData: GitHubCheckData,
+  screenshotTest: ScreenshotTest,
+  testResults: TestResult[],
+  changeCount: number,
+): Promise<void> {
+  const hasChanges = changeCount > 0
+
+  try {
+    // Update GitHub check run "Visual Tests" with the build results
+    const { title, summary, text } = createMarkdownForBuildResult(screenshotTest, testResults)
+    await updateGitHubCheckRun({
+      owner: githubCheckData.owner,
+      repo: githubCheckData.repo,
+      installationId: githubCheckData.installationId,
+      checkRunId: githubCheckData.checkRunId,
+      testId: screenshotTest.id,
+      status: "completed",
+      conclusion: hasChanges ? "action_required" : "success",
+      title,
+      summary,
+      text,
+      actions: hasChanges
+        ? [
+            {
+              label: "✅ Approve",
+              description: `Approve ${changeCount} visual change${changeCount === 1 ? "" : "s"}`,
+              identifier: "approved",
+            },
+            {
+              label: "❌ Deny",
+              description: `Deny ${changeCount} visual change${changeCount === 1 ? "" : "s"}`,
+              identifier: "denied",
+            },
+          ]
+        : undefined,
+    })
+
+    if (!hasChanges) {
+      const { summary: approvalSummary } = createMarkdownForBuildResult(screenshotTest, testResults)
+      // Create a new check run with the success conclusion
+      const octokit = await getOctokitForInstallation(githubCheckData.installationId)
+      const result = await octokit.checks.create({
+        owner: githubCheckData.owner,
+        repo: githubCheckData.repo,
+        head_sha: screenshotTest.commitSha,
+        external_id: String(screenshotTest.id),
+        name: "Visual Tests",
+        status: "completed",
+        conclusion: "success",
+        details_url: `${APP_URL}/build?id=${screenshotTest.id}`,
+        output: {
+          title: "No visual changes detected.",
+          summary: approvalSummary,
+        },
+      })
+      log.info(
+        `Created GitHub check run ${result.data.id} for ${screenshotTest.toString()} with implicit conclusion: success`,
+      )
+    }
+  } catch (error) {
+    log.error(error, "Failed to update GitHub check run to completed")
+    // Continue even if the GitHub API calls fail
+  }
+}
+
+async function reportScreenshotUsageToStripe(
+  screenshotTest: ScreenshotTest,
+  testResults: TestResult[],
+): Promise<void> {
+  try {
+    if (!STRIPE_SECRET_KEY) {
+      log.warn("STRIPE_SECRET_KEY is not set, skipping usage reporting")
+      return
+    }
+
+    // Get the user's Stripe customer ID from the project
+    const user = screenshotTest.project.user
+    if (!user.stripeCustomerId) {
+      log.error(
+        `User ${user.id} (${user.email}) has no Stripe customer ID, skipping usage reporting`,
+      )
+      return
+    }
+
+    // Count the number of screenshots to report
+    const screenshotCount = testResults.length
+    if (screenshotCount <= 0) {
+      log.warn(`No screenshots to report for test ${screenshotTest.id}`)
+      return
+    }
+
+    const idempotencyKey = `screenshot-usage-${screenshotTest.id}`
+
+    const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: STRIPE_API_VERSION })
+    await stripe.billing.meterEvents.create(
+      {
+        event_name: "screenshots",
+        payload: {
+          stripe_customer_id: user.stripeCustomerId,
+          value: screenshotCount.toString(),
+        },
+        identifier: idempotencyKey,
+      },
+      { idempotencyKey },
+    )
+
+    log.info(
+      {
+        userId: user.id,
+        projectId: screenshotTest.project.id,
+        testId: screenshotTest.id,
+        quantity: screenshotCount,
+      },
+      `Reported ${screenshotCount} screenshots to Stripe for user ${user.id} (${user.email})`,
+    )
+  } catch (error) {
+    // Log the error but don't fail the entire test process
+    log.error(error, `Failed to report usage to Stripe for test ${screenshotTest.id}`)
   }
 }
 

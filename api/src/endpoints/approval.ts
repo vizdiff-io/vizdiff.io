@@ -1,7 +1,7 @@
 import { createMarkdownForBuildApproval, ScreenshotTest, TestResult } from "shared"
 
 import { Database } from "../database"
-import { APP_URL } from "../environment"
+import { APP_URL, IS_PRODUCTION, IS_STAGING } from "../environment"
 import { getInstallationForOrg, getOctokitForInstallation } from "../github"
 import { getParamInt } from "../http"
 import { log } from "../log"
@@ -43,7 +43,7 @@ export const approveOrDeny: RequestHandler = async (req, res) => {
   await testTable.save(test)
 
   // Update GitHub check run if available
-  if (test.githubCheckRunId) {
+  if ((IS_PRODUCTION || IS_STAGING) && test.githubCheckRunId) {
     try {
       // Count the number of visual changes that were approved or denied
       const testResultTable = db.getRepository(TestResult)

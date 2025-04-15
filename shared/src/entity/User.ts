@@ -26,7 +26,7 @@ export class User {
   githubUsername!: string
 
   @Column({ name: "github_profile", type: "jsonb", nullable: false })
-  githubProfile!: string
+  githubProfile!: object
 
   @Column({ name: "github_access_token", type: "text", nullable: false })
   githubAccessToken!: string
@@ -39,6 +39,21 @@ export class User {
 
   @OneToMany("GitHubInstallation", "creator")
   createdInstallations!: Promise<GitHubInstallation[]>
+
+  @Column({ name: "stripe_customer_id", type: "text", nullable: true })
+  stripeCustomerId!: string | null
+
+  @Column({ name: "stripe_subscription_id", type: "text", nullable: true })
+  stripeSubscriptionId!: string | null
+
+  @Column({ name: "subscription_plan", type: "text", nullable: true })
+  subscriptionPlan!: string | null
+
+  @Column({ name: "subscription_interval", type: "text", nullable: true })
+  subscriptionInterval!: string | null
+
+  @Column({ name: "trial_ends_at", type: "timestamptz", nullable: true })
+  trialEndsAt!: Date | null
 
   @CreateDateColumn({ name: "created_at", type: "timestamptz", nullable: false })
   createdAt!: Date

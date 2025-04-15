@@ -6,7 +6,7 @@ import { uuidv7 } from "uuidv7"
 
 import { getProjectByToken, getS3BucketForProject } from "../authenticate"
 import { Database } from "../database"
-import { APP_URL } from "../environment"
+import { APP_URL, IS_PRODUCTION, IS_STAGING } from "../environment"
 import { getInstallationForOrg, getOctokitForInstallation } from "../github"
 import { getQueryString } from "../http"
 import { log } from "../log"
@@ -58,6 +58,12 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
     }
   }
 
+  const pr = req.header("x-vizdiff-pr-number")
+  const prNumber = pr ? parseInt(pr) : undefined
+  if (prNumber != undefined && (isNaN(prNumber) || prNumber < 1)) {
+    throw new Error(`Invalid pull request number: "${pr}"`)
+  }
+
   const uploadId = uuidv7()
   const project = await getProjectByToken(token)
   if (!project) {
@@ -78,6 +84,7 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
     branch,
     baseCommitSha,
     baseBranch,
+    prNumber,
   })
   logChild.debug(`Uploading ${length} bytes to ${Bucket}/${Key}`)
 
@@ -127,6 +134,7 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
     uploadId,
     baseCommitSha,
     baseBranch,
+    prNumber,
   )
 
   // Create a GitHub check_run for this upload
@@ -150,16 +158,18 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
   const task = new WorkTask()
   task.screenshotTest = screenshotTest
   task.taskType = "ingest_storybook"
-  task.data = JSON.stringify({
+  task.data = {
     projectId: project.id,
     uploadId,
-    githubCheckData: {
-      owner,
-      repo,
-      checkRunId: githubCheckRunId,
-      installationId: installation.installationId,
-    },
-  })
+    githubCheckData: githubCheckRunId
+      ? {
+          owner,
+          repo,
+          checkRunId: githubCheckRunId,
+          installationId: installation.installationId,
+        }
+      : undefined,
+  }
   task.createdAt = new Date()
   task.updatedAt = task.createdAt
 
@@ -180,7 +190,12 @@ async function createGitHubCheckRun(
   repo: string,
   commitSha: string,
   screenshotTest: ScreenshotTest,
-): Promise<number> {
+): Promise<number | null> {
+  if (!IS_PRODUCTION && !IS_STAGING) {
+    logChild.info(`Skipping GitHub check_run creation in development environment`)
+    return null
+  }
+
   const screenshotTestId = screenshotTest.id
   const octokit = await getOctokitForInstallation(installationId)
   logChild.info({ screenshotTestId }, `Creating new GitHub check_run`)

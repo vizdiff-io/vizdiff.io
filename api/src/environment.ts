@@ -10,6 +10,7 @@ const envPath = path.join(dirname, "..")
 configEnv({ path: envPath, node_env: process.env.NODE_ENV ?? "development" })
 
 export const IS_PRODUCTION = process.env.NODE_ENV === "production"
+export const IS_STAGING = process.env.NODE_ENV === "staging"
 export const IS_TEST = process.env.NODE_ENV === "test"
 
 export const PORT = parseInt(process.env.PORT ?? "") || (IS_TEST ? 3002 : 3001)
@@ -29,3 +30,9 @@ export const POSTGRES_PASS = process.env.POSTGRES_PASS ?? "postgres"
 export const POSTGRES_PORT = parseInt(process.env.POSTGRES_PORT ?? "5432")
 
 export const JWT_SECRET = process.env.JWT_SECRET ?? "secret"
+
+export const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY
+export const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET
+export const STRIPE_API_VERSION = "2025-03-31.basil"
+
+export const TRIAL_PERIOD_MS = 14 * 24 * 60 * 60 * 1000 // 14 days

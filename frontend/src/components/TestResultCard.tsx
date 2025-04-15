@@ -7,11 +7,13 @@ import { changeStatusColor, changeStatusMessage } from "@/lib/changeStatus"
 interface TestResultCardProps {
   result: TestResultResponse
   onOpenFullscreen: (result: TestResultResponse) => void
+  isPriority?: boolean
 }
 
 export default function TestResultCard({
   result,
   onOpenFullscreen,
+  isPriority = false,
 }: TestResultCardProps): JSX.Element {
   return (
     <Paper
@@ -19,16 +21,35 @@ export default function TestResultCard({
       sx={{
         p: 2,
         height: "100%",
+        minHeight: 280,
         display: "flex",
         flexDirection: "column",
         gap: 1,
         position: "relative",
         cursor: "pointer",
+        overflow: "hidden",
         "&:hover": { bgcolor: "var(--five-percent-opacity)" },
       }}
     >
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          minHeight: 32,
+        }}
+      >
+        <Typography
+          variant="subtitle2"
+          sx={{
+            fontWeight: 400,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            direction: "rtl",
+            textAlign: "left",
+          }}
+        >
           {result.name}
         </Typography>
       </Box>
@@ -48,17 +69,17 @@ export default function TestResultCard({
             <Image
               src={result.screenshotUrl}
               alt={`Screenshot for ${result.name}`}
-              layout="fill"
-              objectFit="contain"
+              fill
+              style={{ objectFit: "contain" }}
+              priority={isPriority}
             />
           )}
           {result.diffMaskUrl && (
             <Image
               src={result.diffMaskUrl}
               alt={`Diff mask for ${result.name}`}
-              layout="fill"
-              objectFit="contain"
-              style={{ opacity: 0.5 }}
+              fill
+              style={{ objectFit: "contain", opacity: 0.5 }}
             />
           )}
         </Box>

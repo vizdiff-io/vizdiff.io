@@ -1,10 +1,7 @@
 ---
 description: Guidelines for creating comprehensive unit tests with proper mocking and test organization
-globs: */*.test.ts, **/*.test.tsx
----
----
-description: Guidelines for creating comprehensive unit tests with proper mocking and test organization
-globs: **/*.test.ts, **/*.test.tsx
+globs: *.test.ts
+alwaysApply: false
 ---
 # Unit Test Creation Guidelines
 
@@ -15,7 +12,7 @@ name: create_unit_tests
 description: Guidelines for creating comprehensive unit tests with proper mocking and test organization
 filters:
   - type: file_extension
-    pattern: "\\.test\\.(ts|tsx)$"
+    pattern: "\\.test\\.ts$"
   - type: event
     pattern: "file_create"
 

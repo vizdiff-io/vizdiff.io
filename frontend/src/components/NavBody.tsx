@@ -1,7 +1,6 @@
-import { Container, Typography, AppBar, Toolbar, Button, Box } from "@mui/material"
+import { Container, Link, Typography, AppBar, Toolbar, Button, Box } from "@mui/material"
 import { Inter } from "next/font/google"
-
-import useAuth from "@/hooks/useAuth"
+import { useState, useEffect } from "react"
 
 const inter = Inter({ subsets: ["latin"] })
 void inter
@@ -11,7 +10,14 @@ interface MarketingLayoutProps {
 }
 
 export const MarketingLayout: React.FC<MarketingLayoutProps> = ({ children }) => {
-  const { user, isLoading } = useAuth()
+  const [isClientAuthenticated, setIsClientAuthenticated] = useState(false)
+  const [isClient, setIsClient] = useState(false)
+
+  useEffect(() => {
+    const isAuthenticated = document.cookie.includes("authenticated=true")
+    setIsClientAuthenticated(isAuthenticated)
+    setIsClient(true)
+  }, [])
 
   return (
     <Box
@@ -40,15 +46,16 @@ export const MarketingLayout: React.FC<MarketingLayoutProps> = ({ children }) =>
               vizdiff.io
             </Typography>
             <Box sx={{ display: { xs: "none", md: "flex" }, gap: 2 }}>
-              <Button color="primary" variant="text">
-                Product
-              </Button>
-              <Button color="primary" variant="text">
-                Pricing
-              </Button>
-              <Button color="primary" variant="text">
-                Documentation
-              </Button>
+              <Link href={isClientAuthenticated ? "/signup" : "/pricing"}>
+                <Button color="primary" variant="text">
+                  Pricing
+                </Button>
+              </Link>
+              <Link href="/docs">
+                <Button color="primary" variant="text">
+                  Documentation
+                </Button>
+              </Link>
             </Box>
           </Box>
 
@@ -60,24 +67,27 @@ export const MarketingLayout: React.FC<MarketingLayoutProps> = ({ children }) =>
                 Documentation
               </Button> */}
             </Box>
-            {isLoading ? (
-              <Button disabled variant="text">
-                Loading...
-              </Button>
-            ) : user ? (
-              <Button href="/api/auth/logout" variant="outlined">
-                Logout
-              </Button>
-            ) : (
-              <>
-                <Button href="/projects" variant="outlined">
-                  Sign in
-                </Button>
-                <Button href="/projects" variant="contained" color="primary">
-                  Get started
-                </Button>
-              </>
-            )}
+            <Box
+              sx={{
+                display: "flex",
+                gap: 2,
+                opacity: isClient ? 1 : 0,
+                transition: "opacity 0.3s ease-in-out",
+              }}
+            >
+              {isClient && (
+                <>
+                  {!isClientAuthenticated && (
+                    <Button href="/projects" variant="outlined">
+                      Sign in
+                    </Button>
+                  )}
+                  <Button href="/projects" variant="contained" color="primary">
+                    {isClientAuthenticated ? "Go to projects" : "Get started"}
+                  </Button>
+                </>
+              )}
+            </Box>
           </Box>
         </Toolbar>
       </AppBar>

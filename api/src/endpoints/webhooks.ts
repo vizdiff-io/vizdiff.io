@@ -2,17 +2,12 @@ import crypto from "crypto"
 import { createMarkdownForBuildApproval, Project, ScreenshotTest, TestResult } from "shared"
 
 import { Database } from "../database"
-import { APP_URL, GITHUB_WEBHOOK_SECRET } from "../environment"
+import { APP_URL, GITHUB_WEBHOOK_SECRET, IS_PRODUCTION, IS_STAGING } from "../environment"
 import { getOctokitForInstallation } from "../github"
 import { log } from "../log"
 import type { CheckRunPayload } from "../schemas/CheckRunPayload"
 import type { CheckSuitePayload } from "../schemas/CheckSuitePayload"
-import type { DefaultRequest, DefaultResponse } from "../types"
-
-// Extend the DefaultRequest type to include rawBody
-interface WebhookRequest extends DefaultRequest {
-  rawBody?: Buffer
-}
+import type { RequestWithRawBody, DefaultResponse } from "../types"
 
 /**
  * Verify the GitHub webhook signature
@@ -71,7 +66,7 @@ async function findProjectByRepo(
   })
 }
 
-export async function githubWebhook(req: WebhookRequest, res: DefaultResponse): Promise<void> {
+export async function githubWebhook(req: RequestWithRawBody, res: DefaultResponse): Promise<void> {
   // Get the raw body from Express
   const rawBody = req.rawBody
 
@@ -258,28 +253,30 @@ async function githubCheckRunRequestedAction(
   test.githubCheckRunId ??= githubCheckRunId
   await screenshotTestRepository.save(test)
 
-  // Update GitHub check run
-  const { title, summary, text } = createMarkdownForBuildApproval(
-    test,
-    testResults,
-    payload.sender.login,
-  )
+  if (IS_PRODUCTION || IS_STAGING) {
+    // Update GitHub check run
+    const { title, summary, text } = createMarkdownForBuildApproval(
+      test,
+      testResults,
+      payload.sender.login,
+    )
 
-  // Create a new check run with the success or failure conclusion
-  const conclusion = status === "approved" ? "success" : "failure"
-  const octokit = await getOctokitForInstallation(payload.installation.id)
-  const result = await octokit.checks.create({
-    owner,
-    repo,
-    head_sha: test.commitSha,
-    external_id: String(test.id),
-    name: "Visual Tests",
-    status: "completed",
-    conclusion,
-    details_url: `${APP_URL}/build?id=${test.id}`,
-    output: { title, summary, text },
-  })
-  log.info(
-    `Created GitHub check run ${result.data.id} from webhook for ${test.toString()} with conclusion: ${conclusion}`,
-  )
+    // Create a new check run with the success or failure conclusion
+    const conclusion = status === "approved" ? "success" : "failure"
+    const octokit = await getOctokitForInstallation(payload.installation.id)
+    const result = await octokit.checks.create({
+      owner,
+      repo,
+      head_sha: test.commitSha,
+      external_id: String(test.id),
+      name: "Visual Tests",
+      status: "completed",
+      conclusion,
+      details_url: `${APP_URL}/build?id=${test.id}`,
+      output: { title, summary, text },
+    })
+    log.info(
+      `Created GitHub check run ${result.data.id} from webhook for ${test.toString()} with conclusion: ${conclusion}`,
+    )
+  }
 }

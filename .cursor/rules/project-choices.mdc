@@ -1,16 +1,32 @@
 ---
-description: framework versions and coding rules for the vizdiff.io repo
-globs: *.ts, *.tsx
+description: 
+globs: 
+alwaysApply: true
 ---
+vizdiff.io is a visual screenshot testing SaaS platform offering tight integration with Storybooks and GitHub, a streamlined modern interface, and cost competitive plans. The closest competitor is Chromatic. The project structure is as follows:
+
+- `.cursor/rules`: Stores `.mdc` files containing Cursor rules capturing all project and development knowledge. Create and/or update rules as new knowledge is discovered, feedback is given, or mistakes are corrected
+- `api`: node.js Express backend serving https://vizdiff.io/api/ that handles authentication, storybook uploads and scheduling tasks for the worker service, talking to Postgres and providing data to the frontend, and creating and updating GitHub check runs
+- `cli`: node.js command line utility for uploading `storybook-static` builds to the API
+- `dev_gateway`: An nginx setup via Docker and bash meant to run locally and handle TLS for the frontend and API
+- `frontend`: next.js website that is compiled with Static Site Generation, uploaded to S3, and served as a static website
+- `shared`: Defines TypeORM entities and common methods used by both the API and worker service
+- `worker`: node.js service using `pg-listen` and polling to retrieve storybook processing tasks. Retrieves storybook tarballs from S3, runs a local webserver to serve up the storybook and uses WebDriver BiDi to load storybooks and generate screenshots of each component. Uses the pixelmatch library to visually diff base vs new screenshots, upload diff masks to S3 and record results to Postgres, and create and update GitHub check runs
 
 # Software Versions
 
 - TypeScript 5.7
 - React 18
+- Next.js 15 (Static Site Generation only)
+- MaterialUI 5
+- Emotion 11
+- Storybook 8
+- Express 4
+- TypeORM 0.3
+- PostgreSQL 16
 
 # TypeScript/React Notes
 
 - Strict tsc and eslint settings are enforced
 - Create storybooks for all components and pages in @`frontend/src/stories/`
-- Create unit tests for exported interfaces using vitest. @`worker/src/worker.test.ts` is an example of a complex suite of tests involving several mocked external services
-
+- For non-frontend projects, create unit tests for exported interfaces using vitest. @`worker/src/worker.test.ts` is an example of a complex suite of tests involving several mocked external services

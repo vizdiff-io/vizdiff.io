@@ -1,5 +1,6 @@
 import CircleIcon from "@mui/icons-material/Circle"
 import ContentCopyIcon from "@mui/icons-material/ContentCopy"
+import RefreshIcon from "@mui/icons-material/Refresh"
 import {
   Box,
   Typography,
@@ -8,36 +9,87 @@ import {
   IconButton,
   Tooltip,
   Link as MuiLink,
+  CircularProgress,
 } from "@mui/material"
 import { formatDistanceToNow } from "date-fns"
 import Head from "next/head"
 import Link from "next/link"
 import { useRouter } from "next/router"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 
 import { AppLayout } from "@/components/AppLayout"
 import useApiGet from "@/hooks/useApiGet"
+import { useBreadcrumbs } from "@/hooks/useBreadcrumbs"
+import { apiPost } from "@/lib/apiMethods"
 import type { ProjectResponse, ScreenshotTestSummaryResponse } from "@/lib/apiTypes"
 import { getStatusColor } from "@/lib/colors"
-import { getBranchUrl, getCommitUrl } from "@/lib/links"
+import { getBranchUrl, getCommitUrl, getPullRequestUrl } from "@/lib/links"
 import { plural } from "@/lib/text"
 
 export default function Project(): JSX.Element {
   const router = useRouter()
+  const { setBreadcrumbData } = useBreadcrumbs()
   const theme = useTheme()
   const { id } = router.query
-  const isValidId = typeof id === "string" && /^\d+$/.test(id)
+  const projectId = getProjectId(id)
   const [project, projectLoading, projectError] = useApiGet<ProjectResponse>(
-    isValidId ? `/api/projects/${id}` : undefined,
+    projectId ? `/api/projects/${projectId}` : undefined,
   )
+  const projectName = project?.name
   const [buildsResponse, buildsLoading, buildsError] = useApiGet<ScreenshotTestSummaryResponse[]>(
-    isValidId ? `/api/projects/${id}/builds` : undefined,
+    projectId ? `/api/projects/${projectId}/builds` : undefined,
   )
   const builds = buildsResponse ?? []
   const [copyTooltip, setCopyTooltip] = useState("Copy")
+  const [resetTokenLoading, setResetTokenLoading] = useState(false)
+  const [resetTokenTooltip, setResetTokenTooltip] = useState("Reset Token")
+  const [currentToken, setCurrentToken] = useState<string | undefined>(project?.token)
 
   const loading = projectLoading || buildsLoading
   const error = projectError ?? buildsError
+
+  // Handle invalid ID with useEffect for client-side navigation
+  useEffect(() => {
+    if (!projectId && router.isReady) {
+      void router.push("/projects")
+    }
+  }, [projectId, router, router.isReady])
+
+  useEffect(() => {
+    setBreadcrumbData({
+      projectId,
+      projectName,
+      buildId: undefined,
+      buildNumber: undefined,
+    })
+
+    return () => {
+      setBreadcrumbData({
+        projectId: undefined,
+        projectName: undefined,
+        buildId: undefined,
+        buildNumber: undefined,
+      })
+    }
+  }, [projectId, projectName, setBreadcrumbData])
+
+  // Update token state when project data changes
+  useEffect(() => {
+    if (project?.token) {
+      setCurrentToken(project.token)
+    }
+  }, [project?.token])
+
+  // Show loading state while redirecting or if the page is not yet ready
+  if (!router.isReady || !projectId) {
+    return (
+      <AppLayout>
+        <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+          <CircularProgress />
+        </Box>
+      </AppLayout>
+    )
+  }
 
   const handleCopyToken = async () => {
     if (project?.token) {
@@ -53,12 +105,42 @@ export default function Project(): JSX.Element {
     }
   }
 
+  const handleResetToken = async () => {
+    if (!projectId) {
+      return
+    }
+
+    setResetTokenLoading(true)
+    setResetTokenTooltip("Resetting...")
+
+    try {
+      const [updatedProject, apiError] = await apiPost<ProjectResponse>(
+        `/api/projects/${projectId}/reset-token`,
+        {},
+      )
+
+      if (apiError) {
+        console.error("Failed to reset token:", apiError)
+        setResetTokenTooltip("Failed!")
+      } else if (updatedProject?.token) {
+        // Update the token in the UI
+        setCurrentToken(updatedProject.token)
+        setResetTokenTooltip("Success!")
+      }
+    } catch (err) {
+      console.error("Failed to reset token:", err)
+      setResetTokenTooltip("Failed!")
+    } finally {
+      setResetTokenLoading(false)
+      setTimeout(() => setResetTokenTooltip("Reset Token"), 2000)
+    }
+  }
+
   return (
     <>
       <Head>
         <title>{project?.name ? `${project.name} - vizdiff.io` : "vizdiff.io"}</title>
         <meta name="description" content="Project builds and details" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
       <AppLayout>
         <Box sx={{ px: 3, py: 4 }}>
@@ -68,7 +150,7 @@ export default function Project(): JSX.Element {
             </Paper>
           )}
 
-          {project?.token && (
+          {project && currentToken && (
             <Paper
               sx={{
                 p: 2,
@@ -78,7 +160,7 @@ export default function Project(): JSX.Element {
               }}
             >
               <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                <Typography variant="caption">
                   <strong>VIZDIFF_PROJECT_TOKEN</strong>
                 </Typography>
                 <Typography
@@ -91,14 +173,21 @@ export default function Project(): JSX.Element {
                     borderRadius: 1,
                   }}
                 >
-                  {project.token}
+                  {currentToken}
                 </Typography>
               </Box>
-              <Tooltip title={copyTooltip}>
-                <IconButton onClick={handleCopyToken} size="small">
-                  <ContentCopyIcon />
-                </IconButton>
-              </Tooltip>
+              <Box sx={{ display: "flex" }}>
+                <Tooltip title={copyTooltip}>
+                  <IconButton onClick={handleCopyToken} size="small">
+                    <ContentCopyIcon />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title={resetTokenTooltip}>
+                  <IconButton onClick={handleResetToken} size="small" disabled={resetTokenLoading}>
+                    {resetTokenLoading ? <CircularProgress size={20} /> : <RefreshIcon />}
+                  </IconButton>
+                </Tooltip>
+              </Box>
             </Paper>
           )}
 
@@ -168,7 +257,11 @@ export default function Project(): JSX.Element {
                         Created {formatDistanceToNow(build.initiatedStampSec * 1000)} ago •{" "}
                         <Tooltip title={build.commitSha}>
                           <MuiLink
-                            href={getCommitUrl(build.commitSha, project?.githubRepoUrl)}
+                            href={getCommitUrl(
+                              build.commitSha,
+                              project?.githubRepoUrl,
+                              build.prNumber,
+                            )}
                             target="_blank"
                             rel="noopener noreferrer"
                             onClick={(e) => e.stopPropagation()} // Prevent triggering the parent Link
@@ -186,9 +279,31 @@ export default function Project(): JSX.Element {
                           href={getBranchUrl(build.branch, project?.githubRepoUrl)}
                           target="_blank"
                           rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()} // Prevent triggering the parent Link
+                          sx={{
+                            textDecoration: "none",
+                            "&:hover": { textDecoration: "underline" },
+                          }}
                         >
                           {build.branch}
                         </MuiLink>
+                        {build.prNumber && (
+                          <>
+                            {" • "}
+                            <MuiLink
+                              href={getPullRequestUrl(build.prNumber, project?.githubRepoUrl)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()} // Prevent triggering the parent Link
+                              sx={{
+                                textDecoration: "none",
+                                "&:hover": { textDecoration: "underline" },
+                              }}
+                            >
+                              {`PR #${build.prNumber}`}
+                            </MuiLink>
+                          </>
+                        )}
                       </Typography>
                     </Box>
                     <Box sx={{ display: "flex", gap: 4, ml: 2 }}>
@@ -214,4 +329,12 @@ export default function Project(): JSX.Element {
       </AppLayout>
     </>
   )
+}
+
+function getProjectId(id: string | string[] | undefined): number | undefined {
+  if (typeof id === "string") {
+    const parsedId = parseInt(id, 10)
+    return isNaN(parsedId) ? undefined : parsedId
+  }
+  return undefined
 }

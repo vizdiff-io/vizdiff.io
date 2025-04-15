@@ -1,6 +1,7 @@
 import { Octokit } from "@octokit/rest"
 import jwt from "jsonwebtoken"
 import { User } from "shared"
+import { Stripe } from "stripe"
 import { fetch } from "undici"
 
 import { Database } from "../database"
@@ -12,9 +13,12 @@ import {
   GITHUB_PRIVATE_KEY,
   IS_PRODUCTION,
   JWT_SECRET,
+  STRIPE_SECRET_KEY,
+  STRIPE_API_VERSION,
+  TRIAL_PERIOD_MS,
 } from "../environment"
 import { syncUserInstallations } from "../github"
-import { parseSimpleQueryString, requiredQueryString } from "../http"
+import { isValidRedirectUrl, parseSimpleQueryString, requiredQueryString } from "../http"
 import { log } from "../log"
 import type { GithubUser } from "../schemas/GithubUser"
 import type { DefaultRequest, DefaultResponse } from "../types"
@@ -83,8 +87,9 @@ export async function githubCallback(req: DefaultRequest, res: DefaultResponse):
     finalRedirect = finalRedirect ?? `${APP_URL}/projects`
   }
 
-  if (!finalRedirect) {
-    finalRedirect = `${APP_URL}/projects` // Default fallback
+  finalRedirect ??= `${APP_URL}/projects` // Default fallback
+  if (!isValidRedirectUrl(finalRedirect)) {
+    throw new Error(`Invalid redirect URL: ${finalRedirect}`)
   }
 
   // The request to GITHUB_TOKEN_EXCHANGE requires a `redirect_uri` parameter that matches the
@@ -133,18 +138,51 @@ export async function githubCallback(req: DefaultRequest, res: DefaultResponse):
   let user = await userTable.findOneBy({ githubId })
   if (!user) {
     // Create a new user
-    log.info(`Creating new user for GitHub user ${ghUser.login} (${ghUser.id})`)
+    log.info(
+      { event: "user_created", githubUser: ghUser },
+      `Creating new user for GitHub user ${ghUser.login} (${ghUser.id})`,
+    )
     user = new User()
     user.githubId = githubId
   }
 
+  // Set the trial end date to 14 days from now if it's not already set
+  user.trialEndsAt ??= new Date(Date.now() + TRIAL_PERIOD_MS)
+
   // Set or update the user's info retrieved from GitHub
   user.email = ghUser.email
   user.githubUsername = ghUser.login
-  user.githubProfile = JSON.stringify(ghUser)
+  user.githubProfile = ghUser
   user.githubAccessToken = ghTokenRes.access_token
 
   user = await userTable.save(user)
+
+  // Ensure user has a Stripe customer ID
+  if (STRIPE_SECRET_KEY && !user.stripeCustomerId) {
+    try {
+      log.debug(`Creating Stripe customer for GitHub user ${ghUser.login} (${ghUser.id})`)
+      const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: STRIPE_API_VERSION })
+      const customer = await stripe.customers.create({
+        email: ghUser.email ?? `${ghUser.login}@github.login`,
+        name: ghUser.name ?? ghUser.login,
+        metadata: {
+          github_id: githubId,
+          github_username: ghUser.login,
+          user_id: user.id.toString(),
+        },
+        description: `GitHub user: ${ghUser.login}`,
+      })
+
+      user.stripeCustomerId = customer.id
+      log.info(`Created Stripe customer ${customer.id} for GitHub user ${ghUser.login}`)
+
+      // Update the user record with the customer ID
+      user = await userTable.save(user)
+    } catch (error) {
+      // Don't block user creation if Stripe fails
+      log.error(error, `Failed to create Stripe customer for GitHub user ${ghUser.login}`)
+    }
+  }
 
   // Sync GitHub App installations for this user, passing the installation ID if available
   await syncUserInstallations(user, installationId)

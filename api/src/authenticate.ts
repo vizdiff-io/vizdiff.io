@@ -6,7 +6,7 @@ import jwt from "jsonwebtoken"
 import { Project, User } from "shared"
 
 import { Database } from "./database"
-import { tracer } from "./datadog"
+import { setUser } from "./datadog"
 import {
   JWT_SECRET,
   GITHUB_APP_ID,
@@ -135,7 +135,7 @@ export function authenticateJWT(req: Request, res: Response, next: NextFunction)
 
       // Set user in res.locals from the verified JWT payload
       ;(res.locals as RequestLocals).user = { id: parseInt(decoded.sub, 10) } as User
-      log.debug(`Request authenticated as user ${decoded.sub} via JWT`)
+      log.trace(`Request authenticated as user ${decoded.sub} via JWT`)
       next()
     },
   )
@@ -156,10 +156,14 @@ export async function requireUser(_req: Request, res: Response, next: NextFuncti
   }
 
   // Associate this request with the user in Datadog
-  tracer.setUser({
+  const name = (user.githubProfile as { name?: string }).name ?? user.githubUsername
+  setUser({
     id: user.id.toString(),
-    name: user.githubUsername,
+    name,
     email: user.email ?? undefined,
+    githubUsername: user.githubUsername,
+    subscriptionPlan: user.subscriptionPlan ?? undefined,
+    subscriptionInterval: user.subscriptionInterval ?? undefined,
   })
 
   locals.user = user

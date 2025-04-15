@@ -18,6 +18,7 @@ type ScreenshotTestWithStats = {
   screenshot_test_git_commit: string
   screenshot_test_base_commit_sha: string
   screenshot_test_base_branch: string
+  screenshot_test_pr_number?: number
   screenshot_test_build_number: number
   screenshot_test_upload_id: string
   screenshot_test_status: string
@@ -61,7 +62,7 @@ export const list: RequestHandler = async (req, res) => {
         qb
           .select([
             "tr.screenshotTestId as screenshotTestId",
-            "COUNT(DISTINCT tr.testName) as testcount",
+            "COUNT(DISTINCT tr.story_id) as testcount",
             "SUM(CASE WHEN tr.changeStatus = 'changed' OR tr.changeStatus = 'new' THEN 1 ELSE 0 END) as changecount",
           ])
           .from(
@@ -70,8 +71,9 @@ export const list: RequestHandler = async (req, res) => {
                 .select([
                   "tr2.screenshot_test_id as screenshotTestId",
                   "tr2.name as testName",
+                  "tr2.story_id as story_id",
                   "tr2.change_status as changeStatus",
-                  "ROW_NUMBER() OVER (PARTITION BY tr2.screenshot_test_id, tr2.name ORDER BY tr2.id DESC) as rn",
+                  "ROW_NUMBER() OVER (PARTITION BY tr2.screenshot_test_id, tr2.story_id ORDER BY tr2.id DESC) as rn",
                 ])
                 .from("test_results", "tr2"),
             "tr",
@@ -88,6 +90,7 @@ export const list: RequestHandler = async (req, res) => {
       "screenshot_test.commitSha as screenshot_test_git_commit",
       "screenshot_test.baseCommitSha as screenshot_test_base_commit_sha",
       "screenshot_test.baseBranch as screenshot_test_base_branch",
+      "screenshot_test.prNumber as screenshot_test_pr_number",
       "screenshot_test.buildNumber as screenshot_test_build_number",
       "screenshot_test.uploadId as screenshot_test_upload_id",
       "screenshot_test.status as screenshot_test_status",
@@ -102,12 +105,14 @@ export const list: RequestHandler = async (req, res) => {
   const responses: ScreenshotTestSummaryResponse[] = screenshotTestsWithStats.map((test) => ({
     id: test.screenshot_test_id,
     projectId,
+    projectName: project.name,
     githubRepoUrl: project.githubRepoUrl,
     buildNumber: test.screenshot_test_build_number,
     commitSha: test.screenshot_test_git_commit,
     branch: test.screenshot_test_git_branch,
     baseCommitSha: test.screenshot_test_base_commit_sha,
     baseBranch: test.screenshot_test_base_branch,
+    prNumber: test.screenshot_test_pr_number,
     uploadId: test.screenshot_test_upload_id,
     status: test.screenshot_test_status as ScreenshotTestResponse["status"],
     tag: test.screenshot_test_tag,
@@ -135,15 +140,7 @@ export const get: RequestHandler = async (req, res) => {
     res.status(404).json({ error: "Screenshot test not found" })
     return
   }
-  const projectId = screenshotTest.project.id
-
-  const projectTable = db.getRepository(Project)
-  const project = await projectTable.findOneBy({ id: projectId })
-  if (!project) {
-    log.error(`Project not found: projectId=${projectId}`)
-    res.status(404).json({ error: "Project not found" })
-    return
-  }
+  const project = screenshotTest.project
 
   // Get the most recent test result for each test name
   const testResultTable = db.getRepository(TestResult)
@@ -152,10 +149,10 @@ export const get: RequestHandler = async (req, res) => {
     .innerJoin(
       (qb) =>
         qb
-          .select(["tr.name as name", "MAX(tr.id) as latest_id"])
+          .select(["tr.story_id as story_id", "MAX(tr.id) as latest_id"])
           .from(TestResult, "tr")
           .where("tr.screenshot_test_id = :screenshotTestId", { screenshotTestId })
-          .groupBy("tr.name"),
+          .groupBy("tr.story_id"),
       "latest_results",
       "latest_results.latest_id = result.id",
     )
@@ -164,26 +161,28 @@ export const get: RequestHandler = async (req, res) => {
 
   const response: TestResponse = {
     id: screenshotTest.id,
-    projectId: screenshotTest.project.id,
+    projectId: project.id,
+    projectName: project.name,
     githubRepoUrl: project.githubRepoUrl,
     buildNumber: screenshotTest.buildNumber,
     commitSha: screenshotTest.commitSha,
     branch: screenshotTest.branch,
-    baseCommitSha: screenshotTest.baseCommitSha,
-    baseBranch: screenshotTest.baseBranch,
+    baseCommitSha: screenshotTest.baseCommitSha ?? undefined,
+    baseBranch: screenshotTest.baseBranch ?? undefined,
+    prNumber: screenshotTest.prNumber ?? undefined,
     uploadId: screenshotTest.uploadId,
     status: screenshotTest.status as ScreenshotTestResponse["status"],
-    tag: screenshotTest.tag,
+    tag: screenshotTest.tag ?? undefined,
     initiatedStampSec: screenshotTest.createdAt.getTime() / 1000,
-    buildDurationSec: screenshotTest.buildDurationSec,
+    buildDurationSec: screenshotTest.buildDurationSec ?? undefined,
     testResults: testResults.map((result) => ({
       id: result.id,
       name: result.name,
       changeStatus: result.changeStatus as TestResultResponse["changeStatus"],
       screenshotUrl: result.newImageUrl,
       ancestorScreenshotUrl: result.baselineImageUrl,
-      diffMaskUrl: result.diffImageUrl,
-      diffRatio: result.diffRatio,
+      diffMaskUrl: result.diffImageUrl ?? undefined,
+      diffRatio: result.diffRatio ?? undefined,
       createdStampSec: result.createdAt.getTime() / 1000,
     })),
   }
@@ -221,7 +220,7 @@ export const listActivity: RequestHandler = async (_req, res) => {
         qb
           .select([
             "tr.screenshotTestId as screenshotTestId",
-            "COUNT(DISTINCT tr.testName) as testcount",
+            "COUNT(DISTINCT tr.story_id) as testcount",
           ])
           .from(
             (subQuery) =>
@@ -229,7 +228,8 @@ export const listActivity: RequestHandler = async (_req, res) => {
                 .select([
                   "tr2.screenshot_test_id as screenshotTestId",
                   "tr2.name as testName",
-                  "ROW_NUMBER() OVER (PARTITION BY tr2.screenshot_test_id, tr2.name ORDER BY tr2.id DESC) as rn",
+                  "tr2.story_id as story_id",
+                  "ROW_NUMBER() OVER (PARTITION BY tr2.screenshot_test_id, tr2.story_id ORDER BY tr2.id DESC) as rn",
                 ])
                 .from("test_results", "tr2"),
             "tr",
@@ -246,27 +246,37 @@ export const listActivity: RequestHandler = async (_req, res) => {
       "screenshot_test.commitSha",
       "screenshot_test.baseCommitSha",
       "screenshot_test.baseBranch",
+      "screenshot_test.prNumber",
       "screenshot_test.buildNumber",
       "screenshot_test.uploadId",
       "screenshot_test.status",
       "screenshot_test.tag",
       "project.id as project_id",
+      "project.name as project_name",
       "project.github_repo_url as project_github_repo_url",
       "COALESCE(test_counts.testcount, '0') as testcount",
     ])
     .orderBy("screenshot_test.createdAt", "DESC")
     .take(10)
-    .getRawMany<ScreenshotTestWithStats & { project_id: number; project_github_repo_url: string }>()
+    .getRawMany<
+      ScreenshotTestWithStats & {
+        project_id: number
+        project_name: string
+        project_github_repo_url: string
+      }
+    >()
 
   const responses: ScreenshotTestResponse[] = screenshotTests.map((test) => ({
     id: test.screenshot_test_id,
     projectId: test.project_id,
+    projectName: test.project_name,
     buildNumber: test.screenshot_test_build_number,
     githubRepoUrl: test.project_github_repo_url,
     commitSha: test.screenshot_test_git_commit,
     branch: test.screenshot_test_git_branch,
     baseCommitSha: test.screenshot_test_base_commit_sha,
     baseBranch: test.screenshot_test_base_branch,
+    prNumber: test.screenshot_test_pr_number,
     uploadId: test.screenshot_test_upload_id,
     status: test.screenshot_test_status as ScreenshotTestResponse["status"],
     tag: test.screenshot_test_tag,

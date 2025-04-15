@@ -18,9 +18,14 @@ export type UserResponse = {
   email: string | null
   githubUsername: string
   githubProfile: GithubUser
+  trialEndStampSec: number
   createdStampSec: number
   updatedStampSec: number
   githubInstallations: GitHubInstallationResponse[]
+  subscription: {
+    plan: string
+    interval: string
+  } | null
 }
 
 export type ProjectResponse = {
@@ -37,12 +42,14 @@ export type ProjectResponse = {
 export type ScreenshotTestResponse = {
   id: number
   projectId: number
+  projectName: string
   githubRepoUrl: string
   buildNumber: number
   commitSha: string
   branch: string
   baseCommitSha?: string
   baseBranch?: string
+  prNumber?: number
   uploadId: string
   status: "pending" | "running" | "no_changes" | "unapproved" | "approved" | "denied" | "failed"
   tag?: string

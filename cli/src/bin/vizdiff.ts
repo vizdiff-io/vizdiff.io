@@ -14,6 +14,7 @@ type CommandArgs = {
   branch?: string
   baseBranch?: string
   baseCommit?: string
+  pr?: string
 }
 
 function main(): void {
@@ -33,6 +34,7 @@ function main(): void {
       "--base-commit <base-commit-sha>",
       "Base commit SHA for comparison (defaults to the merge base commit)",
     )
+    .option("--pr <pr-number>", "GitHub pull request number associated with this commit (optional)")
     .action((storybookDir: string, options: CommandArgs) => {
       vizdiff(storybookDir, options).catch(fatal)
     })
@@ -53,6 +55,7 @@ async function vizdiff(storybookDir: string, options: CommandArgs): Promise<void
     options.baseCommit && options.baseBranch
       ? [options.baseCommit, options.baseBranch]
       : await getBaseCommitShaAndBranch(storybookDir, commitSha, branch, options.baseBranch)
+  const prNumber = getPrNumber(options)
 
   try {
     await uploadStorybook({
@@ -62,6 +65,7 @@ async function vizdiff(storybookDir: string, options: CommandArgs): Promise<void
       projectToken,
       baseCommitSha,
       baseBranch,
+      prNumber,
     })
   } catch (err: unknown) {
     const errMessage = err instanceof Error ? err.message : String(err)
@@ -191,6 +195,15 @@ function findGitRoot(dir: string): string | undefined {
   }
 
   return findGitRoot(parentDir)
+}
+
+// Returns the pull request number if it is a valid number, otherwise undefined
+function getPrNumber(options: { pr?: string }): number | undefined {
+  const prNumber = options.pr ? parseInt(options.pr) : undefined
+  if (prNumber == undefined || isNaN(prNumber) || prNumber < 1) {
+    return undefined
+  }
+  return prNumber
 }
 
 main()
