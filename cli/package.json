@@ -39,6 +39,7 @@
   "dependencies": {
     "commander": "13.1.0",
     "simple-git": "^3.27.0",
+    "supports-color": "^10.0.0",
     "undici": "5.28.5",
     "zip-a-folder": "1.1.7"
   }
