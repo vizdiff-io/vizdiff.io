@@ -59,10 +59,12 @@ export default function Settings(): JSX.Element {
   // Describe the user's subscription or trial status
   const subscriptionInfo = useMemo(() => {
     if (!user) {
-      return ""
+      return "Loading…"
     }
     if (user.subscription) {
       return `✅ ${sentenceCase(user.subscription.plan)} (${user.subscription.interval})`
+    } else if (user.ownedProjectCount === 0) {
+      return "Free plan"
     }
     // Check if the user's trial is over
     const trialEnd = new Date(user.trialEndStampSec * 1000)
