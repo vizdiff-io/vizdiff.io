@@ -2,6 +2,7 @@ import { randomBytes } from "crypto"
 import { Project, User } from "shared"
 
 import type { ProjectResponse } from "../apiTypes"
+import { toSeconds } from "../conversions"
 import { Database } from "../database"
 import { MAX_PROJECTS_PER_USER, TRIAL_PERIOD_MS } from "../environment"
 import { getParamInt } from "../http"
@@ -131,8 +132,8 @@ function convertToProjectResponse(project: ProjectWithStats): ProjectResponse {
       project.owner_subscription_plan,
       project.owner_trial_ends_at,
     ),
-    createdStampSec: project.project_created_at.getTime() / 1000,
-    lastBuildStampSec: project.lastbuildstamp ? project.lastbuildstamp.getTime() / 1000 : 0,
+    createdStampSec: toSeconds(project.project_created_at),
+    lastBuildStampSec: project.lastbuildstamp ? toSeconds(project.lastbuildstamp) : 0,
     builds: parseInt(project.buildcount) || 0,
     tests: parseInt(project.testcount) || 0,
   }
@@ -183,7 +184,7 @@ export const create: RequestHandler = async (req, res) => {
     token: project.token,
     ownerId: user.id,
     hasActiveSubscription: userSubscriptionIsActive(user.subscriptionPlan, user.trialEndsAt),
-    createdStampSec: project.createdAt.getTime() / 1000,
+    createdStampSec: toSeconds(project.createdAt),
     lastBuildStampSec: 0,
     builds: 0,
     tests: 0,
@@ -355,7 +356,7 @@ export const resetToken: RequestHandler = async (req, res) => {
         project.user.subscriptionPlan,
         project.user.trialEndsAt,
       ),
-      createdStampSec: project.createdAt.getTime() / 1000,
+      createdStampSec: toSeconds(project.createdAt),
       lastBuildStampSec: 0,
       builds: 0,
       tests: 0,

@@ -1,4 +1,5 @@
 import type { GitHubInstallationResponse, UserResponse } from "../apiTypes"
+import { toSeconds } from "../conversions"
 import { Database } from "../database"
 import { TRIAL_PERIOD_MS } from "../environment"
 import { getInstallationsForUserId } from "../github"
@@ -18,7 +19,7 @@ export const me: RequestHandler = async (_req, res) => {
     accountName: installation.accountName,
     accountType: installation.accountType,
     isCreator: installation.creatorId === user.id,
-    createdStampSec: installation.createdAt.getTime() / 1000,
+    createdStampSec: toSeconds(installation.createdAt),
   }))
 
   const subscription =
@@ -86,8 +87,4 @@ export const deleteAccount: RequestHandler = async (_req, res) => {
     log.error(error, `Failed to delete account for user ${user.id} (${user.email})`)
     res.status(500).json({ error: "Failed to delete account", message })
   }
-}
-
-function toSeconds(date: Date): number {
-  return Math.floor(date.getTime() / 1000)
 }
