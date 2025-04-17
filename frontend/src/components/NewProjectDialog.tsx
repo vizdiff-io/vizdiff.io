@@ -256,7 +256,7 @@ export default function NewProjectDialog({
                   <List
                     component="nav"
                     sx={{
-                      overflowY: "scroll",
+                      overflowY: "auto",
                       maxHeight: "60vh",
                     }}
                   >
@@ -294,7 +294,7 @@ export default function NewProjectDialog({
                     <List
                       component="nav"
                       sx={{
-                        overflowY: "scroll",
+                        overflowY: "auto",
                         maxHeight: "60vh",
                       }}
                     >
