@@ -57,7 +57,6 @@ export default function TestResultDialog({
   const isNewStatus = result?.changeStatus === "new"
   const canShowOld = hasAncestorScreenshot && !isNewStatus
   const canShowDiff = hasAncestorScreenshot && !isNewStatus && (result?.diffMaskUrl ? true : false)
-  const canShowSplit = hasAncestorScreenshot && !isNewStatus
 
   // 3. Callbacks (Memoized)
   const handleNavigatePrev = useCallback(() => {
@@ -101,14 +100,10 @@ export default function TestResultDialog({
       return
     }
 
-    if (
-      (viewMode === "old" && !canShowOld) ||
-      (viewMode === "diff" && !canShowDiff) ||
-      (viewMode === "split" && !canShowSplit)
-    ) {
+    if ((viewMode === "old" && !canShowOld) || (viewMode === "diff" && !canShowDiff)) {
       setViewMode("new")
     }
-  }, [viewMode, canShowOld, canShowDiff, canShowSplit, result])
+  }, [viewMode, canShowOld, canShowDiff, result])
 
   // Keyboard navigation effect
   useEffect(() => {
@@ -214,7 +209,7 @@ export default function TestResultDialog({
               <CompareIcon sx={{ mr: 1 }} />
               Diff
             </ToggleButton>
-            <ToggleButton value="split" disabled={!canShowSplit}>
+            <ToggleButton value="split">
               <GridViewIcon sx={{ mr: 1 }} />
               2-up
             </ToggleButton>
