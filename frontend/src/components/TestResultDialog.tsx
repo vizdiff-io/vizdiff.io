@@ -29,7 +29,7 @@ export default function TestResultDialog({
   result,
   onClose,
 }: TestResultDialogProps): JSX.Element | null {
-  const [viewMode, setViewMode] = useState<ViewMode>("new")
+  const [viewMode, setViewMode] = useState<ViewMode>("diff")
 
   // Determine which view modes are available based on test result
   const hasAncestorScreenshot = result?.ancestorScreenshotUrl ? true : false
@@ -212,7 +212,7 @@ export default function TestResultDialog({
                   sizes="100vw"
                   style={{
                     objectFit: "contain",
-                    filter: "brightness(0) invert(1) sepia(1) hue-rotate(-100deg) saturate(10000%)",
+                    filter: "brightness(0) invert(1) sepia(1) hue-rotate(45deg) saturate(10000%)",
                   }}
                   priority
                 />
