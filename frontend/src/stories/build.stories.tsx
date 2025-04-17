@@ -5,6 +5,13 @@ import { type ComponentType } from "react"
 import type { TestResponse } from "@/lib/apiTypes"
 
 import ThemeWrapper from "./ThemeWrapper"
+import {
+  screenshot01Base,
+  screenshot01Diff,
+  screenshot01New,
+  screenshot02New,
+  screenshot03New,
+} from "./assets"
 import { catchAllHandler, userHandler } from "./mocks"
 import BuildComponent from "../pages/build"
 
@@ -30,24 +37,25 @@ const mockBuildData: TestResponse = {
       id: 1,
       name: "pages/Homepage/Homepage Test",
       changeStatus: "changed",
-      screenshotUrl: "https://placecats.com/millie/800/600",
-      ancestorScreenshotUrl: "https://placecats.com/neo/800/600",
-      diffMaskUrl: "https://placecats.com/millie_neo/800/600",
+      screenshotUrl: screenshot01New.src,
+      ancestorScreenshotUrl: screenshot01Base.src,
+      diffMaskUrl: screenshot01Diff.src,
+      diffRatio: 0.0932,
       createdStampSec: oneMinuteAgo,
     },
     {
       id: 2,
       name: "components/Excessively Long Path/With Many Words/And Many More Words/Dashboard/Dashboard Test",
       changeStatus: "unchanged",
-      screenshotUrl: "https://placecats.com/neo_banana/800/600",
-      ancestorScreenshotUrl: "https://placecats.com/bella/800/600",
+      screenshotUrl: screenshot02New.src,
+      ancestorScreenshotUrl: screenshot02New.src,
       createdStampSec: oneMinuteAgo,
     },
     {
       id: 3,
       name: "pages/Login/Login Test",
       changeStatus: "new",
-      screenshotUrl: "https://placecats.com/poppy/800/600",
+      screenshotUrl: screenshot03New.src,
       createdStampSec: oneMinuteAgo,
     },
   ],

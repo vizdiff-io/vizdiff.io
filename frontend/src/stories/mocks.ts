@@ -2,6 +2,8 @@ import { http, HttpResponse } from "msw"
 
 import type { UserResponse } from "@/lib/apiTypes"
 
+import { avatar01 } from "./assets"
+
 const oneMinuteAgo = Math.floor(Date.now() / 1000) - 60
 const fixedDate = new Date("2025-04-01T08:00:00Z")
 
@@ -13,7 +15,7 @@ export const mockUser: UserResponse = {
   githubProfile: {
     login: "testuser",
     name: "Test User",
-    avatar_url: "https://placecats.com/millie/460/460",
+    avatar_url: avatar01.src,
     id: 0,
     node_id: "",
     email: null,

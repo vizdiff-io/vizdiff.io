@@ -4,6 +4,7 @@ import { http, HttpResponse } from "msw"
 import { type ComponentType } from "react"
 
 import ThemeWrapper from "./ThemeWrapper"
+import { avatar01 } from "./assets"
 import { catchAllHandler, userHandler } from "./mocks"
 import NewProjectDialog from "../components/NewProjectDialog"
 
@@ -50,7 +51,7 @@ const mockVizdiffRepos: Endpoints["GET /orgs/{org}/repos"]["response"]["data"] =
       login: "vizdiff",
       id: 1,
       node_id: "MDQ6VXNlcjE=",
-      avatar_url: "https://placecats.com/millie/460/460",
+      avatar_url: avatar01.src,
       gravatar_id: "",
       url: "https://api.github.com/users/vizdiff",
       html_url: "https://github.com/vizdiff",
@@ -119,7 +120,7 @@ const mockVizdiffRepos: Endpoints["GET /orgs/{org}/repos"]["response"]["data"] =
       login: "vizdiff",
       id: 1,
       node_id: "MDQ6VXNlcjE=",
-      avatar_url: "https://placecats.com/millie/460/460",
+      avatar_url: avatar01.src,
       gravatar_id: "",
       url: "https://api.github.com/users/vizdiff",
       html_url: "https://github.com/vizdiff",
