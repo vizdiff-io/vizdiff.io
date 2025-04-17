@@ -172,7 +172,7 @@ export async function ingestStorybook(
         }
 
         const filePath = path.join(tmpDir, requestedPath)
-        log.debug(`Serving file: ${filePath}`)
+        log.trace(`Serving file: ${filePath}`)
         fsPromises
           .readFile(filePath)
           .then((content) => {
@@ -191,7 +191,7 @@ export async function ingestStorybook(
 
             res.writeHead(200, { "Content-Type": contentType })
             res.end(content)
-            log.debug(`Successfully served file: ${filePath}`)
+            log.trace(`Successfully served file: ${filePath}`)
           })
           .catch(() => {
             log.warn(`File not found: ${filePath}`)

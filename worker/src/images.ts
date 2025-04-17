@@ -30,3 +30,18 @@ export function diffImages(
 
   return { diffRatio, diffMask: diffPng }
 }
+
+export function diffImagesNoMask(newImage: PNG, baselineImage: PNG): number {
+  const numDiffPixels = pixelmatch(
+    newImage.data,
+    baselineImage.data,
+    undefined,
+    newImage.width,
+    newImage.height,
+    {
+      threshold: 0.08, // Use a more sensitive threshold than the primary diff
+      includeAA: true, // Enable anti-aliasing detection
+    },
+  )
+  return numDiffPixels / (newImage.width * newImage.height)
+}
