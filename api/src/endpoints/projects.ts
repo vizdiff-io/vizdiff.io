@@ -51,7 +51,7 @@ async function getProjectWithStats(
             "MAX(st.id) as sid",
             "MAX(st.createdAt) as screatedAt",
             "MAX(tc.testcount) as tcount", // Use MAX instead of SUM to get only the latest test count
-            "COUNT(DISTINCT st.buildNumber) as buildcount",
+            "(SELECT COUNT(DISTINCT st2.build_number) FROM screenshot_tests st2 WHERE st2.project_id = st.projectId AND st2.status IN ('completed', 'no_changes', 'unapproved', 'approved')) as buildcount",
           ])
           .from(
             (subQuery) =>
@@ -233,7 +233,7 @@ export const list: RequestHandler = async (_req, res) => {
             "MAX(st.id) as sid",
             "MAX(st.createdAt) as screatedAt",
             "MAX(tc.testcount) as tcount", // Use MAX instead of SUM to get count only from the latest build
-            "COUNT(DISTINCT st.buildNumber) as buildcount",
+            "(SELECT COUNT(DISTINCT st2.build_number) FROM screenshot_tests st2 WHERE st2.project_id = st.projectId AND st2.status IN ('completed', 'no_changes', 'unapproved', 'approved')) as buildcount",
           ])
           .from(
             (subQuery) =>
