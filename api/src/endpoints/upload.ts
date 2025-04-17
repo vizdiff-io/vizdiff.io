@@ -94,8 +94,16 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
   if (projectOwner.subscriptionPlan == null) {
     const owner = projectOwner.githubUsername
     if (projectOwner.trialEndsAt == null) {
-      throw new Error(`Project owner "${owner}" has no valid subscription or trial`)
+      // This is an odd state since project creation should have started a trial, but we can start
+      // their trial here.
+      logChild.warn(
+        { projectOwner },
+        `No valid subscription or trial found for ${owner} during upload for project ${project.id}, starting trial`,
+      )
+      projectOwner.trialEndsAt = new Date(Date.now() + TRIAL_PERIOD_MS)
+      await userTable.save(projectOwner)
     }
+
     if (projectOwner.trialEndsAt < new Date()) {
       // Return a 402 Payment Required error
       logChild.warn({ projectOwner }, `Storybook upload rejected, trial expired for "${owner}"`)
