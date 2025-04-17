@@ -157,6 +157,8 @@ vi.mock("node:fs", () => {
       writeFile: vi.fn(),
       mkdir: () => Promise.resolve(),
       rm: () => Promise.resolve(),
+      rename: () => Promise.resolve(),
+      unlink: () => Promise.resolve(),
     },
   }
   return { default: fs, promises: fs.promises }
@@ -476,12 +478,14 @@ describe("processStory", () => {
    * - First screenshot attempt fails
    * - Code waits 1 second
    * - Second attempt succeeds
+   * - One more attempt for stability check
    * - Processing continues normally
    */
   it("should retry screenshot on failure", async () => {
     mockBrowserSaveScreenshot
       .mockRejectedValueOnce(new Error("Screenshot failed"))
       .mockResolvedValueOnce(Buffer.from("mock screenshot"))
+      .mockResolvedValueOnce(Buffer.from("mock screenshot 2")) // For stability check
 
     await processStory({
       story: mockStory,
@@ -498,8 +502,13 @@ describe("processStory", () => {
       browser: mockBrowser,
     })
 
-    expect(mockBrowserSaveScreenshot).toHaveBeenCalledTimes(2)
-    expect(mockBrowserPause).toHaveBeenCalledWith(1000)
+    // Should be called 3 times:
+    // 1. Initial attempt (fails)
+    // 2. Retry attempt (succeeds)
+    // 3. Stability check attempt (succeeds)
+    expect(mockBrowserSaveScreenshot).toHaveBeenCalledTimes(3)
+    expect(mockBrowserPause).toHaveBeenCalledWith(1000) // For retry delay
+    expect(mockBrowserPause).toHaveBeenCalledWith(500) // For stability check interval
   })
 
   /**
