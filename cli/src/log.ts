@@ -1,4 +1,4 @@
-import supportsColor from "supports-color"
+import supportsColor from "./supportsColor"
 
 export function info(message: unknown, ...args: unknown[]): void {
   console.log(message, ...args)
