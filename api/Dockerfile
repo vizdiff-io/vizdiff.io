@@ -1,9 +1,6 @@
-# Base stage with Node.js 22 Alpine
-FROM node:22-alpine AS base
-WORKDIR /app
-
 # Dependencies installation stage
-FROM base AS deps
+FROM node:22-alpine AS deps
+WORKDIR /app
 RUN corepack enable
 COPY .yarn/releases/yarn-4.3.0.cjs ./.yarn/releases/
 COPY package.json yarn.lock .yarnrc.yml tsconfig.json tsconfig.options.json ./
@@ -21,7 +18,7 @@ RUN yarn workspace api build \
   && rm -rf api/src shared/src
 
 # Final production image
-FROM base
+FROM node:22-alpine
 ENV NODE_ENV=production \
     PORT=3001
 
