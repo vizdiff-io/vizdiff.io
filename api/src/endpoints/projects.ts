@@ -1,9 +1,9 @@
 import { randomBytes } from "crypto"
 import { Project, User } from "shared"
-import { MAX_PROJECTS_PER_USER, TRIAL_PERIOD_MS } from "src/environment"
 
 import type { ProjectResponse } from "../apiTypes"
 import { Database } from "../database"
+import { MAX_PROJECTS_PER_USER, TRIAL_PERIOD_MS } from "../environment"
 import { getParamInt } from "../http"
 import type { RequestHandler } from "../types"
 

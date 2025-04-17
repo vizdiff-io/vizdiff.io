@@ -20,7 +20,7 @@ import { remote } from "webdriverio"
 
 import { Database } from "./database"
 import { downloadWithTimeout } from "./download"
-import { APP_URL, STRIPE_API_VERSION, STRIPE_SECRET_KEY } from "./environment"
+import { APP_URL, IS_PRODUCTION, STRIPE_API_VERSION, STRIPE_SECRET_KEY } from "./environment"
 import { getOctokitForInstallation, updateGitHubCheckRun, type GitHubCheckData } from "./github"
 import { log } from "./log"
 import { type Story, processStory } from "./stories"
@@ -144,7 +144,7 @@ export async function ingestStorybook(
     const config: Capabilities.WebdriverIOConfig = {
       outputDir: path.join(tmpDir, "wdio-logs"),
       hostname: "localhost",
-      port: 4444,
+      port: IS_PRODUCTION ? 4444 : undefined,
       capabilities: {
         browserName: "chrome",
         "goog:chromeOptions": {
@@ -172,7 +172,7 @@ export async function ingestStorybook(
         }
 
         const filePath = path.join(tmpDir, requestedPath)
-        log.debug(`Serving file: ${filePath}`)
+        log.trace(`Serving file: ${filePath}`)
         fsPromises
           .readFile(filePath)
           .then((content) => {
@@ -191,7 +191,7 @@ export async function ingestStorybook(
 
             res.writeHead(200, { "Content-Type": contentType })
             res.end(content)
-            log.debug(`Successfully served file: ${filePath}`)
+            log.trace(`Successfully served file: ${filePath}`)
           })
           .catch(() => {
             log.warn(`File not found: ${filePath}`)

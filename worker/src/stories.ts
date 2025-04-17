@@ -7,7 +7,7 @@ import { ScreenshotTest, TestResult, type TestResultStatus } from "shared"
 import type { Repository } from "typeorm"
 import type { Browser } from "webdriverio"
 
-import { diffImages } from "./images"
+import { diffImages, diffImagesNoMask } from "./images"
 import { log } from "./log"
 
 export interface Story {
@@ -58,6 +58,10 @@ const browserMutex = {
   },
 }
 
+const SCREENSHOT_INTERVAL_MS = 500
+const SCREENSHOTS_UNCHANGED_TIMEOUT_MS = 10 * 1000
+const IMAGE_UNCHANGED_THRESHOLD = 0.001
+
 export async function processStory({
   story,
   screenshotTest,
@@ -76,7 +80,13 @@ export async function processStory({
 
   // Take screenshot with browser mutex
   const screenshotPath = path.join(tmpDir, `${storyId}.png`)
-  let screenshot: Buffer
+  let screenshot: Buffer | undefined
+  const tempPath1 = path.join(tmpDir, `${storyId}-temp1.png`)
+  const tempPath2 = path.join(tmpDir, `${storyId}-temp2.png`)
+  // Start with temp1 as the destination for the first screenshot
+  let previousScreenshotPath = tempPath1
+  let currentScreenshotPath = tempPath2
+
   await browserMutex.acquire()
   try {
     // Navigate to the story
@@ -88,9 +98,89 @@ export async function processStory({
     log.debug("Waiting for story to load...")
     await waitForStorybookToLoad(browser)
 
-    // Take a screenshot
-    screenshot = await takeScreenshotWithRetry(browser, screenshotPath)
-    log.debug(`Successfully captured ${screenshot.length} byte screenshot: ${screenshotPath}`)
+    // --- Screenshot Stabilization Logic ---
+    log.debug("Taking initial screenshot for stabilization...")
+    let previousScreenshotBuffer = await takeScreenshotWithRetry(browser, previousScreenshotPath)
+    screenshot = previousScreenshotBuffer // Initialize screenshot with the first capture
+
+    const startTime = Date.now()
+    let stabilized = false
+
+    while (Date.now() - startTime < SCREENSHOTS_UNCHANGED_TIMEOUT_MS) {
+      await browser.pause(SCREENSHOT_INTERVAL_MS)
+      log.debug(`Taking next screenshot for stabilization check...`)
+      let currentScreenshotBuffer: Buffer
+      try {
+        currentScreenshotBuffer = await takeScreenshotWithRetry(browser, currentScreenshotPath)
+      } catch (err) {
+        log.error(
+          err,
+          `Failed to take screenshot during stabilization loop. Using previous screenshot.`,
+        )
+        break // Exit while loop, use the previously captured screenshot
+      }
+
+      // Compare the previous and current screenshots
+      const previousPng = PNG.sync.read(previousScreenshotBuffer)
+      const currentPng = PNG.sync.read(currentScreenshotBuffer)
+
+      if (previousPng.width !== currentPng.width || previousPng.height !== currentPng.height) {
+        log.error(
+          `Screenshot dimensions changed from ${previousPng.width}x${previousPng.height} to ` +
+            `${currentPng.width}x${currentPng.height} for story ${storyId}. Continuing stabilization check.`,
+        )
+        // Update the baseline for the next comparison
+        previousScreenshotBuffer = currentScreenshotBuffer
+        screenshot = currentScreenshotBuffer // Update final screenshot candidate
+        // Swap paths for next iteration
+        ;[previousScreenshotPath, currentScreenshotPath] = [
+          currentScreenshotPath,
+          previousScreenshotPath,
+        ]
+        continue // Skip stability check for this iteration
+      }
+
+      const diffRatio = diffImagesNoMask(previousPng, currentPng)
+      log.debug(`Stability check for story ${storyId}: diffRatio=${diffRatio}`)
+
+      // Always update the baseline and final screenshot candidate to the latest capture
+      previousScreenshotBuffer = currentScreenshotBuffer
+      screenshot = currentScreenshotBuffer
+      // Swap paths for the next potential iteration
+      ;[previousScreenshotPath, currentScreenshotPath] = [
+        currentScreenshotPath,
+        previousScreenshotPath,
+      ]
+
+      if (diffRatio < IMAGE_UNCHANGED_THRESHOLD) {
+        log.info(
+          `Screenshot for story ${storyId} stabilized after ${Date.now() - startTime}ms with diffRatio=${diffRatio}`,
+        )
+        stabilized = true
+        break // Stable state reached, exit loop
+      }
+      // Not stable yet, loop continues with updated buffer/paths
+    } // End while loop
+
+    // --- Post-Loop Handling ---
+    if (!stabilized && Date.now() - startTime >= SCREENSHOTS_UNCHANGED_TIMEOUT_MS) {
+      log.warn(
+        `Screenshot for story ${storyId} did not stabilize within ` +
+          `${SCREENSHOTS_UNCHANGED_TIMEOUT_MS}ms. Using last captured screenshot.`,
+      )
+      // No action needed here, 'screenshot' already holds the last buffer captured
+    }
+
+    // Rename the final selected screenshot file (now in previousScreenshotPath) to the official path
+    // 'screenshot' buffer variable holds the corresponding data
+    log.debug(
+      `Using final screenshot buffer (${screenshot.byteLength} bytes) located at ${previousScreenshotPath}`,
+    )
+    await fsPromises.rename(previousScreenshotPath, screenshotPath)
+    await fsPromises.unlink(currentScreenshotPath).catch((err: unknown) => {
+      log.error(err, `Failed to delete unused temp screenshot ${currentScreenshotPath}`)
+    })
+    // --- End Screenshot Logic ---
   } finally {
     // Release browser mutex
     browserMutex.release()
@@ -256,6 +346,8 @@ async function takeScreenshotWithRetry(
   screenshotPath: string,
   maxRetries = 3,
 ): Promise<Buffer<ArrayBuffer>> {
+  const RETRY_DELAY_MS = 1000
+
   for (let i = 0; i < maxRetries; i++) {
     try {
       log.debug(`Taking screenshot: ${screenshotPath}`)
@@ -265,7 +357,7 @@ async function takeScreenshotWithRetry(
         throw err
       }
       log.warn(`Screenshot attempt ${i + 1} failed, waiting and retrying...`)
-      await browser.pause(1000)
+      await browser.pause(RETRY_DELAY_MS)
     }
   }
   throw new Error("Screenshot failed after max retries")
