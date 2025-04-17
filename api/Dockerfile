@@ -19,6 +19,7 @@ RUN yarn workspace api build \
 
 # Final production image
 FROM node:22-alpine
+WORKDIR /app
 ENV NODE_ENV=production \
     PORT=3001
 
