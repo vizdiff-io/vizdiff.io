@@ -2,16 +2,27 @@ import { Project, ScreenshotTest } from "shared"
 
 import { Database } from "./database"
 
-export async function createScreenshotTest(
-  project: Project,
-  commitSha: string,
-  branch: string,
-  uploadId: string,
-  baseCommitSha?: string,
-  baseBranch?: string,
-  githubCheckRunId?: number,
-  prNumber?: number,
-): Promise<ScreenshotTest> {
+export type CreateScreenshotTestData = {
+  project: Project
+  commitSha: string
+  branch: string
+  uploadId: string
+  baseCommitSha?: string
+  baseBranch?: string
+  githubCheckRunId?: number
+  prNumber?: number
+}
+
+export async function createScreenshotTest({
+  project,
+  commitSha,
+  branch,
+  uploadId,
+  baseCommitSha,
+  baseBranch,
+  githubCheckRunId,
+  prNumber,
+}: CreateScreenshotTestData): Promise<ScreenshotTest> {
   if (!commitSha || !branch || !uploadId) {
     throw new Error("Missing required parameters")
   }
