@@ -9,7 +9,7 @@ import { deleteStripeCustomer } from "../stripe"
 import type { RequestHandler } from "../types"
 
 export const me: RequestHandler = async (_req, res) => {
-  const { user } = res.locals
+  const { user, ownedProjectCount } = res.locals
   const installations = await getInstallationsForUserId(user.id)
 
   const installationResponses: GitHubInstallationResponse[] = installations.map((installation) => ({
@@ -27,7 +27,9 @@ export const me: RequestHandler = async (_req, res) => {
       ? { plan: user.subscriptionPlan, interval: user.subscriptionInterval }
       : null
 
-  const trialEndStampSec = user.trialEndsAt?.getTime() ?? user.createdAt.getTime() + TRIAL_PERIOD_MS
+  const trialEndStampSec = toSeconds(
+    user.trialEndsAt ?? new Date(user.createdAt.getTime() + TRIAL_PERIOD_MS),
+  )
 
   const response: UserResponse = {
     id: user.id,
@@ -35,10 +37,10 @@ export const me: RequestHandler = async (_req, res) => {
     email: user.email,
     githubUsername: user.githubUsername,
     githubProfile: user.githubProfile as GithubUser,
-    ownedProjectCount: res.locals.ownedProjectCount,
+    ownedProjectCount,
     trialEndStampSec,
-    createdStampSec: user.createdAt.getTime() / 1000,
-    updatedStampSec: user.updatedAt.getTime() / 1000,
+    createdStampSec: toSeconds(user.createdAt),
+    updatedStampSec: toSeconds(user.updatedAt),
     githubInstallations: installationResponses,
     subscription,
   }
@@ -85,4 +87,8 @@ export const deleteAccount: RequestHandler = async (_req, res) => {
     log.error(error, `Failed to delete account for user ${user.id} (${user.email})`)
     res.status(500).json({ error: "Failed to delete account", message })
   }
+}
+
+function toSeconds(date: Date): number {
+  return Math.floor(date.getTime() / 1000)
 }
