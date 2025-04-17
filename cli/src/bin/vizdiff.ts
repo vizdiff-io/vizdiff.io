@@ -14,7 +14,7 @@ type CommandArgs = {
   branch?: string
   baseBranch?: string
   baseCommit?: string
-  pr?: string
+  pr?: string | number
 }
 
 function main(): void {
@@ -204,8 +204,8 @@ function findGitRoot(dir: string): string | undefined {
 }
 
 // Returns the pull request number if it is a valid number, otherwise undefined
-function getPrNumber(options: { pr?: string }): number | undefined {
-  const prNumber = options.pr ? parseInt(options.pr) : undefined
+function getPrNumber(options: { pr?: string | number }): number | undefined {
+  const prNumber = options.pr ? parseInt(options.pr.toString()) : undefined
   if (prNumber == undefined || isNaN(prNumber) || prNumber < 1) {
     return undefined
   }

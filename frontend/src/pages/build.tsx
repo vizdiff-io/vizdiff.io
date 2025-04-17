@@ -304,7 +304,12 @@ export default function Build(): JSX.Element {
         )}
 
         {/* Fullscreen Dialog */}
-        <TestResultDialog result={selectedResult} onClose={() => setSelectedResult(null)} />
+        <TestResultDialog
+          result={selectedResult}
+          allResults={sortedTestResults}
+          onNavigate={setSelectedResult}
+          onClose={() => setSelectedResult(null)}
+        />
       </>
     )
   }

@@ -1,5 +1,7 @@
+import ReportProblemIcon from "@mui/icons-material/ReportProblem"
 import { Box, Paper, Typography } from "@mui/material"
 import Image from "next/image"
+import { useState } from "react"
 
 import type { TestResultResponse } from "@/lib/apiTypes"
 import { changeStatusColor, changeStatusMessage } from "@/lib/changeStatus"
@@ -15,6 +17,9 @@ export default function TestResultCard({
   onOpenFullscreen,
   isPriority = false,
 }: TestResultCardProps): JSX.Element {
+  const [screenshotError, setScreenshotError] = useState(false)
+  const [diffMaskError, setDiffMaskError] = useState(false)
+
   return (
     <Paper
       onClick={() => onOpenFullscreen(result)}
@@ -63,24 +68,54 @@ export default function TestResultCard({
             left: 0,
             width: "100%",
             height: "100%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            bgcolor: "var(--five-percent-opacity)",
           }}
         >
-          {result.screenshotUrl && (
+          {screenshotError ? (
+            <ReportProblemIcon
+              color="error"
+              sx={{ fontSize: 40, color: "var(--text-secondary)" }}
+            />
+          ) : result.screenshotUrl ? (
             <Image
               src={result.screenshotUrl}
               alt={`Screenshot for ${result.name}`}
               fill
               style={{ objectFit: "contain" }}
               priority={isPriority}
+              onError={() => setScreenshotError(true)}
             />
+          ) : (
+            <Typography variant="caption" sx={{ color: "var(--text-secondary)" }}>
+              No Screenshot
+            </Typography>
           )}
-          {result.diffMaskUrl && (
-            <Image
-              src={result.diffMaskUrl}
-              alt={`Diff mask for ${result.name}`}
-              fill
-              style={{ objectFit: "contain", opacity: 0.5 }}
-            />
+          {/* Diff Mask (only shown if URL exists and hasn't errored, and screenshot hasn't errored) */}
+          {!screenshotError && !diffMaskError && result.diffMaskUrl && (
+            <Box
+              sx={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                height: "100%",
+                overflow: "hidden",
+              }}
+            >
+              <Image
+                src={result.diffMaskUrl}
+                alt={`Diff mask for ${result.name}`}
+                fill
+                style={{
+                  objectFit: "contain",
+                  filter: "brightness(0) invert(1) sepia(1) hue-rotate(45deg) saturate(10000%)",
+                }}
+                onError={() => setDiffMaskError(true)}
+              />
+            </Box>
           )}
         </Box>
       </Box>

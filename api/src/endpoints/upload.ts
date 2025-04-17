@@ -159,7 +159,7 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
   }
 
   // Create a row in `screenshot_tests` for this upload
-  const screenshotTest = await createScreenshotTest(
+  const screenshotTest = await createScreenshotTest({
     project,
     commitSha,
     branch,
@@ -167,7 +167,7 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
     baseCommitSha,
     baseBranch,
     prNumber,
-  )
+  })
 
   // Create a GitHub check_run for this upload
   const githubCheckRunId = await createGitHubCheckRun(

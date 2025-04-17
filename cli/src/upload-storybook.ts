@@ -91,10 +91,11 @@ export async function uploadStorybook(opts: UploadStorybookOpts): Promise<void> 
       baseCommitSha || baseBranch
         ? `base commit ${baseCommitSha ?? ""} on branch "${baseBranch ?? ""}"`
         : "no base commit"
+    const pullRequestStr = prNumber ? ` pull request #${prNumber}` : ""
     info(
-      `Uploading ${formatBytes(
-        body.byteLength,
-      )} for commit ${commitSha} on branch "${branch}" (${baseCommitStr}) to ${baseUrl}`,
+      `Uploading ${formatBytes(body.byteLength)} for commit ${commitSha} ` +
+        `on branch "${branch}" (${baseCommitStr})${pullRequestStr} to ` +
+        (baseUrl.includes("//vizdiff.io") ? "vizdiff.io" : baseUrl),
     )
     const response = await fetch(url, {
       method: "POST",

@@ -5,6 +5,14 @@ import { type ComponentType } from "react"
 import type { TestResponse } from "@/lib/apiTypes"
 
 import ThemeWrapper from "./ThemeWrapper"
+import {
+  screenshot01Base,
+  screenshot01Diff,
+  screenshot01New,
+  screenshot02Diff,
+  screenshot02New,
+  screenshot03New,
+} from "./assets"
 import { catchAllHandler, userHandler } from "./mocks"
 import BuildComponent from "../pages/build"
 
@@ -28,26 +36,57 @@ const mockBuildData: TestResponse = {
   testResults: [
     {
       id: 1,
-      name: "pages/Homepage/Homepage Test",
+      name: "pages/Signup/Checkout Error",
       changeStatus: "changed",
-      screenshotUrl: "https://placecats.com/millie/800/600",
-      ancestorScreenshotUrl: "https://placecats.com/neo/800/600",
-      diffMaskUrl: "https://placecats.com/millie_neo/800/600",
+      screenshotUrl: screenshot01New.src,
+      ancestorScreenshotUrl: screenshot01Base.src,
+      diffMaskUrl: screenshot01Diff.src,
+      diffRatio: 0.0932,
       createdStampSec: oneMinuteAgo,
     },
     {
       id: 2,
       name: "components/Excessively Long Path/With Many Words/And Many More Words/Dashboard/Dashboard Test",
       changeStatus: "unchanged",
-      screenshotUrl: "https://placecats.com/neo_banana/800/600",
-      ancestorScreenshotUrl: "https://placecats.com/bella/800/600",
+      screenshotUrl: screenshot02New.src,
+      ancestorScreenshotUrl: screenshot02New.src,
       createdStampSec: oneMinuteAgo,
     },
     {
       id: 3,
-      name: "pages/Login/Login Test",
+      name: "pages/Build/Light",
       changeStatus: "new",
-      screenshotUrl: "https://placecats.com/poppy/800/600",
+      screenshotUrl: screenshot03New.src,
+      createdStampSec: oneMinuteAgo,
+    },
+    {
+      id: 4,
+      name: "Original Screenshot Evicted",
+      changeStatus: "changed",
+      screenshotUrl: screenshot02New.src,
+      ancestorScreenshotUrl: "/static/media/broken.png",
+      diffMaskUrl: screenshot02Diff.src,
+      diffRatio: 0.02,
+      createdStampSec: oneMinuteAgo,
+    },
+    {
+      id: 5,
+      name: "Diff Mask Evicted",
+      changeStatus: "changed",
+      screenshotUrl: screenshot02New.src,
+      ancestorScreenshotUrl: screenshot02New.src,
+      diffMaskUrl: "/static/media/broken.png",
+      diffRatio: 0.101,
+      createdStampSec: oneMinuteAgo,
+    },
+    {
+      id: 6,
+      name: "All Screenshots Evicted",
+      changeStatus: "changed",
+      screenshotUrl: "/static/media/broken.png",
+      ancestorScreenshotUrl: "/static/media/broken.png",
+      diffMaskUrl: "/static/media/broken.png",
+      diffRatio: 0.2473,
       createdStampSec: oneMinuteAgo,
     },
   ],
