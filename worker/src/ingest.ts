@@ -20,7 +20,7 @@ import { remote } from "webdriverio"
 
 import { Database } from "./database"
 import { downloadWithTimeout } from "./download"
-import { APP_URL, STRIPE_API_VERSION, STRIPE_SECRET_KEY } from "./environment"
+import { APP_URL, IS_PRODUCTION, STRIPE_API_VERSION, STRIPE_SECRET_KEY } from "./environment"
 import { getOctokitForInstallation, updateGitHubCheckRun, type GitHubCheckData } from "./github"
 import { log } from "./log"
 import { type Story, processStory } from "./stories"
@@ -144,7 +144,7 @@ export async function ingestStorybook(
     const config: Capabilities.WebdriverIOConfig = {
       outputDir: path.join(tmpDir, "wdio-logs"),
       hostname: "localhost",
-      port: 4444,
+      port: IS_PRODUCTION ? 4444 : undefined,
       capabilities: {
         browserName: "chrome",
         "goog:chromeOptions": {
