@@ -6,7 +6,7 @@ import { uuidv7 } from "uuidv7"
 
 import { getProjectByToken, getS3BucketForProject } from "../authenticate"
 import { Database } from "../database"
-import { APP_URL, IS_PRODUCTION, IS_STAGING } from "../environment"
+import { APP_URL, IS_PRODUCTION, IS_STAGING, TRIAL_PERIOD_MS } from "../environment"
 import { getInstallationForOrg, getOctokitForInstallation } from "../github"
 import { getQueryString } from "../http"
 import { log } from "../log"

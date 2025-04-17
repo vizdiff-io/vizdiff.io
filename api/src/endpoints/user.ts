@@ -1,7 +1,6 @@
-import { TRIAL_PERIOD_MS } from "src/environment"
-
 import type { GitHubInstallationResponse, UserResponse } from "../apiTypes"
 import { Database } from "../database"
+import { TRIAL_PERIOD_MS } from "../environment"
 import { getInstallationsForUserId } from "../github"
 import { log } from "../log"
 import type { GithubUser } from "../schemas/GithubUser"
