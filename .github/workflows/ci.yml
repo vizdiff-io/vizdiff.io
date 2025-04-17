@@ -140,7 +140,7 @@ jobs:
             NODE_ENV=production
 
   docker-build-worker:
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-latest
     permissions:
       id-token: write
       contents: read
@@ -170,11 +170,11 @@ jobs:
           echo "ECR_REPOSITORY_WORKER=vizdiff.io/worker" >> $GITHUB_ENV
           echo "IMAGE_TAG=${{ github.sha }}" >> $GITHUB_ENV
 
-      # # Set up QEMU for multi-architecture builds
-      # - name: Set up QEMU
-      #   uses: docker/setup-qemu-action@v3
-      #   with:
-      #     platforms: "arm64"
+      # Set up QEMU for multi-architecture builds
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: "arm64"
 
       # Set up Docker Buildx
       - name: Set up Docker Buildx
