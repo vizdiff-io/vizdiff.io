@@ -75,12 +75,26 @@ export default function TestResultCard({
             />
           )}
           {result.diffMaskUrl && (
-            <Image
-              src={result.diffMaskUrl}
-              alt={`Diff mask for ${result.name}`}
-              fill
-              style={{ objectFit: "contain", opacity: 0.5 }}
-            />
+            <Box
+              sx={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                height: "100%",
+                overflow: "hidden",
+              }}
+            >
+              <Image
+                src={result.diffMaskUrl}
+                alt={`Diff mask for ${result.name}`}
+                fill
+                style={{
+                  objectFit: "contain",
+                  filter: "brightness(0) invert(1) sepia(1) hue-rotate(45deg) saturate(10000%)",
+                }}
+              />
+            </Box>
           )}
         </Box>
       </Box>
