@@ -1,5 +1,5 @@
 # Base image with Chromium dependencies
-FROM node:22-alpine AS base
+FROM node:23-alpine AS base
 RUN apk add --no-cache \
     chromium \
     chromium-chromedriver \
