@@ -29,7 +29,7 @@
     "pino-pretty": "10.3.1",
     "reflect-metadata": "0.2.2",
     "stripe": "^18.0.0",
-    "typeorm": "0.3.20",
+    "typeorm": "0.3.22",
     "undici": "5.28.5",
     "uuidv7": "1.0.2"
   },
