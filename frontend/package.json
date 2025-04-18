@@ -27,7 +27,7 @@
     "@mui/material": "5.16.14",
     "@next/third-parties": "^15.3.0",
     "@octokit/rest": "^21.1.0",
-    "@octokit/types": "13.8.0",
+    "@octokit/types": "14.0.0",
     "@storybook/addon-essentials": "8.5.3",
     "@storybook/addon-interactions": "8.5.3",
     "@storybook/addon-links": "8.5.3",
