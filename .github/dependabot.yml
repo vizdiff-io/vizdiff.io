@@ -10,7 +10,7 @@ updates:
     schedule:
       interval: "weekly"
 
-  - package-ecosystem: "yarn"
+  - package-ecosystem: "npm"
     directory: "/api"
     schedule:
       interval: "weekly"
@@ -20,17 +20,17 @@ updates:
     schedule:
       interval: "weekly"
 
-  - package-ecosystem: "yarn"
+  - package-ecosystem: "npm"
     directory: "/frontend"
     schedule:
       interval: "weekly"
 
-  - package-ecosystem: "yarn"
+  - package-ecosystem: "npm"
     directory: "/shared"
     schedule:
       interval: "weekly"
 
-  - package-ecosystem: "yarn"
+  - package-ecosystem: "npm"
     directory: "/worker"
     schedule:
       interval: "weekly"
