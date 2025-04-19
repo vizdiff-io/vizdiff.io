@@ -7,7 +7,11 @@ const dirname = path.dirname(filename)
 const envPath = path.join(dirname, "..")
 
 // Load the `api/.env*` file into process.env
-configEnv({ path: envPath, node_env: process.env.NODE_ENV ?? "development" })
+configEnv({
+  path: envPath,
+  default_node_env: "development",
+  silent: process.env.NODE_ENV === "test",
+})
 
 export const IS_PRODUCTION = process.env.NODE_ENV === "production"
 export const IS_STAGING = process.env.NODE_ENV === "staging"
