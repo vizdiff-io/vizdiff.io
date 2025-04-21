@@ -110,6 +110,7 @@ router.delete("/users/me", authenticateJWT, requireUser, User.deleteAccount)
 router.post("/upload/storybook", Upload.uploadStorybook) // ?token=<project_token>
 
 router.post("/stripe/checkout", authenticateJWT, requireUser, StripeEndpoints.createCheckoutSession)
+router.get("/stripe/usage", authenticateJWT, requireUser, StripeEndpoints.getBillingPeriodUsage)
 router.post("/stripe/webhook", StripeEndpoints.stripeWebhook)
 
 // GitHub webhook route
