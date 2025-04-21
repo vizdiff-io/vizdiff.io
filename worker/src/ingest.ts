@@ -523,6 +523,7 @@ async function reportScreenshotUsageToStripe(
         payload: {
           stripe_customer_id: user.stripeCustomerId,
           value: screenshotCount.toString(),
+          project_id: screenshotTest.project.id.toString(),
         },
         identifier: idempotencyKey,
       },
