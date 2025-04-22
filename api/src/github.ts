@@ -191,3 +191,17 @@ export async function getInstallationForOrg(
     })
     .getOne()
 }
+
+export async function getGithubProject(
+  repoUrl: string,
+  githubAccessToken: string,
+): Promise<RestEndpointMethodTypes["repos"]["get"]["response"]["data"]> {
+  const [owner, repo] = repoUrl.split("/").slice(-2)
+  if (!owner || !repo) {
+    throw new Error(`Invalid GitHub repository URL: ${repoUrl}`)
+  }
+
+  const octokit = new Octokit({ auth: githubAccessToken })
+  const repoInfo = await octokit.rest.repos.get({ owner, repo })
+  return repoInfo.data
+}

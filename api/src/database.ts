@@ -7,6 +7,7 @@ import {
   WorkTask,
   defineRelationships,
   GitHubInstallation,
+  UserGithubRepoAccess,
 } from "shared"
 import { DataSource } from "typeorm"
 
@@ -32,7 +33,15 @@ const database = new DataSource({
   synchronize: true,
   dropSchema: IS_TEST,
   logging: !IS_TEST,
-  entities: [Project, ScreenshotTest, TestResult, User, WorkTask, GitHubInstallation],
+  entities: [
+    GitHubInstallation,
+    Project,
+    ScreenshotTest,
+    TestResult,
+    User,
+    UserGithubRepoAccess,
+    WorkTask,
+  ],
   subscribers: [],
   migrations: [],
 })

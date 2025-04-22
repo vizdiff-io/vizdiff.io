@@ -109,6 +109,7 @@ export default function NewProjectDialog({
     // Create the project
     const [_project, projectError] = await apiPost("/api/projects", {
       name: repo.name,
+      githubProjectId: repo.id,
       githubRepoUrl: repo.html_url,
     })
     updateLoading()

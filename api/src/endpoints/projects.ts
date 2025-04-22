@@ -11,6 +11,7 @@ import type { RequestHandler } from "../types"
 type ProjectWithStats = {
   project_id: number
   project_name: string
+  project_github_project_id: number | null
   project_github_repo_url: string
   project_token: string
   project_created_at: Date
@@ -24,6 +25,7 @@ type ProjectWithStats = {
 
 type CreateProjectBody = {
   name: string
+  githubProjectId: number
   githubRepoUrl: string
 }
 
@@ -101,6 +103,7 @@ async function getProjectWithStats(
     .select([
       "project.id",
       "project.name",
+      "project.githubProjectId",
       "project.githubRepoUrl",
       "project.token",
       "project.createdAt",
@@ -142,11 +145,14 @@ function convertToProjectResponse(project: ProjectWithStats): ProjectResponse {
 export const create: RequestHandler = async (req, res) => {
   const { user, ownedProjectCount } = res.locals
   const body = req.body as Partial<CreateProjectBody>
-  const name = body.name
-  const githubRepoUrl = body.githubRepoUrl
+  const { name, githubRepoUrl, githubProjectId } = body
 
   if (!name) {
     res.status(400).json({ error: "Missing name" })
+    return
+  }
+  if (!githubProjectId) {
+    res.status(400).json({ error: "Missing githubProjectId" })
     return
   }
   if (!githubRepoUrl) {
@@ -170,6 +176,7 @@ export const create: RequestHandler = async (req, res) => {
 
   const project = new Project()
   project.name = name
+  project.githubProjectId = githubProjectId
   project.githubRepoUrl = githubRepoUrl
   project.user = user
   project.token = generateProjectToken()
@@ -283,6 +290,7 @@ export const list: RequestHandler = async (_req, res) => {
     .select([
       "project.id",
       "project.name",
+      "project.githubProjectId",
       "project.githubRepoUrl",
       "project.token",
       "project.createdAt",
