@@ -1,4 +1,4 @@
-import { STRIPE_SECRET_KEY } from "./environment"
+import { MAX_TRIAL_SCREENSHOTS, STRIPE_SECRET_KEY } from "./environment"
 
 export const PRICE_IDS = STRIPE_SECRET_KEY?.startsWith("sk_live_")
   ? {
@@ -25,3 +25,17 @@ export const PRICE_IDS = STRIPE_SECRET_KEY?.startsWith("sk_live_")
       usage_screenshots_team_monthly: "price_1RD6drPJyeQKALgSr5lEKZDp",
       usage_screenshots_pro_monthly: "price_1RD6eQPJyeQKALgSjmpVdFfA",
     }
+
+export function getSubscriptionIncludedUsage(plan: string | null): number {
+  switch (plan) {
+    case "starter":
+      return 15000
+    case "team":
+      return 60000
+    case "pro":
+      return 250000
+    case null:
+    default:
+      return MAX_TRIAL_SCREENSHOTS
+  }
+}

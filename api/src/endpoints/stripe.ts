@@ -1,4 +1,6 @@
 import { User } from "shared"
+import type { BillingPeriodUsageResponse } from "src/apiTypes"
+import { getSubscriptionIncludedUsage } from "src/pricing"
 import { Stripe } from "stripe"
 
 import { Database } from "../database"
@@ -8,6 +10,7 @@ import {
   STRIPE_SECRET_KEY,
   STRIPE_SCREENSHOT_METER_ID,
   STRIPE_WEBHOOK_SECRET,
+  MAX_TRIAL_SCREENSHOTS,
 } from "../environment"
 import { log } from "../log"
 import { getPriceIds, getPlanInfoFromPriceId } from "../stripe"
@@ -114,7 +117,14 @@ export const getBillingPeriodUsage: RequestHandler = async (_req, res) => {
       totalUsage += isNaN(summary.aggregated_value) ? 0 : summary.aggregated_value
     }
 
-    res.json({ totalUsage, periodStart: periodStartSec, periodEnd: periodEndSec, status: "trial" })
+    const json: BillingPeriodUsageResponse = {
+      totalUsage,
+      subscriptionIncludedUsage: MAX_TRIAL_SCREENSHOTS,
+      periodStartSec,
+      periodEndSec,
+      status: "trial",
+    }
+    res.json(json)
     return
   }
 
@@ -158,12 +168,14 @@ export const getBillingPeriodUsage: RequestHandler = async (_req, res) => {
     }
 
     // 5. Return the usage and the billing period dates derived from the preview
-    res.json({
+    const json: BillingPeriodUsageResponse = {
       totalUsage,
-      periodStart: currentPeriodStartSec,
-      periodEnd: currentPeriodEndSec,
+      subscriptionIncludedUsage: getSubscriptionIncludedUsage(user.subscriptionPlan),
+      periodStartSec: currentPeriodStartSec,
+      periodEndSec: currentPeriodEndSec,
       status: invoicePreview.status ?? "draft",
-    })
+    }
+    res.json(json)
   } catch (error) {
     // Catch errors not handled by the specific preview try/catch
     log.error(error, `Generic error fetching billing period usage for user ${user.id}`)
