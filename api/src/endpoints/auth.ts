@@ -16,7 +16,7 @@ import {
   STRIPE_SECRET_KEY,
   STRIPE_API_VERSION,
 } from "../environment"
-import { syncUserInstallations } from "../github"
+import { syncUserInstallations, syncUserGithubRepos } from "../github"
 import { isValidRedirectUrl, parseSimpleQueryString, requiredQueryString } from "../http"
 import { log } from "../log"
 import type { GithubUser } from "../schemas/GithubUser"
@@ -182,6 +182,14 @@ export async function githubCallback(req: DefaultRequest, res: DefaultResponse):
 
   // Sync GitHub App installations for this user, passing the installation ID if available
   await syncUserInstallations(user, installationId)
+
+  // Sync GitHub repositories that this user has access to (asynchronously)
+  syncUserGithubRepos(user).catch((error: unknown) => {
+    log.error(
+      error,
+      `Failed to sync GitHub repos for user ${user.id} (${user.githubUsername}) after creation`,
+    )
+  })
 
   // Generate a JWT
   const token = jwt.sign({ sub: user.id }, JWT_SECRET, { expiresIn: "8h" })
