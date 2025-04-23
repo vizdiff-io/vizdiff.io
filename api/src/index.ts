@@ -107,6 +107,7 @@ router.post("/tests/:id/status/:status", authenticateJWT, requireUser, Approval.
 
 router.get("/users/me", authenticateJWT, requireUser, User.me)
 router.delete("/users/me", authenticateJWT, requireUser, User.deleteAccount)
+router.post("/sync-github-repos", authenticateJWT, requireUser, User.syncGithubRepos)
 router.post("/upload/storybook", Upload.uploadStorybook) // ?token=<project_token>
 
 router.post("/stripe/checkout", authenticateJWT, requireUser, StripeEndpoints.createCheckoutSession)

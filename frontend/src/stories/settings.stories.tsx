@@ -2,7 +2,7 @@ import type { Meta, StoryObj, StoryContext } from "@storybook/react"
 import { http, HttpResponse } from "msw"
 import { type ComponentType } from "react"
 
-import type { UserResponse } from "@/lib/apiTypes"
+import type { ProjectResponse, UserResponse } from "@/lib/apiTypes"
 
 import ThemeWrapper from "./ThemeWrapper"
 import { catchAllHandler, mockUser, userHandler } from "./mocks"
@@ -31,6 +31,57 @@ const mockUserWithExpiredTrialNoProjects: UserResponse = {
   ownedProjectCount: 0,
 }
 
+const mockProjects: ProjectResponse[] = [
+  {
+    id: 1,
+    name: "vizdiff.io",
+    githubRepoUrl: "https://github.com/mvi-llc/vizdiff.io",
+    token: "abc123def456",
+    ownerId: 123,
+    hasActiveSubscription: true,
+    createdStampSec: oneMinuteAgo - 3600 * 24 * 30, // 1 month ago
+    lastBuildStampSec: oneMinuteAgo - 3600, // 1 hour ago
+    builds: 42,
+    tests: 156,
+  },
+  {
+    id: 2,
+    name: "Expired Trial Project",
+    githubRepoUrl: "https://github.com/example/example-project",
+    token: "def456ghi789",
+    ownerId: 123,
+    hasActiveSubscription: false,
+    createdStampSec: oneMinuteAgo - 3600 * 24 * 7, // 1 week ago
+    lastBuildStampSec: oneMinuteAgo - 3600 * 24, // 1 day ago
+    builds: 1,
+    tests: 1,
+  },
+  {
+    id: 3,
+    name: "MyAwesomeProject",
+    githubRepoUrl: "https://github.com/test/MyAwesomeProject",
+    token: "ghi789jkl012",
+    ownerId: 456,
+    hasActiveSubscription: true,
+    createdStampSec: oneMinuteAgo - 3600, // 1 hour ago
+    lastBuildStampSec: oneMinuteAgo, // just now
+    builds: 3,
+    tests: 12,
+  },
+  {
+    id: 4,
+    name: "Expired Other Project",
+    githubRepoUrl: "https://github.com/example/example-project",
+    token: "jkl012mno345",
+    ownerId: 456,
+    hasActiveSubscription: false,
+    createdStampSec: oneMinuteAgo - 3600 * 24 * 7, // 1 week ago
+    lastBuildStampSec: oneMinuteAgo - 3600 * 24, // 1 day ago
+    builds: 9001,
+    tests: 42,
+  },
+]
+
 const meta: Meta<typeof SettingsComponent> = {
   title: "stories/pages/Settings",
   component: SettingsComponent,
@@ -56,6 +107,7 @@ const meta: Meta<typeof SettingsComponent> = {
     msw: {
       handlers: [
         userHandler,
+        http.get("/api/projects", () => HttpResponse.json(mockProjects)),
         http.delete("/api/users/me", () =>
           HttpResponse.json(
             {
