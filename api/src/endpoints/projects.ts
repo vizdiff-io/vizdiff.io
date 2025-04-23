@@ -7,6 +7,7 @@ import { Database } from "../database"
 import { MAX_PROJECTS_PER_USER, TRIAL_PERIOD_MS } from "../environment"
 import { getParamInt } from "../http"
 import { log } from "../log"
+import { getAccessibleProjectIds } from "../projectAccess"
 import type { RequestHandler } from "../types"
 
 type ProjectWithStats = {
@@ -381,34 +382,6 @@ export const resetToken: RequestHandler = async (req, res) => {
 
   const response = convertToProjectResponse(projectWithStats)
   res.json(response)
-}
-
-/**
- * Get all `projects.id`s that the user has access to, including both directly owned projects
- * and those accessible via GitHub repo access
- * @param db TypeORM database connection
- * @param userId User ID to check access for
- * @returns Array of project IDs that the user has access to
- */
-async function getAccessibleProjectIds(
-  db: Awaited<ReturnType<typeof Database>>,
-  userId: number,
-): Promise<number[]> {
-  const projectTable = db.getRepository(Project)
-
-  // Get both directly owned projects and those accessible via GitHub repo access
-  const accessibleProjects = await projectTable
-    .createQueryBuilder("project")
-    .select("DISTINCT project.id")
-    .leftJoin("user_github_repo_access", "access", "access.github_repo_id = project.github_repo_id")
-    .where(
-      // User either owns the project directly OR has access via GitHub repo
-      "(project.user = :userId OR access.user_id = :userId)",
-      { userId },
-    )
-    .getMany()
-
-  return accessibleProjects.map((project) => project.id)
 }
 
 /** Generate a random 16-character hex string to use as a project token. */

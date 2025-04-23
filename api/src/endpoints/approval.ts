@@ -5,6 +5,7 @@ import { APP_URL, IS_PRODUCTION, IS_STAGING } from "../environment"
 import { getInstallationForOrg, getOctokitForInstallation } from "../github"
 import { getParamInt } from "../http"
 import { log } from "../log"
+import { getAccessibleProjectIds } from "../projectAccess"
 import type { RequestHandler } from "../types"
 
 export const approveOrDeny: RequestHandler = async (req, res) => {
@@ -26,11 +27,16 @@ export const approveOrDeny: RequestHandler = async (req, res) => {
   }
 
   const db = await Database()
+
+  // Get project IDs the user has access to
+  const accessibleProjectIds = await getAccessibleProjectIds(db, user.id)
+
   const testTable = db.getRepository(ScreenshotTest)
   const test = await testTable
     .createQueryBuilder("test")
     .innerJoinAndSelect("test.project", "project")
-    .where("test.id = :id AND project.user = :userId", { id, userId: user.id })
+    .where("test.id = :id", { id })
+    .andWhere("project.id IN (:...projectIds)", { projectIds: accessibleProjectIds })
     .getOne()
 
   if (!test) {
