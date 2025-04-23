@@ -229,6 +229,7 @@ export const list: RequestHandler = async (_req, res) => {
   // Retrieve all project IDs the user has access to
   const projectIds = await getAccessibleProjectIds(db, user.id)
   if (projectIds.length === 0) {
+    log.warn({ userId: user.id }, "User does not have access to any projects")
     res.json([])
     return
   }
@@ -338,12 +339,17 @@ export const get: RequestHandler = async (req, res) => {
   // Permissions check
   const projectIds = await getAccessibleProjectIds(db, user.id)
   if (!projectIds.includes(id)) {
+    log.error({ user, projectId: id, projectIds }, "Project not found in accessible projects")
     res.status(404).json({ error: "Project not found" })
     return
   }
 
   const projectWithStats = await getProjectWithStats(db, id)
   if (!projectWithStats) {
+    log.error(
+      { user, projectId: id, projectIds },
+      "Project exists in accessible projects but DB retrieval failed",
+    )
     res.status(404).json({ error: "Project not found" })
     return
   }

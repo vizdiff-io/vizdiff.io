@@ -208,9 +208,10 @@ export async function getGithubProject(
 
 export async function syncUserGithubRepos(user: User): Promise<number> {
   const db = await Database()
+  const userId = user.id
 
   try {
-    log.debug({ user }, `Starting GitHub repo sync for user ${user.id} (${user.githubUsername})`)
+    log.debug({ userId }, "Starting GitHub repo sync")
     const userOctokit = new Octokit({ auth: user.githubAccessToken })
 
     // 1. List installations accessible by the user for our app
@@ -221,8 +222,8 @@ export async function syncUserGithubRepos(user: User): Promise<number> {
 
     if (ourInstallations.length === 0) {
       log.info(
-        { user },
-        `User ${user.id} (${user.githubUsername}) has no installations of our GitHub App. Clearing access cache.`,
+        { userId, installationsResponse },
+        "User has no installations of our GitHub App. Clearing access cache.",
       )
       // Clear existing access if no installations are found
       await db.manager.delete(UserGithubRepoAccess, { userId: user.id })
@@ -231,26 +232,16 @@ export async function syncUserGithubRepos(user: User): Promise<number> {
 
     const installationIds = ourInstallations.map((i) => i.id)
     log.debug(
-      { user, installationIds },
-      `User ${user.id} (${user.githubUsername}) has access to ${installationIds.length} installation(s)`,
+      { userId, installationsResponse, installationIds },
+      `User has access to ${installationIds.length} installation(s)`,
     )
 
     // 2. Collect all unique repo IDs accessible via these installations
     const accessibleRepoIds = new Set<number>()
     for (const installation of ourInstallations) {
       try {
-        // Check if installation object has an id property
-        if (typeof installation.id !== "number") {
-          log.warn(
-            { user, installation },
-            `Skipping installation "${installation.id}" without a valid ID during sync for user ${user.id}`,
-          )
-          continue // Skip this installation
-        }
-        const installationId = installation.id
-
-        log.debug(`Fetching repos for installation ${installationId}`)
-        const installationOctokit = await getOctokitForInstallation(installationId)
+        log.info({ userId, installation }, `Fetching repos for installation ${installation.id}`)
+        const installationOctokit = await getOctokitForInstallation(installation.id)
         // Use iteratePaginate for automatic pagination handling
         const repoIterator = installationOctokit.paginate.iterator(
           installationOctokit.apps.listReposAccessibleToInstallation,
@@ -259,24 +250,17 @@ export async function syncUserGithubRepos(user: User): Promise<number> {
         let countForInstallation = 0
         for await (const { data: repos } of repoIterator) {
           for (const repo of repos) {
-            if (repo.id) {
-              // Ensure repo ID exists
-              accessibleRepoIds.add(repo.id)
-              countForInstallation++
-            } else {
-              log.warn(
-                { installationId },
-                `Found repo without ID for installation ${installationId}: ${repo.name}`,
-              )
-            }
+            accessibleRepoIds.add(repo.id)
+            countForInstallation++
           }
         }
-        log.debug(
-          `Installation ${installationId}: Found ${countForInstallation} repos. Total unique repos so far: ${accessibleRepoIds.size}`,
+        log.info(
+          { userId, installationId: installation.id, countForInstallation },
+          `Installation ${installation.id}: Found ${countForInstallation} repos. Total unique repos so far: ${accessibleRepoIds.size}`,
         )
-      } catch (error) {
+      } catch (err) {
         log.error(
-          error,
+          { user, installation, err },
           `Failed to list repositories for installation ${installation.id} during sync for user ${user.id} (${user.githubUsername})`,
         )
         // Continue with other installations
@@ -284,8 +268,8 @@ export async function syncUserGithubRepos(user: User): Promise<number> {
     }
 
     log.info(
-      { user, installationIds, repoCount: accessibleRepoIds.size },
-      `User ${user.id} (${user.githubUsername}) sync: Found total ${accessibleRepoIds.size} accessible repositories via GitHub App installations.`,
+      { userId, installationIds, accessibleRepoIds },
+      `User sync: Found ${accessibleRepoIds.size} total accessible repositories via GitHub App installations.`,
     )
 
     // 3. Atomically update UserGithubRepoAccess table
@@ -295,7 +279,8 @@ export async function syncUserGithubRepos(user: User): Promise<number> {
         userId: user.id,
       })
       log.debug(
-        `Deleted ${deleteResult.affected ?? 0} existing UserGithubRepoAccess records for user ${user.id} (${user.githubUsername})`,
+        { userId, deleteResult },
+        `Deleted ${deleteResult.affected ?? 0} existing UserGithubRepoAccess records`,
       )
 
       // Insert new records if any repos were found
@@ -306,19 +291,20 @@ export async function syncUserGithubRepos(user: User): Promise<number> {
         }))
 
         // Use save which handles bulk inserts efficiently
-        await transactionalEntityManager.save(UserGithubRepoAccess, newAccessRecords, {
+        const res = await transactionalEntityManager.save(UserGithubRepoAccess, newAccessRecords, {
           chunk: 200, // Process in chunks for large numbers of repos
         })
         log.debug(
-          `Inserted ${newAccessRecords.length} UserGithubRepoAccess records for user ${user.id} (${user.githubUsername})`,
+          { userId, newAccessRecordCount: res.length },
+          `Inserted ${res.length} UserGithubRepoAccess records`,
         )
       }
     })
 
-    log.info(`Successfully completed GitHub repo sync for user ${user.id} (${user.githubUsername})`)
+    log.info({ userId, accessibleRepoIds }, "Successfully completed GitHub repo sync")
     return accessibleRepoIds.size
-  } catch (error) {
-    log.error(error, `GitHub repo sync failed for user ${user.id} (${user.githubUsername})`)
-    throw error
+  } catch (err) {
+    log.error({ user, err }, "GitHub repo sync failed")
+    throw err
   }
 }
