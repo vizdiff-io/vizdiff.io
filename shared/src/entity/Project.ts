@@ -7,6 +7,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToMany,
+  Index,
 } from "typeorm"
 
 import type { ScreenshotTest } from "./ScreenshotTest"
@@ -30,8 +31,9 @@ export class Project {
   @Column({ type: "text", unique: true, nullable: false })
   token!: string
 
-  @Column({ name: "github_project_id", type: "bigint", nullable: false })
-  githubProjectId!: number
+  @Column({ name: "github_repo_id", type: "bigint", nullable: false })
+  @Index("IDX_github_repo_id", ["githubRepoId"], { unique: false })
+  githubRepoId!: number
 
   @Column({ name: "github_repo_url", type: "text", nullable: false })
   githubRepoUrl!: string

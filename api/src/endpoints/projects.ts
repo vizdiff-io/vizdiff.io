@@ -6,12 +6,13 @@ import { toSeconds } from "../conversions"
 import { Database } from "../database"
 import { MAX_PROJECTS_PER_USER, TRIAL_PERIOD_MS } from "../environment"
 import { getParamInt } from "../http"
+import { log } from "../log"
 import type { RequestHandler } from "../types"
 
 type ProjectWithStats = {
   project_id: number
   project_name: string
-  project_github_project_id: number | null
+  project_github_repo_id: number
   project_github_repo_url: string
   project_token: string
   project_created_at: Date
@@ -25,7 +26,7 @@ type ProjectWithStats = {
 
 type CreateProjectBody = {
   name: string
-  githubProjectId: number
+  githubRepoId: number
   githubRepoUrl: string
 }
 
@@ -33,13 +34,11 @@ type CreateProjectBody = {
  * Fetches a project with its associated statistics
  * @param db Database connection
  * @param projectId Project ID to fetch stats for
- * @param userId User ID for permission check
  * @returns The project with its stats or null if not found
  */
 async function getProjectWithStats(
   db: Awaited<ReturnType<typeof Database>>,
   projectId: number,
-  userId: number,
 ): Promise<ProjectWithStats | null> {
   const projectTable = db.getRepository(Project)
 
@@ -103,7 +102,7 @@ async function getProjectWithStats(
     .select([
       "project.id",
       "project.name",
-      "project.githubProjectId",
+      "project.githubRepoId",
       "project.githubRepoUrl",
       "project.token",
       "project.createdAt",
@@ -115,7 +114,7 @@ async function getProjectWithStats(
       "latest_test.tcount as testcount",
     ])
     .innerJoin("project.user", "user")
-    .where("project.id = :projectId AND project.user = :userId", { projectId, userId })
+    .where("project.id = :projectId", { projectId })
     .getRawOne<ProjectWithStats>()
 
   return projectsWithStats ?? null
@@ -145,14 +144,14 @@ function convertToProjectResponse(project: ProjectWithStats): ProjectResponse {
 export const create: RequestHandler = async (req, res) => {
   const { user, ownedProjectCount } = res.locals
   const body = req.body as Partial<CreateProjectBody>
-  const { name, githubRepoUrl, githubProjectId } = body
+  const { name, githubRepoUrl, githubRepoId } = body
 
   if (!name) {
     res.status(400).json({ error: "Missing name" })
     return
   }
-  if (!githubProjectId) {
-    res.status(400).json({ error: "Missing githubProjectId" })
+  if (!githubRepoId) {
+    res.status(400).json({ error: "Missing githubRepoId" })
     return
   }
   if (!githubRepoUrl) {
@@ -176,7 +175,7 @@ export const create: RequestHandler = async (req, res) => {
 
   const project = new Project()
   project.name = name
-  project.githubProjectId = githubProjectId
+  project.githubRepoId = githubRepoId
   project.githubRepoUrl = githubRepoUrl
   project.user = user
   project.token = generateProjectToken()
@@ -226,10 +225,14 @@ export const list: RequestHandler = async (_req, res) => {
   const db = await Database()
   const projectTable = db.getRepository(Project)
 
-  // This query gets project stats by:
-  // 1. Finding the most recent ScreenshotTest for each project
-  // 2. Only counting tests from that build (not summing across all builds)
-  // 3. Using window functions for better performance
+  // Retrieve all project IDs the user has access to
+  const projectIds = await getAccessibleProjectIds(db, user.id)
+  if (projectIds.length === 0) {
+    res.json([])
+    return
+  }
+
+  // Get the projects the user owns directly
   const projectsWithStats = await projectTable
     .createQueryBuilder("project")
     .leftJoin(
@@ -290,7 +293,7 @@ export const list: RequestHandler = async (_req, res) => {
     .select([
       "project.id",
       "project.name",
-      "project.githubProjectId",
+      "project.githubRepoId",
       "project.githubRepoUrl",
       "project.token",
       "project.createdAt",
@@ -302,10 +305,22 @@ export const list: RequestHandler = async (_req, res) => {
       "latest_test.tcount as testcount",
     ])
     .innerJoin("project.user", "user")
-    .where("project.user = :userId", { userId: user.id })
+    .where("project.id IN (:...projectIds)", { projectIds })
     .getRawMany<ProjectWithStats>()
 
   const responses: ProjectResponse[] = projectsWithStats.map(convertToProjectResponse)
+
+  // Sort responses alphabetically by name, putting the user's own projects first
+  responses.sort((a, b) => {
+    if (a.ownerId === user.id && b.ownerId !== user.id) {
+      return -1
+    }
+    if (a.ownerId !== user.id && b.ownerId === user.id) {
+      return 1
+    }
+    return a.name.localeCompare(b.name)
+  })
+
   res.json(responses)
 }
 
@@ -318,8 +333,15 @@ export const get: RequestHandler = async (req, res) => {
   }
 
   const db = await Database()
-  const projectWithStats = await getProjectWithStats(db, id, user.id)
 
+  // Permissions check
+  const projectIds = await getAccessibleProjectIds(db, user.id)
+  if (!projectIds.includes(id)) {
+    res.status(404).json({ error: "Project not found" })
+    return
+  }
+
+  const projectWithStats = await getProjectWithStats(db, id)
   if (!projectWithStats) {
     res.status(404).json({ error: "Project not found" })
     return
@@ -340,7 +362,6 @@ export const resetToken: RequestHandler = async (req, res) => {
   const db = await Database()
   const projectTable = db.getRepository(Project)
   const project = await projectTable.findOneBy({ id, user: { id: user.id } })
-
   if (!project) {
     res.status(404).json({ error: "Project not found" })
     return
@@ -350,31 +371,44 @@ export const resetToken: RequestHandler = async (req, res) => {
   await projectTable.save(project)
 
   // Get the updated project with stats
-  const projectWithStats = await getProjectWithStats(db, id, user.id)
-
+  const projectWithStats = await getProjectWithStats(db, id)
   if (!projectWithStats) {
-    // Should never happen, but handle it gracefully
-    const basicResponse: ProjectResponse = {
-      id: project.id,
-      name: project.name,
-      githubRepoUrl: project.githubRepoUrl,
-      token: project.token,
-      ownerId: project.user.id,
-      hasActiveSubscription: userSubscriptionIsActive(
-        project.user.subscriptionPlan,
-        project.user.trialEndsAt,
-      ),
-      createdStampSec: toSeconds(project.createdAt),
-      lastBuildStampSec: 0,
-      builds: 0,
-      tests: 0,
-    }
-    res.json(basicResponse)
+    // Failed to fetch the project with stats immediately after writing it. Should never happen
+    log.error({ user, project }, "Failed to fetch project with stats after saving")
+    res.status(500).json({ error: "Token reset failed" })
     return
   }
 
   const response = convertToProjectResponse(projectWithStats)
   res.json(response)
+}
+
+/**
+ * Get all `projects.id`s that the user has access to, including both directly owned projects
+ * and those accessible via GitHub repo access
+ * @param db TypeORM database connection
+ * @param userId User ID to check access for
+ * @returns Array of project IDs that the user has access to
+ */
+async function getAccessibleProjectIds(
+  db: Awaited<ReturnType<typeof Database>>,
+  userId: number,
+): Promise<number[]> {
+  const projectTable = db.getRepository(Project)
+
+  // Get both directly owned projects and those accessible via GitHub repo access
+  const accessibleProjects = await projectTable
+    .createQueryBuilder("project")
+    .select("DISTINCT project.id")
+    .leftJoin("user_github_repo_access", "access", "access.github_repo_id = project.github_repo_id")
+    .where(
+      // User either owns the project directly OR has access via GitHub repo
+      "(project.user = :userId OR access.user_id = :userId)",
+      { userId },
+    )
+    .getMany()
+
+  return accessibleProjects.map((project) => project.id)
 }
 
 /** Generate a random 16-character hex string to use as a project token. */
