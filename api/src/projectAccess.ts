@@ -16,16 +16,17 @@ export async function getAccessibleProjectIds(
   const projectTable = db.getRepository(Project)
 
   // Get both directly owned projects and those accessible via GitHub repo access
-  const accessibleProjects = await projectTable
+  const accessibleProjectsRaw = await projectTable
     .createQueryBuilder("project")
-    .select("DISTINCT project.id")
+    .select("DISTINCT project.id", "id")
     .leftJoin("user_github_repo_access", "access", "access.github_repo_id = project.github_repo_id")
     .where(
       // User either owns the project directly OR has access via GitHub repo
-      "(project.user = :userId OR access.user_id = :userId)",
+      "(project.user_id = :userId OR access.user_id = :userId)",
       { userId },
     )
-    .getMany()
+    .getRawMany<{ id: number }>()
 
-  return accessibleProjects.map((project) => project.id)
+  // Map the raw results to get an array of IDs
+  return accessibleProjectsRaw.map((project) => project.id)
 }
