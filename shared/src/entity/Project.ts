@@ -14,6 +14,7 @@ import type { ScreenshotTest } from "./ScreenshotTest"
 import type { User } from "./User"
 
 @Entity("projects")
+@Index("IDX_user_github_repo_id", ["user", "githubRepoId"], { unique: true })
 export class Project {
   @PrimaryGeneratedColumn()
   id!: number
