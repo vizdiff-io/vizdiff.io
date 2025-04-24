@@ -2,7 +2,7 @@ import type { GitHubInstallationResponse, UserResponse } from "../apiTypes"
 import { toSeconds } from "../conversions"
 import { Database } from "../database"
 import { TRIAL_PERIOD_MS } from "../environment"
-import { getInstallationsForUserId } from "../github"
+import { getInstallationsForUserId, syncUserGithubRepos } from "../github"
 import { log } from "../log"
 import type { GithubUser } from "../schemas/GithubUser"
 import { deleteStripeCustomer } from "../stripe"
@@ -86,5 +86,25 @@ export const deleteAccount: RequestHandler = async (_req, res) => {
     const message = error instanceof Error ? error.message : "Unknown error"
     log.error(error, `Failed to delete account for user ${user.id} (${user.email})`)
     res.status(500).json({ error: "Failed to delete account", message })
+  }
+}
+
+export const syncGithubRepos: RequestHandler = async (_req, res) => {
+  const { user } = res.locals
+
+  try {
+    const repoCount = await syncUserGithubRepos(user)
+
+    res.status(200).json({
+      message: "GitHub repository access synchronized successfully.",
+      count: repoCount,
+    })
+  } catch (error) {
+    log.error(error, `GitHub repo sync failed for user ${user.id} (${user.githubUsername})`)
+    if (error instanceof Error) {
+      res.status(500).json({ error: `Sync failed: ${error.message}` })
+    } else {
+      res.status(500).json({ error: "An unknown error occurred during synchronization." })
+    }
   }
 }

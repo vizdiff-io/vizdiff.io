@@ -27,24 +27,56 @@ import { AppLayout } from "@/components/AppLayout"
 import LeftSidebar from "@/components/LeftSidebar"
 import useAuth from "@/hooks/useAuth"
 import { trackEvent, AnalyticsEvents } from "@/lib/analytics"
-import { apiPost } from "@/lib/apiMethods"
+import { apiPost, apiGet } from "@/lib/apiMethods"
+import type { BillingPeriodUsageResponse } from "@/lib/apiTypes"
 import { PRICING_PLANS } from "@/lib/pricing"
 
 interface StripeCheckoutResponse {
   url: string
 }
 
+// Hook to fetch billing usage
+function useBillingUsage(): [BillingPeriodUsageResponse | null, boolean, Error | null] {
+  const [usageData, setUsageData] = useState<BillingPeriodUsageResponse | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
+
+  useEffect(() => {
+    const fetchUsage = async () => {
+      setIsLoading(true)
+      setError(null)
+      try {
+        const [data, apiError] = await apiGet<BillingPeriodUsageResponse>("/api/stripe/usage")
+        if (apiError) {
+          throw new Error(apiError.message || "Failed to fetch billing usage")
+        }
+        setUsageData(data)
+      } catch (err) {
+        console.error("Failed to fetch billing usage:", err)
+        setError(err instanceof Error ? err : new Error("An unknown error occurred"))
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    void fetchUsage()
+  }, [])
+
+  return [usageData, isLoading, error]
+}
+
 export default function Signup(): JSX.Element {
   const router = useRouter()
   const { user } = useAuth()
   const [isCheckoutLoading, setIsCheckoutLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [checkoutError, setCheckoutError] = useState<string | null>(null)
   const [billingInterval, setBillingInterval] = useState<"monthly" | "yearly">("monthly")
+  const [usageData, isUsageLoading, usageError] = useBillingUsage()
 
   const redirectToCheckout = useCallback(
     async (plan: string, interval: string) => {
       if (!user) {
-        setError("User is not logged in.")
+        setCheckoutError("User is not logged in.")
         return
       }
       if (isCheckoutLoading) {
@@ -52,7 +84,7 @@ export default function Signup(): JSX.Element {
       }
 
       setIsCheckoutLoading(true)
-      setError(null)
+      setCheckoutError(null)
 
       try {
         // Track plan selection
@@ -79,7 +111,9 @@ export default function Signup(): JSX.Element {
         window.location.href = response.url
       } catch (err) {
         console.error("Checkout error:", err)
-        setError(err instanceof Error ? err.message : "An unknown error occurred during checkout.")
+        setCheckoutError(
+          err instanceof Error ? err.message : "An unknown error occurred during checkout.",
+        )
         setIsCheckoutLoading(false)
       }
     },
@@ -90,6 +124,9 @@ export default function Signup(): JSX.Element {
 
   // Handle redirect based on URL parameters
   useEffect(() => {
+    if (!router.isReady) {
+      return
+    }
     const { checkout, interval } = router.query
 
     // Handle checkout status returns
@@ -102,14 +139,17 @@ export default function Signup(): JSX.Element {
         userId: user.id,
       })
     } else if (checkout === "cancel" && user) {
-      setError("Checkout was cancelled.")
+      setCheckoutError("Checkout was cancelled.")
     }
 
     // Set the initial billing interval from URL if provided
     if (interval && typeof interval === "string") {
       setBillingInterval(interval === "yearly" || interval === "annual" ? "yearly" : "monthly")
     }
-  }, [router.query, user])
+    // We only want this to run when router is ready and not on every router.query change
+    // to prevent multiple analytics events from firing during the same page load
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router.isReady, user])
 
   // Check if the user has the current plan
   const isCurrentPlan = useCallback(
@@ -154,7 +194,7 @@ export default function Signup(): JSX.Element {
                 gutterBottom
                 sx={{ fontWeight: "bold", mb: 3 }}
               >
-                Plans that scale with your screenshot testing needs
+                Plans that scale with your testing needs
               </Typography>
 
               {user?.subscription && (
@@ -164,13 +204,13 @@ export default function Signup(): JSX.Element {
                 </Alert>
               )}
 
-              {error && (
+              {checkoutError && (
                 <Alert severity="error" sx={{ mb: 4 }}>
-                  {error}
+                  {checkoutError}
                 </Alert>
               )}
 
-              {isCheckoutLoading && !error && (
+              {isCheckoutLoading && !checkoutError && (
                 <Box sx={{ display: "flex", justifyContent: "center", mb: 4 }}>
                   <CircularProgress />
                   <Typography sx={{ ml: 2 }}>Redirecting to checkout...</Typography>
@@ -201,6 +241,7 @@ export default function Signup(): JSX.Element {
                 </ToggleButtonGroup>
               </Box>
 
+              {/* Pricing plans */}
               <Grid container spacing={4} justifyContent="center">
                 {PRICING_PLANS.map((plan) => {
                   const isPlanActive = isCurrentPlan(plan.name)
@@ -321,6 +362,50 @@ export default function Signup(): JSX.Element {
                   )
                 })}
               </Grid>
+
+              <Box sx={{ my: 5 }} />
+
+              {/* Display Billing Usage */}
+              {isUsageLoading && (
+                <Box sx={{ display: "flex", justifyContent: "center", mb: 4 }}>
+                  <CircularProgress size={24} />
+                  <Typography sx={{ ml: 2 }}>Loading usage data...</Typography>
+                </Box>
+              )}
+              {usageError && !isUsageLoading && (
+                <Alert severity="warning" sx={{ mb: 4 }}>
+                  Could not load current usage data: {usageError.message}
+                </Alert>
+              )}
+              {usageData && !isUsageLoading && !usageError && (
+                <Card sx={{ mb: 4, p: 3 }}>
+                  <Typography variant="h6" gutterBottom>
+                    Current {usageData.status === "trial" ? "Trial" : "Billing"} Period Usage
+                  </Typography>
+                  <Typography variant="body2" color="var(--text-secondary)" sx={{ mb: 1 }}>
+                    {new Date(usageData.periodStartSec * 1000).toLocaleDateString()} -{" "}
+                    {new Date(usageData.periodEndSec * 1000).toLocaleDateString()}
+                  </Typography>
+                  <List dense>
+                    <ListItem disableGutters>
+                      <ListItemText
+                        primary="Included screenshots:"
+                        secondary={`${Math.min(usageData.totalUsage, usageData.subscriptionIncludedUsage).toLocaleString()} / ${usageData.subscriptionIncludedUsage.toLocaleString()}`}
+                        primaryTypographyProps={{ color: "var(--text-primary)" }}
+                      />
+                    </ListItem>
+                    {usageData.totalUsage > usageData.subscriptionIncludedUsage && (
+                      <ListItem disableGutters>
+                        <ListItemText
+                          primary="Overage:"
+                          secondary={`${(usageData.totalUsage - usageData.subscriptionIncludedUsage).toLocaleString()} screenshot${usageData.totalUsage - usageData.subscriptionIncludedUsage > 1 ? "s" : ""}`}
+                          primaryTypographyProps={{ color: "var(--text-primary)" }}
+                        />
+                      </ListItem>
+                    )}
+                  </List>
+                </Card>
+              )}
             </Container>
           </Box>
         </Box>

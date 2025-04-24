@@ -20,10 +20,10 @@ export default function Login(): JSX.Element {
 
   // Redirect to the URL given in ?redirect=<URL> if the user is already logged in
   useEffect(() => {
-    if (!isLoading && user) {
+    if (!isLoading && user && router.isReady) {
       void router.replace(redirectUri)
     }
-  }, [user, isLoading, router, redirectUri])
+  }, [user, isLoading, router, router.isReady, redirectUri])
 
   if (!GITHUB_APP_NAME || !GITHUB_CLIENT_ID) {
     return (

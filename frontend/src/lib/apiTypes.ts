@@ -88,3 +88,11 @@ export type TestResponse = ScreenshotTestResponse & {
   parent?: ScreenshotTestResponse
   testResults: TestResultResponse[]
 }
+
+export type BillingPeriodUsageResponse = {
+  totalUsage: number
+  subscriptionIncludedUsage: number
+  periodStartSec: number
+  periodEndSec: number
+  status: "draft" | "open" | "paid" | "uncollectible" | "void" | "trial"
+}

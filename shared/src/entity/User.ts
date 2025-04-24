@@ -10,6 +10,7 @@ import {
 
 import type { GitHubInstallation } from "./GitHubInstallation"
 import type { Project } from "./Project"
+import { UserGithubRepoAccess } from "./UserGithubRepoAccess"
 
 @Entity("users")
 export class User {
@@ -39,6 +40,9 @@ export class User {
 
   @OneToMany("GitHubInstallation", "creator")
   createdInstallations!: Promise<GitHubInstallation[]>
+
+  @OneToMany("UserGithubRepoAccess", "user")
+  githubRepoAccesses!: Promise<UserGithubRepoAccess[]>
 
   @Column({ name: "stripe_customer_id", type: "text", nullable: true })
   stripeCustomerId!: string | null

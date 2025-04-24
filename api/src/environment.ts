@@ -7,7 +7,11 @@ const dirname = path.dirname(filename)
 const envPath = path.join(dirname, "..")
 
 // Load the `api/.env*` file into process.env
-configEnv({ path: envPath, node_env: process.env.NODE_ENV ?? "development" })
+configEnv({
+  path: envPath,
+  default_node_env: "development",
+  silent: process.env.NODE_ENV === "test",
+})
 
 export const IS_PRODUCTION = process.env.NODE_ENV === "production"
 export const IS_STAGING = process.env.NODE_ENV === "staging"
@@ -32,8 +36,10 @@ export const POSTGRES_PORT = parseInt(process.env.POSTGRES_PORT ?? "5432")
 export const JWT_SECRET = process.env.JWT_SECRET ?? "secret"
 
 export const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY
+export const STRIPE_SCREENSHOT_METER_ID = process.env.STRIPE_SCREENSHOT_METER_ID
 export const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET
 export const STRIPE_API_VERSION = "2025-03-31.basil"
 
 export const TRIAL_PERIOD_MS = 14 * 24 * 60 * 60 * 1000 // 14 days
 export const MAX_PROJECTS_PER_USER = 256
+export const MAX_TRIAL_SCREENSHOTS = 5000

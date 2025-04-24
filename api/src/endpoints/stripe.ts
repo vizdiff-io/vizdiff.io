@@ -1,14 +1,18 @@
 import { User } from "shared"
 import { Stripe } from "stripe"
 
+import type { BillingPeriodUsageResponse } from "../apiTypes"
 import { Database } from "../database"
 import {
   APP_URL,
   STRIPE_API_VERSION,
   STRIPE_SECRET_KEY,
+  STRIPE_SCREENSHOT_METER_ID,
   STRIPE_WEBHOOK_SECRET,
+  MAX_TRIAL_SCREENSHOTS,
 } from "../environment"
 import { log } from "../log"
+import { getSubscriptionIncludedUsage } from "../pricing"
 import { getPriceIds, getPlanInfoFromPriceId } from "../stripe"
 import type { RequestWithRawBody, RequestHandler, DefaultResponse } from "../types"
 
@@ -70,6 +74,117 @@ export const createCheckoutSession: RequestHandler = async (req, res) => {
 
   // Return the checkout session URL for the client to redirect to
   res.json({ url: session.url })
+}
+
+export const getBillingPeriodUsage: RequestHandler = async (_req, res) => {
+  const { user } = res.locals
+
+  // Basic configuration checks
+  if (!STRIPE_SECRET_KEY) {
+    log.error("STRIPE_SECRET_KEY is not set")
+    res.status(500).json({ error: "Server configuration error" })
+    return
+  }
+  if (!STRIPE_SCREENSHOT_METER_ID) {
+    throw new Error("STRIPE_SCREENSHOT_METER_ID is not set")
+  }
+
+  // Stripe customer ID should have been created at signup or last login
+  if (!user.stripeCustomerId) {
+    log.error({ user }, `User ${user.id} has no Stripe customer ID, cannot fetch usage`)
+    res.status(500).json({ error: "Missing billing information" })
+    return
+  }
+
+  const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: STRIPE_API_VERSION })
+
+  if (!user.stripeSubscriptionId) {
+    // User is in a trial, fetch usage from signup to trial end or now, whichever is later
+    const periodStartSec = Math.floor(user.createdAt.getTime() / 1000)
+    const trialEndSec = Math.floor((user.trialEndsAt ?? new Date()).getTime() / 1000)
+    const periodEndSec = Math.max(Math.floor(new Date().getTime() / 1000), trialEndSec)
+    const usageSummaries = await stripe.billing.meters.listEventSummaries(
+      STRIPE_SCREENSHOT_METER_ID,
+      {
+        customer: user.stripeCustomerId,
+        start_time: periodStartSec,
+        end_time: periodEndSec,
+        limit: 100,
+      },
+    )
+    let totalUsage = 0
+    for (const summary of usageSummaries.data) {
+      totalUsage += isNaN(summary.aggregated_value) ? 0 : summary.aggregated_value
+    }
+
+    const json: BillingPeriodUsageResponse = {
+      totalUsage,
+      subscriptionIncludedUsage: MAX_TRIAL_SCREENSHOTS,
+      periodStartSec,
+      periodEndSec,
+      status: "trial",
+    }
+    res.json(json)
+    return
+  }
+
+  try {
+    // 1. Get the upcoming invoice preview to determine the current billing period dates
+    let invoicePreview: Stripe.Invoice | null = null
+    try {
+      // Use createPreview as per the user's type definitions
+      invoicePreview = await stripe.invoices.createPreview({
+        customer: user.stripeCustomerId,
+        subscription: user.stripeSubscriptionId,
+      })
+    } catch (error) {
+      log.error(
+        error,
+        `Could not create invoice preview for subscription ${user.stripeSubscriptionId} (user ${user.id}).`,
+      )
+      res.status(500).json({ error: "Failed to retrieve upcoming invoice data." })
+      return
+    }
+
+    // 2. Extract period dates from the invoice preview
+    const currentPeriodStartSec = invoicePreview.period_start
+    const currentPeriodEndSec = invoicePreview.period_end
+
+    // 3. Fetch the actual usage summaries for this determined period
+    const usageSummaries = await stripe.billing.meters.listEventSummaries(
+      STRIPE_SCREENSHOT_METER_ID,
+      {
+        customer: user.stripeCustomerId,
+        start_time: currentPeriodStartSec,
+        end_time: currentPeriodEndSec,
+        limit: 100,
+      },
+    )
+
+    // 4. Sum the aggregated values
+    let totalUsage = 0
+    for (const summary of usageSummaries.data) {
+      totalUsage += isNaN(summary.aggregated_value) ? 0 : summary.aggregated_value
+    }
+
+    // 5. Return the usage and the billing period dates derived from the preview
+    const json: BillingPeriodUsageResponse = {
+      totalUsage,
+      subscriptionIncludedUsage: getSubscriptionIncludedUsage(user.subscriptionPlan),
+      periodStartSec: currentPeriodStartSec,
+      periodEndSec: currentPeriodEndSec,
+      status: invoicePreview.status ?? "draft",
+    }
+    res.json(json)
+  } catch (error) {
+    // Catch errors not handled by the specific preview try/catch
+    log.error(error, `Generic error fetching billing period usage for user ${user.id}`)
+    if (error instanceof Stripe.errors.StripeError) {
+      res.status(500).json({ error: `Stripe API error: ${error.message}` })
+    } else {
+      res.status(500).json({ error: "Failed to retrieve billing usage data." })
+    }
+  }
 }
 
 export async function stripeWebhook(req: RequestWithRawBody, res: DefaultResponse): Promise<void> {

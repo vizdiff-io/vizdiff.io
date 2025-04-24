@@ -3,7 +3,7 @@ import { within, userEvent } from "@storybook/testing-library"
 import { http, HttpResponse } from "msw"
 import { type ComponentType, useEffect } from "react"
 
-import type { UserResponse } from "@/lib/apiTypes"
+import type { UserResponse, BillingPeriodUsageResponse } from "@/lib/apiTypes"
 
 import ThemeWrapper from "./ThemeWrapper"
 import { catchAllHandler } from "./mocks"
@@ -22,6 +22,9 @@ type StoryArgs = {
 
 const oneMinuteAgo = Math.floor(Date.now() / 1000) - 60
 const fixedDate = new Date("2025-04-01T08:00:00Z")
+const trialEndDate = new Date("2025-04-15T08:00:00Z") // Example trial end
+const periodStartDate = new Date("2025-04-01T00:00:00Z") // Example period start
+const periodEndDate = new Date("2025-05-01T00:00:00Z") // Example period end
 
 // Create base mock user
 const createMockUser = (subscription: StoryArgs["subscription"]): UserResponse => ({
@@ -44,6 +47,54 @@ const createMockUser = (subscription: StoryArgs["subscription"]): UserResponse =
   githubInstallations: [],
   subscription: subscription ?? null,
 })
+
+// Create base mock usage response
+const createMockUsageResponse = (
+  subscription: StoryArgs["subscription"],
+): BillingPeriodUsageResponse => {
+  let totalUsage = 0
+  let subscriptionIncludedUsage = 5000 // Default trial limit
+  let status: BillingPeriodUsageResponse["status"] = "trial"
+  let periodStartSec = fixedDate.getTime() / 1000
+  let periodEndSec = trialEndDate.getTime() / 1000
+
+  if (subscription) {
+    status = "open" // Assume active paid subscription
+    periodStartSec = periodStartDate.getTime() / 1000
+    periodEndSec = periodEndDate.getTime() / 1000
+
+    switch (subscription.plan) {
+      case "starter":
+        totalUsage = 15000
+        subscriptionIncludedUsage = 15000
+        break
+      case "team":
+        totalUsage = 60001
+        subscriptionIncludedUsage = 60000
+        break
+      case "pro":
+        totalUsage = 1372802
+        subscriptionIncludedUsage = 250000
+        break
+      default:
+        // Keep trial limit if plan unknown
+        totalUsage = 3719
+        subscriptionIncludedUsage = 5000
+        status = "trial"
+        periodStartSec = fixedDate.getTime() / 1000
+        periodEndSec = trialEndDate.getTime() / 1000
+        break
+    }
+  }
+
+  return {
+    totalUsage,
+    subscriptionIncludedUsage,
+    periodStartSec,
+    periodEndSec,
+    status,
+  }
+}
 
 // Default user with no subscription
 const defaultUser = createMockUser(null)
@@ -137,6 +188,11 @@ const meta: Meta<typeof SignupComponent> = {
         http.post("/api/stripe/checkout", () => {
           return HttpResponse.json({ url: "https://example.com/checkout" })
         }),
+        http.get("/api/stripe/usage", () => {
+          // Default mock usage response (trial user)
+          const mockUsage = createMockUsageResponse(null)
+          return HttpResponse.json(mockUsage)
+        }),
         catchAllHandler,
       ],
     },
@@ -184,6 +240,13 @@ export const WithStarterMonthlyPlan: Story = {
             }),
           )
         }),
+        http.get("/api/stripe/usage", () => {
+          const mockUsage = createMockUsageResponse({
+            plan: "starter",
+            interval: "monthly",
+          })
+          return HttpResponse.json(mockUsage)
+        }),
         catchAllHandler,
       ],
     },
@@ -210,6 +273,13 @@ export const WithTeamYearlyPlan: Story = {
             }),
           )
         }),
+        http.get("/api/stripe/usage", () => {
+          const mockUsage = createMockUsageResponse({
+            plan: "team",
+            interval: "yearly",
+          })
+          return HttpResponse.json(mockUsage)
+        }),
         catchAllHandler,
       ],
     },
@@ -235,6 +305,13 @@ export const WithProMonthlyPlan: Story = {
               interval: "monthly",
             }),
           )
+        }),
+        http.get("/api/stripe/usage", () => {
+          const mockUsage = createMockUsageResponse({
+            plan: "pro",
+            interval: "monthly",
+          })
+          return HttpResponse.json(mockUsage)
         }),
         catchAllHandler,
       ],

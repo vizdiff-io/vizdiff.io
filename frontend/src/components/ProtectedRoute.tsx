@@ -1,4 +1,3 @@
-import { useRouter } from "next/router"
 import { useEffect, useState } from "react"
 
 import useAuth from "@/hooks/useAuth"
@@ -9,7 +8,6 @@ export default function ProtectedRoute({
 }: {
   children: React.ReactNode
 }): JSX.Element | null {
-  const router = useRouter()
   const { user, isLoading, fetchUser } = useAuth()
   const [isClient, setIsClient] = useState(false)
   const [fetchAttempted, setFetchAttempted] = useState(false)
@@ -29,7 +27,7 @@ export default function ProtectedRoute({
       void fetchUser()
     }
     // Depend on fetchUser, isLoading, and user to re-run if needed
-  }, [router, fetchUser, user, isLoading, fetchAttempted])
+  }, [fetchUser, user, isLoading, fetchAttempted])
 
   // Still loading user data from API?
   if (isLoading) {

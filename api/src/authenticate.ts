@@ -89,6 +89,19 @@ async function refreshJWT(userId: number, req: Request, res: Response): Promise<
 }
 
 export function authenticateJWT(req: Request, res: Response, next: NextFunction): void {
+  if (!IS_PRODUCTION) {
+    const testUserId = req.headers["x-test-user-id"] as string | undefined
+    if (testUserId) {
+      const userId = parseInt(testUserId, 10)
+      if (!isNaN(userId)) {
+        ;(res.locals as RequestLocals).user = { id: userId } as User
+        log.debug(`Using X-Test-User-Id: ${userId} for ${req.method} ${req.url}`)
+        next()
+        return
+      }
+    }
+  }
+
   const jwtHeader = Array.isArray(req.headers.jwt) ? req.headers.jwt[0] : req.headers.jwt
   const jwtCookie = req.cookies.token as string | undefined
   const token = (jwtHeader?.length ?? 0) > 0 ? jwtHeader : jwtCookie

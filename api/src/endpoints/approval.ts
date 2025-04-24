@@ -5,14 +5,15 @@ import { APP_URL, IS_PRODUCTION, IS_STAGING } from "../environment"
 import { getInstallationForOrg, getOctokitForInstallation } from "../github"
 import { getParamInt } from "../http"
 import { log } from "../log"
+import { getAccessibleProjectIds } from "../projectAccess"
 import type { RequestHandler } from "../types"
 
 export const approveOrDeny: RequestHandler = async (req, res) => {
   const { user } = res.locals
-  const id = getParamInt("id", req)
+  const testId = getParamInt("id", req)
   const status = req.params.status as string | undefined
 
-  if (!id) {
+  if (!testId) {
     res.status(400).json({ error: "Missing id" })
     return
   }
@@ -26,14 +27,28 @@ export const approveOrDeny: RequestHandler = async (req, res) => {
   }
 
   const db = await Database()
+
+  // Get project IDs the user has access to
+  const accessibleProjectIds = await getAccessibleProjectIds(db, user.id)
+  if (accessibleProjectIds.length === 0) {
+    log.error({ user, testId, status }, "User does not have access to any projects")
+    res.status(403).json({ error: "User does not have access to any projects" })
+    return
+  }
+
   const testTable = db.getRepository(ScreenshotTest)
   const test = await testTable
     .createQueryBuilder("test")
     .innerJoinAndSelect("test.project", "project")
-    .where("test.id = :id AND project.user = :userId", { id, userId: user.id })
+    .where("test.id = :id", { id: testId })
+    .andWhere("project.id IN (:...projectIds)", { projectIds: accessibleProjectIds })
     .getOne()
 
   if (!test) {
+    log.error(
+      { user, testId, status, accessibleProjectIds },
+      "Test not found in accessible projects",
+    )
     res.status(404).json({ error: "Test not found" })
     return
   }
@@ -84,11 +99,14 @@ export const approveOrDeny: RequestHandler = async (req, res) => {
         output: { title, summary, text },
       })
       log.info(
+        { user, test, status, result },
         `Created GitHub check run ${result.data.id} for ${test.toString()} with conclusion: ${conclusion}`,
       )
     } catch (err) {
-      const error = err
-      log.error(error, `Failed to update GitHub check run for ${test.toString()}`)
+      log.error(
+        { user, test, status, err },
+        `Failed to update GitHub check run for ${test.toString()}`,
+      )
       // Don't fail the API call if GitHub update fails
     }
   }
