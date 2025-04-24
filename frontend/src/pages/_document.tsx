@@ -1,4 +1,5 @@
 import { Html, Head, Main, NextScript } from "next/document"
+import type { JSX } from "react"
 
 import { FallbackStyles, MagicScriptTag } from "@/components/InlineCssVariables"
 

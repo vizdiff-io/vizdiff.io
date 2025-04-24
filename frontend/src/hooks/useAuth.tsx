@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useEffect } from "react"
+import { type JSX, createContext, useContext, useState, useCallback, useEffect } from "react"
 
 import { setAnalyticsUser } from "@/lib/analytics"
 import { tryApiGet } from "@/lib/apiMethods"

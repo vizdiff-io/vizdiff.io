@@ -6,6 +6,10 @@ const compat = new FlatCompat({
   baseDirectory: __dirname,
 })
 
+// Avoid importing eslint-plugin-import multiple times
+delete foxglove.configs.base[2].plugins.import
+delete foxglove.configs.typescript[6].plugins.import
+
 module.exports = tseslint.config(
   ...foxglove.configs.base,
   ...foxglove.configs.react,

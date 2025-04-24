@@ -12,7 +12,7 @@ import {
 import { formatDistanceToNow } from "date-fns"
 import Head from "next/head"
 import { useRouter } from "next/router"
-import { useEffect, useMemo, useState } from "react"
+import { type JSX, useEffect, useMemo, useState } from "react"
 
 import { AppLayout } from "@/components/AppLayout"
 import TestResultCard from "@/components/TestResultCard"

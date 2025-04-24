@@ -16,7 +16,7 @@ import {
   Typography,
 } from "@mui/material"
 import Image from "next/image"
-import { useState, useEffect, useMemo, useCallback } from "react"
+import { type JSX, useState, useEffect, useMemo, useCallback } from "react"
 
 import type { TestResultResponse } from "@/lib/apiTypes"
 import { changeStatusColor, changeStatusMessage } from "@/lib/changeStatus"
@@ -135,13 +135,15 @@ export default function TestResultDialog({
       onClose={onClose}
       maxWidth={false}
       fullWidth
-      PaperProps={{
-        sx: {
-          height: "calc(100vh - 64px)",
-          maxHeight: "calc(100vh - 64px)",
-          m: 2,
-          display: "flex",
-          flexDirection: "column",
+      slotProps={{
+        paper: {
+          sx: {
+            height: "calc(100vh - 64px)",
+            maxHeight: "calc(100vh - 64px)",
+            m: 2,
+            display: "flex",
+            flexDirection: "column",
+          },
         },
       }}
     >

@@ -25,7 +25,7 @@ import {
 } from "@mui/material"
 import Head from "next/head"
 import { useRouter } from "next/router"
-import { useMemo, useState } from "react"
+import { type JSX, useMemo, useState } from "react"
 
 import { AppLayout } from "@/components/AppLayout"
 import LeftSidebar from "@/components/LeftSidebar"

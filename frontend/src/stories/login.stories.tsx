@@ -1,6 +1,6 @@
 import type { Meta, StoryObj, StoryContext } from "@storybook/react"
 import { HttpResponse, http } from "msw"
-import { type ComponentType } from "react"
+import type { JSX, ComponentType } from "react"
 
 import ThemeWrapper from "./ThemeWrapper"
 import { catchAllHandler } from "./mocks"

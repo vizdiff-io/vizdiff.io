@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { type JSX, useEffect, useState } from "react"
 
 import useAuth from "@/hooks/useAuth"
 import { githubSignIn, isAuthenticated } from "@/lib/apiMethods"

@@ -1,7 +1,7 @@
 import type { Meta, StoryObj, StoryContext } from "@storybook/react"
 import { within, userEvent } from "@storybook/testing-library"
 import { http, HttpResponse } from "msw"
-import { type ComponentType, useEffect } from "react"
+import { type JSX, type ComponentType, useEffect } from "react"
 
 import type { UserResponse, BillingPeriodUsageResponse } from "@/lib/apiTypes"
 
