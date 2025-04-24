@@ -20,7 +20,7 @@ import {
 import Head from "next/head"
 import Link from "next/link"
 import { useRouter } from "next/router"
-import { useEffect, useState, useCallback } from "react"
+import { type JSX, useEffect, useState, useCallback } from "react"
 import { v4 as uuidv4 } from "uuid"
 
 import { AppLayout } from "@/components/AppLayout"
@@ -247,7 +247,7 @@ export default function Signup(): JSX.Element {
                   const isPlanActive = isCurrentPlan(plan.name)
 
                   return (
-                    <Grid item key={plan.name} xs={12} sm={6} md={4}>
+                    <Grid key={plan.name} size={{ xs: 12, sm: 6, md: 4 }}>
                       <Card
                         sx={{
                           height: "100%",
@@ -391,7 +391,9 @@ export default function Signup(): JSX.Element {
                       <ListItemText
                         primary="Included screenshots:"
                         secondary={`${Math.min(usageData.totalUsage, usageData.subscriptionIncludedUsage).toLocaleString()} / ${usageData.subscriptionIncludedUsage.toLocaleString()}`}
-                        primaryTypographyProps={{ color: "var(--text-primary)" }}
+                        slotProps={{
+                          primary: { color: "var(--text-primary)" },
+                        }}
                       />
                     </ListItem>
                     {usageData.totalUsage > usageData.subscriptionIncludedUsage && (
@@ -399,7 +401,9 @@ export default function Signup(): JSX.Element {
                         <ListItemText
                           primary="Overage:"
                           secondary={`${(usageData.totalUsage - usageData.subscriptionIncludedUsage).toLocaleString()} screenshot${usageData.totalUsage - usageData.subscriptionIncludedUsage > 1 ? "s" : ""}`}
-                          primaryTypographyProps={{ color: "var(--text-primary)" }}
+                          slotProps={{
+                            primary: { color: "var(--text-primary)" },
+                          }}
                         />
                       </ListItem>
                     )}

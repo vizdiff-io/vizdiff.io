@@ -2,6 +2,7 @@ import FolderIcon from "@mui/icons-material/Folder"
 import ReceiptIcon from "@mui/icons-material/Receipt"
 import SettingsIcon from "@mui/icons-material/Settings"
 import { Box, Link, List, ListItemButton, ListItemIcon, ListItemText } from "@mui/material"
+import type { JSX } from "react"
 
 export type SidebarItem = "projects" | "billing" | "settings"
 

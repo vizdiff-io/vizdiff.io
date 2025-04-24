@@ -3,7 +3,7 @@ import GitHubIcon from "@mui/icons-material/GitHub"
 import { Typography, Box, Button, Container, Stack, Link } from "@mui/material"
 import Head from "next/head"
 import { useRouter } from "next/router"
-import { useEffect } from "react"
+import { type JSX, useEffect } from "react"
 
 import { MarketingLayout } from "@/components/NavBody"
 import useAuth from "@/hooks/useAuth"

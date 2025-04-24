@@ -15,7 +15,7 @@ import {
   Box,
 } from "@mui/material"
 import type { Endpoints } from "@octokit/types"
-import React, { useState, useEffect, useCallback } from "react"
+import React, { type JSX, useState, useEffect, useCallback } from "react"
 
 import useAuthenticatedFetch from "@/hooks/useApiGet"
 import { AnalyticsEvents, trackEvent } from "@/lib/analytics"
@@ -149,10 +149,12 @@ export default function NewProjectDialog({
       onClose={onClose}
       maxWidth="md"
       fullWidth
-      PaperProps={{
-        sx: {
-          minHeight: "50vh",
-          maxHeight: "80vh",
+      slotProps={{
+        paper: {
+          sx: {
+            minHeight: "50vh",
+            maxHeight: "80vh",
+          },
         },
       }}
     >

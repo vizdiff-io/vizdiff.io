@@ -1,7 +1,7 @@
 import type { Endpoints } from "@octokit/types"
 import type { Meta, StoryObj } from "@storybook/react"
 import { http, HttpResponse } from "msw"
-import { type ComponentType } from "react"
+import type { JSX, ComponentType } from "react"
 
 import ThemeWrapper from "./ThemeWrapper"
 import { avatar01 } from "./assets"

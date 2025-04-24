@@ -1,6 +1,6 @@
 import type { Meta, StoryObj, StoryContext } from "@storybook/react"
 import { http, HttpResponse } from "msw"
-import { type ComponentType } from "react"
+import type { JSX, ComponentType } from "react"
 
 import type { ProjectResponse, ScreenshotTestSummaryResponse } from "@/lib/apiTypes"
 
@@ -39,13 +39,14 @@ const mockProjectWithExpiredTrialNotOwner: ProjectResponse = {
 
 const mockBuilds: ScreenshotTestSummaryResponse[] = [
   {
-    id: 3,
+    id: 4,
     projectId: 456,
     projectName: "Cat Photos",
     buildNumber: 3,
     githubRepoUrl: "https://github.com/example/example-project",
     commitSha: "d462c7658f276eaa61cd5ca522bc5988e16e429f",
-    branch: "main",
+    branch:
+      "some/branch/with-a-very-long-name/that-needs-to-be-truncated/or-else-it-will-break-the-layout",
     uploadId: "123",
     initiatedStampSec: oneMinuteAgo,
     status: "pending",
@@ -54,7 +55,7 @@ const mockBuilds: ScreenshotTestSummaryResponse[] = [
     changes: 3,
   },
   {
-    id: 2,
+    id: 3,
     projectId: 456,
     projectName: "Cat Photos",
     buildNumber: 2,
@@ -71,7 +72,7 @@ const mockBuilds: ScreenshotTestSummaryResponse[] = [
     tag: "Infrastructure upgrade",
   },
   {
-    id: 1,
+    id: 2,
     projectId: 456,
     projectName: "Cat Photos",
     buildNumber: 1,

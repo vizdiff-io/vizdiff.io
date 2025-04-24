@@ -1,7 +1,7 @@
 import ReportProblemIcon from "@mui/icons-material/ReportProblem"
 import { Box, Paper, Typography } from "@mui/material"
 import Image from "next/image"
-import { useState } from "react"
+import { type JSX, useState } from "react"
 
 import type { TestResultResponse } from "@/lib/apiTypes"
 import { changeStatusColor, changeStatusMessage } from "@/lib/changeStatus"

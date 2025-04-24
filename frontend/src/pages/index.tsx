@@ -1,5 +1,6 @@
 import { Typography, Box, Button, Container } from "@mui/material"
 import Head from "next/head"
+import type { JSX } from "react"
 
 import { MarketingLayout } from "@/components/NavBody"
 

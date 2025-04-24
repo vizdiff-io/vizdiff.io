@@ -7,6 +7,7 @@ import { GoogleAnalytics } from "@next/third-parties/google"
 import type { AppProps } from "next/app"
 import { Inter } from "next/font/google"
 import Head from "next/head"
+import type { JSX } from "react"
 
 import DarkMode from "@/components/DarkMode"
 import useAppTheme from "@/hooks/useAppTheme"

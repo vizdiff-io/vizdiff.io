@@ -1,4 +1,5 @@
 import { Box, Paper, Typography } from "@mui/material"
+import type { JSX } from "react"
 
 interface ProjectCardProps {
   repo: {

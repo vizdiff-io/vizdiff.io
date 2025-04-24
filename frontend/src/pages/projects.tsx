@@ -13,7 +13,7 @@ import {
 } from "@mui/material"
 import Head from "next/head"
 import Link from "next/link"
-import { useState } from "react"
+import { type JSX, useState } from "react"
 
 import { AppLayout } from "@/components/AppLayout"
 import LeftSidebar from "@/components/LeftSidebar"
@@ -174,20 +174,22 @@ export default function Projects(): JSX.Element {
                             </Typography>
                           </>
                         }
-                        primaryTypographyProps={{
-                          variant: "body2",
-                          noWrap: true,
-                          sx: {
-                            textOverflow: "ellipsis",
-                            overflow: "hidden",
+                        slotProps={{
+                          primary: {
+                            variant: "body2",
+                            noWrap: true,
+                            sx: {
+                              textOverflow: "ellipsis",
+                              overflow: "hidden",
+                            },
                           },
-                        }}
-                        secondaryTypographyProps={{
-                          variant: "caption",
-                          noWrap: true,
-                          sx: {
-                            textOverflow: "ellipsis",
-                            overflow: "hidden",
+                          secondary: {
+                            variant: "caption",
+                            noWrap: true,
+                            sx: {
+                              textOverflow: "ellipsis",
+                              overflow: "hidden",
+                            },
                           },
                         }}
                       />

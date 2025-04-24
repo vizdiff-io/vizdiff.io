@@ -5,6 +5,7 @@ CSS variables into the :root of the page before any content is
 rendered.
 */
 
+import type { JSX } from "react"
 import * as Terser from "terser"
 
 import { COLORS } from "../lib/theme"

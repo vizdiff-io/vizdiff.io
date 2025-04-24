@@ -28,7 +28,8 @@ export const createCheckoutSession: RequestHandler = async (req, res) => {
   }
 
   // Get required params from request body
-  const { plan, interval, key } = req.body as Partial<CheckoutBody>
+  const body = req.body as Partial<CheckoutBody> | undefined
+  const { plan, interval, key } = body ?? {}
   if (!plan || !interval || !key) {
     res.status(400).json({ error: "Missing required parameters: plan, interval, key" })
     return

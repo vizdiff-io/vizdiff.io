@@ -1,6 +1,6 @@
 import type { Meta, StoryObj, StoryContext } from "@storybook/react"
 import { http, HttpResponse } from "msw"
-import { type ComponentType } from "react"
+import type { JSX, ComponentType } from "react"
 
 import type { ProjectResponse, UserResponse } from "@/lib/apiTypes"
 

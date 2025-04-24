@@ -14,6 +14,7 @@ import {
 } from "@mui/material"
 import Head from "next/head"
 import Link from "next/link"
+import type { JSX } from "react"
 
 import { MarketingLayout } from "@/components/NavBody"
 import { PRICING_PLANS } from "@/lib/pricing"
@@ -163,7 +164,7 @@ export default function Pricing(): JSX.Element {
           </Typography>
           <Grid container spacing={4} justifyContent="center">
             {PRICING_PLANS.map((plan) => (
-              <Grid item key={plan.name} xs={12} sm={6} md={4}>
+              <Grid key={plan.name} size={{ xs: 12, sm: 6, md: 4 }}>
                 <Card
                   sx={{
                     height: "100%",

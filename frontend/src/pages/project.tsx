@@ -15,7 +15,7 @@ import { formatDistanceToNow } from "date-fns"
 import Head from "next/head"
 import Link from "next/link"
 import { useRouter } from "next/router"
-import { useEffect, useState } from "react"
+import { type JSX, useEffect, useState } from "react"
 
 import { AppLayout } from "@/components/AppLayout"
 import useApiGet from "@/hooks/useApiGet"
@@ -310,11 +310,7 @@ export default function Project(): JSX.Element {
                             target="_blank"
                             rel="noopener noreferrer"
                             onClick={(e) => e.stopPropagation()} // Prevent triggering the parent Link
-                            sx={{
-                              fontFamily: "monospace",
-                              textDecoration: "none",
-                              "&:hover": { textDecoration: "underline" },
-                            }}
+                            sx={{ fontFamily: "monospace" }}
                           >
                             {build.commitSha.substring(0, 7)}
                           </MuiLink>
@@ -326,8 +322,13 @@ export default function Project(): JSX.Element {
                           rel="noopener noreferrer"
                           onClick={(e) => e.stopPropagation()} // Prevent triggering the parent Link
                           sx={{
-                            textDecoration: "none",
-                            "&:hover": { textDecoration: "underline" },
+                            fontFamily: "monospace",
+                            maxWidth: "50%",
+                            display: "inline-block",
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            verticalAlign: "bottom",
                           }}
                         >
                           {build.branch}

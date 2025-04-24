@@ -1,6 +1,6 @@
 import { CssBaseline, ThemeProvider } from "@mui/material"
 import { Inter } from "next/font/google"
-import { useEffect, useState } from "react"
+import { type JSX, useEffect, useState } from "react"
 
 import DarkMode from "@/components/DarkMode"
 import useAppTheme from "@/hooks/useAppTheme"

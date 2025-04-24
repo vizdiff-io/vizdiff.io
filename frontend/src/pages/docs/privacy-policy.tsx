@@ -1,6 +1,6 @@
 import { Container, Box } from "@mui/material"
 import Head from "next/head"
-import React from "react"
+import React, { type JSX } from "react"
 import ReactMarkdown from "react-markdown"
 
 import { MarketingLayout } from "@/components/NavBody"

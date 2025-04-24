@@ -1,4 +1,4 @@
-import { useEffect } from "react"
+import { type JSX, useEffect } from "react"
 
 import { useDarkMode } from "@/hooks/useDarkMode"
 import { COLORS } from "@/lib/theme"
