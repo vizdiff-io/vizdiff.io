@@ -376,14 +376,19 @@ async function waitForStorybookToLoad(browser: Browser): Promise<void> {
   log.debug(`Waiting for Storybook to be ready with ${STORYBOOK_LOAD_TIMEOUT}ms timeout`)
   await browser.waitUntil(
     async () => {
-      // eslint-disable-next-line prefer-arrow-callback
-      const ready = await browser.execute(function () {
-        // @ts-expect-error: this is javascript
-        // eslint-disable-next-line
-        return !!(window.__STORYBOOK_PREVIEW__ && window.__STORYBOOK_PREVIEW__.ready)
-      })
-      log.debug(`Storybook ready: ${ready}`)
-      return ready
+      try {
+        // eslint-disable-next-line prefer-arrow-callback
+        const ready = await browser.execute(function () {
+          // @ts-expect-error: this is javascript
+          // eslint-disable-next-line
+          return !!(window.__STORYBOOK_PREVIEW__ && window.__STORYBOOK_PREVIEW__.ready)
+        })
+        log.debug(`Storybook ready: ${ready}`)
+        return ready
+      } catch (err) {
+        log.error(err, "Error checking Storybook ready state")
+        return false
+      }
     },
     {
       timeout: STORYBOOK_LOAD_TIMEOUT,

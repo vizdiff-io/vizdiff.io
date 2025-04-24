@@ -253,23 +253,29 @@ export async function ingestStorybook(
         )
 
         // Get the loaded stories
-        const stories = await browser.execute(async () => {
-          // @ts-expect-error: window is not defined
-          // eslint-disable-next-line no-underscore-dangle
-          const preview = (window as StorybookWindow).__STORYBOOK_PREVIEW__
-          if (!preview) {
-            return undefined
-          }
+        let stories: Record<string, Story> | undefined
+        try {
+          stories = await browser.execute(async () => {
+            // @ts-expect-error: window is not defined
+            // eslint-disable-next-line no-underscore-dangle
+            const preview = (window as StorybookWindow).__STORYBOOK_PREVIEW__
+            if (!preview) {
+              return undefined
+            }
 
-          try {
-            return await preview.extract()
-          } catch (err) {
-            console.error("Failed to extract stories:", err)
-            return undefined
+            try {
+              return await preview.extract()
+            } catch (err) {
+              console.error("Failed to extract stories:", err)
+              return undefined
+            }
+          })
+          if (!stories) {
+            throw new Error("No stories found in Storybook")
           }
-        })
-        if (!stories) {
-          throw new Error("No stories found in Storybook")
+        } catch (err) {
+          log.error(err, "Error extracting stories from Storybook")
+          throw err
         }
 
         const storyCount = Object.keys(stories).length
