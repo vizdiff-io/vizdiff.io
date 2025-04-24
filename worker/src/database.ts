@@ -1,13 +1,5 @@
 import pg from "pg"
-import {
-  GitHubInstallation,
-  Project,
-  ScreenshotTest,
-  TestResult,
-  User,
-  WorkTask,
-  defineRelationships,
-} from "shared"
+import { Project, ScreenshotTest, TestResult, User, WorkTask, defineRelationships } from "shared"
 import { DataSource } from "typeorm"
 
 import {
@@ -44,7 +36,7 @@ export async function Database(): Promise<DataSource> {
     username: POSTGRES_USER,
     password: POSTGRES_PASS,
     database: POSTGRES_DATABASE,
-    entities: [GitHubInstallation, Project, ScreenshotTest, TestResult, User, WorkTask],
+    entities: [Project, ScreenshotTest, TestResult, User, WorkTask],
     synchronize: false,
   })
 
