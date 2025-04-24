@@ -327,7 +327,7 @@ jobs:
       - name: Deploy frontend
         run: |
           echo "Deploying frontend to S3..."
-          aws s3 sync frontend/out s3://vizdiff.io --delete
+          aws s3 sync frontend/out s3://vizdiff.io
 
           echo "Invalidating CloudFront cache..."
           aws cloudfront create-invalidation --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} --paths "/*"
