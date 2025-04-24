@@ -124,6 +124,9 @@ export default function Signup(): JSX.Element {
 
   // Handle redirect based on URL parameters
   useEffect(() => {
+    if (!router.isReady) {
+      return
+    }
     const { checkout, interval } = router.query
 
     // Handle checkout status returns
@@ -143,7 +146,10 @@ export default function Signup(): JSX.Element {
     if (interval && typeof interval === "string") {
       setBillingInterval(interval === "yearly" || interval === "annual" ? "yearly" : "monthly")
     }
-  }, [router.query, user])
+    // We only want this to run when router is ready and not on every router.query change
+    // to prevent multiple analytics events from firing during the same page load
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router.isReady, user])
 
   // Check if the user has the current plan
   const isCurrentPlan = useCallback(
