@@ -106,16 +106,22 @@ export async function processStory({
     const startTime = Date.now()
     let stabilized = false
 
-    while (Date.now() - startTime < SCREENSHOTS_UNCHANGED_TIMEOUT_MS) {
+    // Define maximum attempts based on timeout and interval
+    const MAX_ATTEMPTS = Math.ceil(SCREENSHOTS_UNCHANGED_TIMEOUT_MS / SCREENSHOT_INTERVAL_MS)
+    let attempts = 0
+
+    while (attempts < MAX_ATTEMPTS && Date.now() - startTime < SCREENSHOTS_UNCHANGED_TIMEOUT_MS) {
+      attempts++
       await browser.pause(SCREENSHOT_INTERVAL_MS)
-      log.debug(`Taking next screenshot for stabilization check...`)
+      log.debug(`Taking stabilization screenshot attempt ${attempts}/${MAX_ATTEMPTS}...`)
+
       let currentScreenshotBuffer: Buffer
       try {
         currentScreenshotBuffer = await takeScreenshotWithRetry(browser, currentScreenshotPath)
       } catch (err) {
         log.error(
           err,
-          `Failed to take screenshot during stabilization loop. Using previous screenshot.`,
+          `Failed to take screenshot during stabilization attempt ${attempts}. Using previous screenshot.`,
         )
         break // Exit while loop, use the previously captured screenshot
       }
@@ -141,7 +147,9 @@ export async function processStory({
       }
 
       const diffRatio = diffImagesNoMask(previousPng, currentPng)
-      log.debug(`Stability check for story ${storyId}: diffRatio=${diffRatio}`)
+      log.debug(
+        `Stability check for story ${storyId}: diffRatio=${diffRatio} (attempt ${attempts}/${MAX_ATTEMPTS})`,
+      )
 
       // Always update the baseline and final screenshot candidate to the latest capture
       previousScreenshotBuffer = currentScreenshotBuffer
@@ -154,25 +162,30 @@ export async function processStory({
 
       if (diffRatio < IMAGE_UNCHANGED_THRESHOLD) {
         log.info(
-          `Screenshot for story ${storyId} stabilized after ${Date.now() - startTime}ms with diffRatio=${diffRatio}`,
+          `Screenshot for story ${storyId} stabilized after ${Date.now() - startTime}ms with diffRatio=${diffRatio} (attempt ${attempts})`,
         )
         stabilized = true
         break // Stable state reached, exit loop
       }
-      // Not stable yet, loop continues with updated buffer/paths
+
+      // Not stable yet, check if we're approaching the timeout
+      const timeRemaining = SCREENSHOTS_UNCHANGED_TIMEOUT_MS - (Date.now() - startTime)
+      if (timeRemaining < SCREENSHOT_INTERVAL_MS) {
+        log.warn(`Approaching timeout for story ${storyId} stabilization, using last screenshot`)
+        break
+      }
     } // End while loop
 
     // --- Post-Loop Handling ---
-    if (!stabilized && Date.now() - startTime >= SCREENSHOTS_UNCHANGED_TIMEOUT_MS) {
+    if (!stabilized) {
       log.warn(
         `Screenshot for story ${storyId} did not stabilize within ` +
-          `${SCREENSHOTS_UNCHANGED_TIMEOUT_MS}ms. Using last captured screenshot.`,
+          `${SCREENSHOTS_UNCHANGED_TIMEOUT_MS}ms (${attempts} attempts). Using last captured screenshot.`,
       )
       // No action needed here, 'screenshot' already holds the last buffer captured
     }
 
-    // Rename the final selected screenshot file (now in previousScreenshotPath) to the official path
-    // 'screenshot' buffer variable holds the corresponding data
+    // Rename the final selected screenshot file to the official path
     log.debug(
       `Using final screenshot buffer (${screenshot.byteLength} bytes) located at ${previousScreenshotPath}`,
     )
@@ -226,7 +239,7 @@ export async function processStory({
       baselineImageUrl = `https://${bucket}.s3.amazonaws.com/${baselineKey}`
       try {
         const baselinePath = path.join(tmpDir, `${storyId}-baseline.png`)
-        await downloadImage(s3Client, bucket, baselineKey, baselinePath)
+        await downloadImage({ s3Client, bucket, key: baselineKey, filePath: baselinePath })
 
         // Load the new and baseline PNG images
         const newImageBuffer = await fsPromises.readFile(screenshotPath)
@@ -295,12 +308,21 @@ export async function processStory({
   return testResult
 }
 
-async function downloadImage(
-  s3Client: S3Client,
-  bucket: string,
-  key: string,
-  filePath: string,
-): Promise<void> {
+interface DownloadImageArgs {
+  s3Client: S3Client
+  bucket: string
+  key: string
+  filePath: string
+  timeoutMs?: number
+}
+
+async function downloadImage({
+  s3Client,
+  bucket,
+  key,
+  filePath,
+  timeoutMs = 30 * 1000,
+}: DownloadImageArgs): Promise<void> {
   const resp = await s3Client.send(new GetObjectCommand({ Bucket: bucket, Key: key }))
   if (!resp.Body) {
     throw new Error("Empty baseline response")
@@ -308,15 +330,50 @@ async function downloadImage(
 
   const writeStream = fs.createWriteStream(filePath)
   await new Promise<void>((resolve, reject) => {
-    if (resp.Body instanceof Readable) {
-      resp.Body.pipe(writeStream).on("finish", resolve).on("error", reject)
-    } else {
-      reject(new Error("Baseline response body is not a readable stream"))
+    let isSettled = false
+
+    const handleSettled = (err?: Error) => {
+      if (isSettled) {
+        return
+      }
+      isSettled = true
+      clearTimeout(timeout)
+
+      // Clean up resources
+      if (resp.Body instanceof Readable) {
+        resp.Body.destroy()
+      }
+
+      // Complete the promise
+      if (err) {
+        reject(err)
+      } else {
+        resolve()
+      }
     }
+
+    const timeout = setTimeout(() => {
+      handleSettled(new Error(`Download timeout for image ${key}`))
+    }, timeoutMs)
+
+    if (resp.Body instanceof Readable) {
+      resp.Body.pipe(writeStream)
+        .on("finish", () => handleSettled())
+        .on("error", (err) => handleSettled(err))
+    } else {
+      handleSettled(new Error("Baseline response body is not a readable stream"))
+    }
+
+    // Handle the case where the writeStream errors
+    writeStream.on("error", (err) => handleSettled(err))
   })
 }
 
 async function waitForStorybookToLoad(browser: Browser): Promise<void> {
+  const STORYBOOK_LOAD_TIMEOUT = 10 * 1000
+  const POST_LOAD_DELAY = 500
+
+  log.debug(`Waiting for Storybook to be ready with ${STORYBOOK_LOAD_TIMEOUT}ms timeout`)
   await browser.waitUntil(
     async () => {
       // eslint-disable-next-line prefer-arrow-callback
@@ -329,38 +386,88 @@ async function waitForStorybookToLoad(browser: Browser): Promise<void> {
       return ready
     },
     {
-      timeout: 10 * 1000,
-      timeoutMsg: "Story failed to load within 10s",
+      timeout: STORYBOOK_LOAD_TIMEOUT,
+      timeoutMsg: `Story failed to load within ${STORYBOOK_LOAD_TIMEOUT / 1000}s`,
       interval: 100,
     },
   )
 
   // TASK: Use WebDriver BiDi to wait for "network quiescence"
 
-  // Sleep for an additional fixed delay after network requests have completed
-  await browser.pause(500)
+  // Sleep for an additional fixed delay for final stabilization
+  // log.debug(`Pausing for ${POST_LOAD_DELAY}ms final stabilization delay`)
+  await browser.pause(POST_LOAD_DELAY)
 }
 
 async function takeScreenshotWithRetry(
   browser: Browser,
   screenshotPath: string,
   maxRetries = 3,
+  timeoutMs = 10 * 1000, // 10 second timeout per attempt
 ): Promise<Buffer<ArrayBuffer>> {
   const RETRY_DELAY_MS = 1000
 
-  for (let i = 0; i < maxRetries; i++) {
-    try {
-      log.debug(`Taking screenshot: ${screenshotPath}`)
-      return await browser.saveScreenshot(screenshotPath)
-    } catch (err) {
-      if (i === maxRetries - 1) {
-        throw err
+  return await new Promise<Buffer<ArrayBuffer>>((resolve, reject) => {
+    let isSettled = false
+    let timeoutId: NodeJS.Timeout | null = null
+
+    const handleSettled = (result?: Buffer<ArrayBuffer>, err?: Error) => {
+      if (isSettled) {
+        return
       }
-      log.warn(`Screenshot attempt ${i + 1} failed, waiting and retrying...`)
-      await browser.pause(RETRY_DELAY_MS)
+      isSettled = true
+
+      // Clear the timeout if it exists
+      if (timeoutId) {
+        clearTimeout(timeoutId)
+      }
+
+      // Resolve or reject based on result/error
+      if (err) {
+        reject(err)
+      } else if (result) {
+        resolve(result)
+      } else {
+        reject(new Error("No result and no error (should never happen)"))
+      }
     }
-  }
-  throw new Error("Screenshot failed after max retries")
+
+    // Set timeout for the entire operation
+    timeoutId = setTimeout(() => {
+      handleSettled(
+        undefined,
+        new Error(`Screenshot timed out after ${timeoutMs}ms for ${screenshotPath}`),
+      )
+    }, timeoutMs)
+
+    // Execute screenshot with retries
+    const attemptScreenshot = async () => {
+      for (let i = 0; i < maxRetries; i++) {
+        try {
+          log.debug(`Taking screenshot: ${screenshotPath} (attempt ${i + 1}/${maxRetries})`)
+          const result = await browser.saveScreenshot(screenshotPath)
+          handleSettled(result)
+          return
+        } catch (err) {
+          if (i === maxRetries - 1 || isSettled) {
+            // Last retry or already settled (e.g. timeout occurred)
+            handleSettled(undefined, err instanceof Error ? err : new Error("Screenshot failed"))
+            return
+          }
+          log.warn(`Screenshot attempt ${i + 1} failed, waiting and retrying...`)
+          await browser.pause(RETRY_DELAY_MS)
+        }
+      }
+      // This should never be reached due to the error handling above
+      handleSettled(undefined, new Error("Screenshot failed after max retries"))
+    }
+
+    // Start the screenshot process
+    attemptScreenshot().catch((err: unknown) => {
+      log.error(err, `Unhandled error in screenshot process for ${screenshotPath}`)
+      handleSettled(undefined, err instanceof Error ? err : new Error(String(err)))
+    })
+  })
 }
 
 function getStoryName(story: Story): string {
