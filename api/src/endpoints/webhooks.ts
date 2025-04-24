@@ -70,7 +70,7 @@ export async function githubWebhook(req: RequestWithRawBody, res: DefaultRespons
   // Get the raw body from Express
   const rawBody = req.rawBody
 
-  if (!rawBody) {
+  if (!rawBody || !req.body) {
     log.error("Missing request body")
     res.status(400).json({ error: "Missing request body" })
     return

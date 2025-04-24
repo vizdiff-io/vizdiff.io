@@ -144,8 +144,8 @@ function convertToProjectResponse(project: ProjectWithStats): ProjectResponse {
 
 export const create: RequestHandler = async (req, res) => {
   const { user, ownedProjectCount } = res.locals
-  const body = req.body as Partial<CreateProjectBody>
-  const { name, githubRepoUrl, githubRepoId } = body
+  const body = req.body as Partial<CreateProjectBody> | undefined
+  const { name, githubRepoUrl, githubRepoId } = body ?? {}
 
   if (!name) {
     res.status(400).json({ error: "Missing name" })
