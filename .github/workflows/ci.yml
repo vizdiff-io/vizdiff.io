@@ -138,8 +138,8 @@ jobs:
           load: ${{ github.ref != 'refs/heads/main' }}
           platforms: linux/arm64
           tags: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY_BACKEND }}:${{ env.IMAGE_TAG }},${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY_BACKEND }}:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,mode=max,scope=api
           build-args: |
             NODE_ENV=production
 
@@ -194,8 +194,8 @@ jobs:
           load: ${{ github.ref != 'refs/heads/main' }}
           platforms: linux/arm64
           tags: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY_WORKER }}:${{ env.IMAGE_TAG }},${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY_WORKER }}:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=worker
+          cache-to: type=gha,mode=max,scope=worker
           build-args: |
             NODE_ENV=production
 
