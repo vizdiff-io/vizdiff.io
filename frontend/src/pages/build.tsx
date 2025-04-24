@@ -182,11 +182,7 @@ export default function Build(): JSX.Element {
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={(e) => e.stopPropagation()} // Prevent triggering the parent Link
-                  sx={{
-                    fontFamily: "monospace",
-                    textDecoration: "none",
-                    "&:hover": { textDecoration: "underline" },
-                  }}
+                  sx={{ fontFamily: "monospace" }}
                 >
                   {data.commitSha.substring(0, 7)}
                 </MuiLink>
@@ -196,6 +192,7 @@ export default function Build(): JSX.Element {
                 href={getBranchUrl(data.branch, data.githubRepoUrl)}
                 target="_blank"
                 rel="noopener noreferrer"
+                sx={{ fontFamily: "monospace" }}
               >
                 {data.branch}
               </MuiLink>
@@ -207,10 +204,6 @@ export default function Build(): JSX.Element {
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={(e) => e.stopPropagation()} // Prevent triggering the parent Link
-                    sx={{
-                      textDecoration: "none",
-                      "&:hover": { textDecoration: "underline" },
-                    }}
                   >
                     {`PR #${data.prNumber}`}
                   </MuiLink>
