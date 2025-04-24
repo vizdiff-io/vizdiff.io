@@ -1,6 +1,6 @@
 import { Entity, CreateDateColumn, ManyToOne, JoinColumn, PrimaryColumn } from "typeorm"
 
-import { User } from "./User"
+import type { User } from "./User"
 
 @Entity("user_github_repo_access")
 export class UserGithubRepoAccess {

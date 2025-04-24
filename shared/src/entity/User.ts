@@ -10,7 +10,7 @@ import {
 
 import type { GitHubInstallation } from "./GitHubInstallation"
 import type { Project } from "./Project"
-import { UserGithubRepoAccess } from "./UserGithubRepoAccess"
+import type { UserGithubRepoAccess } from "./UserGithubRepoAccess"
 
 @Entity("users")
 export class User {
