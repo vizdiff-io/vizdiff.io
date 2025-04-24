@@ -504,6 +504,10 @@ describe("worker", () => {
     })
 
     it("should handle storybook extraction failures", async () => {
+      // Temporarily silence the error logger
+      const originalError = log.error
+      log.error = vi.fn()
+
       // Mock S3 to simulate a download failure
       vi.mocked(S3Client).mockImplementation(() => ({
         send: vi.fn().mockRejectedValue(new Error("S3 error")),
@@ -519,6 +523,9 @@ describe("worker", () => {
       }))
 
       await expect(ingestStorybook("test-project", 123, "test-upload")).rejects.toThrow("S3 error")
+
+      // Restore the original logger
+      log.error = originalError
 
       // Verify screenshot test is marked as failed
       expect(mockScreenshotTestSave).toHaveBeenCalledWith(
