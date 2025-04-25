@@ -27,7 +27,7 @@ jobs:
 
     steps:
       - name: Setup Postgres
-        uses: ikalnytskyi/action-setup-postgres@v4
+        uses: ikalnytskyi/action-setup-postgres@v7
         with:
           database: vizdiff_test
 
