@@ -50,7 +50,7 @@
     "next": "15.3.1",
     "prettier": "^3.5.3",
     "react": "18.3.1",
-    "react-dom": "18.3.1",
+    "react-dom": "19.1.0",
     "react-markdown": "^10.1.0",
     "storybook": "8.6.12",
     "terser": "^5.39.0",
