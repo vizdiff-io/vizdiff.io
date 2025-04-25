@@ -1,4 +1,4 @@
-import { Typography, Box, Button, Container } from "@mui/material"
+import { Typography, Box, Button, Container, Link as MuiLink } from "@mui/material"
 import Head from "next/head"
 import type { JSX } from "react"
 
@@ -48,12 +48,14 @@ export default function Home(): JSX.Element {
               with previous versions, and get notified when they change.
             </Typography>
             <Box sx={{ display: "flex", gap: 2 }}>
-              <Button variant="contained" color="primary" size="large">
-                Get started
-              </Button>
-              <Button variant="outlined" size="large">
+              <MuiLink href="/projects">
+                <Button variant="contained" color="primary" size="large">
+                  Get started
+                </Button>
+              </MuiLink>
+              {/* <Button variant="outlined" size="large">
                 Get a demo
-              </Button>
+              </Button> */}
             </Box>
           </Box>
         </Container>

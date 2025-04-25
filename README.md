@@ -1,6 +1,6 @@
 # vizdiff.io
 
-https://vizdiff.io website, api, cli, and worker
+https://vizdiff.io website, api, and worker
 
 ## Local development
 

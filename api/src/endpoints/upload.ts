@@ -170,14 +170,14 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
   })
 
   // Create a GitHub check_run for this upload
-  const githubCheckRunId = await createGitHubCheckRun(
+  const githubCheckRunId = await createGitHubCheckRun({
     logChild,
-    installation.installationId,
+    installationId: installation.installationId,
     owner,
     repo,
     commitSha,
     screenshotTest,
-  )
+  })
 
   // Update the screenshot test with the GitHub check_run ID
   screenshotTest.githubCheckRunId = githubCheckRunId
@@ -212,15 +212,24 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
   res.json({ success: true, uploadId, testId: screenshotTest.id })
 }
 
+interface GitHubCheckRunData {
+  logChild: Logger
+  installationId: number
+  owner: string
+  repo: string
+  commitSha: string
+  screenshotTest: ScreenshotTest
+}
+
 // Create a GitHub check_run for a new upload
-async function createGitHubCheckRun(
-  logChild: Logger,
-  installationId: number,
-  owner: string,
-  repo: string,
-  commitSha: string,
-  screenshotTest: ScreenshotTest,
-): Promise<number | null> {
+async function createGitHubCheckRun({
+  logChild,
+  installationId,
+  owner,
+  repo,
+  commitSha,
+  screenshotTest,
+}: GitHubCheckRunData): Promise<number | null> {
   if (!IS_PRODUCTION && !IS_STAGING) {
     logChild.info(`Skipping GitHub check_run creation in development environment`)
     return null

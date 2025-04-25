@@ -12,6 +12,8 @@ updates:
 
   - package-ecosystem: "npm"
     directory: "/api"
+    labels:
+      - "dependencies"
     schedule:
       interval: "weekly"
 
@@ -22,16 +24,22 @@ updates:
 
   - package-ecosystem: "npm"
     directory: "/frontend"
+    labels:
+      - "dependencies"
     schedule:
       interval: "weekly"
 
   - package-ecosystem: "npm"
     directory: "/shared"
+    labels:
+      - "dependencies"
     schedule:
       interval: "weekly"
 
   - package-ecosystem: "npm"
     directory: "/worker"
+    labels:
+      - "dependencies"
     schedule:
       interval: "weekly"
 
