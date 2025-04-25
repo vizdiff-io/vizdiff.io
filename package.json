@@ -5,14 +5,12 @@
   "packageManager": "yarn@4.3.0",
   "workspaces": [
     "api",
-    "cli",
     "frontend",
     "shared",
     "worker"
   ],
   "scripts": {
     "api": "yarn workspace api",
-    "cli": "yarn workspace @vizdiff/cli",
     "frontend": "yarn workspace frontend",
     "worker": "yarn workspace worker",
     "build:all": "yarn workspace shared build && yarn workspaces foreach --all -p run build",

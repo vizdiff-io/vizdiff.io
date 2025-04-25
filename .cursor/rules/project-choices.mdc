@@ -7,7 +7,6 @@ vizdiff.io is a visual screenshot testing SaaS platform offering tight integrati
 
 - `.cursor/rules`: Stores `.mdc` files containing Cursor rules capturing all project and development knowledge. Create and/or update rules as new knowledge is discovered, feedback is given, or mistakes are corrected
 - `api`: node.js Express backend serving https://vizdiff.io/api/ that handles authentication, storybook uploads and scheduling tasks for the worker service, talking to Postgres and providing data to the frontend, and creating and updating GitHub check runs
-- `cli`: node.js command line utility for uploading `storybook-static` builds to the API
 - `dev_gateway`: An nginx setup via Docker and bash meant to run locally and handle TLS for the frontend and API
 - `frontend`: next.js website that is compiled with Static Site Generation, uploaded to S3, and served as a static website
 - `shared`: Defines TypeORM entities and common methods used by both the API and worker service
