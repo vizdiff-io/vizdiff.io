@@ -20,8 +20,8 @@ import { remote } from "webdriverio"
 
 import { Database } from "./database"
 import { downloadWithTimeout } from "./download"
-import { APP_URL, IS_PRODUCTION, STRIPE_API_VERSION, STRIPE_SECRET_KEY } from "./environment"
-import { getOctokitForInstallation, updateGitHubCheckRun, type GitHubCheckData } from "./github"
+import { IS_PRODUCTION, STRIPE_API_VERSION, STRIPE_SECRET_KEY } from "./environment"
+import { updateGitHubCheckRun, type GitHubCheckData } from "./github"
 import { log } from "./log"
 import { type Story, processStory } from "./stories"
 
@@ -51,7 +51,7 @@ export async function ingestStorybook(
     throw new Error(`Screenshot test not found: ${screenshotTestId}`)
   }
 
-  // Update GitHub check run to in-progress if we have GitHub check data
+  // Update GitHub check run title and summary if we have GitHub check data
   if (githubCheckData) {
     try {
       await updateGitHubCheckRun({
@@ -60,7 +60,7 @@ export async function ingestStorybook(
         installationId: githubCheckData.installationId,
         checkRunId: githubCheckData.checkRunId,
         testId: screenshotTestId,
-        status: "in_progress",
+        status: "queued",
         title: "Rendering storybook components…",
         summary: createSummaryForBuild(screenshotTest),
       })
@@ -445,49 +445,27 @@ async function updateGitHubCheckRunWithBuildResults(
       installationId: githubCheckData.installationId,
       checkRunId: githubCheckData.checkRunId,
       testId: screenshotTest.id,
-      status: "completed",
+      status: hasChanges ? "queued" : "completed",
       conclusion: hasChanges ? "action_required" : "success",
       title,
       summary,
       text,
-      actions: hasChanges
-        ? [
-            {
-              label: "✅ Approve",
-              description: `Approve ${changeCount} visual change${changeCount === 1 ? "" : "s"}`,
-              identifier: "approved",
-            },
-            {
-              label: "❌ Deny",
-              description: `Deny ${changeCount} visual change${changeCount === 1 ? "" : "s"}`,
-              identifier: "denied",
-            },
-          ]
-        : undefined,
+      // Unfortunately, GitHub does not support actions for check runs that are queued
+      // actions: hasChanges
+      //   ? [
+      //       {
+      //         label: "✅ Approve",
+      //         description: `Approve ${changeCount} visual change${changeCount === 1 ? "" : "s"}`,
+      //         identifier: "approved",
+      //       },
+      //       {
+      //         label: "❌ Deny",
+      //         description: `Deny ${changeCount} visual change${changeCount === 1 ? "" : "s"}`,
+      //         identifier: "denied",
+      //       },
+      //     ]
+      //   : undefined,
     })
-
-    if (!hasChanges) {
-      const { summary: approvalSummary } = createMarkdownForBuildResult(screenshotTest, testResults)
-      // Create a new check run with the success conclusion
-      const octokit = await getOctokitForInstallation(githubCheckData.installationId)
-      const result = await octokit.checks.create({
-        owner: githubCheckData.owner,
-        repo: githubCheckData.repo,
-        head_sha: screenshotTest.commitSha,
-        external_id: String(screenshotTest.id),
-        name: "Visual Tests",
-        status: "completed",
-        conclusion: "success",
-        details_url: `${APP_URL}/build?id=${screenshotTest.id}`,
-        output: {
-          title: "No visual changes detected.",
-          summary: approvalSummary,
-        },
-      })
-      log.info(
-        `Created GitHub check run ${result.data.id} for ${screenshotTest.toString()} with implicit conclusion: success`,
-      )
-    }
   } catch (error) {
     log.error(error, "Failed to update GitHub check run to completed")
     // Continue even if the GitHub API calls fail
