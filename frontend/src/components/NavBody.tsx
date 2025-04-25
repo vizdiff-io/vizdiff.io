@@ -43,7 +43,7 @@ export const MarketingLayout: React.FC<MarketingLayoutProps> = ({ children }) =>
                 mr: 4,
               }}
             >
-              vizdiff.io
+              VizDiff
             </Typography>
             <Box sx={{ display: { xs: "none", md: "flex" }, gap: 2 }}>
               <Link href={isClientAuthenticated ? "/signup" : "/pricing"}>

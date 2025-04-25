@@ -67,8 +67,20 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
   const breadcrumbs = useMemo(() => {
     const crumbs = [
-      <Button color="primary" variant="text" key="1" href="/">
-        vizdiff.io
+      <Button
+        color="primary"
+        variant="text"
+        key="1"
+        href="/"
+        sx={{
+          fontWeight: 600,
+          fontSize: "1.25rem",
+          textDecoration: "none",
+          pl: 0,
+          mr: 3,
+        }}
+      >
+        VizDiff
       </Button>,
       <Button color="primary" variant="text" key="2" href="/projects">
         Projects
