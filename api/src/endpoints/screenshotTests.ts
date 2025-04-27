@@ -11,6 +11,7 @@ import { Database } from "../database"
 import { getParamInt } from "../http"
 import { log } from "../log"
 import type { RequestHandler } from "../types"
+import { getAccessibleProjectIds } from "src/projectAccess"
 
 type ScreenshotTestWithStats = {
   screenshot_test_id: number
@@ -55,8 +56,17 @@ export const list: RequestHandler = async (req, res) => {
   }
 
   const db = await Database()
+
+  // Permissions check
+  const projectIds = await getAccessibleProjectIds(db, user.id)
+  if (!projectIds.includes(projectId)) {
+    log.error({ user, projectId, projectIds }, "Project not found in accessible projects")
+    res.status(404).json({ error: "Project not found" })
+    return
+  }
+
   const projectTable = db.getRepository(Project)
-  const project = await projectTable.findOneBy({ id: projectId, user: { id: user.id } })
+  const project = await projectTable.findOneBy({ id: projectId })
 
   if (!project) {
     res.status(404).json({ error: "Project not found" })
