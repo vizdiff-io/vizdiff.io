@@ -104,6 +104,59 @@ const mockBuildData: TestResponse = {
   },
 }
 
+const mockBuildDataDemo: TestResponse = {
+  id: 123,
+  projectId: 456,
+  projectName: "My Project",
+  buildNumber: 42,
+  githubRepoUrl: "https://github.com/my-org/my-project",
+  commitSha: "abc123433dcad967ac73e8219f3c9fa5d2b49a70",
+  branch: "main",
+  prNumber: 123,
+  uploadId: "upload-123",
+  status: "unapproved",
+  initiatedStampSec: oneMinuteAgo,
+  testResults: [
+    {
+      id: 1,
+      name: "pages/Signup/Checkout Error",
+      changeStatus: "changed",
+      screenshotUrl: screenshot01New.src,
+      ancestorScreenshotUrl: screenshot01Base.src,
+      diffMaskUrl: screenshot01Diff.src,
+      diffRatio: 0.0932,
+      createdStampSec: oneMinuteAgo,
+    },
+    {
+      id: 2,
+      name: "pages/Home/Dark",
+      changeStatus: "new",
+      screenshotUrl: screenshot02New.src,
+      createdStampSec: oneMinuteAgo,
+    },
+    {
+      id: 3,
+      name: "pages/Build/Light",
+      changeStatus: "unchanged",
+      screenshotUrl: screenshot03New.src,
+      ancestorScreenshotUrl: screenshot03New.src,
+      createdStampSec: oneMinuteAgo,
+    },
+  ],
+  parent: {
+    id: 789,
+    projectId: 456,
+    projectName: "Cat Photos",
+    buildNumber: 41,
+    githubRepoUrl: "https://github.com/cats/cat-photos",
+    branch: "main",
+    commitSha: "def456",
+    uploadId: "upload-122",
+    status: "no_changes",
+    initiatedStampSec: oneMinuteAgo - 3600,
+  },
+}
+
 const meta: Meta<typeof BuildComponent> = {
   title: "stories/pages/Build",
   component: BuildComponent,
@@ -267,6 +320,21 @@ export const Failed: Story = {
       handlers: [
         userHandler,
         http.get("/api/tests/:id", () => HttpResponse.json({ ...mockBuildData, status: "failed" })),
+        catchAllHandler,
+      ],
+    },
+  },
+}
+
+export const Demo: Story = {
+  args: {
+    mode: "light",
+  },
+  parameters: {
+    msw: {
+      handlers: [
+        userHandler,
+        http.get("/api/tests/:id", () => HttpResponse.json(mockBuildDataDemo)),
         catchAllHandler,
       ],
     },
