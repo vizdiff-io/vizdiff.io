@@ -11,7 +11,7 @@ import { Database } from "../database"
 import { getParamInt } from "../http"
 import { log } from "../log"
 import type { RequestHandler } from "../types"
-import { getAccessibleProjectIds } from "src/projectAccess"
+import { getAccessibleProjectIds } from "../projectAccess"
 
 type ScreenshotTestWithStats = {
   screenshot_test_id: number
