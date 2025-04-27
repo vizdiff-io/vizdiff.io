@@ -101,7 +101,7 @@ const mockOrgs: Endpoints["GET /user/orgs"]["response"]["data"] = [
   { id: 7, login: "fastapi", ...BASE_ORG_DATA },
   { id: 8, login: "axios", ...BASE_ORG_DATA },
   { id: 9, login: "expressjs", ...BASE_ORG_DATA },
-  { id: 10, login: "fastapi", ...BASE_ORG_DATA },
+  { id: 10, login: "angular", ...BASE_ORG_DATA },
   { id: 11, login: "kubernetes", ...BASE_ORG_DATA },
   { id: 12, login: "puppeteer", ...BASE_ORG_DATA },
   { id: 13, login: "tailwindlabs", ...BASE_ORG_DATA },
