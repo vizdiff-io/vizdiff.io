@@ -10,8 +10,8 @@ import { toSeconds } from "../conversions"
 import { Database } from "../database"
 import { getParamInt } from "../http"
 import { log } from "../log"
-import type { RequestHandler } from "../types"
 import { getAccessibleProjectIds } from "../projectAccess"
+import type { RequestHandler } from "../types"
 
 type ScreenshotTestWithStats = {
   screenshot_test_id: number
