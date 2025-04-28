@@ -60,6 +60,14 @@ export const Dark: Story = {
   parameters: { msw: { handlers: [catchAllHandler] } },
 }
 
+export const Authenticated: Story = {
+  args: {
+    mode: "light",
+    isAuthenticated: true,
+  },
+  parameters: { msw: { handlers: [catchAllHandler] } },
+}
+
 export const Mobile: Story = {
   args: {
     mode: "light",
@@ -73,10 +81,15 @@ export const Mobile: Story = {
   },
 }
 
-export const Authenticated: Story = {
+export const MobileAuthenticated: Story = {
   args: {
     mode: "light",
     isAuthenticated: true,
   },
-  parameters: { msw: { handlers: [catchAllHandler] } },
+  parameters: {
+    msw: { handlers: [catchAllHandler] },
+  },
+  globals: {
+    viewport: { value: "mobile1" },
+  },
 }
