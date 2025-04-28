@@ -34,8 +34,8 @@ export class TestResult {
   @Column({ type: "jsonb", name: "story", nullable: true })
   story!: object | null
 
-  @Column({ type: "text", name: "baseline_image_url", nullable: false })
-  baselineImageUrl!: string
+  @Column({ type: "text", name: "baseline_image_url", nullable: true })
+  baselineImageUrl!: string | null
 
   @Column({ type: "text", name: "new_image_url", nullable: false })
   newImageUrl!: string
