@@ -18,6 +18,13 @@ const config: StorybookConfig = {
     getAbsolutePath("@storybook/addon-essentials"),
     getAbsolutePath("@storybook/addon-interactions"),
   ],
+  features: {
+    backgroundsStoryGlobals: true,
+    developmentModeForBuild: true,
+    disallowImplicitActionsInRenderV8: true,
+    experimentalRSC: true,
+    viewportStoryGlobals: true,
+  },
   framework: {
     name: getAbsolutePath("@storybook/nextjs"),
     options: {},
