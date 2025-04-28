@@ -15,6 +15,10 @@ export const COLORS: Record<string, { light: string; dark: string }> = {
     light: "#f8f9fa",
     dark: "#181919",
   },
+  "bg-secondary": {
+    light: "#eee",
+    dark: "#333",
+  },
   "text-primary": {
     light: "#1a1d1e",
     dark: "#ffffff",
