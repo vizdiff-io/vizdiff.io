@@ -1,6 +1,7 @@
 import React from "react"
 import { Prism, type SyntaxHighlighterProps } from "react-syntax-highlighter"
 
+// `react-syntax-highlighter` is not typed for React 18
 const SyntaxHighlighter = Prism as unknown as typeof React.Component<SyntaxHighlighterProps>
 
 const CodeBlock = ({
