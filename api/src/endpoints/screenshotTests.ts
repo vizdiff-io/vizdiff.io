@@ -209,7 +209,7 @@ export const get: RequestHandler = async (req, res) => {
       name: result.name,
       changeStatus: result.changeStatus as TestResultResponse["changeStatus"],
       screenshotUrl: result.newImageUrl,
-      ancestorScreenshotUrl: result.baselineImageUrl,
+      ancestorScreenshotUrl: result.baselineImageUrl ?? undefined,
       diffMaskUrl: result.diffImageUrl ?? undefined,
       diffRatio: result.diffRatio ?? undefined,
       createdStampSec: toSeconds(result.createdAt),

@@ -214,8 +214,8 @@ export async function processStory({
   log.info(`Successfully uploaded screenshot ${screenshotKey} to S3 (${screenshot.length} bytes)`)
 
   let changeStatus: TestResultStatus = "new"
-  let baselineImageUrl = newImageUrl
-  let diffImageUrl: string | undefined
+  let baselineImageUrl: string | null = null
+  let diffImageUrl: string | null = null
   let diffRatio = 0
 
   if (baseTestResult) {
@@ -297,7 +297,7 @@ export async function processStory({
   testResult.story = story
   testResult.newImageUrl = newImageUrl
   testResult.baselineImageUrl = baselineImageUrl
-  testResult.diffImageUrl = diffImageUrl ?? null
+  testResult.diffImageUrl = diffImageUrl
   testResult.diffRatio = diffRatio
   testResult.changeStatus = changeStatus
   await testResultTable.save(testResult)
