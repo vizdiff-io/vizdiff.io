@@ -1,4 +1,4 @@
-import { http, HttpResponse } from "msw"
+import { http, HttpResponse, passthrough } from "msw"
 
 import type { UserResponse } from "@/lib/apiTypes"
 
@@ -33,7 +33,11 @@ export const mockUser: UserResponse = {
 
 export const userHandler = http.get("/api/users/me", () => HttpResponse.json(mockUser))
 
-export const catchAllHandler = http.all("/api/*", ({ request }) => {
-  console.warn(`Unhandled API request in Storybook: ${request.method} ${request.url}`)
-  return HttpResponse.json({ error: "Unhandled API request" }, { status: 500 })
+export const catchAllHandler = http.all("*", ({ request }) => {
+  const url = new URL(request.url)
+  if (url.pathname.startsWith("/api/")) {
+    console.warn(`Unhandled API request in Storybook: ${request.method} ${request.url}`)
+    return HttpResponse.json({ error: "Unhandled API request" }, { status: 500 })
+  }
+  return passthrough()
 })
