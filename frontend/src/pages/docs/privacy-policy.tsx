@@ -119,7 +119,7 @@ export default function PrivacyPolicy(): JSX.Element {
         <meta name="description" content="Privacy Policy for the vizdiff.io service" />
       </Head>
       <MarketingLayout>
-        <Container maxWidth="lg">
+        <Container maxWidth="lg" sx={{ px: { xs: 1, md: 3 } }}>
           <Box
             sx={{
               textAlign: "left",

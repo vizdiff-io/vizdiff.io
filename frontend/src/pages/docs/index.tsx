@@ -102,7 +102,7 @@ export default function Documentation(): JSX.Element {
         />
       </Head>
       <MarketingLayout>
-        <Container maxWidth="lg">
+        <Container maxWidth="lg" sx={{ px: { xs: 0, md: 3 } }}>
           <Box
             sx={{
               textAlign: "left",
@@ -118,11 +118,17 @@ export default function Documentation(): JSX.Element {
                 "& h2": { marginBottom: "0.5em", marginTop: "2em" },
                 "& h3": { marginBottom: "0.5em" },
                 "& h4": { marginBottom: "0.25em" },
-                "& img": { width: "75%", margin: "auto", display: "block" },
+                "& img": { width: { xs: "100%", md: "75%" }, margin: "auto", display: "block" },
                 "& blockquote": {
                   backgroundColor: "var(--bg-secondary)",
                   margin: "1em",
                   padding: "10px 10px 1px 10px",
+                },
+                "& code": {
+                  fontSize: "1rem",
+                },
+                "& pre code": {
+                  fontSize: { xs: "0.75rem !important", md: "0.875rem !important" },
                 },
               }}
             >

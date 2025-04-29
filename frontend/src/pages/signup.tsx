@@ -181,18 +181,30 @@ export default function Signup(): JSX.Element {
         <meta name="description" content="Project listing" />
       </Head>
       <AppLayout>
-        <Box sx={{ display: "flex", gap: 3, px: 3, py: 4, minHeight: "calc(100vh - 64px)" }}>
+        <Box
+          sx={{
+            display: "flex",
+            gap: 3,
+            px: { xs: 0, sm: 3 },
+            py: { xs: 0, md: 4 },
+            minHeight: "calc(100vh - 64px)",
+          }}
+        >
           <LeftSidebar selectedItem="billing" />
 
           {/* Main Content */}
           <Box sx={{ flex: 1 }}>
-            <Container maxWidth="lg" sx={{ py: 8 }}>
+            <Container maxWidth="lg" sx={{ px: 0, py: { xs: 0, sm: 2 } }}>
               <Typography
                 variant="h2"
                 component="h1"
                 align="center"
                 gutterBottom
-                sx={{ fontWeight: "bold", mb: 3 }}
+                sx={{
+                  fontWeight: { xs: 600, sm: "bold" },
+                  lineHeight: { xs: 1.1, sm: 1.2 },
+                  mb: 3,
+                }}
               >
                 Plans that scale with your testing needs
               </Typography>
@@ -242,12 +254,12 @@ export default function Signup(): JSX.Element {
               </Box>
 
               {/* Pricing plans */}
-              <Grid container spacing={4} justifyContent="center">
+              <Grid container spacing={3} justifyContent="center">
                 {PRICING_PLANS.map((plan) => {
                   const isPlanActive = isCurrentPlan(plan.name)
 
                   return (
-                    <Grid key={plan.name} size={{ xs: 12, sm: 6, md: 4 }}>
+                    <Grid key={plan.name} size={{ xs: 12, sm: 6, lg: 4 }}>
                       <Card
                         sx={{
                           height: "100%",

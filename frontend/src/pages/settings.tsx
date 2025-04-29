@@ -15,6 +15,7 @@ import {
   DialogTitle,
   CircularProgress,
   Alert,
+  Link as MuiLink,
   List,
   ListItem,
   ListItemText,
@@ -154,10 +155,19 @@ export default function Settings(): JSX.Element {
         <meta name="description" content="User account settings" />
       </Head>
       <AppLayout>
-        <Box sx={{ display: "flex", gap: 3, px: 3, py: 4, minHeight: "calc(100vh - 64px)" }}>
+        <Box
+          sx={{
+            display: "flex",
+            gap: 3,
+            px: { xs: 0, sm: 3 },
+            py: { xs: 1, sm: 4 },
+            minHeight: "calc(100vh - 64px)",
+            overflowX: "hidden",
+          }}
+        >
           <LeftSidebar selectedItem="settings" />
 
-          <Box sx={{ flex: 1 }}>
+          <Box sx={{ flex: 1, width: "100%" }}>
             <Typography variant="h4" component="h1" sx={{ fontWeight: 600, mb: 4 }}>
               Account Settings
             </Typography>
@@ -174,7 +184,7 @@ export default function Settings(): JSX.Element {
               </Box>
             ) : user ? (
               <>
-                <Paper sx={{ p: 3, mb: 4 }}>
+                <Paper sx={{ p: { xs: 2, sm: 3 }, mb: 4 }}>
                   <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
                     <Avatar
                       src={user.githubProfile.avatar_url}
@@ -211,13 +221,13 @@ export default function Settings(): JSX.Element {
                   </Box>
                 </Paper>
 
-                <Paper sx={{ p: 3, mb: 4 }}>
+                <Paper sx={{ p: { xs: 2, sm: 3 }, mb: 4 }}>
                   <Box
                     sx={{
                       display: "flex",
                       justifyContent: "space-between",
                       alignItems: "center",
-                      mb: 2,
+                      mb: { xs: 0, sm: 2 },
                     }}
                   >
                     <Typography variant="h6">Projects</Typography>
@@ -251,6 +261,7 @@ export default function Settings(): JSX.Element {
                       {projectsResponse.map((project) => (
                         <Box key={project.id}>
                           <ListItem
+                            sx={{ p: { xs: 0, sm: "8px 48px 8px 16px" } }}
                             secondaryAction={
                               project.ownerId === user.id && (
                                 <Tooltip title="Delete project">
@@ -268,7 +279,7 @@ export default function Settings(): JSX.Element {
                               )
                             }
                           >
-                            <ListItemIcon>
+                            <ListItemIcon sx={{ minWidth: "38px" }}>
                               {project.ownerId === user.id ? (
                                 <StarIcon color="primary" />
                               ) : (
@@ -283,20 +294,34 @@ export default function Settings(): JSX.Element {
                                   sx={{ display: "flex", flexDirection: "column" }}
                                 >
                                   <Typography variant="body2" component="span">
-                                    {project.ownerId === user.id ? "Owner" : "Access via GitHub"}
+                                    {project.ownerId === user.id ? "Owner" : ""}
                                   </Typography>
-                                  <Typography
+                                  <MuiLink
+                                    href={project.githubRepoUrl}
+                                    target="_blank"
+                                    rel="noopener"
                                     variant="body2"
-                                    component="span"
-                                    color="var(--text-secondary)"
+                                    sx={{
+                                      color: "var(--text-secondary)",
+                                      whiteSpace: "nowrap",
+                                      overflow: "hidden",
+                                      textOverflow: "ellipsis",
+                                      direction: "rtl",
+                                      textAlign: "left",
+                                    }}
                                   >
-                                    {project.githubRepoUrl}
-                                  </Typography>
+                                    {project.githubRepoUrl.replace("https://github.com/", "")}
+                                  </MuiLink>
                                 </Box>
                               }
                             />
-                            <Typography variant="body2" color="var(--text-secondary)">
-                              {project.builds} builds · {project.tests} tests
+                            <Typography
+                              variant="body2"
+                              color="var(--text-secondary)"
+                              sx={{ display: { xs: "none", sm: "block" } }}
+                            >
+                              {project.builds} build{project.builds === 1 ? "" : "s"} ·{" "}
+                              {project.tests} test{project.tests === 1 ? "" : "s"}
                             </Typography>
                           </ListItem>
                           <Divider variant="inset" component="li" />
@@ -306,7 +331,7 @@ export default function Settings(): JSX.Element {
                   )}
                 </Paper>
 
-                <Box sx={{ maxWidth: "66%" }}>
+                <Box sx={{ maxWidth: "500px" }}>
                   <Paper
                     sx={{
                       p: 3,

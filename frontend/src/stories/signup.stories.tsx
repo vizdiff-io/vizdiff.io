@@ -6,7 +6,7 @@ import { type JSX, type ComponentType, useEffect } from "react"
 import type { UserResponse, BillingPeriodUsageResponse } from "@/lib/apiTypes"
 
 import ThemeWrapper from "./ThemeWrapper"
-import { catchAllHandler } from "./mocks"
+import { catchAllHandler, mockUser } from "./mocks"
 import SignupComponent from "../pages/signup"
 
 type StoryArgs = {
@@ -28,23 +28,10 @@ const periodEndDate = new Date("2025-05-01T00:00:00Z") // Example period end
 
 // Create base mock user
 const createMockUser = (subscription: StoryArgs["subscription"]): UserResponse => ({
-  id: 123,
-  githubId: "user123",
-  email: "user@example.com",
-  githubUsername: "user123",
-  githubProfile: {
-    login: "user123",
-    name: "User 123",
-    id: 123,
-    node_id: "node123",
-    avatar_url: "https://github.com/avatar.png",
-    email: "user@example.com",
-  },
-  ownedProjectCount: 1,
+  ...mockUser,
   trialEndStampSec: oneMinuteAgo,
   createdStampSec: fixedDate.getTime() / 1000,
   updatedStampSec: oneMinuteAgo,
-  githubInstallations: [],
   subscription: subscription ?? null,
 })
 
@@ -398,4 +385,12 @@ export const CheckoutError: Story = {
     }
   },
   name: "Checkout Error State",
+}
+
+export const Mobile: Story = {
+  args: {
+    mode: "light",
+  },
+  parameters: { layout: "fullscreen" },
+  globals: { viewport: { value: "mobile1" } },
 }

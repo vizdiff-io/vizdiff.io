@@ -101,7 +101,7 @@ export default function TermsOfService(): JSX.Element {
         <meta name="description" content="Terms of Service for vizdiff.io" />
       </Head>
       <MarketingLayout>
-        <Container maxWidth="lg">
+        <Container maxWidth="lg" sx={{ px: { xs: 2, md: 3 } }}>
           <Box
             sx={{
               textAlign: "left",
