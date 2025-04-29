@@ -38,6 +38,7 @@ export default function TestResultDialog({
 }: TestResultDialogProps): JSX.Element | null {
   // 1. State
   const [viewMode, setViewMode] = useState<ViewMode>("diff")
+  const [preferredViewMode, setPreferredViewMode] = useState<ViewMode>("diff")
   const [screenshotError, setScreenshotError] = useState(false)
   const [ancestorScreenshotError, setAncestorScreenshotError] = useState(false)
   const [diffMaskError, setDiffMaskError] = useState(false)
@@ -81,6 +82,7 @@ export default function TestResultDialog({
     (_: React.MouseEvent<HTMLElement>, newMode: ViewMode | null) => {
       if (newMode) {
         setViewMode(newMode)
+        setPreferredViewMode(newMode)
       }
     },
     [],
@@ -94,16 +96,35 @@ export default function TestResultDialog({
     setDiffMaskError(false)
   }, [result?.id])
 
-  // Reset to "new" view if current view mode isn't available based on status
+  // Reset view mode based on availability and preference when result changes
   useEffect(() => {
     if (!result) {
       return
     }
 
-    if ((viewMode === "old" && !canShowOld) || (viewMode === "diff" && !canShowDiff)) {
-      setViewMode("new")
+    let targetMode = viewMode // Start with current mode
+
+    // 1. Check if preferred mode is valid
+    if (preferredViewMode === "old" && canShowOld) {
+      targetMode = "old"
+    } else if (preferredViewMode === "diff" && canShowDiff) {
+      targetMode = "diff"
+    } else if (preferredViewMode === "split" || preferredViewMode === "new") {
+      // "split" and "new" are always available
+      targetMode = preferredViewMode
+    } else {
+      // 2. Preferred mode is not valid, check if current mode is still valid
+      if ((viewMode === "old" && !canShowOld) || (viewMode === "diff" && !canShowDiff)) {
+        // Current mode is also invalid, default to "new"
+        targetMode = "new"
+      }
+      // Otherwise, current mode is 'new' or 'split' and remains valid, so targetMode stays as viewMode
     }
-  }, [viewMode, canShowOld, canShowDiff, result])
+
+    if (viewMode !== targetMode) {
+      setViewMode(targetMode)
+    }
+  }, [result, viewMode, preferredViewMode, canShowOld, canShowDiff])
 
   // Keyboard navigation effect
   useEffect(() => {
@@ -138,11 +159,14 @@ export default function TestResultDialog({
       slotProps={{
         paper: {
           sx: {
+            margin: 0,
+            width: { xs: "96.5%", md: "calc(100% - 32px)" },
+            maxWidth: "96.5%",
             height: "calc(100vh - 64px)",
             maxHeight: "calc(100vh - 64px)",
-            m: 2,
             display: "flex",
             flexDirection: "column",
+            fontSize: { xs: "0.875rem", sm: "1rem" },
           },
         },
       }}
@@ -150,14 +174,30 @@ export default function TestResultDialog({
       <DialogTitle
         sx={{
           display: "flex",
+          flexDirection: { xs: "column", sm: "row" },
           justifyContent: "space-between",
-          alignItems: "center",
+          alignItems: { xs: "flex-start", sm: "center" },
           flex: "0 0 auto",
           p: 2,
           pb: 1,
-          gap: 1,
+          gap: { xs: 0.5, sm: 1 },
         }}
       >
+        <Typography
+          variant="h6"
+          component="div"
+          sx={{
+            whiteSpace: "nowrap",
+            overflow: "clip",
+            textOverflow: "ellipsis",
+            direction: "rtl",
+            textAlign: "left",
+            display: { xs: "block", sm: "none" },
+            width: "100%",
+          }}
+        >
+          {result.name}
+        </Typography>
         <Box
           sx={{
             flex: "1 1 65%",
@@ -174,6 +214,7 @@ export default function TestResultDialog({
               textOverflow: "ellipsis",
               direction: "rtl",
               textAlign: "left",
+              display: { xs: "none", sm: "block" },
             }}
           >
             {result.name}
@@ -182,22 +223,36 @@ export default function TestResultDialog({
             {changeStatusMessage(result.changeStatus, result.diffRatio ?? 0)}
           </Typography>
         </Box>
-        <Box sx={{ display: "flex", gap: 1, alignItems: "center", flexShrink: 0 }}>
-          <IconButton onClick={handleNavigatePrev} disabled={!canNavigatePrev} size="small">
-            <ArrowBackIosNewIcon fontSize="small" />
-          </IconButton>
-          <Typography variant="body2" sx={{ minWidth: "4ch", textAlign: "center" }}>
-            {`${currentIndex + 1}/${allResults.length}`}
-          </Typography>
-          <IconButton onClick={handleNavigateNext} disabled={!canNavigateNext} size="small">
-            <ArrowForwardIosIcon fontSize="small" />
-          </IconButton>
+        <Box
+          sx={{
+            display: "flex",
+            gap: 1,
+            alignItems: "center",
+            flexShrink: 0,
+            width: { xs: "100%", sm: "auto" },
+            justifyContent: { xs: "space-between", sm: "flex-end" },
+          }}
+        >
+          <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+            <IconButton onClick={handleNavigatePrev} disabled={!canNavigatePrev} size="small">
+              <ArrowBackIosNewIcon fontSize="small" />
+            </IconButton>
+            <Typography variant="body2" sx={{ minWidth: "4ch", textAlign: "center" }}>
+              {`${currentIndex + 1}/${allResults.length}`}
+            </Typography>
+            <IconButton onClick={handleNavigateNext} disabled={!canNavigateNext} size="small">
+              <ArrowForwardIosIcon fontSize="small" />
+            </IconButton>
+          </Box>
           <ToggleButtonGroup
             value={viewMode}
             exclusive
             onChange={handleViewModeChange}
             size="small"
             color="primary"
+            sx={{
+              display: { xs: "none", sm: "flex" },
+            }}
           >
             <ToggleButton value="old" disabled={!canShowOld}>
               <LayersIcon sx={{ mr: 1 }} />

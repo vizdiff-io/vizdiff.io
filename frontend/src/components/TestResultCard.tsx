@@ -85,6 +85,7 @@ export default function TestResultCard({
               alt={`Screenshot for ${result.name}`}
               fill
               style={{ objectFit: "contain" }}
+              sizes="(max-width: 600px) 100vw, (max-width: 900px) 50vw, 33vw"
               priority={isPriority}
               onError={() => setScreenshotError(true)}
             />
@@ -121,7 +122,7 @@ export default function TestResultCard({
       </Box>
 
       {/* Status indicator */}
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1, marginTop: "auto" }}>
         <Box
           sx={{
             width: 8,

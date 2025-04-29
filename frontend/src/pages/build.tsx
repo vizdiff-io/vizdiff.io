@@ -169,7 +169,16 @@ export default function Build(): JSX.Element {
     content = (
       <>
         {/* Build header */}
-        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 4 }}>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: { xs: "stretch", sm: "center" },
+            flexDirection: { xs: "column", sm: "row" },
+            gap: { xs: 3, sm: 0 },
+            mb: 4,
+          }}
+        >
           <Box>
             <Typography variant="h4" component="h1" sx={{ fontWeight: 600, mb: 1 }}>
               {`Build #${data.buildNumber}`}
@@ -277,7 +286,12 @@ export default function Build(): JSX.Element {
           <Box
             sx={{
               display: "grid",
-              gridTemplateColumns: "repeat(3, 1fr)",
+              // Responsive columns
+              gridTemplateColumns: {
+                xs: "repeat(1, 1fr)",
+                sm: "repeat(2, 1fr)",
+                md: "repeat(3, 1fr)",
+              },
               gap: 2,
               "& > *": {
                 width: "100%",
@@ -314,7 +328,7 @@ export default function Build(): JSX.Element {
         <meta name="description" content="Build details and test results" />
       </Head>
       <AppLayout>
-        <Box sx={{ px: 3, py: 4 }}>
+        <Box sx={{ px: { xs: 0, sm: 3 }, py: { xs: 0, sm: 4 } }}>
           {error && (
             <Paper sx={{ p: 2, mb: 3, bgcolor: "error.light", color: "error.contrastText" }}>
               {error.message}
