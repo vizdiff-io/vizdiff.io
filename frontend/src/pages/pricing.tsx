@@ -152,15 +152,19 @@ export default function Pricing(): JSX.Element {
         <meta name="description" content="Screenshot testing made easy." />
       </Head>
       <MarketingLayout>
-        <Container maxWidth="lg" sx={{ py: 8 }}>
+        <Container maxWidth="lg" sx={{ py: { xs: 0, sm: 8 } }}>
           <Typography
             variant="h2"
             component="h1"
-            align="center"
             gutterBottom
-            sx={{ fontWeight: "bold", mb: 6 }}
+            sx={{
+              fontWeight: "bold",
+              fontSize: { xs: "h5.fontSize", sm: "h2.fontSize" },
+              mb: { xs: 4, sm: 6 },
+              textAlign: { xs: "left", sm: "center" },
+            }}
           >
-            Plans that scale with your screenshot testing needs
+            Plans that scale with your testing needs
           </Typography>
           <Grid container spacing={4} justifyContent="center">
             {PRICING_PLANS.map((plan) => (

@@ -77,16 +77,17 @@ export default function Login(): JSX.Element {
           <Box
             sx={{
               textAlign: "left",
-              pt: { xs: 8, sm: 12, md: 16 },
+              pt: { xs: 0, sm: 12, md: 16 },
               pb: { xs: 8, sm: 12 },
               maxWidth: "800px",
             }}
           >
             <Typography
               component="h1"
-              variant="h1"
               sx={{
                 mb: 2,
+                fontSize: { xs: "h4.fontSize", sm: "h1.fontSize" },
+                lineHeight: 1.2,
                 background: "var(--gradient-text)",
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",

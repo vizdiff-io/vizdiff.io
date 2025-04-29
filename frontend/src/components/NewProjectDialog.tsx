@@ -2,17 +2,17 @@ import CloseIcon from "@mui/icons-material/Close"
 import GitHubIcon from "@mui/icons-material/GitHub"
 import RefreshIcon from "@mui/icons-material/Refresh"
 import {
+  Box,
+  Button,
+  CircularProgress,
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  IconButton,
   List,
   ListItemButton,
   ListItemText,
-  CircularProgress,
-  IconButton,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  Button,
   Typography,
-  Box,
 } from "@mui/material"
 import type { Endpoints } from "@octokit/types"
 import React, { type JSX, useState, useEffect, useCallback } from "react"
@@ -25,6 +25,7 @@ import { GITHUB_APP_NAME } from "@/lib/environment"
 type NewProjectDialogProps = {
   onClose: () => void
   initialSelectedOrg?: string
+  mode?: "light" | "dark"
 }
 
 type GithubOrg = Endpoints["GET /user/orgs"]["response"]["data"][0]
@@ -36,7 +37,9 @@ const API_REPOS_URL = "/api/github/repos"
 export default function NewProjectDialog({
   onClose,
   initialSelectedOrg,
+  mode,
 }: NewProjectDialogProps): JSX.Element {
+  void mode
   const [repos, setRepos] = useState<GithubRepo[]>([])
   const [loading, setLoading] = useState(true)
   const [_error, setError] = useState<string | null>(null)
@@ -152,16 +155,31 @@ export default function NewProjectDialog({
       slotProps={{
         paper: {
           sx: {
+            margin: 0,
+            width: { xs: "96.5%", md: "calc(100% - 32px)" },
             minHeight: "50vh",
             maxHeight: "80vh",
+            fontSize: { xs: "0.875rem", sm: "1rem" },
           },
         },
       }}
     >
       <DialogTitle
-        sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", pb: 2 }}
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          fontSize: { xs: "1.1rem", sm: "1.25rem" },
+          px: { xs: 1.5, sm: 2 },
+          pb: 2,
+        }}
       >
-        Add GitHub Repository
+        <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
+          Add GitHub Repository
+        </Box>
+        <Box component="span" sx={{ display: { xs: "inline", sm: "none" } }}>
+          Add Repository
+        </Box>
         <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
           {!isOrgsLoading && !loading && loadingStartTime == null && orgs && orgs.length > 0 && (
             <Button
@@ -174,6 +192,11 @@ export default function NewProjectDialog({
                 textTransform: "none",
                 color: "black",
                 borderColor: "rgba(0, 0, 0, 0.23)",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                "& .MuiButton-icon": {
+                  margin: { xs: 0, sm: 1 },
+                },
                 "& .MuiSvgIcon-root": {
                   color: "black",
                 },
@@ -183,7 +206,9 @@ export default function NewProjectDialog({
                 },
               }}
             >
-              Configure GitHub App
+              <Typography sx={{ display: { xs: "none", sm: "inline" } }}>
+                Configure GitHub App
+              </Typography>
             </Button>
           )}
           <IconButton onClick={handleRefresh} size="small" title="Refresh organizations">
@@ -194,13 +219,13 @@ export default function NewProjectDialog({
           </IconButton>
         </div>
       </DialogTitle>
-      <DialogContent>
-        <div
-          style={{
+      <DialogContent sx={{ px: { xs: 1.5, sm: 3 } }}>
+        <Box
+          sx={{
             display: "flex",
             flexDirection: "row",
             alignItems: "stretch",
-            gap: "1rem",
+            gap: { xs: "0.5rem", sm: "1rem" },
             height: "100%",
             minHeight: "300px",
             transition: "opacity 0.2s ease-in-out",
@@ -220,7 +245,7 @@ export default function NewProjectDialog({
             </div>
           ) : (
             <>
-              <div style={{ width: "49%" }}>
+              <div style={{ width: "49%", overflowX: "hidden" }}>
                 <h4>Organizations</h4>
                 {orgs?.length === 0 ? (
                   <Box
@@ -228,13 +253,14 @@ export default function NewProjectDialog({
                       display: "flex",
                       flexDirection: "column",
                       alignItems: "center",
-                      justifyContent: "center",
-                      textAlign: "center",
-                      p: 3,
+                      justifyContent: { xs: "flex-start", sm: "center" },
+                      textAlign: { xs: "left", sm: "center" },
+                      px: { xs: 0, sm: 3 },
+                      py: { xs: 1, sm: 3 },
                       gap: 2,
                     }}
                   >
-                    <Typography>
+                    <Typography sx={{ fontSize: { xs: "0.875rem", sm: "1rem" } }}>
                       Install the vizdiff GitHub App to enable screenshot testing for your
                       repositories.
                     </Typography>
@@ -244,6 +270,10 @@ export default function NewProjectDialog({
                       onClick={handleInstallApp}
                       startIcon={<GitHubIcon />}
                       sx={{
+                        mx: { xs: 0.5, sm: 0 },
+                        px: { xs: 1, sm: 2 },
+                        py: { xs: 0.5, sm: 1 },
+                        textAlign: "left",
                         bgcolor: "white",
                         color: "black",
                         "&:hover": {
@@ -264,22 +294,26 @@ export default function NewProjectDialog({
                     }}
                   >
                     {orgs?.map((org) => (
-                      <ListItemButton key={org.id} onClick={() => handleOrgClick(org.login)}>
+                      <ListItemButton
+                        key={org.id}
+                        onClick={() => handleOrgClick(org.login)}
+                        sx={{ padding: { xs: 0.5, sm: 2 } }}
+                      >
                         <ListItemText primary={org.login} />
                       </ListItemButton>
                     ))}
                   </List>
                 )}
               </div>
-              <div
-                style={{
+              <Box
+                sx={{
                   borderLeft: "1px solid",
                   borderColor: "divider",
                   opacity: 0.3,
                   flexGrow: 1,
                 }}
               />
-              <div style={{ width: "50%", paddingLeft: "1rem" }}>
+              <Box sx={{ width: "50%", px: { xs: 1, sm: "1rem" } }}>
                 <h4>Repositories</h4>
                 {reposLoading ? (
                   <div
@@ -302,17 +336,21 @@ export default function NewProjectDialog({
                       }}
                     >
                       {repos.map((repo) => (
-                        <ListItemButton key={repo.id} onClick={() => handleRepoClick(repo)}>
+                        <ListItemButton
+                          key={repo.id}
+                          onClick={() => handleRepoClick(repo)}
+                          sx={{ padding: { xs: 0.5, sm: 2 } }}
+                        >
                           <ListItemText primary={repo.name} />
                         </ListItemButton>
                       ))}
                     </List>
                   )
                 )}
-              </div>
+              </Box>
             </>
           )}
-        </div>
+        </Box>
       </DialogContent>
     </Dialog>
   )

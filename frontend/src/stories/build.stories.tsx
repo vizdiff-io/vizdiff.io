@@ -340,3 +340,11 @@ export const Demo: Story = {
     },
   },
 }
+
+export const Mobile: Story = {
+  args: {
+    mode: "light",
+  },
+  parameters: { layout: "fullscreen" },
+  globals: { viewport: { value: "mobile1" } },
+}

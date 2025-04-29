@@ -147,7 +147,7 @@ export default function Project(): JSX.Element {
         <meta name="description" content="Project builds and details" />
       </Head>
       <AppLayout>
-        <Box sx={{ px: 3, py: 4 }}>
+        <Box sx={{ px: { xs: 0, sm: 4 } }}>
           {error && (
             <Paper sx={{ p: 2, mb: 3, bgcolor: "error.light", color: "error.contrastText" }}>
               {error.message}
@@ -195,43 +195,52 @@ export default function Project(): JSX.Element {
                 p: 2,
                 mb: 3,
                 display: "inline-flex",
-                alignItems: "center",
+                alignItems: { xs: "flex-start", sm: "center" },
               }}
             >
-              <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: { xs: "flex-start", sm: "center" },
+                  gap: { xs: 0.5, sm: 2 },
+                  flexDirection: { xs: "column", sm: "row" },
+                }}
+              >
                 <Typography variant="caption">
                   <strong>VIZDIFF_PROJECT_TOKEN</strong>
                 </Typography>
-                <Typography
-                  variant="body2"
-                  component="code"
-                  sx={{
-                    fontFamily: "monospace",
-                    bgcolor: "action.hover",
-                    p: 1,
-                    borderRadius: 1,
-                  }}
-                >
-                  {project.hasActiveSubscription ? currentToken : maskToken(currentToken)}
-                </Typography>
-              </Box>
-              <Box sx={{ display: "flex" }}>
-                <Tooltip title={copyTooltip}>
-                  <IconButton onClick={handleCopyToken} size="small">
-                    <ContentCopyIcon />
-                  </IconButton>
-                </Tooltip>
-                {isProjectOwner && (
-                  <Tooltip title={resetTokenTooltip}>
-                    <IconButton
-                      onClick={handleResetToken}
-                      size="small"
-                      disabled={resetTokenLoading}
-                    >
-                      {resetTokenLoading ? <CircularProgress size={20} /> : <RefreshIcon />}
-                    </IconButton>
-                  </Tooltip>
-                )}
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                  <Typography
+                    variant="body2"
+                    component="code"
+                    sx={{
+                      fontFamily: "monospace",
+                      bgcolor: "action.hover",
+                      p: 1,
+                      borderRadius: 1,
+                    }}
+                  >
+                    {project.hasActiveSubscription ? currentToken : maskToken(currentToken)}
+                  </Typography>
+                  <Box sx={{ display: "flex" }}>
+                    <Tooltip title={copyTooltip}>
+                      <IconButton onClick={handleCopyToken} size="small">
+                        <ContentCopyIcon />
+                      </IconButton>
+                    </Tooltip>
+                    {isProjectOwner && (
+                      <Tooltip title={resetTokenTooltip}>
+                        <IconButton
+                          onClick={handleResetToken}
+                          size="small"
+                          disabled={resetTokenLoading}
+                        >
+                          {resetTokenLoading ? <CircularProgress size={20} /> : <RefreshIcon />}
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                  </Box>
+                </Box>
               </Box>
             </Paper>
           )}
@@ -263,7 +272,7 @@ export default function Project(): JSX.Element {
                 >
                   <Paper
                     sx={{
-                      p: 3,
+                      p: { xs: 2, sm: 3 },
                       mb: 2,
                       display: "flex",
                       alignItems: "center",
@@ -278,7 +287,7 @@ export default function Project(): JSX.Element {
                         color: getStatusColor(theme, build.status),
                       }}
                     />
-                    <Box sx={{ flex: 1 }}>
+                    <Box sx={{ flex: 1, overflow: "hidden" }}>
                       <Box sx={{ display: "flex", alignItems: "center", mb: 0.5 }}>
                         <Typography variant="h6" component="h2" sx={{ mr: 2 }}>
                           Build #{build.buildNumber}
@@ -290,6 +299,7 @@ export default function Project(): JSX.Element {
                               py: 0.5,
                               bgcolor: "success.light",
                               borderRadius: 2,
+                              display: { xs: "none", sm: "block" },
                             }}
                           >
                             <Typography variant="caption" sx={{ color: "black" }}>
@@ -353,7 +363,7 @@ export default function Project(): JSX.Element {
                       </Typography>
                     </Box>
                     <Box sx={{ display: "flex", gap: 4, ml: 2 }}>
-                      <Box sx={{ textAlign: "center" }}>
+                      <Box sx={{ textAlign: "center", display: { xs: "none", sm: "block" } }}>
                         <Typography variant="h6">{build.stories ?? 0}</Typography>
                         <Typography variant="caption">
                           {build.stories === 1 ? "Test" : "Tests"}

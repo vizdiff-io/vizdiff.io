@@ -47,6 +47,7 @@ const mockBuilds: ScreenshotTestSummaryResponse[] = [
     commitSha: "d462c7658f276eaa61cd5ca522bc5988e16e429f",
     branch:
       "some/branch/with-a-very-long-name/that-needs-to-be-truncated/or-else-it-will-break-the-layout",
+    prNumber: 789,
     uploadId: "123",
     initiatedStampSec: oneMinuteAgo,
     status: "pending",
@@ -219,4 +220,12 @@ export const ExpiredTrialNotOwner: Story = {
       ],
     },
   },
+}
+
+export const Mobile: Story = {
+  args: {
+    mode: "light",
+  },
+  parameters: { layout: "fullscreen" },
+  globals: { viewport: { value: "mobile1" } },
 }

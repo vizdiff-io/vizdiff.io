@@ -49,7 +49,12 @@ export const MarketingLayout: React.FC<MarketingLayoutProps> = ({ children }) =>
       }}
     >
       <AppBar position="static">
-        <Toolbar sx={{ px: { xs: 0, sm: 4, md: 6 } }}>
+        <Toolbar
+          sx={{
+            pl: { xs: 0, sm: 4, md: 6 },
+            pr: { xs: 1, sm: 4, md: 6 },
+          }}
+        >
           {/* Left side */}
           <Box sx={{ display: "flex", alignItems: "center" }}>
             <Box sx={{ display: { xs: "flex", sm: "none" }, mr: 1 }}>
