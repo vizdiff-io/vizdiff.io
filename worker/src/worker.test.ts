@@ -182,6 +182,13 @@ vi.mock("tar", () => ({
 
 // Mock story processing module
 vi.mock("./stories", () => ({
+  navigateToStorybook: vi.fn().mockImplementation(async () => {
+    log.debug("navigateToStorybook called")
+  }),
+  getStorybookStories: vi.fn().mockImplementation(async () => {
+    log.debug("getStorybookStories called")
+    return mockStories
+  }),
   processStory: vi
     .fn()
     .mockImplementation(
