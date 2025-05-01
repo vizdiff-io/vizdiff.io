@@ -87,6 +87,7 @@ export default function Login(): JSX.Element {
               sx={{
                 mb: 2,
                 fontSize: { xs: "h4.fontSize", sm: "h1.fontSize" },
+                fontWeight: 600,
                 lineHeight: 1.2,
                 background: "var(--gradient-text)",
                 WebkitBackgroundClip: "text",

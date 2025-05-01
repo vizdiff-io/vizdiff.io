@@ -147,7 +147,7 @@ export default function Project(): JSX.Element {
         <meta name="description" content="Project builds and details" />
       </Head>
       <AppLayout>
-        <Box sx={{ px: { xs: 0, sm: 4 } }}>
+        <Box sx={{ px: { xs: 0, sm: 3 }, py: { xs: 0, sm: 4 } }}>
           {error && (
             <Paper sx={{ p: 2, mb: 3, bgcolor: "error.light", color: "error.contrastText" }}>
               {error.message}

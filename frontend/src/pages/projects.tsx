@@ -56,6 +56,7 @@ export default function Projects(): JSX.Element {
         <Box
           sx={{
             display: "flex",
+            gap: 3,
             px: { xs: 0, md: 3 },
             py: { xs: 0, md: 4 },
             minHeight: "calc(100vh - 64px)",

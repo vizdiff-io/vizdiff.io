@@ -72,6 +72,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
         }
       }
 
+      // Set it to a default gravatar
       const ZERO_SHA256 = "0000000000000000000000000000000000000000000000000000000000000000"
       setAvatarUrl(`https://www.gravatar.com/avatar/${ZERO_SHA256}?d=mp&s=40`)
     }
@@ -130,6 +131,8 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   }, [breadcrumbData])
 
   const trialDaysLeft = useMemo(() => {
+    // Don't show the trial banner if the user failed to load, has an active
+    // subscription, or doesn't own any projects
     if (!user || user.subscription || user.ownedProjectCount === 0) {
       return undefined
     }
@@ -178,6 +181,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
             sx={{
               pl: { xs: 2, sm: 4, md: 6 },
               pr: { xs: 1, sm: 4, md: 6 },
+              minHeight: "56px !important",
             }}
           >
             <Box sx={{ display: "flex", alignItems: "center", flexGrow: { xs: 1, md: 0 } }}>

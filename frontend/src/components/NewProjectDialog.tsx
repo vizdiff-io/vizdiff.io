@@ -170,7 +170,7 @@ export default function NewProjectDialog({
           justifyContent: "space-between",
           alignItems: "center",
           fontSize: { xs: "1.1rem", sm: "1.25rem" },
-          px: { xs: 1.5, sm: 2 },
+          px: { xs: 1.5, sm: 3 },
           pb: 2,
         }}
       >
@@ -206,7 +206,7 @@ export default function NewProjectDialog({
                 },
               }}
             >
-              <Typography sx={{ display: { xs: "none", sm: "inline" } }}>
+              <Typography sx={{ display: { xs: "none", md: "inline" } }}>
                 Configure GitHub App
               </Typography>
             </Button>
@@ -297,7 +297,7 @@ export default function NewProjectDialog({
                       <ListItemButton
                         key={org.id}
                         onClick={() => handleOrgClick(org.login)}
-                        sx={{ padding: { xs: 0.5, sm: 2 } }}
+                        sx={{ padding: { xs: 0.5, sm: 1 } }}
                       >
                         <ListItemText primary={org.login} />
                       </ListItemButton>
@@ -339,7 +339,7 @@ export default function NewProjectDialog({
                         <ListItemButton
                           key={repo.id}
                           onClick={() => handleRepoClick(repo)}
-                          sx={{ padding: { xs: 0.5, sm: 2 } }}
+                          sx={{ padding: { xs: 0.5, sm: 1 } }}
                         >
                           <ListItemText primary={repo.name} />
                         </ListItemButton>
