@@ -56,3 +56,11 @@ export const Dark: Story = {
     mode: "dark",
   },
 }
+
+export const Mobile: Story = {
+  args: {
+    mode: "light",
+  },
+  parameters: { layout: "fullscreen" },
+  globals: { viewport: { value: "mobile1" } },
+}

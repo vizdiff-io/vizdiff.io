@@ -34,11 +34,7 @@ const meta: Meta<typeof HomeComponent> = {
       </ThemeWrapper>
     ),
   ],
-  parameters: {
-    msw: {
-      handlers: [userHandler, catchAllHandler],
-    },
-  },
+  parameters: { msw: { handlers: [userHandler, catchAllHandler] } },
 }
 
 export default meta
@@ -66,4 +62,22 @@ export const Authenticated: Story = {
     isAuthenticated: true,
   },
   parameters: { msw: { handlers: [catchAllHandler] } },
+}
+
+export const Mobile: Story = {
+  args: {
+    mode: "light",
+    isAuthenticated: false,
+  },
+  parameters: { layout: "fullscreen", msw: { handlers: [catchAllHandler] } },
+  globals: { viewport: { value: "mobile1" } },
+}
+
+export const MobileAuthenticated: Story = {
+  args: {
+    mode: "light",
+    isAuthenticated: true,
+  },
+  parameters: { layout: "fullscreen", msw: { handlers: [catchAllHandler] } },
+  globals: { viewport: { value: "mobile1" } },
 }

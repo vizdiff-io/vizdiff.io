@@ -71,7 +71,7 @@ const mockProjects: ProjectResponse[] = [
   {
     id: 4,
     name: "Expired Other Project",
-    githubRepoUrl: "https://github.com/example/example-project",
+    githubRepoUrl: "https://github.com/example-long-organization-name/example-project",
     token: "jkl012mno345",
     ownerId: 456,
     hasActiveSubscription: false,
@@ -188,4 +188,12 @@ export const ExpiredNoProjects: Story = {
       ],
     },
   },
+}
+
+export const Mobile: Story = {
+  args: {
+    mode: "light",
+  },
+  parameters: { layout: "fullscreen" },
+  globals: { viewport: { value: "mobile1" } },
 }

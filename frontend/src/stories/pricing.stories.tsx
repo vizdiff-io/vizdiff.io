@@ -67,3 +67,12 @@ export const Authenticated: Story = {
   },
   parameters: { msw: { handlers: [catchAllHandler] } },
 }
+
+export const Mobile: Story = {
+  args: {
+    mode: "light",
+    isAuthenticated: false,
+  },
+  parameters: { layout: "fullscreen", msw: { handlers: [catchAllHandler] } },
+  globals: { viewport: { value: "mobile1" } },
+}

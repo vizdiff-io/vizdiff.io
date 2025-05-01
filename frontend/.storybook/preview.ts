@@ -2,6 +2,7 @@ import "../src/styles/globals.css"
 import "../src/styles/theme.css"
 import { initialize, mswLoader } from "msw-storybook-addon"
 import type { Preview } from "@storybook/react"
+import { MINIMAL_VIEWPORTS } from "@storybook/addon-viewport"
 
 // Initialize MSW
 initialize()
@@ -14,6 +15,9 @@ const preview: Preview = {
         color: /(background|color)$/i,
         date: /Date$/,
       },
+    },
+    viewport: {
+      options: MINIMAL_VIEWPORTS,
     },
   },
   loaders: [mswLoader],

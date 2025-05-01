@@ -53,7 +53,15 @@ export default function Projects(): JSX.Element {
         <meta name="description" content="Project listing" />
       </Head>
       <AppLayout>
-        <Box sx={{ display: "flex", gap: 3, px: 3, py: 4, minHeight: "calc(100vh - 64px)" }}>
+        <Box
+          sx={{
+            display: "flex",
+            gap: 3,
+            px: { xs: 0, md: 3 },
+            py: { xs: 0, md: 4 },
+            minHeight: "calc(100vh - 64px)",
+          }}
+        >
           <LeftSidebar selectedItem="projects" />
 
           {/* Main Content */}
@@ -69,6 +77,9 @@ export default function Projects(): JSX.Element {
                 color="primary"
                 startIcon={<AddIcon />}
                 onClick={() => setShowModal(true)}
+                sx={{
+                  whiteSpace: "nowrap",
+                }}
               >
                 Add project
               </Button>
@@ -126,7 +137,7 @@ export default function Projects(): JSX.Element {
           </Box>
 
           {/* Right Activity Column */}
-          <Box sx={{ width: 300, flexShrink: 0 }}>
+          <Box sx={{ width: 300, flexShrink: 0, display: { xs: "none", md: "block" } }}>
             <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
               ACTIVITY
             </Typography>

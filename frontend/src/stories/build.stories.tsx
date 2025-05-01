@@ -340,3 +340,28 @@ export const Demo: Story = {
     },
   },
 }
+
+export const Loading: Story = {
+  args: {},
+  parameters: {
+    msw: {
+      handlers: [
+        userHandler,
+        http.get("/api/tests/:id", async () => {
+          await new Promise(() => {
+            // wait forever
+          })
+        }),
+        catchAllHandler,
+      ],
+    },
+  },
+}
+
+export const Mobile: Story = {
+  args: {
+    mode: "light",
+  },
+  parameters: { layout: "fullscreen" },
+  globals: { viewport: { value: "mobile1" } },
+}

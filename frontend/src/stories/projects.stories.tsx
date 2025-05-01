@@ -203,3 +203,9 @@ export const EmptyProjects: Story = {
   },
   render: () => <ProjectsComponent />,
 }
+
+export const Mobile: Story = {
+  args: { mode: "light" },
+  parameters: { layout: "fullscreen" },
+  globals: { viewport: { value: "mobile1" } },
+}

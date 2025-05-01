@@ -16,7 +16,7 @@ export default function Home(): JSX.Element {
           <Box
             sx={{
               textAlign: "left",
-              pt: { xs: 8, sm: 12, md: 16 },
+              pt: { xs: 0, sm: 12, md: 16 },
               pb: { xs: 8, sm: 12 },
               maxWidth: "800px",
             }}
@@ -26,6 +26,7 @@ export default function Home(): JSX.Element {
               variant="h1"
               sx={{
                 mb: 2,
+                fontSize: { xs: "h4.fontSize", sm: "h1.fontSize" },
                 background: "var(--gradient-text)",
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
@@ -37,9 +38,9 @@ export default function Home(): JSX.Element {
               </Box>
             </Typography>
             <Typography
-              variant="h6"
               sx={{
                 mb: 4,
+                fontSize: { xs: "inherit", sm: "h6.fontSize" },
                 fontWeight: "normal",
                 lineHeight: 1.6,
               }}

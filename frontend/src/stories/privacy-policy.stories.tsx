@@ -37,3 +37,11 @@ type Story = StoryObj<typeof PrivacyPolicyComponent>
 export const Light: Story = { args: { mode: "light" } }
 
 export const Dark: Story = { args: { mode: "dark" } }
+
+export const Mobile: Story = {
+  args: {
+    mode: "light",
+  },
+  parameters: { layout: "fullscreen" },
+  globals: { viewport: { value: "mobile1" } },
+}

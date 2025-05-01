@@ -1,5 +1,5 @@
 import type { Endpoints } from "@octokit/types"
-import type { Meta, StoryObj } from "@storybook/react"
+import type { Meta, StoryContext, StoryObj } from "@storybook/react"
 import { http, HttpResponse } from "msw"
 import type { JSX, ComponentType } from "react"
 
@@ -7,6 +7,10 @@ import ThemeWrapper from "./ThemeWrapper"
 import { avatar01 } from "./assets"
 import { catchAllHandler, userHandler } from "./mocks"
 import NewProjectDialog from "../components/NewProjectDialog"
+
+type StoryArgs = {
+  mode?: "light" | "dark"
+}
 
 const BASE_ORG_DATA = {
   node_id: "MDEyOk9yZ2FuaXphdGlvbjE=",
@@ -94,7 +98,7 @@ const BASE_REPO_DATA = {
 const mockOrgs: Endpoints["GET /user/orgs"]["response"]["data"] = [
   { id: 1, login: "pixel-ada", ...BASE_ORG_DATA },
   { id: 2, login: "vizdiff-io", ...BASE_ORG_DATA },
-  { id: 3, login: "nodejs", ...BASE_ORG_DATA },
+  { id: 3, login: "organization-with-a-long-name", ...BASE_ORG_DATA },
   { id: 4, login: "electron", ...BASE_ORG_DATA },
   { id: 5, login: "mui", ...BASE_ORG_DATA },
   { id: 6, login: "storybookjs", ...BASE_ORG_DATA },
@@ -113,17 +117,30 @@ const mockVizdiffRepos: Endpoints["GET /orgs/{org}/repos"]["response"]["data"] =
   { ...BASE_REPO_DATA },
   { ...BASE_REPO_DATA, id: 2, name: "cli", full_name: "vizdiff-io/cli" },
   { ...BASE_REPO_DATA, id: 3, name: "upload-action", full_name: "vizdiff-io/upload-action" },
+  {
+    ...BASE_REPO_DATA,
+    id: 4,
+    name: "repository-with-a-long-name",
+    full_name: "vizdiff-io/repository-with-a-long-name",
+  },
 ]
 
 const meta: Meta<typeof NewProjectDialog> = {
   title: "stories/components/NewProjectDialog",
   component: NewProjectDialog,
+  argTypes: {
+    mode: {
+      control: "radio",
+      options: ["light", "dark"],
+      defaultValue: "light",
+    },
+  },
   decorators: [
-    (Story: ComponentType): JSX.Element => {
+    (Story: ComponentType, context: StoryContext<StoryArgs>): JSX.Element => {
       // Set authentication cookie for Storybook
       document.cookie = "authenticated=true; path=/"
       return (
-        <ThemeWrapper mode="light">
+        <ThemeWrapper mode={context.args.mode ?? "light"}>
           <Story />
         </ThemeWrapper>
       )
@@ -142,6 +159,19 @@ type Story = StoryObj<typeof NewProjectDialog>
 
 export const Empty: Story = {
   args: {},
+  parameters: {
+    msw: {
+      handlers: [
+        userHandler,
+        http.get("/api/github/orgs", () => HttpResponse.json([])),
+        catchAllHandler,
+      ],
+    },
+  },
+}
+
+export const EmptyDark: Story = {
+  args: { mode: "dark" },
   parameters: {
     msw: {
       handlers: [
@@ -243,4 +273,22 @@ export const ReposView: Story = {
       ],
     },
   },
+}
+
+export const MobileEmpty: Story = {
+  ...Empty,
+  parameters: {
+    ...Empty.parameters,
+    layout: "fullscreen",
+  },
+  globals: { viewport: { value: "mobile1" } },
+}
+
+export const MobileRepos: Story = {
+  ...ReposView,
+  parameters: {
+    ...ReposView.parameters,
+    layout: "fullscreen",
+  },
+  globals: { viewport: { value: "mobile1" } },
 }
