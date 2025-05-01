@@ -103,12 +103,21 @@ export const getBillingPeriodUsage: RequestHandler = async (_req, res) => {
   // Sync with Stripe before proceeding
   try {
     res.locals.user = await syncStripeSubscription(user, stripe, db)
+    user = res.locals.user
   } catch (error) {
     // Log the sync error but proceed, using potentially stale data
     log.error(
       error,
       `Failed to sync Stripe subscription for user ${user.id}. Proceeding with potentially stale data.`,
     )
+  }
+
+  // The `syncStripeSubscription()` call should never clear the customer ID, but we check here
+  // for type safety
+  if (!user.stripeCustomerId) {
+    log.error({ user }, `User ${user.id} has no Stripe customer ID after sync, cannot fetch usage`)
+    res.status(500).json({ error: "Missing billing information" })
+    return
   }
 
   if (!user.stripeSubscriptionId) {
