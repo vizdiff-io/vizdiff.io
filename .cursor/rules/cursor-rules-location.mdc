@@ -1,10 +1,7 @@
 ---
 description: Instructions on creating and storing cursor rules
 globs: *.mdc
----
----
-description: Instructions on creating and storing cursor rules
-globs: *.mdc
+alwaysApply: false
 ---
 # Cursor Rules Location
 

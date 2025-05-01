@@ -8,7 +8,11 @@ RUN apk add --no-cache \
     freetype-dev \
     harfbuzz \
     ca-certificates \
-    ttf-freefont && \
+    ttf-freefont \
+    font-noto \
+    font-noto-cjk \
+    font-noto-emoji \
+    font-noto-extra && \
     ln -s /usr/bin/chromium-browser /usr/bin/google-chrome
 
 # Add Puppeteer/Chrome flags to make WebDriver work with Chromium

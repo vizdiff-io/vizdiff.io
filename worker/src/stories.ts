@@ -198,6 +198,24 @@ export async function captureStableScreenshot(
     log.debug(`Waiting for story ${storyId} to load...`)
     await waitForStorybookToLoad(browser)
 
+    // Inject CSS to remove Storybook's body padding
+    log.debug(`Injecting CSS to remove body padding for story ${storyId}`)
+    await browser.execute(() => {
+      // @ts-expect-error: document is not defined
+      // eslint-disable-next-line
+      const style = document.createElement("style")
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      style.textContent = `
+        body.sb-main-padded.sb-show-main {
+          padding: 0 !important;
+          margin: 0 !important;
+        }
+      `
+      // @ts-expect-error: document is not defined
+      // eslint-disable-next-line
+      document.head.appendChild(style)
+    })
+
     // Adjust the viewport for the story
     log.debug(`Adjusting viewport for story ${storyId}`)
     await adjustViewportForStory(browser, storyId, viewport)
