@@ -202,7 +202,9 @@ export async function captureStableScreenshot(
     log.debug(`Injecting CSS to remove body padding for story ${storyId}`)
     await browser.execute(() => {
       // @ts-expect-error: document is not defined
+      // eslint-disable-next-line
       const style = document.createElement("style")
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       style.textContent = `
         body.sb-main-padded.sb-show-main {
           padding: 0 !important;
@@ -210,6 +212,7 @@ export async function captureStableScreenshot(
         }
       `
       // @ts-expect-error: document is not defined
+      // eslint-disable-next-line
       document.head.appendChild(style)
     })
 
