@@ -198,6 +198,21 @@ export async function captureStableScreenshot(
     log.debug(`Waiting for story ${storyId} to load...`)
     await waitForStorybookToLoad(browser)
 
+    // Inject CSS to remove Storybook's body padding
+    log.debug(`Injecting CSS to remove body padding for story ${storyId}`)
+    await browser.execute(() => {
+      // @ts-expect-error: document is not defined
+      const style = document.createElement("style")
+      style.textContent = `
+        body.sb-main-padded.sb-show-main {
+          padding: 0 !important;
+          margin: 0 !important;
+        }
+      `
+      // @ts-expect-error: document is not defined
+      document.head.appendChild(style)
+    })
+
     // Adjust the viewport for the story
     log.debug(`Adjusting viewport for story ${storyId}`)
     await adjustViewportForStory(browser, storyId, viewport)
