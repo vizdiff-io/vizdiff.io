@@ -59,7 +59,7 @@ export const createCheckoutSession: RequestHandler = async (req, res) => {
       success_url: `${APP_URL}/signup?checkout=success`,
       client_reference_id: user.id.toString(),
       customer: user.stripeCustomerId ?? undefined,
-      customer_email: user.email ?? undefined,
+      customer_email: user.stripeCustomerId ? undefined : (user.email ?? undefined),
       subscription_data: {
         description: `vizdiff.io ${interval} ${plan} plan`,
       },
