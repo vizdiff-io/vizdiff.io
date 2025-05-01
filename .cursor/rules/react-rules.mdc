@@ -2,10 +2,6 @@
 description: React patterns and best practices for TypeScript components
 globs: **/*.tsx
 ---
----
-description: React patterns and best practices for TypeScript components
-globs: "**/*.tsx"
----
 # React TypeScript Patterns
 
 Best practices and patterns for React components using TypeScript.

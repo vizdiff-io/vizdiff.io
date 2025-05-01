@@ -3,6 +3,8 @@ description:
 globs: 
 alwaysApply: true
 ---
+# VizDiff Project Choices
+
 vizdiff.io is a visual screenshot testing SaaS platform offering tight integration with Storybooks and GitHub, a streamlined modern interface, and cost competitive plans. The closest competitor is Chromatic. The project structure is as follows:
 
 - `.cursor/rules`: Stores `.mdc` files containing Cursor rules capturing all project and development knowledge. Create and/or update rules as new knowledge is discovered, feedback is given, or mistakes are corrected
@@ -17,12 +19,20 @@ vizdiff.io is a visual screenshot testing SaaS platform offering tight integrati
 - TypeScript 5.7
 - React 18
 - Next.js 15 (Static Site Generation only)
-- MaterialUI 5
+- MaterialUI 7
 - Emotion 11
 - Storybook 8
 - Express 4
 - TypeORM 0.3
 - PostgreSQL 16
+
+# Integrations
+
+- AWS, S3 for screenshot storage, S3+CloudFront for hosting <https://vizdiff.io/>, EC2 for Postgres database, worker instances, and API instances
+- Stripe, for subscription billing
+- DataDog, for logging and monitoring
+- customer.io, for all email needs
+- Google Analytics, via `@next/third-parties/google`
 
 # TypeScript/React Notes
 

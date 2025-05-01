@@ -3,10 +3,6 @@ description: TypeScript patterns and best practices for the vizdiff.io codebase
 globs: **/*.ts
 alwaysApply: false
 ---
----
-description: TypeScript patterns and best practices for the vizdiff.io codebase
-globs: "**/*.ts"
----
 # TypeScript Patterns and Best Practices
 
 Coding patterns and best practices learned from implementing features in the vizdiff.io codebase.

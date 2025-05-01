@@ -3,10 +3,6 @@ description: Guidelines for committing changes in logical groups with convention
 globs: 
 alwaysApply: false
 ---
- ---
-Description: Guidelines for committing changes in logical groups with conventional commit messages
-Globs:
----
 # Committing Changes
 
 Best practices for organizing and committing changes to the repository.
