@@ -387,12 +387,7 @@ async function syncStripeSubscription(
     try {
       subscription = await stripe.subscriptions.retrieve(user.stripeSubscriptionId)
 
-      // Handle cases where the subscription ID in DB is invalid or deleted in Stripe
-      if (
-        !subscription ||
-        subscription.status === "canceled" ||
-        subscription.status === "incomplete_expired"
-      ) {
+      if (subscription.status === "canceled" || subscription.status === "incomplete_expired") {
         // If retrieve succeeded but status is canceled/expired, or retrieve failed (throws),
         // clear local subscription info if it wasn't already cleared by webhook.
         if (user.stripeSubscriptionId || user.subscriptionPlan || user.subscriptionInterval) {
@@ -481,7 +476,7 @@ async function syncStripeSubscription(
     if (
       subscription.id !== user.stripeSubscriptionId ||
       planInfo?.plan !== user.subscriptionPlan ||
-      planInfo?.interval !== user.subscriptionInterval
+      planInfo.interval !== user.subscriptionInterval
     ) {
       if (planInfo) {
         log.info(
