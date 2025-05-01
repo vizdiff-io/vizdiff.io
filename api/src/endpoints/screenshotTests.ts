@@ -224,7 +224,13 @@ export const listActivity: RequestHandler = async (_req, res) => {
   const db = await Database()
   const screenshotTestTable = db.getRepository(ScreenshotTest)
 
-  // Build the inner query as before, but don't call .getRawMany() yet
+  // Get all project IDs the user has access to
+  const projectIds = await getAccessibleProjectIds(db, user.id)
+  if (projectIds.length === 0) {
+    res.json([])
+    return
+  }
+
   const innerQuery = screenshotTestTable
     .createQueryBuilder("screenshot_test")
     .innerJoin("screenshot_test.project", "project")
@@ -238,7 +244,7 @@ export const listActivity: RequestHandler = async (_req, res) => {
           ])
           .from(ScreenshotTest, "st")
           .innerJoin("st.project", "p")
-          .where("p.user_id = :userId", { userId: user.id })
+          .where("st.project_id IN (:...projectIds)", { projectIds })
           .groupBy("st.project_id")
           .addGroupBy("st.build_number"),
       "latest_tests",
@@ -287,7 +293,6 @@ export const listActivity: RequestHandler = async (_req, res) => {
     ])
     .orderBy("screenshot_test.createdAt", "DESC")
 
-  // Now wrap as a subquery and apply the limit
   const screenshotTests = (await db
     .createQueryBuilder()
     .select("*")
