@@ -48,9 +48,8 @@ export async function startStaticServer(serveDir: string): Promise<{
         res.end(content)
         log.trace(`Successfully served file: ${filePath}`)
       })
-      .catch((err) => {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        if (err?.code === "ENOENT") {
+      .catch((err: unknown) => {
+        if ((err as { code?: string }).code === "ENOENT") {
           log.warn(`File not found: ${filePath}`)
           res.writeHead(404)
         } else {

@@ -1,4 +1,4 @@
-import { S3Client, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3"
+import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3"
 import fs, { promises as fsPromises } from "node:fs"
 import path from "node:path"
 import { Readable } from "node:stream"
@@ -9,15 +9,11 @@ import type { Browser } from "webdriverio"
 
 import { diffImages, diffImagesNoMask } from "./images"
 import { log } from "./log"
+import type { SetViewportOptions, Story, StorybookWindow } from "./types"
 
-export interface Story {
-  id: string
-  name: string
-  title: string
-  importPath: string
-  componentPath: string
-  tags: string[]
-}
+const SCREENSHOT_INTERVAL_MS = 500
+const SCREENSHOTS_UNCHANGED_TIMEOUT_MS = 10 * 1000
+const IMAGE_UNCHANGED_THRESHOLD = 0.001
 
 export type StoryInfo = {
   story: Story
@@ -58,9 +54,109 @@ const browserMutex = {
   },
 }
 
-const SCREENSHOT_INTERVAL_MS = 500
-const SCREENSHOTS_UNCHANGED_TIMEOUT_MS = 10 * 1000
-const IMAGE_UNCHANGED_THRESHOLD = 0.001
+export async function navigateToStorybook(
+  browser: Browser,
+  localServerPort: number,
+): Promise<void> {
+  const timeoutMs = 10 * 1000 // 10 seconds
+  const url = `http://localhost:${localServerPort}/iframe.html`
+  log.info(`Navigating to Storybook at ${url}`)
+  await browser.url(url)
+  await browser.waitUntil(
+    async () => {
+      return await browser.execute(async (): Promise<boolean> => {
+        // @ts-expect-error: window is not defined
+        // eslint-disable-next-line no-underscore-dangle
+        const preview = (window as StorybookWindow).__STORYBOOK_PREVIEW__
+        if (!preview?.storyStore) {
+          return false
+        }
+
+        try {
+          await preview.storyStore.cacheAllCSFFiles()
+          return true
+        } catch {
+          return false
+        }
+      })
+    },
+    {
+      timeout: timeoutMs,
+      timeoutMsg: `Storybook failed to load stories within ${timeoutMs / 1000}s`,
+      interval: 100,
+    },
+  )
+}
+
+/**
+ * Extracts a map of story IDs to Story objects from a running Storybook preview.
+ * @param browser The WebDriverIO browser instance with a running Storybook preview
+ * @returns A map of story IDs to Story objects
+ */
+export async function getStorybookStories(browser: Browser): Promise<Record<string, Story>> {
+  let stories: Record<string, Story> | undefined
+  try {
+    stories = await browser.execute(async () => {
+      // @ts-expect-error: window is not defined
+      // eslint-disable-next-line no-underscore-dangle
+      const preview = (window as StorybookWindow).__STORYBOOK_PREVIEW__
+      if (!preview) {
+        return undefined
+      }
+
+      try {
+        return await preview.extract()
+      } catch (err) {
+        console.error("Failed to extract stories:", err)
+        return undefined
+      }
+    })
+    if (!stories) {
+      throw new Error("No stories found in Storybook")
+    }
+  } catch (err) {
+    log.error(err, "Error extracting stories from Storybook")
+    throw err
+  }
+  return stories
+}
+
+/**
+ * Returns the viewport options for a story, as specified in the story's parameters or the default
+ * options if no viewport is specified.
+ * @param story The story to get the viewport options for.
+ * @returns SetViewportOptions object compatible with WebDriverIO `browser.setViewport`.
+ */
+export function getStoryViewport(story: Story): SetViewportOptions {
+  const DEFAULT_OPTIONS = { width: 1200, height: 900, devicePixelRatio: 1 }
+  const MIN_SIZE = 200
+  const MAX_SIZE = 2560
+
+  const viewportMap = story.parameters?.viewport?.options ?? story.parameters?.viewport?.viewports
+  if (!viewportMap) {
+    return DEFAULT_OPTIONS
+  }
+
+  const viewportName = story.globals?.viewport?.value ?? story.parameters?.viewport?.defaultViewport
+  if (!viewportName) {
+    return DEFAULT_OPTIONS
+  }
+
+  const viewport = viewportMap[viewportName]
+  if (!viewport) {
+    return DEFAULT_OPTIONS
+  }
+
+  // parseInt("320px") will parse as `320`
+  const width = clamp(parseInt(viewport.styles.width), MIN_SIZE, MAX_SIZE) ?? DEFAULT_OPTIONS.width
+  const height =
+    clamp(parseInt(viewport.styles.height), MIN_SIZE, MAX_SIZE) ?? DEFAULT_OPTIONS.height
+  return {
+    width,
+    height,
+    devicePixelRatio: 1,
+  }
+}
 
 /**
  * Navigates to a story, waits for it to stabilize, and saves a screenshot.
@@ -75,6 +171,7 @@ const IMAGE_UNCHANGED_THRESHOLD = 0.001
 export async function captureStableScreenshot(
   browser: Browser,
   storyId: string,
+  viewport: SetViewportOptions,
   port: number,
   tempDir: string,
   outputFilePath: string,
@@ -88,14 +185,40 @@ export async function captureStableScreenshot(
 
   await browserMutex.acquire()
   try {
+    // Set the initial viewport
+    log.debug(`Setting initial viewport for ${storyId}: ${viewport.width}x${viewport.height}`)
+    await browser.setViewport(viewport)
+
     // Navigate to the story
     const storyUrl = `http://localhost:${port}/iframe.html?id=${storyId}` // Ensure port is used
     log.debug(`Navigating to story URL: ${storyUrl}`)
     await browser.url(storyUrl)
 
     // Wait for the story to load
-    log.debug("Waiting for story to load...")
+    log.debug(`Waiting for story ${storyId} to load...`)
     await waitForStorybookToLoad(browser)
+
+    // Inject CSS to remove Storybook's body padding
+    log.debug(`Injecting CSS to remove body padding for story ${storyId}`)
+    await browser.execute(() => {
+      // @ts-expect-error: document is not defined
+      // eslint-disable-next-line
+      const style = document.createElement("style")
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      style.textContent = `
+        body.sb-main-padded.sb-show-main {
+          padding: 0 !important;
+          margin: 0 !important;
+        }
+      `
+      // @ts-expect-error: document is not defined
+      // eslint-disable-next-line
+      document.head.appendChild(style)
+    })
+
+    // Adjust the viewport for the story
+    log.debug(`Adjusting viewport for story ${storyId}`)
+    await adjustViewportForStory(browser, storyId, viewport)
 
     // --- Screenshot Stabilization Logic ---
     log.debug("Taking initial screenshot for stabilization...")
@@ -181,13 +304,9 @@ export async function captureStableScreenshot(
       )
     }
 
-    if (!finalScreenshotBuffer) {
-      throw new Error(`Failed to capture any screenshot for story ${storyId}`)
-    }
-
     // Rename the final selected screenshot file to the official path
     log.debug(
-      `Using final screenshot buffer (${finalScreenshotBuffer.byteLength} bytes) located at ${previousScreenshotPath}`,
+      `Using final screenshot buffer (${finalScreenshotBuffer.byteLength} bytes) saved to ${outputFilePath}`,
     )
     // Write the final buffer to the output path
     await fsPromises.writeFile(outputFilePath, finalScreenshotBuffer)
@@ -219,15 +338,24 @@ export async function processStory({
   browser,
 }: StoryInfo): Promise<TestResult> {
   const storyId = story.id
-  log.info(`Processing story: ${storyId} (${story.name})`)
+  const viewport = getStoryViewport(story)
+  log.info(
+    `Processing story: ${storyId} (${story.name}) with viewport [${JSON.stringify(viewport)}]`,
+  )
 
   const localScreenshotPath = path.join(tmpDir, `${storyId}.png`)
   const screenshotTempDir = path.join(tmpDir, "stabilization") // Subdir for temp files
   await fsPromises.mkdir(screenshotTempDir, { recursive: true })
 
-  // Call captureStableScreenshot correctly here
   try {
-    await captureStableScreenshot(browser, storyId, port, screenshotTempDir, localScreenshotPath)
+    await captureStableScreenshot(
+      browser,
+      storyId,
+      viewport,
+      port,
+      screenshotTempDir,
+      localScreenshotPath,
+    )
   } catch (error) {
     log.error(error, `Failed to capture stable screenshot for story ${storyId}`)
     // Create a minimal failed TestResult record
@@ -527,6 +655,74 @@ async function takeScreenshotWithRetry(
   })
 }
 
+async function adjustViewportForStory(
+  browser: Browser,
+  storyId: string,
+  viewport: SetViewportOptions,
+): Promise<void> {
+  const MAX_HEIGHT = 32767
+  const MAX_PIXELS = 25_000_000
+
+  const originalWidth = viewport.width
+  const originalHeight = viewport.height
+  let finalHeight = originalHeight
+
+  try {
+    const contentHeight = await browser.execute(() => {
+      // @ts-expect-error: document is not defined
+      // eslint-disable-next-line
+      const b = document.body as { scrollHeight?: number } | undefined
+      // @ts-expect-error: document is not defined
+      // eslint-disable-next-line
+      const h = document.documentElement as { scrollHeight?: number } | undefined
+      // Ensure elements exist before accessing properties
+      const bodyScrollHeight = b?.scrollHeight ? b.scrollHeight : 0
+      const docScrollHeight = h?.scrollHeight ? h.scrollHeight : 0
+      return Math.max(bodyScrollHeight, docScrollHeight)
+    })
+    log.debug(`Content height for story ${storyId}: ${contentHeight}`)
+
+    // Calculate desired height, respecting content and initial viewport
+    const desiredHeight = Math.max(originalHeight, contentHeight)
+
+    // Apply maximum height limit
+    const limitedHeight = Math.min(desiredHeight, MAX_HEIGHT)
+
+    // Apply maximum pixel limit
+    const pixelLimitedHeight = Math.floor(MAX_PIXELS / originalWidth)
+
+    // Determine the final height, constrained by both limits
+    finalHeight = Math.min(limitedHeight, pixelLimitedHeight)
+
+    if (finalHeight !== originalHeight) {
+      log.info(
+        `Adjusting viewport height for story ${storyId} from ${originalHeight} to ${finalHeight} ` +
+          `(content: ${contentHeight})`,
+      )
+      await browser.setViewport({
+        width: originalWidth,
+        height: finalHeight,
+        devicePixelRatio: viewport.devicePixelRatio,
+      })
+      // Add a small pause after resize to allow layout shifts
+      await browser.pause(100)
+    } else {
+      log.debug(`Keeping original viewport height ${originalHeight} for story ${storyId}`)
+    }
+  } catch (err) {
+    log.error(
+      err,
+      `Failed to get content height or adjust viewport for story ${storyId}. ` +
+        `Using original height: ${originalHeight}`,
+    )
+    // Ensure finalHeight is the original if adjustment fails
+    finalHeight = originalHeight
+    // If we couldn't set the size initially, try again with original dimensions
+    // This might happen if the execute script failed early.
+    await browser.setViewport(viewport)
+  }
+}
+
 function getStoryName(story: Story): string {
   // Stories have `title` fields that look like "stories/components/NewProjectDialog" and `name`
   // fields based on the exported variable name in the file. Strip the leading "stories/" (if any)
@@ -534,4 +730,11 @@ function getStoryName(story: Story): string {
   const { name, title } = story
   const cleanedTitle = title.startsWith("stories/") ? title.slice(8) : title
   return `${cleanedTitle}/${name}`.slice(-255)
+}
+
+function clamp(value: number, min: number, max: number): number | undefined {
+  if (isNaN(value) || !isFinite(value)) {
+    return undefined
+  }
+  return Math.min(Math.max(value, min), max)
 }

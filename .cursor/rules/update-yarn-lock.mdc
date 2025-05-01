@@ -1,10 +1,7 @@
 ---
 description: Automatically update yarn.lock when dependencies change in any package.json file
 globs: **/package.json
----
----
-description: Automatically update yarn.lock when dependencies change in any package.json file
-globs: **/package.json
+alwaysApply: false
 ---
 # Yarn Lock Updates
 

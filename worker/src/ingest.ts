@@ -23,17 +23,7 @@ import { IS_PRODUCTION, STRIPE_API_VERSION, STRIPE_SECRET_KEY } from "./environm
 import { updateGitHubCheckRun, type GitHubCheckData } from "./github"
 import { log } from "./log"
 import { startStaticServer } from "./server"
-import { type Story, processStory } from "./stories"
-
-type StorybookWindow = {
-  __STORYBOOK_PREVIEW__?: {
-    ready: boolean
-    extract: () => Promise<Record<string, Story>>
-    storyStore?: {
-      cacheAllCSFFiles: () => Promise<void>
-    }
-  }
-}
+import { getStorybookStories, navigateToStorybook, processStory } from "./stories"
 
 export async function ingestStorybook(
   projectId: string,
@@ -151,6 +141,7 @@ export async function ingestStorybook(
           args: ["--headless", "--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"],
         },
       },
+      logLevel: "warn",
     }
     const browser = await remote(config)
     screenshotTest.browserVersion = `${browser.capabilities.browserName}-${browser.capabilities.platformName}-${browser.capabilities.browserVersion}`
@@ -164,66 +155,16 @@ export async function ingestStorybook(
       const { server, port } = await startStaticServer(tmpDir)
 
       try {
-        // Set a fixed viewport
-        await browser.setViewport({
-          width: 1200,
-          height: 900,
-          devicePixelRatio: 1,
-        })
+        // Set the initial viewport
+        await browser.setViewport({ width: 1200, height: 900, devicePixelRatio: 1 })
 
         // Navigate to the Storybook iframe and wait for stories to load
-        const timeoutMs = 10 * 1000 // 10 seconds
-        log.info("Waiting for Storybook to load stories")
-        await browser.url(`http://localhost:${port}/iframe.html`)
-        await browser.waitUntil(
-          async () => {
-            return await browser.execute(async (): Promise<boolean> => {
-              // @ts-expect-error: window is not defined
-              // eslint-disable-next-line no-underscore-dangle
-              const preview = (window as StorybookWindow).__STORYBOOK_PREVIEW__
-              if (!preview?.storyStore) {
-                return false
-              }
-
-              try {
-                await preview.storyStore.cacheAllCSFFiles()
-                return true
-              } catch {
-                return false
-              }
-            })
-          },
-          {
-            timeout: timeoutMs,
-            timeoutMsg: `Storybook failed to load stories within ${timeoutMs / 1000}s`,
-            interval: 100,
-          },
-        )
+        await navigateToStorybook(browser, port)
 
         // Get the loaded stories
-        let stories: Record<string, Story> | undefined
-        try {
-          stories = await browser.execute(async () => {
-            // @ts-expect-error: window is not defined
-            // eslint-disable-next-line no-underscore-dangle
-            const preview = (window as StorybookWindow).__STORYBOOK_PREVIEW__
-            if (!preview) {
-              return undefined
-            }
-
-            try {
-              return await preview.extract()
-            } catch (err) {
-              console.error("Failed to extract stories:", err)
-              return undefined
-            }
-          })
-          if (!stories) {
-            throw new Error("No stories found in Storybook")
-          }
-        } catch (err) {
-          log.error(err, "Error extracting stories from Storybook")
-          throw err
+        const stories = await getStorybookStories(browser)
+        if (Object.keys(stories).length === 0) {
+          throw new Error("Storybook loaded but contains no stories")
         }
 
         const storyCount = Object.keys(stories).length

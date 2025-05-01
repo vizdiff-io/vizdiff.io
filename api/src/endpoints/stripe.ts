@@ -59,7 +59,7 @@ export const createCheckoutSession: RequestHandler = async (req, res) => {
       success_url: `${APP_URL}/signup?checkout=success`,
       client_reference_id: user.id.toString(),
       customer: user.stripeCustomerId ?? undefined,
-      customer_email: user.email ?? undefined,
+      customer_email: user.stripeCustomerId ? undefined : (user.email ?? undefined),
       subscription_data: {
         description: `vizdiff.io ${interval} ${plan} plan`,
       },
@@ -78,7 +78,7 @@ export const createCheckoutSession: RequestHandler = async (req, res) => {
 }
 
 export const getBillingPeriodUsage: RequestHandler = async (_req, res) => {
-  const { user } = res.locals
+  let { user } = res.locals
 
   // Basic configuration checks
   if (!STRIPE_SECRET_KEY) {
@@ -98,34 +98,63 @@ export const getBillingPeriodUsage: RequestHandler = async (_req, res) => {
   }
 
   const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: STRIPE_API_VERSION })
+  const db = await Database()
+
+  // Sync with Stripe before proceeding
+  try {
+    res.locals.user = await syncStripeSubscription(user, stripe, db)
+    user = res.locals.user
+  } catch (error) {
+    // Log the sync error but proceed, using potentially stale data
+    log.error(
+      error,
+      `Failed to sync Stripe subscription for user ${user.id}. Proceeding with potentially stale data.`,
+    )
+  }
+
+  // The `syncStripeSubscription()` call should never clear the customer ID, but we check here
+  // for type safety
+  if (!user.stripeCustomerId) {
+    log.error({ user }, `User ${user.id} has no Stripe customer ID after sync, cannot fetch usage`)
+    res.status(500).json({ error: "Missing billing information" })
+    return
+  }
 
   if (!user.stripeSubscriptionId) {
-    // User is in a trial, fetch usage from signup to trial end or now, whichever is later
+    // User is in a trial (or potentially subscription lapsed/sync failed)
+    // Fetch usage based on trial dates or creation date
     const periodStartSec = Math.floor(user.createdAt.getTime() / 1000)
     const trialEndSec = Math.floor((user.trialEndsAt ?? new Date()).getTime() / 1000)
     const periodEndSec = Math.max(Math.floor(new Date().getTime() / 1000), trialEndSec)
-    const usageSummaries = await stripe.billing.meters.listEventSummaries(
-      STRIPE_SCREENSHOT_METER_ID,
-      {
-        customer: user.stripeCustomerId,
-        start_time: periodStartSec,
-        end_time: periodEndSec,
-        limit: 100,
-      },
-    )
-    let totalUsage = 0
-    for (const summary of usageSummaries.data) {
-      totalUsage += isNaN(summary.aggregated_value) ? 0 : summary.aggregated_value
-    }
 
-    const json: BillingPeriodUsageResponse = {
-      totalUsage,
-      subscriptionIncludedUsage: MAX_TRIAL_SCREENSHOTS,
-      periodStartSec,
-      periodEndSec,
-      status: "trial",
+    try {
+      log.debug({ userId: user.id, periodStartSec, periodEndSec }, "Fetching trial usage")
+      const usageSummaries = await stripe.billing.meters.listEventSummaries(
+        STRIPE_SCREENSHOT_METER_ID,
+        {
+          customer: user.stripeCustomerId,
+          start_time: periodStartSec,
+          end_time: periodEndSec,
+          limit: 100,
+        },
+      )
+      let totalUsage = 0
+      for (const summary of usageSummaries.data) {
+        totalUsage += isNaN(summary.aggregated_value) ? 0 : summary.aggregated_value
+      }
+
+      const json: BillingPeriodUsageResponse = {
+        totalUsage,
+        subscriptionIncludedUsage: MAX_TRIAL_SCREENSHOTS,
+        periodStartSec,
+        periodEndSec,
+        status: "trial",
+      }
+      res.json(json)
+    } catch (error) {
+      log.error(error, `Error fetching trial usage summaries for user ${user.id}`)
+      res.status(500).json({ error: "Failed to retrieve trial usage data." })
     }
-    res.json(json)
     return
   }
 
@@ -211,6 +240,8 @@ export async function stripeWebhook(req: RequestWithRawBody, res: DefaultRespons
     return
   }
 
+  log.info({ event }, `Received Stripe webhook event ${event.type}`)
+
   const db = await Database()
 
   try {
@@ -255,7 +286,9 @@ export async function stripeWebhook(req: RequestWithRawBody, res: DefaultRespons
         log.error({ event }, "No line items in subscription")
       } else {
         // We're interested in the plan price, not the usage price
-        const planLineItem = subscription.items.data.find((item) => item.price.id.includes("plan_"))
+        const planLineItem = subscription.items.data.find(
+          (item) => item.price.nickname?.includes("plan_") ?? false,
+        )
 
         if (!planLineItem) {
           log.error({ event }, "Could not find plan line item in subscription")
@@ -335,4 +368,164 @@ export async function stripeWebhook(req: RequestWithRawBody, res: DefaultRespons
     log.error(error, "Error processing Stripe webhook")
     res.status(500).json({ error: "Error processing webhook" })
   }
+}
+
+// Helper function to sync user's subscription state with Stripe
+async function syncStripeSubscription(
+  user: User,
+  stripe: Stripe,
+  db: Awaited<ReturnType<typeof Database>>,
+): Promise<User> {
+  if (!user.stripeCustomerId) {
+    // Cannot sync without a customer ID
+    return user
+  }
+
+  let subscription: Stripe.Subscription | undefined
+
+  if (user.stripeSubscriptionId) {
+    try {
+      subscription = await stripe.subscriptions.retrieve(user.stripeSubscriptionId)
+
+      if (subscription.status === "canceled" || subscription.status === "incomplete_expired") {
+        // If retrieve succeeded but status is canceled/expired, or retrieve failed (throws),
+        // clear local subscription info if it wasn't already cleared by webhook.
+        if (user.stripeSubscriptionId || user.subscriptionPlan || user.subscriptionInterval) {
+          log.warn(
+            { userId: user.id, subscriptionId: user.stripeSubscriptionId, subscription },
+            "Subscription ID found in DB but subscription is missing or canceled in Stripe. Clearing local state.",
+          )
+          await db.manager.update(
+            User,
+            { id: user.id },
+            {
+              stripeSubscriptionId: null,
+              subscriptionPlan: null,
+              subscriptionInterval: null,
+            },
+          )
+          user.stripeSubscriptionId = null
+          user.subscriptionPlan = null
+          user.subscriptionInterval = null
+        }
+        subscription = undefined // Ensure we don't proceed with a canceled/deleted sub
+      }
+    } catch (error) {
+      if (
+        error instanceof Stripe.errors.StripeInvalidRequestError &&
+        error.code === "resource_missing"
+      ) {
+        // Subscription ID exists in DB but not in Stripe (deleted). Clear local state.
+        if (user.stripeSubscriptionId || user.subscriptionPlan || user.subscriptionInterval) {
+          log.warn(
+            { userId: user.id, subscriptionId: user.stripeSubscriptionId, subscription },
+            "Subscription ID found in DB but not found in Stripe (likely deleted). Clearing local state.",
+          )
+          await db.manager.update(
+            User,
+            { id: user.id },
+            {
+              stripeSubscriptionId: null,
+              subscriptionPlan: null,
+              subscriptionInterval: null,
+            },
+          )
+          user.stripeSubscriptionId = null
+          user.subscriptionPlan = null
+          user.subscriptionInterval = null
+        }
+      } else {
+        // Log other errors but don't necessarily block the request
+        log.error(error, `Error retrieving subscription ${user.stripeSubscriptionId} during sync`)
+      }
+      subscription = undefined // Ensure we don't proceed if there was an error
+    }
+  }
+
+  // If no subscription ID was present, or the existing one was invalid/deleted,
+  // check if an active one exists for the customer.
+  if (!subscription && user.stripeCustomerId) {
+    try {
+      const customerSubscriptions = await stripe.subscriptions.list({
+        customer: user.stripeCustomerId,
+        status: "active",
+        limit: 1,
+      })
+      if (customerSubscriptions.data.length > 0) {
+        subscription = customerSubscriptions.data[0]!
+        log.info(
+          { userId: user.id, newSubscriptionId: subscription.id, subscription },
+          "Found active subscription in Stripe not previously recorded in DB.",
+        )
+      }
+    } catch (error) {
+      log.error(
+        error,
+        `Error listing subscriptions for customer ${user.stripeCustomerId} during sync`,
+      )
+    }
+  }
+
+  // Now, if we have an active subscription object, compare and update DB
+  if (subscription && subscription.status === "active") {
+    const planLineItem = subscription.items.data.find(
+      (item) => item.price.nickname?.includes("plan_") ?? false,
+    )
+    const planInfo = planLineItem ? getPlanInfoFromPriceId(planLineItem.price.id) : null
+
+    if (
+      subscription.id !== user.stripeSubscriptionId ||
+      planInfo?.plan !== user.subscriptionPlan ||
+      planInfo.interval !== user.subscriptionInterval
+    ) {
+      if (planInfo) {
+        log.info(
+          { userId: user.id, subscriptionId: subscription.id, subscription, planInfo },
+          "Stripe subscription state differs from DB. Updating user record.",
+        )
+        await db.manager.update(
+          User,
+          { id: user.id },
+          {
+            stripeSubscriptionId: subscription.id,
+            subscriptionPlan: planInfo.plan,
+            subscriptionInterval: planInfo.interval,
+          },
+        )
+        // Update the user object in memory as well
+        user.stripeSubscriptionId = subscription.id
+        user.subscriptionPlan = planInfo.plan
+        user.subscriptionInterval = planInfo.interval
+      } else {
+        log.error(
+          { userId: user.id, subscriptionId: subscription.id, subscription },
+          "Active subscription found but could not determine plan info from price ID.",
+        )
+      }
+    }
+  } else if (!subscription && user.stripeSubscriptionId) {
+    // This case is handled above by clearing the subscription details if retrieve fails or status is canceled.
+    // If we reach here and !subscription, it means either no sub exists or it's not active/trialing.
+    // We ensure the DB reflects this lack of an active subscription.
+    if (user.subscriptionPlan || user.subscriptionInterval) {
+      log.warn(
+        { userId: user.id, subscriptionId: user.stripeSubscriptionId, subscription },
+        "User has subscription ID in DB, but no active subscription found in Stripe. Clearing plan details.",
+      )
+      await db.manager.update(
+        User,
+        { id: user.id },
+        {
+          // Keep stripeSubscriptionId for potential reactivation/history,
+          // but clear plan details to reflect non-active state.
+          subscriptionPlan: null,
+          subscriptionInterval: null,
+        },
+      )
+      user.subscriptionPlan = null
+      user.subscriptionInterval = null
+    }
+  }
+
+  return user
 }

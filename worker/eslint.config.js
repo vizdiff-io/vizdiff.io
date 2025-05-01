@@ -1,35 +1,14 @@
 import foxglove from "@foxglove/eslint-plugin"
 import * as tseslint from "typescript-eslint"
 
+import { baseConfig, nodeConfig, rulesConfig } from "../eslint.config.mjs"
+
 export default tseslint.config(
+  ...baseConfig,
   ...foxglove.configs.base,
   ...foxglove.configs.typescript,
   tseslint.configs.recommendedTypeChecked,
-  {
-    linterOptions: {
-      reportUnusedDisableDirectives: "error",
-    },
-    languageOptions: {
-      globals: {
-        console: false,
-        process: false,
-      },
-      parserOptions: {
-        projectService: {
-          allowDefaultProject: ["build.js", "eslint.config.js"],
-        },
-        tsconfigRootDir: String(import.meta.dirname),
-      },
-    },
-  },
-  {
-    rules: {
-      "@typescript-eslint/restrict-template-expressions": "off",
-      "@typescript-eslint/strict-boolean-expressions": "off",
-      "@typescript-eslint/require-await": "off",
-      "@typescript-eslint/no-misused-promises": ["error", { checksVoidReturn: false }],
-      "@typescript-eslint/promise-function-async": "off",
-      "@typescript-eslint/no-confusing-void-expression": "off",
-    },
-  },
+  nodeConfig,
+  { files: ["src/**/*.ts"] },
+  rulesConfig,
 )
