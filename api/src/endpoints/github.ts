@@ -1,5 +1,6 @@
 import { createAppAuth } from "@octokit/auth-app"
 import { Octokit } from "@octokit/rest"
+import { Database } from "../database"
 import type { RestEndpointMethodTypes } from "@octokit/rest"
 
 import {
@@ -11,6 +12,8 @@ import {
 import { getInstallationForOrg, getInstallationsForUserId, syncUserInstallations } from "../github"
 import { log } from "../log"
 import type { RequestHandler } from "../types"
+import { getAccessibleProjectIds } from "../projectAccess"
+import { Project } from "../../../shared/src/entity/Project"
 
 const GITHUB_HEADERS = { "X-GitHub-Api-Version": "2022-11-28" }
 
@@ -105,6 +108,38 @@ export const repos: RequestHandler = async (req, res) => {
         per_page: 100,
       })
 
-  log.debug(`Found ${ghRes.data.length} GitHub projects (user=${user.githubUsername}, org=${org})`)
-  res.json(ghRes.data as RepoResponse[])
+  // Get the list of project IDs that this user has access to
+  const db = await Database()
+  const accessibleProjectIds = await getAccessibleProjectIds(db, user.id)
+
+  // Get a set of repo IDs from the list of accessible project IDs
+  const accessibleRepoIds = new Set<number>()
+  if (accessibleProjectIds.length > 0) {
+    const results = await db
+      .getRepository(Project)
+      .createQueryBuilder("project")
+      .select("project.githubRepoId", "githubRepoId")
+      .where("project.id IN (:...ids)", { ids: accessibleProjectIds })
+      .getRawMany<{ githubRepoId: string }>()
+    for (const row of results) {
+      accessibleRepoIds.add(parseInt(row.githubRepoId, 10))
+    }
+  }
+
+  // Filter out repos that this user already has a project for (or has access to)
+  const filteredRepos = ghRes.data.filter((repo) => !accessibleRepoIds.has(repo.id))
+
+  log.info(
+    {
+      user,
+      org,
+      filteredReposLength: filteredRepos.length,
+      totalReposLength: ghRes.data.length,
+      githubResponse: ghRes.data,
+      accessibleRepoIds,
+      accessibleProjectIds,
+    },
+    "Returning GitHub projects",
+  )
+  res.json(filteredRepos as RepoResponse[])
 }
