@@ -288,7 +288,7 @@ export async function captureStableScreenshot(
 
     // Rename the final selected screenshot file to the official path
     log.debug(
-      `Using final screenshot buffer (${finalScreenshotBuffer.byteLength} bytes) located at ${previousScreenshotPath}`,
+      `Using final screenshot buffer (${finalScreenshotBuffer.byteLength} bytes) saved to ${outputFilePath}`,
     )
     // Write the final buffer to the output path
     await fsPromises.writeFile(outputFilePath, finalScreenshotBuffer)
