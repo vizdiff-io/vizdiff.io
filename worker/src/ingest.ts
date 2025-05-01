@@ -1,7 +1,6 @@
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3"
 import type { Capabilities } from "@wdio/types"
 import { promises as fsPromises } from "node:fs"
-import http from "node:http"
 import os from "node:os"
 import path from "node:path"
 import { Readable } from "node:stream"
@@ -23,6 +22,7 @@ import { downloadWithTimeout } from "./download"
 import { IS_PRODUCTION, STRIPE_API_VERSION, STRIPE_SECRET_KEY } from "./environment"
 import { updateGitHubCheckRun, type GitHubCheckData } from "./github"
 import { log } from "./log"
+import { startStaticServer } from "./server"
 import { type Story, processStory } from "./stories"
 
 type StorybookWindow = {
@@ -161,59 +161,7 @@ export async function ingestStorybook(
 
     try {
       // Start a local server to serve the Storybook files
-      log.info("Starting local HTTP server for Storybook files")
-      const server = http.createServer((req, res) => {
-        // Reject requests that try to access files outside of the served directory
-        const requestedPath = path.normalize(req.url?.split("?")[0] ?? "")
-        if (requestedPath.includes("..") || !requestedPath.startsWith("/")) {
-          res.writeHead(403)
-          res.end()
-          return
-        }
-
-        const filePath = path.join(tmpDir, requestedPath)
-        log.trace(`Serving file: ${filePath}`)
-        fsPromises
-          .readFile(filePath)
-          .then((content) => {
-            const ext = path.extname(filePath)
-            const contentType =
-              {
-                ".html": "text/html",
-                ".js": "text/javascript",
-                ".css": "text/css",
-                ".json": "application/json",
-                ".png": "image/png",
-                ".jpg": "image/jpeg",
-                ".gif": "image/gif",
-                ".svg": "image/svg+xml",
-              }[ext] ?? "application/octet-stream"
-
-            res.writeHead(200, { "Content-Type": contentType })
-            res.end(content)
-            log.trace(`Successfully served file: ${filePath}`)
-          })
-          .catch(() => {
-            log.warn(`File not found: ${filePath}`)
-            res.writeHead(404)
-            res.end()
-          })
-      })
-
-      // Let the OS choose an available port
-      server.listen(0)
-
-      // Wait for the server to be ready
-      await new Promise<void>((resolve) => {
-        server.once("listening", () => resolve())
-      })
-
-      const address = server.address()
-      if (!address || typeof address === "string") {
-        throw new Error("Failed to get server port")
-      }
-      const port = address.port
-      log.info(`Local server started on port ${port}`)
+      const { server, port } = await startStaticServer(tmpDir)
 
       try {
         // Set a fixed viewport
