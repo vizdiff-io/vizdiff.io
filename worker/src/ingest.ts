@@ -24,7 +24,6 @@ import { updateGitHubCheckRun, type GitHubCheckData } from "./github"
 import { log } from "./log"
 import { startStaticServer } from "./server"
 import { getStorybookStories, navigateToStorybook, processStory } from "./stories"
-import type { StorybookWindow } from "./types"
 
 export async function ingestStorybook(
   projectId: string,
