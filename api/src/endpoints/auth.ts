@@ -159,7 +159,7 @@ export async function githubCallback(req: DefaultRequest, res: DefaultResponse):
       log.debug(`Creating Stripe customer for GitHub user ${ghUser.login} (${ghUser.id})`)
       const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: STRIPE_API_VERSION })
       const customer = await stripe.customers.create({
-        email: ghUser.email ?? `${ghUser.login}@github.login`,
+        email: ghUser.email ?? undefined,
         name: ghUser.name ?? ghUser.login,
         metadata: {
           github_id: githubId,

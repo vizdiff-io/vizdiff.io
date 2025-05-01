@@ -32,7 +32,7 @@ export const GITHUB_WEBHOOK_SECRET = process.env.GITHUB_WEBHOOK_SECRET ?? ""
 
 // Stripe settings
 export const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY
-export const STRIPE_API_VERSION = "2025-03-31.basil"
+export const STRIPE_API_VERSION = "2025-04-30.basil"
 
 // Application URLs
 export const APP_URL = process.env.APP_URL ?? "https://vizdiff.io"

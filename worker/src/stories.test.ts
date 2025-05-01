@@ -26,6 +26,7 @@ const mockTestResultSave = vi.fn()
 const mockBrowserUrl = vi.fn()
 const mockBrowserExecute = vi.fn()
 const mockBrowserSaveScreenshot = vi.fn()
+const mockBrowserSetViewport = vi.fn()
 const mockBrowserPause = vi.fn()
 
 /**
@@ -274,6 +275,7 @@ describe("processStory", () => {
     saveScreenshot: mockBrowserSaveScreenshot.mockImplementation(async () =>
       Buffer.from("mock screenshot data"),
     ),
+    setViewport: mockBrowserSetViewport,
     pause: mockBrowserPause,
     waitUntil: vi.fn().mockImplementation(async (fn: () => Promise<unknown>) => {
       await fn()

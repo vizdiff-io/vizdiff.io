@@ -18,7 +18,7 @@
     "build-storybook": "storybook build"
   },
   "devDependencies": {
-    "@datadog/browser-rum": "^6.6.3",
+    "@datadog/browser-rum": "^6.6.4",
     "@emotion/react": "11.14.0",
     "@emotion/styled": "11.14.0",
     "@eslint/eslintrc": "^3.3.1",
