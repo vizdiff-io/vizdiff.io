@@ -1,8 +1,9 @@
 import { createAppAuth } from "@octokit/auth-app"
 import { Octokit } from "@octokit/rest"
-import { Database } from "../database"
 import type { RestEndpointMethodTypes } from "@octokit/rest"
+import { Project } from "shared"
 
+import { Database } from "../database"
 import {
   GITHUB_APP_ID,
   GITHUB_CLIENT_ID,
@@ -11,9 +12,8 @@ import {
 } from "../environment"
 import { getInstallationForOrg, getInstallationsForUserId, syncUserInstallations } from "../github"
 import { log } from "../log"
-import type { RequestHandler } from "../types"
 import { getAccessibleProjectIds } from "../projectAccess"
-import { Project } from "../../../shared/src/entity/Project"
+import type { RequestHandler } from "../types"
 
 const GITHUB_HEADERS = { "X-GitHub-Api-Version": "2022-11-28" }
 
