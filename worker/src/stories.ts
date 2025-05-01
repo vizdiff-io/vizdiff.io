@@ -62,35 +62,34 @@ const SCREENSHOT_INTERVAL_MS = 500
 const SCREENSHOTS_UNCHANGED_TIMEOUT_MS = 10 * 1000
 const IMAGE_UNCHANGED_THRESHOLD = 0.001
 
-export async function processStory({
-  story,
-  screenshotTest,
-  baseTestResult,
-  bucket,
-  tmpDir,
-  projectId,
-  uploadId,
-  port,
-  s3Client,
-  testResultTable,
-  browser,
-}: StoryInfo): Promise<TestResult> {
-  const storyId = story.id
-  log.info(`Processing story: ${storyId} (${story.name})`)
-
-  // Take screenshot with browser mutex
-  const screenshotPath = path.join(tmpDir, `${storyId}.png`)
-  let screenshot: Buffer | undefined
-  const tempPath1 = path.join(tmpDir, `${storyId}-temp1.png`)
-  const tempPath2 = path.join(tmpDir, `${storyId}-temp2.png`)
-  // Start with temp1 as the destination for the first screenshot
+/**
+ * Navigates to a story, waits for it to stabilize, and saves a screenshot.
+ * Uses a mutex to ensure only one browser operation happens at a time.
+ * @param browser WebDriverIO browser instance
+ * @param storyId The ID of the story to capture
+ * @param port The port where the Storybook is being served locally
+ * @param tempDir A temporary directory for stabilization screenshots
+ * @param outputFilePath The final path to save the stabilized screenshot
+ * @returns The path to the saved screenshot file (same as outputFilePath)
+ */
+export async function captureStableScreenshot(
+  browser: Browser,
+  storyId: string,
+  port: number,
+  tempDir: string,
+  outputFilePath: string,
+): Promise<string> {
+  log.debug(`Capturing stable screenshot for story ${storyId}`)
+  const tempPath1 = path.join(tempDir, `${storyId}-temp1.png`)
+  const tempPath2 = path.join(tempDir, `${storyId}-temp2.png`)
   let previousScreenshotPath = tempPath1
   let currentScreenshotPath = tempPath2
+  let finalScreenshotBuffer: Buffer | undefined
 
   await browserMutex.acquire()
   try {
     // Navigate to the story
-    const storyUrl = `http://localhost:${port}/iframe.html?id=${storyId}`
+    const storyUrl = `http://localhost:${port}/iframe.html?id=${storyId}` // Ensure port is used
     log.debug(`Navigating to story URL: ${storyUrl}`)
     await browser.url(storyUrl)
 
@@ -101,12 +100,10 @@ export async function processStory({
     // --- Screenshot Stabilization Logic ---
     log.debug("Taking initial screenshot for stabilization...")
     let previousScreenshotBuffer = await takeScreenshotWithRetry(browser, previousScreenshotPath)
-    screenshot = previousScreenshotBuffer // Initialize screenshot with the first capture
+    finalScreenshotBuffer = previousScreenshotBuffer // Initialize screenshot with the first capture
 
     const startTime = Date.now()
     let stabilized = false
-
-    // Define maximum attempts based on timeout and interval
     const MAX_ATTEMPTS = Math.ceil(SCREENSHOTS_UNCHANGED_TIMEOUT_MS / SCREENSHOT_INTERVAL_MS)
     let attempts = 0
 
@@ -137,7 +134,7 @@ export async function processStory({
         )
         // Update the baseline for the next comparison
         previousScreenshotBuffer = currentScreenshotBuffer
-        screenshot = currentScreenshotBuffer // Update final screenshot candidate
+        finalScreenshotBuffer = currentScreenshotBuffer // Update final screenshot candidate
         // Swap paths for next iteration
         ;[previousScreenshotPath, currentScreenshotPath] = [
           currentScreenshotPath,
@@ -153,7 +150,7 @@ export async function processStory({
 
       // Always update the baseline and final screenshot candidate to the latest capture
       previousScreenshotBuffer = currentScreenshotBuffer
-      screenshot = currentScreenshotBuffer
+      finalScreenshotBuffer = currentScreenshotBuffer
       // Swap paths for the next potential iteration
       ;[previousScreenshotPath, currentScreenshotPath] = [
         currentScreenshotPath,
@@ -182,22 +179,75 @@ export async function processStory({
         `Screenshot for story ${storyId} did not stabilize within ` +
           `${SCREENSHOTS_UNCHANGED_TIMEOUT_MS}ms (${attempts} attempts). Using last captured screenshot.`,
       )
-      // No action needed here, 'screenshot' already holds the last buffer captured
+    }
+
+    if (!finalScreenshotBuffer) {
+      throw new Error(`Failed to capture any screenshot for story ${storyId}`)
     }
 
     // Rename the final selected screenshot file to the official path
     log.debug(
-      `Using final screenshot buffer (${screenshot.byteLength} bytes) located at ${previousScreenshotPath}`,
+      `Using final screenshot buffer (${finalScreenshotBuffer.byteLength} bytes) located at ${previousScreenshotPath}`,
     )
-    await fsPromises.rename(previousScreenshotPath, screenshotPath)
+    // Write the final buffer to the output path
+    await fsPromises.writeFile(outputFilePath, finalScreenshotBuffer)
+
+    // Clean up the other temp file
     await fsPromises.unlink(currentScreenshotPath).catch((err: unknown) => {
-      log.error(err, `Failed to delete unused temp screenshot ${currentScreenshotPath}`)
+      log.warn(err, `Failed to delete unused temp screenshot ${currentScreenshotPath}`)
     })
     // --- End Screenshot Logic ---
   } finally {
     // Release browser mutex
     browserMutex.release()
   }
+  log.info(`Stable screenshot saved to ${outputFilePath}`)
+  return outputFilePath
+}
+
+export async function processStory({
+  story,
+  screenshotTest,
+  baseTestResult,
+  bucket,
+  tmpDir,
+  projectId,
+  uploadId,
+  port,
+  s3Client,
+  testResultTable,
+  browser,
+}: StoryInfo): Promise<TestResult> {
+  const storyId = story.id
+  log.info(`Processing story: ${storyId} (${story.name})`)
+
+  const localScreenshotPath = path.join(tmpDir, `${storyId}.png`)
+  const screenshotTempDir = path.join(tmpDir, "stabilization") // Subdir for temp files
+  await fsPromises.mkdir(screenshotTempDir, { recursive: true })
+
+  // Call captureStableScreenshot correctly here
+  try {
+    await captureStableScreenshot(browser, storyId, port, screenshotTempDir, localScreenshotPath)
+  } catch (error) {
+    log.error(error, `Failed to capture stable screenshot for story ${storyId}`)
+    // Create a minimal failed TestResult record
+    const name = getStoryName(story)
+    const buildNumber = screenshotTest.buildNumber
+    const testResult = new TestResult()
+    testResult.name = name
+    testResult.screenshotTest = screenshotTest
+    testResult.storyId = storyId
+    testResult.story = story
+    testResult.changeStatus = "error" // Indicate failure
+    await testResultTable.save(testResult)
+    log.warn(
+      `Saved error test result record for build #${buildNumber} story "${name}" (${storyId})`,
+    )
+    throw error // Re-throw to potentially fail the whole build
+  }
+
+  // Read the saved screenshot buffer for upload and comparison
+  const screenshotBuffer = await fsPromises.readFile(localScreenshotPath)
 
   // Upload screenshot to S3
   const screenshotKey = `projects/${projectId}/screenshots/${uploadId}/${storyId}.png`
@@ -206,12 +256,14 @@ export async function processStory({
     new PutObjectCommand({
       Bucket: bucket,
       Key: screenshotKey,
-      Body: screenshot,
+      Body: screenshotBuffer,
       ContentType: "image/png",
     }),
   )
   const newImageUrl = `https://${bucket}.s3.amazonaws.com/${screenshotKey}`
-  log.info(`Successfully uploaded screenshot ${screenshotKey} to S3 (${screenshot.length} bytes)`)
+  log.info(
+    `Successfully uploaded screenshot ${screenshotKey} to S3 (${screenshotBuffer.length} bytes)`,
+  )
 
   let changeStatus: TestResultStatus = "new"
   let baselineImageUrl: string | null = null
@@ -242,7 +294,7 @@ export async function processStory({
         await downloadImage({ s3Client, bucket, key: baselineKey, filePath: baselinePath })
 
         // Load the new and baseline PNG images
-        const newImageBuffer = await fsPromises.readFile(screenshotPath)
+        const newImageBuffer = screenshotBuffer
         const baselineImageBuffer = await fsPromises.readFile(baselinePath)
         const newPng = PNG.sync.read(newImageBuffer)
         const baselinePng = PNG.sync.read(baselineImageBuffer)
