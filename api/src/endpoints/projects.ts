@@ -3,6 +3,7 @@ import { Project, User } from "shared"
 
 import type { ProjectResponse } from "../apiTypes"
 import { toSeconds } from "../conversions"
+import { trackEvent } from "../customerio"
 import { Database } from "../database"
 import { MAX_PROJECTS_PER_USER, TRIAL_PERIOD_MS } from "../environment"
 import { getParamInt } from "../http"
@@ -184,6 +185,13 @@ export const create: RequestHandler = async (req, res) => {
   const projectTable = db.getRepository(Project)
   await projectTable.save(project)
 
+  // Track the project creation event with Customer.io
+  trackEvent(user.id, req, "project_created", {
+    projectName: project.name,
+    repo: project.githubRepoUrl,
+    plan: user.subscriptionPlan,
+  })
+
   const response: ProjectResponse = {
     id: project.id,
     name: project.name,
@@ -217,6 +225,13 @@ export const remove: RequestHandler = async (req, res) => {
   }
 
   await projectTable.remove(project)
+
+  // Track the project deletion event with Customer.io
+  trackEvent(user.id, req, "project_deleted", {
+    projectName: project.name,
+    repo: project.githubRepoUrl,
+  })
+
   res.json({ success: true })
 }
 

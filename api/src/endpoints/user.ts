@@ -1,5 +1,6 @@
 import type { GitHubInstallationResponse, UserResponse } from "../apiTypes"
 import { toSeconds } from "../conversions"
+import { trackEvent } from "../customerio"
 import { Database } from "../database"
 import { TRIAL_PERIOD_MS } from "../environment"
 import { getInstallationsForUserId, syncUserGithubRepos } from "../github"
@@ -47,7 +48,7 @@ export const me: RequestHandler = async (_req, res) => {
   res.json(response)
 }
 
-export const deleteAccount: RequestHandler = async (_req, res) => {
+export const deleteAccount: RequestHandler = async (req, res) => {
   const { user } = res.locals
 
   // Don't allow deleting the account if there is an active subscription
@@ -76,24 +77,32 @@ export const deleteAccount: RequestHandler = async (_req, res) => {
     await db.transaction(async (manager) => {
       await manager.remove(user)
     })
-
-    res.clearCookie("token")
-    res.clearCookie("authenticated")
-
-    log.info({ user }, `Account deleted for user ${user.id} (${user.email})`)
-    res.status(200).json({ success: true, message: "Account deleted successfully" })
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error"
     log.error(error, `Failed to delete account for user ${user.id} (${user.email})`)
     res.status(500).json({ error: "Failed to delete account", message })
+    return
   }
+
+  res.clearCookie("token")
+  res.clearCookie("authenticated")
+
+  log.info({ user }, `Account deleted for user ${user.id} (${user.email})`)
+
+  // Track the account deletion event with Customer.io
+  trackEvent(user.id, req, "account_deleted", { email: user.email })
+
+  res.status(200).json({ success: true, message: "Account deleted successfully" })
 }
 
-export const syncGithubRepos: RequestHandler = async (_req, res) => {
+export const syncGithubRepos: RequestHandler = async (req, res) => {
   const { user } = res.locals
 
   try {
     const repoCount = await syncUserGithubRepos(user)
+
+    // Track the GitHub repo sync event with Customer.io
+    trackEvent(user.id, req, "github_repo_synced", { count: repoCount })
 
     res.status(200).json({
       message: "GitHub repository access synchronized successfully.",

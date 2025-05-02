@@ -40,6 +40,8 @@ export const STRIPE_SCREENSHOT_METER_ID = process.env.STRIPE_SCREENSHOT_METER_ID
 export const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET
 export const STRIPE_API_VERSION = "2025-04-30.basil"
 
+export const CUSTOMER_IO_API_KEY = process.env.CUSTOMER_IO_API_KEY
+
 export const TRIAL_PERIOD_MS = 14 * 24 * 60 * 60 * 1000 // 14 days
 export const MAX_PROJECTS_PER_USER = 256
 export const MAX_TRIAL_SCREENSHOTS = 5000

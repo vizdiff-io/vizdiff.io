@@ -34,5 +34,8 @@ export const GITHUB_WEBHOOK_SECRET = process.env.GITHUB_WEBHOOK_SECRET ?? ""
 export const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY
 export const STRIPE_API_VERSION = "2025-04-30.basil"
 
+// Customer.io settings
+export const CUSTOMER_IO_API_KEY = process.env.CUSTOMER_IO_API_KEY
+
 // Application URLs
 export const APP_URL = process.env.APP_URL ?? "https://vizdiff.io"

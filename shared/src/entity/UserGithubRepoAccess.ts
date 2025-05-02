@@ -1,4 +1,4 @@
-import { Entity, CreateDateColumn, ManyToOne, JoinColumn, PrimaryColumn } from "typeorm"
+import { Entity, CreateDateColumn, ManyToOne, JoinColumn, PrimaryColumn, Index } from "typeorm"
 
 import type { User } from "./User"
 
@@ -8,6 +8,7 @@ export class UserGithubRepoAccess {
   userId!: number
 
   @PrimaryColumn({ name: "github_repo_id", type: "bigint", nullable: false })
+  @Index("IDX_user_github_repo_access_github_repo_id", ["githubRepoId"], { unique: false })
   githubRepoId!: number
 
   @ManyToOne("User", { onDelete: "CASCADE" })
