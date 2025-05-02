@@ -31,9 +31,7 @@ const router = Router({ caseSensitive: true })
 
 const httpLoggerConfig = {
   level: IS_PRODUCTION ? "info" : "debug",
-  customProps: (req: DefaultRequest) => ({
-    realIp: (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0] ?? req.ip,
-  }),
+  customProps: (req: DefaultRequest) => ({ realIp: req.realIp }),
   ...(IS_PRODUCTION
     ? {}
     : {
@@ -58,6 +56,10 @@ if (!IS_TEST) {
 }
 
 // Register middleware
+app.use((req: DefaultRequest, _res: DefaultResponse, next: Express.NextFunction) => {
+  req.realIp = (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0] ?? req.ip
+  next()
+})
 app.use(httpLogger)
 
 app.use(cookieParser())

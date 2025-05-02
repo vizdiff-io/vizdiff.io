@@ -5,6 +5,7 @@ import { createSummaryForBuild, ScreenshotTest, User, WorkTask } from "shared"
 import { uuidv7 } from "uuidv7"
 
 import { getProjectByToken, getS3BucketForProject } from "../authenticate"
+import { trackEvent } from "../customerio"
 import { Database } from "../database"
 import { APP_URL, IS_PRODUCTION, IS_STAGING, TRIAL_PERIOD_MS } from "../environment"
 import { getInstallationForOrg, getOctokitForInstallation } from "../github"
@@ -208,6 +209,16 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
 
   // Use Postgres NOTIFY to wake up the worker
   await db.query(`NOTIFY task_queue, '${savedTask.id}'`)
+
+  // Track the upload event with Customer.io. Since the upload is authenticated with a project token
+  // there is no assumption that the uploader *is* the project owner, but it's still useful to track
+  // these events and attribute them to the project owner
+  trackEvent(project.user.id, req, "upload_storybook", {
+    projectName: project.name,
+    repo: project.githubRepoUrl,
+    buildId: screenshotTest.id,
+    byteLength: length,
+  })
 
   res.json({ success: true, uploadId, testId: screenshotTest.id })
 }

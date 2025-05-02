@@ -2,6 +2,7 @@ import { User } from "shared"
 import { Stripe } from "stripe"
 
 import type { BillingPeriodUsageResponse } from "../apiTypes"
+import { trackEvent } from "../customerio"
 import { Database } from "../database"
 import {
   APP_URL,
@@ -72,6 +73,9 @@ export const createCheckoutSession: RequestHandler = async (req, res) => {
     { user, plan, interval, key, session },
     `Stripe checkout session created for ${user.id} (${user.email})`,
   )
+
+  // Track the checkout session creation event with Customer.io
+  trackEvent(user.id, req, "checkout_session_created", { plan, interval })
 
   // Return the checkout session URL for the client to redirect to
   res.json({ url: session.url })
@@ -273,7 +277,16 @@ export async function stripeWebhook(req: RequestWithRawBody, res: DefaultRespons
             { userId, customerId: session.customer, subscriptionId: session.subscription },
             "Updated user with Stripe customer and subscription IDs",
           )
+
+          // Track the checkout session completion event with Customer.io
+          trackEvent(userId, undefined, "checkout_session_completed", {
+            amount: session.amount_total,
+            currency: session.currency,
+            locale: session.locale,
+          })
         }
+      } else {
+        log.error({ event }, "Missing customer or subscription in checkout session")
       }
     } else if (
       event.type === "customer.subscription.created" ||
@@ -323,6 +336,12 @@ export async function stripeWebhook(req: RequestWithRawBody, res: DefaultRespons
                 },
               )
 
+              // Track the subscription update event with Customer.io
+              trackEvent(user.id, undefined, "subscription_updated", {
+                plan: planInfo.plan,
+                interval: planInfo.interval,
+              })
+
               log.info(
                 { userId: user.id, planInfo, subscriptionId: subscription.id },
                 `Updated user subscription to ${planInfo.interval} ${planInfo.plan} plan`,
@@ -338,6 +357,8 @@ export async function stripeWebhook(req: RequestWithRawBody, res: DefaultRespons
       const user = await db.manager.findOneBy(User, { stripeSubscriptionId: subscription.id })
 
       if (user) {
+        const { subscriptionPlan, subscriptionInterval } = user
+
         // Clear subscription data from user
         await db.manager.update(
           User,
@@ -348,6 +369,12 @@ export async function stripeWebhook(req: RequestWithRawBody, res: DefaultRespons
             subscriptionInterval: null,
           },
         )
+
+        // Track the subscription deletion event with Customer.io
+        trackEvent(user.id, undefined, "subscription_deleted", {
+          plan: subscriptionPlan,
+          interval: subscriptionInterval,
+        })
 
         log.info(
           { userId: user.id, subscriptionId: subscription.id },

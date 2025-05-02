@@ -56,6 +56,7 @@ POSTGRES_PORT=5432
 JWT_SECRET=your_jwt_secret
 STRIPE_SECRET_KEY=sk_live_stripesecretkey
 STRIPE_WEBHOOK_SECRET=whsec_stripewebhooksecret
+CUSTOMER_IO_API_KEY=your_customer_io_api_key
 ```
 
 ## Docker Compose Configuration

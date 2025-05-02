@@ -4,6 +4,7 @@ import { User } from "shared"
 import { Stripe } from "stripe"
 import { fetch } from "undici"
 
+import { identifyUser } from "../customerio"
 import { Database } from "../database"
 import {
   APP_URL,
@@ -184,12 +185,17 @@ export async function githubCallback(req: DefaultRequest, res: DefaultResponse):
   await syncUserInstallations(user, installationId)
 
   // Sync GitHub repositories that this user has access to (asynchronously)
-  syncUserGithubRepos(user).catch((error: unknown) => {
-    log.error(
-      error,
-      `Failed to sync GitHub repos for user ${user.id} (${user.githubUsername}) after creation`,
-    )
-  })
+  syncUserGithubRepos(user)
+    .catch((error: unknown) => {
+      log.error(
+        error,
+        `Failed to sync GitHub repos for user ${user.id} (${user.githubUsername}) after creation`,
+      )
+    })
+    .finally(() => {
+      // Identify the user with Customer.io
+      identifyUser(user, req)
+    })
 
   // Generate a JWT
   const token = jwt.sign({ sub: user.id }, JWT_SECRET, { expiresIn: "8h" })

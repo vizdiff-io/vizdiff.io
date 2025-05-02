@@ -1,5 +1,6 @@
 import { createMarkdownForBuildApproval, ScreenshotTest, TestResult } from "shared"
 
+import { trackEvent } from "../customerio"
 import { Database } from "../database"
 import { APP_URL, IS_PRODUCTION, IS_STAGING } from "../environment"
 import { getInstallationForOrg, getOctokitForInstallation } from "../github"
@@ -110,6 +111,15 @@ export const approveOrDeny: RequestHandler = async (req, res) => {
       // Don't fail the API call if GitHub update fails
     }
   }
+
+  // Track the approval event with Customer.io
+  trackEvent(user.id, req, "approval", {
+    projectName: test.project.name,
+    repo: test.project.githubRepoUrl,
+    buildId: test.id,
+    isProjectOwner: test.project.user.id === user.id,
+    status,
+  })
 
   res.json({ success: true })
 }

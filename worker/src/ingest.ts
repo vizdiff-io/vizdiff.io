@@ -17,6 +17,7 @@ import { extract } from "tar"
 import { Not, In } from "typeorm"
 import { remote } from "webdriverio"
 
+import { reportBuildEvents } from "./customerio"
 import { Database } from "./database"
 import { downloadWithTimeout } from "./download"
 import { IS_PRODUCTION, STRIPE_API_VERSION, STRIPE_SECRET_KEY } from "./environment"
@@ -245,6 +246,9 @@ export async function ingestStorybook(
         if (STRIPE_SECRET_KEY) {
           await reportScreenshotUsageToStripe(screenshotTest, testResults)
         }
+
+        // Report build events to Customer.io for all users who have access to the project
+        reportBuildEvents(screenshotTest, testResults)
       } finally {
         log.debug("Shutting down local server")
         await new Promise<void>((resolve) => server.close(() => resolve()))
