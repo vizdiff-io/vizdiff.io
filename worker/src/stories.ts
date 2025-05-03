@@ -339,9 +339,8 @@ export async function processStory({
 }: StoryInfo): Promise<TestResult> {
   const storyId = story.id
   const viewport = getStoryViewport(story)
-  log.info(
-    `Processing story: ${storyId} (${story.name}) with viewport [${JSON.stringify(viewport)}]`,
-  )
+  let logChild = log.child({ projectId, uploadId, storyId, storyName: story.name, viewport })
+  logChild.info("Processing story")
 
   const localScreenshotPath = path.join(tmpDir, `${storyId}.png`)
   const screenshotTempDir = path.join(tmpDir, "stabilization") // Subdir for temp files
@@ -356,11 +355,13 @@ export async function processStory({
       screenshotTempDir,
       localScreenshotPath,
     )
-  } catch (error) {
-    log.error(error, `Failed to capture stable screenshot for story ${storyId}`)
+  } catch (err) {
+    logChild.error(
+      { err, buildNumber: screenshotTest.buildNumber },
+      `Failed to capture stable screenshot for story ${storyId}`,
+    )
     // Create a minimal failed TestResult record
     const name = getStoryName(story)
-    const buildNumber = screenshotTest.buildNumber
     const testResult = new TestResult()
     testResult.name = name
     testResult.screenshotTest = screenshotTest
@@ -368,10 +369,7 @@ export async function processStory({
     testResult.story = story
     testResult.changeStatus = "error" // Indicate failure
     await testResultTable.save(testResult)
-    log.warn(
-      `Saved error test result record for build #${buildNumber} story "${name}" (${storyId})`,
-    )
-    throw error // Re-throw to potentially fail the whole build
+    throw err // Re-throw to potentially fail the whole build
   }
 
   // Read the saved screenshot buffer for upload and comparison
@@ -379,7 +377,7 @@ export async function processStory({
 
   // Upload screenshot to S3
   const screenshotKey = `projects/${projectId}/screenshots/${uploadId}/${storyId}.png`
-  log.debug(`Uploading screenshot to S3: ${screenshotKey}`)
+  logChild.debug({ screenshotKey }, `Uploading screenshot to S3: ${screenshotKey}`)
   await s3Client.send(
     new PutObjectCommand({
       Bucket: bucket,
@@ -389,9 +387,8 @@ export async function processStory({
     }),
   )
   const newImageUrl = `https://${bucket}.s3.amazonaws.com/${screenshotKey}`
-  log.info(
-    `Successfully uploaded screenshot ${screenshotKey} to S3 (${screenshotBuffer.length} bytes)`,
-  )
+  logChild = logChild.child({ newImageUrl, newImageBytes: screenshotBuffer.length })
+  logChild.info("Successfully uploaded screenshot to S3")
 
   let changeStatus: TestResultStatus = "new"
   let baselineImageUrl: string | null = null
@@ -400,23 +397,15 @@ export async function processStory({
 
   if (baseTestResult) {
     // Attempt to download baseline screenshot
-    log.debug(
-      `Base test result for story ${storyId}: ${JSON.stringify({
-        id: baseTestResult.id,
-        storyId: baseTestResult.storyId,
-        hasScreenshotTest: !!baseTestResult.screenshotTest,
-        screenshotTestId: baseTestResult.screenshotTest.id,
-        uploadId: baseTestResult.screenshotTest.uploadId,
-      })}`,
-    )
+    logChild = logChild.child({ baseTestResult })
+    logChild.debug(`Base test result for story ${storyId}`)
     if (!baseTestResult.screenshotTest.uploadId) {
-      log.warn(
-        `Base test result for story ${storyId} has missing screenshotTest or uploadId reference`,
-      )
+      logChild.warn("Base test result has missing screenshotTest or uploadId reference")
       changeStatus = "new"
     } else {
       const baselineKey = `projects/${projectId}/screenshots/${baseTestResult.screenshotTest.uploadId}/${storyId}.png`
       baselineImageUrl = `https://${bucket}.s3.amazonaws.com/${baselineKey}`
+      logChild = logChild.child({ baselineImageUrl })
       try {
         const baselinePath = path.join(tmpDir, `${storyId}-baseline.png`)
         await downloadImage({ s3Client, bucket, key: baselineKey, filePath: baselinePath })
@@ -427,8 +416,14 @@ export async function processStory({
         const newPng = PNG.sync.read(newImageBuffer)
         const baselinePng = PNG.sync.read(baselineImageBuffer)
 
-        if (newPng.width !== baselinePng.width || newPng.height !== baselinePng.height) {
-          log.warn(`Image dimensions mismatch for story ${storyId}`)
+        if (newPng.width !== baselinePng.width) {
+          logChild.info(
+            {
+              baselineSize: { width: baselinePng.width, height: baselinePng.height },
+              newSize: { width: newPng.width, height: newPng.height },
+            },
+            `Image width mismatch for story ${storyId}`,
+          )
           changeStatus = "changed"
           diffRatio = 1
         } else {
@@ -437,13 +432,13 @@ export async function processStory({
 
           // Default threshold of 0.1% difference
           changeStatus = diffRatio < 0.001 ? "unchanged" : "changed"
-          log.debug(`Diff ratio for story ${storyId}: ${diffRatio} (${changeStatus})`)
+          logChild.debug({ diffRatio, changeStatus }, `Diff ratio for story ${storyId}`)
 
           // Write and upload the diff image
           const diffPath = path.join(tmpDir, `${storyId}-diff.png`)
           await fsPromises.writeFile(diffPath, PNG.sync.write(diffRes.diffMask))
           const diffKey = `projects/${projectId}/screenshots/${uploadId}/${storyId}-diff.png`
-          log.debug(`Uploading diff image ${diffPath} to s3://${bucket}/${diffKey}`)
+          logChild.debug({ diffKey }, "Uploading diff image to S3")
           await s3Client.send(
             new PutObjectCommand({
               Bucket: bucket,
@@ -453,14 +448,13 @@ export async function processStory({
             }),
           )
           diffImageUrl = `https://${bucket}.s3.amazonaws.com/${diffKey}`
-          log.info(
-            `Successfully uploaded diff image ${diffKey} to S3 (${diffRes.diffMask.data.byteLength} bytes)`,
+          logChild.info(
+            { diffImageUrl, diffImageBytes: diffRes.diffMask.data.byteLength },
+            "Successfully uploaded diff image to S3",
           )
         }
       } catch (err) {
-        log.warn(
-          `Baseline screenshot not available for story ${storyId}: ${err instanceof Error ? err.message : String(err)}`,
-        )
+        logChild.warn({ err }, "Baseline screenshot not available")
         changeStatus = "new"
       }
     }
@@ -468,8 +462,7 @@ export async function processStory({
 
   // Create test result record
   const name = getStoryName(story)
-  const buildNumber = screenshotTest.buildNumber
-  log.debug(`Creating test result record for build #${buildNumber} story "${name}" (${storyId})`)
+  logChild.debug({ name, storyId }, "Creating test result record")
   const testResult = new TestResult()
   testResult.name = name
   testResult.screenshotTest = screenshotTest
@@ -481,9 +474,7 @@ export async function processStory({
   testResult.diffRatio = diffRatio
   testResult.changeStatus = changeStatus
   await testResultTable.save(testResult)
-  log.debug(
-    `Successfully saved test result record ${testResult.id} (${testResult.name}) for build #${buildNumber}`,
-  )
+  logChild.debug({ testResultId: testResult.id }, "Successfully saved test result record")
 
   return testResult
 }
