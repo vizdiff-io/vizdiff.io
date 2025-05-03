@@ -1,5 +1,8 @@
+import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome"
 import CheckCircleOutline from "@mui/icons-material/CheckCircleOutline"
-import { Typography, Box, Button, Container, Link as MuiLink } from "@mui/material"
+import CompareArrowsIcon from "@mui/icons-material/CompareArrows"
+import LinkIcon from "@mui/icons-material/Link"
+import { Box, Button, Container, Grid, Link as MuiLink, Typography } from "@mui/material"
 import type { JSX } from "react"
 
 import { MarketingLayout } from "@/components/NavBody"
@@ -101,6 +104,60 @@ export default function Home(): JSX.Element {
           </Box>
         </Container>
       </MarketingLayout>
+      {/* How it Works Section */}
+      <Box sx={{ py: { xs: 4, md: 12 }, bgcolor: "var(--bg-paper)" }}>
+        <Container maxWidth="lg">
+          <Typography variant="h2" align="center" sx={{ mb: { xs: 4, sm: 6 } }}>
+            How VizDiff Works
+          </Typography>
+          <Grid container spacing={{ xs: 4, md: 6 }} justifyContent="center">
+            {/* Step 1: Connect */}
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+              <Box sx={{ textAlign: "center" }}>
+                <LinkIcon sx={{ fontSize: 40, mb: 2, color: "primary.main" }} />
+                <Typography variant="h5" sx={{ mb: 1 }}>
+                  1. Connect Repository
+                </Typography>
+                <Typography variant="body1">
+                  Link your GitHub repository and upload your first Storybook build. Setup takes
+                  minutes.
+                </Typography>
+              </Box>
+            </Grid>
+            {/* Step 2: Automate */}
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+              <Box sx={{ textAlign: "center" }}>
+                <AutoAwesomeIcon sx={{ fontSize: 40, mb: 2, color: "primary.main" }} />
+                <Typography variant="h5" sx={{ mb: 1 }}>
+                  2. Automate Screenshots
+                </Typography>
+                <Typography variant="body1">
+                  VizDiff captures screenshots automatically on every commit via a{" "}
+                  <MuiLink
+                    href="https://github.com/marketplace/actions/vizdiff-upload"
+                    target="_blank"
+                  >
+                    GitHub Action
+                  </MuiLink>
+                  .
+                </Typography>
+              </Box>
+            </Grid>
+            {/* Step 3: Review Diffs */}
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+              <Box sx={{ textAlign: "center" }}>
+                <CompareArrowsIcon sx={{ fontSize: 40, mb: 2, color: "primary.main" }} />
+                <Typography variant="h5" sx={{ mb: 1 }}>
+                  3. Review Diffs
+                </Typography>
+                <Typography variant="body1">
+                  Visually compare changes and approve or reject with a streamlined user interface.
+                </Typography>
+              </Box>
+            </Grid>
+          </Grid>
+        </Container>
+      </Box>
     </>
   )
 }
