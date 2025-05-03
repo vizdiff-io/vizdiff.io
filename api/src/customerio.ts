@@ -61,7 +61,7 @@ export function identifyUser(user: User, req: DefaultRequest): void {
             avatar: ghUser.avatar_url,
             company: ghUser.company ? { name: ghUser.company } : undefined,
             plan: user.subscriptionPlan,
-            createdAt: user.createdAt.toISOString(),
+            createdAt: user.createdAt,
             description: ghUser.bio,
             email: user.email,
 
