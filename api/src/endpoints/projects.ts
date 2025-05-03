@@ -3,7 +3,7 @@ import { Project, User } from "shared"
 
 import type { ProjectResponse } from "../apiTypes"
 import { toSeconds } from "../conversions"
-import { trackEvent } from "../customerio"
+import { trackEvent, trackPageView } from "../customerio"
 import { Database } from "../database"
 import { MAX_PROJECTS_PER_USER, TRIAL_PERIOD_MS } from "../environment"
 import { getParamInt } from "../http"
@@ -370,6 +370,15 @@ export const get: RequestHandler = async (req, res) => {
   }
 
   const response = convertToProjectResponse(projectWithStats)
+
+  trackPageView(user.id, req, `/project?id=${id}`, {
+    name: response.name,
+    repo: response.githubRepoUrl,
+    builds: response.builds,
+    tests: response.tests,
+    isProjectOwner: response.ownerId === user.id,
+  })
+
   res.json(response)
 }
 

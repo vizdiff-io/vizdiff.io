@@ -7,6 +7,7 @@ import type {
   TestResultResponse,
 } from "../apiTypes"
 import { toSeconds } from "../conversions"
+import { trackPageView } from "../customerio"
 import { Database } from "../database"
 import { getParamInt } from "../http"
 import { log } from "../log"
@@ -153,7 +154,7 @@ export const list: RequestHandler = async (req, res) => {
 }
 
 export const get: RequestHandler = async (req, res) => {
-  // const { user } = res.locals
+  const { user } = res.locals
   const screenshotTestId = getParamInt("id", req)
   if (!screenshotTestId) {
     res.status(400).json({ error: "Missing id" })
@@ -216,10 +217,20 @@ export const get: RequestHandler = async (req, res) => {
     })),
   }
 
+  trackPageView(user.id, req, `/build?id=${screenshotTest.id}`, {
+    projectId: project.id,
+    projectName: project.name,
+    repo: project.githubRepoUrl,
+    buildNumber: screenshotTest.buildNumber,
+    status: screenshotTest.status,
+    testCount: testResults.length,
+    isProjectOwner: project.user.id === user.id,
+  })
+
   res.json(response)
 }
 
-export const listActivity: RequestHandler = async (_req, res) => {
+export const listActivity: RequestHandler = async (req, res) => {
   const { user } = res.locals
   const db = await Database()
   const screenshotTestTable = db.getRepository(ScreenshotTest)
@@ -318,5 +329,14 @@ export const listActivity: RequestHandler = async (_req, res) => {
     tag: test.screenshot_test_tag ?? undefined,
     initiatedStampSec: toSeconds(test.screenshot_test_created_at),
   }))
+
+  // The activity list only appears on the /projects page, so count it as a page view
+  const properties: Record<string, number> = {}
+  for (const test of responses) {
+    const prevValue = properties[`builds_${test.status}`] ?? 0
+    properties[`builds_${test.status}`] = prevValue + 1
+  }
+  trackPageView(user.id, req, "/projects", properties)
+
   res.json(responses)
 }

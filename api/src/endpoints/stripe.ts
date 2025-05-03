@@ -2,7 +2,7 @@ import { User } from "shared"
 import { Stripe } from "stripe"
 
 import type { BillingPeriodUsageResponse } from "../apiTypes"
-import { trackEvent } from "../customerio"
+import { trackEvent, trackPageView } from "../customerio"
 import { Database } from "../database"
 import {
   APP_URL,
@@ -81,7 +81,7 @@ export const createCheckoutSession: RequestHandler = async (req, res) => {
   res.json({ url: session.url })
 }
 
-export const getBillingPeriodUsage: RequestHandler = async (_req, res) => {
+export const getBillingPeriodUsage: RequestHandler = async (req, res) => {
   let { user } = res.locals
 
   // Basic configuration checks
@@ -209,6 +209,15 @@ export const getBillingPeriodUsage: RequestHandler = async (_req, res) => {
       periodEndSec: currentPeriodEndSec,
       status: invoicePreview.status ?? "draft",
     }
+
+    trackPageView(user.id, req, "/signup", {
+      plan: user.subscriptionPlan,
+      interval: user.subscriptionInterval,
+      totalUsage,
+      subscriptionIncludedUsage: json.subscriptionIncludedUsage,
+      status: json.status,
+    })
+
     res.json(json)
   } catch (error) {
     // Catch errors not handled by the specific preview try/catch

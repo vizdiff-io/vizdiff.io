@@ -2,7 +2,7 @@ import { Analytics as CustomerIoAnalytics } from "@customerio/cdp-analytics-node
 import type { User } from "shared"
 
 import { Database } from "./database"
-import { CUSTOMER_IO_API_KEY } from "./environment"
+import { APP_URL, CUSTOMER_IO_API_KEY } from "./environment"
 import { log } from "./log"
 import { getAccessibleProjectIds } from "./projectAccess"
 import type { GithubUser } from "./schemas/GithubUser"
@@ -138,5 +138,42 @@ export function trackEvent(
     )
   } catch (err) {
     log.error({ err, userId }, `Failed to track event ${event} for user ${userId} with Customer.io`)
+  }
+}
+
+/**
+ * Track a page view with Customer.io
+ * @param userId The user ID to track the page view for
+ * @param req The request object for extracting IP and user agent
+ * @param pageName The name of the page to track
+ * @param properties Additional custom properties to track with the page view
+ */
+export function trackPageView(
+  userId: number,
+  req: DefaultRequest,
+  pageName: string,
+  properties?: Record<string, unknown>,
+): void {
+  const customerIo = getCustomerIo()
+  if (!customerIo) {
+    log.info("CUSTOMER_IO_API_KEY is not set, skipping page view tracking")
+    return
+  }
+
+  // Customer.io typically uses window.location.href for `name`, so build a full URL
+  const url = new URL(pageName, APP_URL)
+
+  try {
+    customerIo.page({
+      userId: userId.toString(),
+      name: url.toString(),
+      properties,
+      context: {
+        ip: req.realIp,
+        userAgent: req.headers["user-agent"],
+      },
+    })
+  } catch (err) {
+    log.error({ err, userId }, `Failed to track page view for user ${userId} with Customer.io`)
   }
 }
