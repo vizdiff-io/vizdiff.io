@@ -1,7 +1,7 @@
 import { createTheme, type Theme } from "@mui/material"
 
-export const PRIMARY_COLOR = "#1976d2"
-export const PRIMARY_COLOR_DARK = "#1565c0"
+export const PRIMARY_COLOR = "#5cc5ff"
+export const PRIMARY_COLOR_DARK = "#43bcff"
 
 // Each key in this object is converted into a CSS variable with a `--` prefix,
 // such as `--bg-primary`. The CSS variable values are updated when the theme

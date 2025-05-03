@@ -6,6 +6,7 @@ import { useRouter } from "next/router"
 import { type JSX, useEffect } from "react"
 
 import { MarketingLayout } from "@/components/NavBody"
+import { Seo } from "@/components/Seo"
 import useAuth from "@/hooks/useAuth"
 import { githubSignIn } from "@/lib/apiMethods"
 import { APP_URL, GITHUB_APP_NAME, GITHUB_CLIENT_ID } from "@/lib/environment"
@@ -44,10 +45,7 @@ export default function Login(): JSX.Element {
   if (isLoading || user) {
     return (
       <>
-        <Head>
-          <title>Login - vizdiff.io</title>
-          <meta name="description" content="Login to vizdiff.io" />
-        </Head>
+        <Seo title="VizDiff: Login" canonical="https://vizdiff.io/login"></Seo>
         <MarketingLayout>
           <Container maxWidth="lg">
             <Box

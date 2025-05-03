@@ -12,12 +12,12 @@ import {
   CircularProgress,
 } from "@mui/material"
 import { formatDistanceToNow } from "date-fns"
-import Head from "next/head"
 import Link from "next/link"
 import { useRouter } from "next/router"
 import { type JSX, useEffect, useState } from "react"
 
 import { AppLayout } from "@/components/AppLayout"
+import { Seo } from "@/components/Seo"
 import useApiGet from "@/hooks/useApiGet"
 import useAuth from "@/hooks/useAuth"
 import { useBreadcrumbs } from "@/hooks/useBreadcrumbs"
@@ -132,20 +132,23 @@ export default function Project(): JSX.Element {
   // Show loading state while redirecting or if the page is not yet ready
   if (!router.isReady || !projectId) {
     return (
-      <AppLayout>
-        <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
-          <CircularProgress />
-        </Box>
-      </AppLayout>
+      <>
+        <Seo title="VizDiff: Project" canonical={`https://vizdiff.io/project`}></Seo>
+        <AppLayout>
+          <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+            <CircularProgress />
+          </Box>
+        </AppLayout>
+      </>
     )
   }
 
   return (
     <>
-      <Head>
-        <title>{project?.name ? `${project.name} - vizdiff.io` : "vizdiff.io"}</title>
-        <meta name="description" content="Project builds and details" />
-      </Head>
+      <Seo
+        title={project?.name ? `${project.name} - vizdiff.io` : "vizdiff.io"}
+        canonical={`https://vizdiff.io/project?id=${projectId}`}
+      ></Seo>
       <AppLayout>
         <Box sx={{ px: { xs: 0, sm: 3 }, py: { xs: 0, sm: 4 } }}>
           {error && (

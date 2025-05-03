@@ -1,16 +1,13 @@
 import { Typography, Box, Button, Container, Link as MuiLink } from "@mui/material"
-import Head from "next/head"
 import type { JSX } from "react"
 
 import { MarketingLayout } from "@/components/NavBody"
+import { Seo } from "@/components/Seo"
 
 export default function Home(): JSX.Element {
   return (
     <>
-      <Head>
-        <title>vizdiff.io</title>
-        <meta name="description" content="Screenshot testing made easy." />
-      </Head>
+      <Seo canonical="https://vizdiff.io"></Seo>
       <MarketingLayout>
         <Container maxWidth="lg">
           <Box

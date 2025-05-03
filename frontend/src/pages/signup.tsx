@@ -17,7 +17,6 @@ import {
   ToggleButton,
   Chip,
 } from "@mui/material"
-import Head from "next/head"
 import Link from "next/link"
 import { useRouter } from "next/router"
 import { type JSX, useEffect, useState, useCallback } from "react"
@@ -25,6 +24,7 @@ import { v4 as uuidv4 } from "uuid"
 
 import { AppLayout } from "@/components/AppLayout"
 import LeftSidebar from "@/components/LeftSidebar"
+import { Seo } from "@/components/Seo"
 import useAuth from "@/hooks/useAuth"
 import { trackEvent, AnalyticsEvents } from "@/lib/analytics"
 import { apiPost, apiGet } from "@/lib/apiMethods"
@@ -176,10 +176,7 @@ export default function Signup(): JSX.Element {
 
   return (
     <>
-      <Head>
-        <title>Signup - vizdiff.io</title>
-        <meta name="description" content="Project listing" />
-      </Head>
+      <Seo title="VizDiff: Signup" canonical="https://vizdiff.io/signup"></Seo>
       <AppLayout>
         <Box
           sx={{
