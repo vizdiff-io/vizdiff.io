@@ -1,9 +1,9 @@
 import { Container, Box } from "@mui/material"
-import Head from "next/head"
 import React, { type JSX } from "react"
 import ReactMarkdown from "react-markdown"
 
 import { MarketingLayout } from "@/components/NavBody"
+import { Seo } from "@/components/Seo"
 
 const markdown = `
 Privacy Policy
@@ -114,10 +114,7 @@ For questions about this Privacy Policy or your data:
 export default function PrivacyPolicy(): JSX.Element {
   return (
     <>
-      <Head>
-        <title>Privacy Policy - vizdiff.io</title>
-        <meta name="description" content="Privacy Policy for the vizdiff.io service" />
-      </Head>
+      <Seo title="VizDiff: Privacy Policy" canonical="https://vizdiff.io/docs/privacy-policy"></Seo>
       <MarketingLayout>
         <Container maxWidth="lg" sx={{ px: { xs: 1, md: 3 } }}>
           <Box

@@ -12,11 +12,11 @@ import {
   ListItemText,
   Typography,
 } from "@mui/material"
-import Head from "next/head"
 import Link from "next/link"
 import type { JSX } from "react"
 
 import { MarketingLayout } from "@/components/NavBody"
+import { Seo } from "@/components/Seo"
 import { PRICING_PLANS } from "@/lib/pricing"
 
 const jsonLd = {
@@ -147,10 +147,11 @@ const jsonLd = {
 export default function Pricing(): JSX.Element {
   return (
     <>
-      <Head>
-        <title>Pricing - vizdiff.io</title>
-        <meta name="description" content="Screenshot testing made easy." />
-      </Head>
+      <Seo
+        title="VizDiff Pricing & Plans - Scalable Visual Testing"
+        description="Compare Starter, Team and Pro plans—up to 250 k screenshots/month, usage-based overages, unlimited users, GitHub SSO and CI integration included. 14-day free trial with no credit card required."
+        canonical="https://vizdiff.io/pricing"
+      ></Seo>
       <MarketingLayout>
         <Container maxWidth="lg" sx={{ py: { xs: 0, sm: 8 } }}>
           <Typography

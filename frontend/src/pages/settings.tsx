@@ -24,12 +24,12 @@ import {
   Tooltip,
   IconButton,
 } from "@mui/material"
-import Head from "next/head"
 import { useRouter } from "next/router"
 import { type JSX, useMemo, useState } from "react"
 
 import { AppLayout } from "@/components/AppLayout"
 import LeftSidebar from "@/components/LeftSidebar"
+import { Seo } from "@/components/Seo"
 import useApiGet from "@/hooks/useApiGet"
 import useAuth from "@/hooks/useAuth"
 import { trackEvent, AnalyticsEvents } from "@/lib/analytics"
@@ -150,10 +150,7 @@ export default function Settings(): JSX.Element {
 
   return (
     <>
-      <Head>
-        <title>Settings - vizdiff.io</title>
-        <meta name="description" content="User account settings" />
-      </Head>
+      <Seo title="VizDiff: Settings" canonical="https://vizdiff.io/settings"></Seo>
       <AppLayout>
         <Box
           sx={{

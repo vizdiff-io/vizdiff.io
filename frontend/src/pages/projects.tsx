@@ -11,13 +11,13 @@ import {
   ListItemIcon,
   CircularProgress,
 } from "@mui/material"
-import Head from "next/head"
 import Link from "next/link"
 import { type JSX, useState } from "react"
 
 import { AppLayout } from "@/components/AppLayout"
 import LeftSidebar from "@/components/LeftSidebar"
 import NewProjectDialog from "@/components/NewProjectDialog"
+import { Seo } from "@/components/Seo"
 import useApiGet from "@/hooks/useApiGet"
 import useAppTheme from "@/hooks/useAppTheme"
 import type { ProjectResponse, ScreenshotTestResponse } from "@/lib/apiTypes"
@@ -38,20 +38,20 @@ export default function Projects(): JSX.Element {
   // Show loading state if the page is not yet ready
   if (loading) {
     return (
-      <AppLayout>
-        <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
-          <CircularProgress />
-        </Box>
-      </AppLayout>
+      <>
+        <Seo title="VizDiff: Projects" canonical="https://vizdiff.io/projects"></Seo>
+        <AppLayout>
+          <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+            <CircularProgress />
+          </Box>
+        </AppLayout>
+      </>
     )
   }
 
   return (
     <>
-      <Head>
-        <title>Projects - vizdiff.io</title>
-        <meta name="description" content="Project listing" />
-      </Head>
+      <Seo title="VizDiff: Projects" canonical="https://vizdiff.io/projects"></Seo>
       <AppLayout>
         <Box
           sx={{

@@ -1,9 +1,9 @@
 import { Container, Box } from "@mui/material"
-import Head from "next/head"
 import React, { type JSX } from "react"
 import ReactMarkdown from "react-markdown"
 
 import { MarketingLayout } from "@/components/NavBody"
+import { Seo } from "@/components/Seo"
 
 const markdown = `
 Vizdiff Terms of Service
@@ -96,10 +96,10 @@ If you have questions regarding these Terms, please contact MVI LLC at:
 export default function TermsOfService(): JSX.Element {
   return (
     <>
-      <Head>
-        <title>Terms of Service - vizdiff.io</title>
-        <meta name="description" content="Terms of Service for vizdiff.io" />
-      </Head>
+      <Seo
+        title="VizDiff: Terms of Service"
+        canonical="https://vizdiff.io/docs/terms-of-service"
+      ></Seo>
       <MarketingLayout>
         <Container maxWidth="lg" sx={{ px: { xs: 2, md: 3 } }}>
           <Box

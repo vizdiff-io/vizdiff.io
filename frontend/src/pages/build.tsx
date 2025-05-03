@@ -10,11 +10,11 @@ import {
   Link as MuiLink,
 } from "@mui/material"
 import { formatDistanceToNow } from "date-fns"
-import Head from "next/head"
 import { useRouter } from "next/router"
 import { type JSX, useEffect, useMemo, useState } from "react"
 
 import { AppLayout } from "@/components/AppLayout"
+import { Seo } from "@/components/Seo"
 import TestResultCard from "@/components/TestResultCard"
 import TestResultDialog from "@/components/TestResultDialog"
 import useApiGet from "@/hooks/useApiGet"
@@ -323,10 +323,10 @@ export default function Build(): JSX.Element {
 
   return (
     <>
-      <Head>
-        <title>{data?.buildNumber ? `Build ${data.buildNumber}` : "Build"} - vizdiff.io</title>
-        <meta name="description" content="Build details and test results" />
-      </Head>
+      <Seo
+        title={data?.buildNumber ? `VizDiff: Build ${data.buildNumber}` : "VizDiff: Build"}
+        canonical={id ? `https://vizdiff.io/build?id=${id}` : `https://vizdiff.io/build`}
+      ></Seo>
       <AppLayout>
         <Box sx={{ px: { xs: 0, sm: 3 }, py: { xs: 0, sm: 4 } }}>
           {error && (

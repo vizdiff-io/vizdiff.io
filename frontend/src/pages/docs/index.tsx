@@ -1,10 +1,10 @@
 import { Container, Box } from "@mui/material"
-import Head from "next/head"
 import React, { type JSX } from "react"
 import ReactMarkdown from "react-markdown"
 
 import MarkdownCode from "@/components/MarkdownCode"
 import { MarketingLayout } from "@/components/NavBody"
+import { Seo } from "@/components/Seo"
 
 const markdown = `
 Getting Started with VizDiff 🚀
@@ -94,13 +94,11 @@ Only files that change between the two Storybook builds will appear as Changed i
 export default function Documentation(): JSX.Element {
   return (
     <>
-      <Head>
-        <title>Documentation - vizdiff.io</title>
-        <meta
-          name="description"
-          content="Documentation and getting started guide for the vizdiff.io service"
-        />
-      </Head>
+      <Seo
+        title="VizDiff: Documentation"
+        description="Documentation and getting started guide for VizDiff, automated screenshot testing for Storybook."
+        canonical="https://vizdiff.io/docs"
+      ></Seo>
       <MarketingLayout>
         <Container maxWidth="lg" sx={{ px: { xs: 0, md: 3 } }}>
           <Box
