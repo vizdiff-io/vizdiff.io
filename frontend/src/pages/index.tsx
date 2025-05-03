@@ -1,3 +1,4 @@
+import CheckCircleOutline from "@mui/icons-material/CheckCircleOutline"
 import { Typography, Box, Button, Container, Link as MuiLink } from "@mui/material"
 import type { JSX } from "react"
 
@@ -54,6 +55,26 @@ export default function Home(): JSX.Element {
               {/* <Button variant="outlined" size="large">
                 Get a demo
               </Button> */}
+            </Box>
+            <Box sx={{ display: "flex", gap: 2, mt: 2 }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                <CheckCircleOutline sx={{ color: "var(--text-primary)", fontSize: "1rem" }} />
+                <Typography variant="body2" sx={{ color: "var(--text-primary)" }}>
+                  14-day free trial
+                </Typography>
+              </Box>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                <CheckCircleOutline sx={{ color: "var(--text-primary)", fontSize: "1rem" }} />
+                <Typography variant="body2" sx={{ color: "var(--text-primary)" }}>
+                  No credit card required
+                </Typography>
+              </Box>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                <CheckCircleOutline sx={{ color: "var(--text-primary)", fontSize: "1rem" }} />
+                <Typography variant="body2" sx={{ color: "var(--text-primary)" }}>
+                  Cancel anytime
+                </Typography>
+              </Box>
             </Box>
           </Box>
         </Container>
