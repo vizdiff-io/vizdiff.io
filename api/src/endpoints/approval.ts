@@ -117,7 +117,6 @@ export const approveOrDeny: RequestHandler = async (req, res) => {
     projectName: test.project.name,
     repo: test.project.githubRepoUrl,
     buildId: test.id,
-    isProjectOwner: test.project.user.id === user.id,
     status,
   })
 
