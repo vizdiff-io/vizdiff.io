@@ -1,0 +1,62 @@
+---
+description: 
+globs: *.tsx
+alwaysApply: false
+---
+# Material UI (MUI) v7 Usage
+
+Specifies the correct usage of MUI components in v7.
+
+# MUI Grid Component
+
+Ensures the correct pattern is used for responsive layouts with the Material UI `Grid` component, specifically using the `size` prop introduced in later versions (likely v7+ based on project dependencies). Avoids patterns using direct breakpoint props (`xs`, `sm`, `md`) or combinations with `item` and `component` that cause type errors.
+
+<rule>
+name: mui_grid_size_prop
+description: Use the `size` prop with an object for responsive Grid items in MUI v7+.
+filters:
+  # Match React component files in the frontend
+  - type: file_extension
+    pattern: "\\.tsx$"
+  # Match Grid components using direct breakpoint props or 'item'/'component' improperly
+  - type: content
+    pattern: "<Grid\\s+[^>]*?(?:xs=|sm=|md=|item|component=)[^>]*?>"
+
+actions:
+  - type: suggest
+    message: |
+      For MUI Grid items requiring responsive sizing, use the `size` prop with an object mapping breakpoints to values (e.g., `size={{ xs: 12, sm: 6, md: 4 }}`). Avoid using direct breakpoint props (`xs`, `sm`, `md`), the boolean `item` prop, or the `component` prop for this purpose, as they can lead to type errors in MUI v7+.
+
+      Correct Usage:
+      ```tsx
+      <Grid container spacing={2}>
+        <Grid size={{ xs: 12, md: 8 }}>...</Grid>
+        <Grid size={{ xs: 6, md: 4 }}>...</Grid>
+      </Grid>
+      ```
+
+examples:
+  - description: "Incorrect vs Correct MUI Grid responsive sizing"
+    input: |
+      // Incorrect attempts (may cause type errors)
+      <Grid container>
+        <Grid item xs={12} sm={6} md={4}>...</Grid>
+        <Grid component="div" xs={12} sm={6} md={4}>...</Grid>
+        <Grid xs={12} sm={6} md={4}>...</Grid>
+      </Grid>
+    output: |
+      // Correct Usage
+      <Grid container>
+        <Grid size={{ xs: 12, sm: 6, md: 4 }}>...</Grid>
+      </Grid>
+
+metadata:
+  priority: high
+  version: 1.0
+  tags:
+    - react
+    - material-ui
+    - grid
+    - typescript
+    - frontend
+</rule>
