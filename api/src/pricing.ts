@@ -39,3 +39,48 @@ export function getSubscriptionIncludedUsage(plan: string | null): number {
       return MAX_TRIAL_SCREENSHOTS
   }
 }
+
+export const PRICING_PLANS = [
+  {
+    name: "Starter",
+    monthlyPrice: 49,
+    annualPrice: 470,
+    annualMonthlyPrice: 39.17,
+    features: [
+      "15,000 screenshots per month",
+      "$0.005 per additional screenshot",
+      "30-day retention of historical screenshots",
+      "Unlimited users",
+      "GitHub Actions integration",
+      "Single Sign-On (SSO) via GitHub",
+    ],
+  },
+  {
+    name: "Team",
+    monthlyPrice: 149,
+    annualPrice: 1430,
+    annualMonthlyPrice: 119.17,
+    features: [
+      "60,000 screenshots per month",
+      "$0.004 per additional screenshot",
+      "30-day retention of historical screenshots",
+      "Unlimited users",
+      "GitHub Actions integration",
+      "Single Sign-On (SSO) via GitHub",
+    ],
+  },
+  {
+    name: "Pro",
+    monthlyPrice: 499,
+    annualPrice: 4790,
+    annualMonthlyPrice: 399.17,
+    features: [
+      "250,000 screenshots per month",
+      "$0.004 per additional screenshot",
+      "90-day retention of historical screenshots",
+      "Unlimited users",
+      "GitHub Actions integration",
+      "Single Sign-On (SSO) via GitHub",
+    ],
+  },
+]

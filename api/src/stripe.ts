@@ -2,7 +2,7 @@ import { Stripe } from "stripe"
 
 import { STRIPE_API_VERSION, STRIPE_SECRET_KEY } from "./environment"
 import { log } from "./log"
-import { PRICE_IDS } from "./pricing"
+import { PRICE_IDS, PRICING_PLANS } from "./pricing"
 
 export type StripeLineItem = Stripe.Checkout.SessionCreateParams.LineItem
 export type StripePlan = "starter" | "team" | "pro"
@@ -93,4 +93,32 @@ export function getPlanInfoFromPriceId(
     }
   }
   return null
+}
+
+// Helper function to get numeric price and currency. Currently only USD is supported, value is
+// returned in dollars rounded to two decimal places.
+export function getPlanNumericPrice(
+  planName: string,
+  interval: string,
+): { value: string; currency: string } {
+  const plan = PRICING_PLANS.find((p) => p.name.toLowerCase() === planName.toLowerCase())
+  if (!plan) {
+    throw new Error(`Pricing information not found for plan: ${planName}`)
+  }
+
+  let valueInDollars: number
+  if (interval === "yearly") {
+    valueInDollars = plan.annualPrice
+  } else {
+    valueInDollars = plan.monthlyPrice
+  }
+
+  if (isNaN(valueInDollars)) {
+    throw new Error(`Invalid price found for plan ${planName}, interval ${interval}`)
+  }
+
+  return {
+    value: valueInDollars.toFixed(2), // Format to two decimal places (e.g., "49.00")
+    currency: "USD",
+  }
 }

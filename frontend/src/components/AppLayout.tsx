@@ -27,6 +27,7 @@ import { useBreadcrumbs } from "@/hooks/useBreadcrumbs"
 import type { SidebarItem } from "./LeftSidebar"
 import ProtectedRoute from "./ProtectedRoute"
 import SidebarContent from "./SidebarContent"
+import { AnalyticsEvents, trackEvent } from "../lib/analytics"
 
 const inter = Inter({ subsets: ["latin"] })
 void inter
@@ -53,6 +54,28 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   const [mobileOpen, setMobileOpen] = useState(false)
   const router = useRouter()
 
+  // Track initial sign-in events
+  useEffect(() => {
+    if (router.isReady && router.query.signed_in === "true") {
+      trackEvent({
+        action: AnalyticsEvents.SIGNED_IN,
+        category: "Auth",
+        label: "github_signin",
+      })
+
+      // Clean the URL by removing the query parameter without reloading the page
+      // Use replace to avoid adding this intermediate state to the browser history
+      const { signed_in, ...restQuery } = router.query
+      void signed_in
+      void router.replace(
+        { pathname: router.pathname, query: restQuery },
+        undefined, // Use undefined for 'as' path
+        { shallow: true }, // Use shallow routing to prevent data fetching methods from re-running
+      )
+    }
+  }, [router.isReady, router.query, router])
+
+  // Update the avatar URL when the user changes
   useEffect(() => {
     const updateAvatarUrl = async () => {
       if (typeof user?.githubProfile.avatar_url === "string") {

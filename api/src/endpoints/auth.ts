@@ -221,6 +221,11 @@ export async function githubCallback(req: DefaultRequest, res: DefaultResponse):
     path: "/",
   })
 
+  // Append a `signed_in` query param to the redirect URL so we can track the user's sign-in
+  const url = new URL(finalRedirect)
+  url.searchParams.set("signed_in", "true")
+  finalRedirect = url.toString()
+
   // Redirect to the original URL
   res.redirect(finalRedirect)
 }

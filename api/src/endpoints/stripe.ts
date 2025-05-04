@@ -14,7 +14,7 @@ import {
 } from "../environment"
 import { log } from "../log"
 import { getSubscriptionIncludedUsage } from "../pricing"
-import { getPriceIds, getPlanInfoFromPriceId } from "../stripe"
+import { getPriceIds, getPlanInfoFromPriceId, getPlanNumericPrice } from "../stripe"
 import type { RequestWithRawBody, RequestHandler, DefaultResponse } from "../types"
 
 interface CheckoutBody {
@@ -48,6 +48,7 @@ export const createCheckoutSession: RequestHandler = async (req, res) => {
 
   const { user } = res.locals
   const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: STRIPE_API_VERSION })
+  const priceInfo = getPlanNumericPrice(plan, interval)
 
   // Create a Stripe checkout session
   log.info(
@@ -57,7 +58,7 @@ export const createCheckoutSession: RequestHandler = async (req, res) => {
   const session = await stripe.checkout.sessions.create(
     {
       cancel_url: `${APP_URL}/signup?checkout=cancel`,
-      success_url: `${APP_URL}/signup?checkout=success`,
+      success_url: `${APP_URL}/signup?checkout=success&plan=${plan}&interval=${interval}&value=${priceInfo.value}&currency=${priceInfo.currency}`,
       client_reference_id: user.id.toString(),
       customer: user.stripeCustomerId ?? undefined,
       customer_email: user.stripeCustomerId ? undefined : (user.email ?? undefined),

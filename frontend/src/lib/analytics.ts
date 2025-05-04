@@ -14,6 +14,7 @@ declare global {
         event_category?: string
         event_label?: string
         value?: number
+        currency?: string
         [key: string]: unknown
       },
     ) => void
@@ -25,6 +26,7 @@ type AnalyticsEvent = {
   category?: string
   label?: string
   value?: number
+  currency?: string
   // Additional properties for custom dimensions/metrics
   [key: string]: unknown
 }
@@ -45,6 +47,7 @@ export function trackEvent(event: AnalyticsEvent, options: TrackEventOptions = {
         event_category: event.category,
         event_label: event.label,
         value: event.value,
+        currency: event.currency,
         transport_type: options.sendBeforeNavigation ? "beacon" : undefined,
         ...event,
       })
@@ -95,7 +98,8 @@ export const AnalyticsEvents = {
   DELETE_ACCOUNT: "delete_account",
   INSTALL_APP: "install_app",
   LOGIN: "login",
-  PLAN_PURCHASED: "plan_purchased",
+  SIGNED_IN: "signed_in",
+  PURCHASE: "purchase",
   PLAN_SELECTED: "plan_selected",
   PROJECT_CREATED: "project_created",
 } as const

@@ -127,29 +127,65 @@ export default function Signup(): JSX.Element {
     if (!router.isReady) {
       return
     }
-    const { checkout, interval } = router.query
+    const { checkout } = router.query
 
     // Handle checkout status returns
     if (checkout === "success" && user) {
-      // Track successful checkout return
+      // Extract details from query params
+      const successPlan = router.query.plan as string | undefined
+      const successInterval = router.query.interval as string | undefined
+      const valueString = router.query.value as string | undefined
+      const currency = router.query.currency as string | undefined
+      const value = valueString ? parseFloat(valueString) : undefined
+      console.log(
+        `Checkout Success: Plan=${successPlan}, Interval=${successInterval}, Value=${value}, Currency=${currency}`,
+      )
+
+      // Track successful checkout return with purchase details
       trackEvent({
-        action: AnalyticsEvents.PLAN_PURCHASED,
-        category: "Pricing",
-        label: "checkout_success",
+        action: AnalyticsEvents.PURCHASE,
+        category: "Subscription",
+        label: `checkout_success_${successPlan}_${successInterval}`,
         userId: user.id,
+        plan: successPlan,
+        interval: successInterval,
+        value,
+        currency,
       })
+
+      // Clean the URL by removing checkout-related query parameters
+      const {
+        checkout: _c,
+        interval: _i,
+        plan: _p,
+        value: _v,
+        currency: _cur,
+        ...restQuery
+      } = router.query
+      void router.replace(
+        {
+          pathname: router.pathname,
+          query: restQuery,
+        },
+        undefined,
+        { shallow: true },
+      )
     } else if (checkout === "cancel" && user) {
       setCheckoutError("Checkout was cancelled.")
     }
 
-    // Set the initial billing interval from URL if provided
-    if (interval && typeof interval === "string") {
-      setBillingInterval(interval === "yearly" || interval === "annual" ? "yearly" : "monthly")
+    // Set the initial billing interval from URL if provided (outside the checkout success block)
+    // Use original 'interval' variable from outer scope here
+    const initialInterval = router.query.interval as string | undefined
+    if (initialInterval && typeof initialInterval === "string" && !router.query.checkout) {
+      setBillingInterval(
+        initialInterval === "yearly" || initialInterval === "annual" ? "yearly" : "monthly",
+      )
     }
     // We only want this to run when router is ready and not on every router.query change
     // to prevent multiple analytics events from firing during the same page load
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [router.isReady, user])
+  }, [router.isReady, user]) // Keep dependencies minimal
 
   // Check if the user has the current plan
   const isCurrentPlan = useCallback(
