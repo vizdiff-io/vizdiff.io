@@ -100,7 +100,14 @@ export const approveOrDeny: RequestHandler = async (req, res) => {
         output: { title, summary, text },
       })
       log.info(
-        { user, test, status, result },
+        {
+          userId: user.id,
+          testId: test.id,
+          checkRunId: result.data.id,
+          status,
+          createStatus: result.status,
+          conclusion,
+        },
         `Created GitHub check run ${result.data.id} for ${test.toString()} with conclusion: ${conclusion}`,
       )
     } catch (err) {
@@ -117,7 +124,6 @@ export const approveOrDeny: RequestHandler = async (req, res) => {
     projectName: test.project.name,
     repo: test.project.githubRepoUrl,
     buildId: test.id,
-    isProjectOwner: test.project.user.id === user.id,
     status,
   })
 

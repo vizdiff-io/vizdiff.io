@@ -80,4 +80,193 @@ describe("diffImages", () => {
     // Verify diffMask shows differences due to alpha changes
     expect(Array.from(diffMask.data)).toEqual([255, 255, 255, 255, 255, 255, 255, 255])
   })
+
+  it("should handle mismatched heights (new image taller)", () => {
+    // Baseline: 2x2 black image
+    const baselineImage = new PNG({ width: 2, height: 2 })
+    baselineImage.data = Buffer.from([
+      0,
+      0,
+      0,
+      255,
+      0,
+      0,
+      0,
+      255, // Row 1
+      0,
+      0,
+      0,
+      255,
+      0,
+      0,
+      0,
+      255, // Row 2
+    ])
+
+    // New: 2x3 image, top 2 rows black, bottom row white
+    const newImage = new PNG({ width: 2, height: 3 })
+    newImage.data = Buffer.from([
+      0,
+      0,
+      0,
+      255,
+      0,
+      0,
+      0,
+      255, // Row 1 (same)
+      0,
+      0,
+      0,
+      255,
+      0,
+      0,
+      0,
+      255, // Row 2 (same)
+      255,
+      255,
+      255,
+      255,
+      255,
+      255,
+      255,
+      255, // Row 3 (different)
+    ])
+
+    const { diffRatio, diffMask } = diffImages(newImage, baselineImage)
+
+    // Comparison area is 2x3 = 6 pixels. 2 pixels differ (the bottom row).
+    // Expected ratio = 2 / 6 = 1/3
+    expect(diffRatio).toBeCloseTo(1 / 3)
+    expect(diffMask.width).toBe(2)
+    expect(diffMask.height).toBe(3) // Diff mask takes the max height
+
+    // Verify diffMask shows differences only in the bottom row
+    // Rows 1 & 2 should be transparent black (0,0,0,0)
+    // Row 3 should be white (255,255,255,255)
+    expect(Array.from(diffMask.data)).toEqual([
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0, // Row 1
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0, // Row 2
+      255,
+      255,
+      255,
+      255,
+      255,
+      255,
+      255,
+      255, // Row 3
+    ])
+  })
+
+  it("should handle mismatched heights (baseline image taller)", () => {
+    // New: 2x2 black image
+    const newImage = new PNG({ width: 2, height: 2 })
+    newImage.data = Buffer.from([
+      0,
+      0,
+      0,
+      255,
+      0,
+      0,
+      0,
+      255, // Row 1
+      0,
+      0,
+      0,
+      255,
+      0,
+      0,
+      0,
+      255, // Row 2
+    ])
+
+    // Baseline: 2x3 image, top 2 rows black, bottom row white
+    const baselineImage = new PNG({ width: 2, height: 3 })
+    baselineImage.data = Buffer.from([
+      0,
+      0,
+      0,
+      255,
+      0,
+      0,
+      0,
+      255, // Row 1 (same)
+      0,
+      0,
+      0,
+      255,
+      0,
+      0,
+      0,
+      255, // Row 2 (same)
+      255,
+      255,
+      255,
+      255,
+      255,
+      255,
+      255,
+      255, // Row 3 (different)
+    ])
+
+    const { diffRatio, diffMask } = diffImages(newImage, baselineImage)
+
+    // Comparison area is 2x3 = 6 pixels. 2 pixels differ (the bottom row).
+    // Expected ratio = 2 / 6 = 1/3
+    expect(diffRatio).toBeCloseTo(1 / 3)
+    expect(diffMask.width).toBe(2)
+    expect(diffMask.height).toBe(3) // Diff mask takes the max height
+
+    // Verify diffMask shows differences only in the bottom row
+    expect(Array.from(diffMask.data)).toEqual([
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0, // Row 1
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0, // Row 2
+      255,
+      255,
+      255,
+      255,
+      255,
+      255,
+      255,
+      255, // Row 3
+    ])
+  })
+
+  it("should throw error for mismatched widths", () => {
+    const image1 = new PNG({ width: 2, height: 2 })
+    image1.data = Buffer.alloc(2 * 2 * 4) // Dummy data
+    const image2 = new PNG({ width: 3, height: 2 })
+    image2.data = Buffer.alloc(3 * 2 * 4) // Dummy data
+
+    expect(() => diffImages(image1, image2)).toThrow(
+      "Image widths must match for comparison: 2 vs 3",
+    )
+  })
 })
