@@ -117,22 +117,31 @@ export default function Home(): JSX.Element {
           <Grid container spacing={{ xs: 4, md: 6 }} justifyContent="center">
             {/* Step 1: Connect */}
             <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-              <Box sx={{ textAlign: "center" }}>
-                <LinkIcon sx={{ fontSize: 40, mb: 2, color: "primary.main" }} />
-                <Typography variant="h5" sx={{ mb: 1 }}>
-                  1. Connect Repository
-                </Typography>
-                <Typography variant="body1">
-                  Link your GitHub repository and upload your first Storybook build. Setup takes
-                  minutes.
-                </Typography>
+              <Box
+                sx={{
+                  textAlign: "center",
+                  display: "flex",
+                  flexDirection: "column",
+                  height: "100%",
+                }}
+              >
+                <Box sx={{ mb: 5 }}>
+                  <LinkIcon sx={{ fontSize: 40, mb: 2, color: "primary.main" }} />
+                  <Typography variant="h5" sx={{ mb: 1 }}>
+                    1. Connect Repository
+                  </Typography>
+                  <Typography variant="body1">
+                    Link your GitHub repository and upload your first Storybook build. Setup takes
+                    minutes.
+                  </Typography>
+                </Box>
                 {/* Screenshot 1: GitHub Authorize */}
                 <Box
                   sx={{
                     height: 250,
                     borderRadius: 1,
                     overflow: "hidden",
-                    mt: 5,
+                    marginTop: "auto",
                   }}
                 >
                   <Box
@@ -153,28 +162,37 @@ export default function Home(): JSX.Element {
             </Grid>
             {/* Step 2: Automate */}
             <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-              <Box sx={{ textAlign: "center" }}>
-                <AutoAwesomeIcon sx={{ fontSize: 40, mb: 2, color: "primary.main" }} />
-                <Typography variant="h5" sx={{ mb: 1 }}>
-                  2. Automate Screenshots
-                </Typography>
-                <Typography variant="body1">
-                  VizDiff captures screenshots automatically on every commit via a{" "}
-                  <MuiLink
-                    href="https://github.com/marketplace/actions/vizdiff-upload"
-                    target="_blank"
-                  >
-                    GitHub Action
-                  </MuiLink>
-                  .
-                </Typography>
+              <Box
+                sx={{
+                  textAlign: "center",
+                  display: "flex",
+                  flexDirection: "column",
+                  height: "100%",
+                }}
+              >
+                <Box sx={{ mb: 5 }}>
+                  <AutoAwesomeIcon sx={{ fontSize: 40, mb: 2, color: "primary.main" }} />
+                  <Typography variant="h5" sx={{ mb: 1 }}>
+                    2. Automate Screenshots
+                  </Typography>
+                  <Typography variant="body1">
+                    VizDiff captures screenshots automatically on every commit via a{" "}
+                    <MuiLink
+                      href="https://github.com/marketplace/actions/vizdiff-upload"
+                      target="_blank"
+                    >
+                      GitHub Action
+                    </MuiLink>
+                    .
+                  </Typography>
+                </Box>
                 {/* Screenshot 2: GitHub Action */}
                 <Box
                   sx={{
                     height: 250,
                     borderRadius: 1,
                     overflow: "hidden",
-                    mt: 5,
+                    marginTop: "auto",
                   }}
                 >
                   <Box
@@ -195,21 +213,31 @@ export default function Home(): JSX.Element {
             </Grid>
             {/* Step 3: Review Diffs */}
             <Grid size={{ xs: 12, sm: 6, md: 4 }}>
-              <Box sx={{ textAlign: "center" }}>
-                <CompareArrowsIcon sx={{ fontSize: 40, mb: 2, color: "primary.main" }} />
-                <Typography variant="h5" sx={{ mb: 1 }}>
-                  3. Review Diffs
-                </Typography>
-                <Typography variant="body1">
-                  Visually compare changes and approve or reject with a streamlined user interface.
-                </Typography>
+              <Box
+                sx={{
+                  textAlign: "center",
+                  display: "flex",
+                  flexDirection: "column",
+                  height: "100%",
+                }}
+              >
+                <Box sx={{ mb: 5 }}>
+                  <CompareArrowsIcon sx={{ fontSize: 40, mb: 2, color: "primary.main" }} />
+                  <Typography variant="h5" sx={{ mb: 1 }}>
+                    3. Review Diffs
+                  </Typography>
+                  <Typography variant="body1">
+                    Visually compare changes and approve or reject with a streamlined user
+                    interface.
+                  </Typography>
+                </Box>
                 {/* Screenshot 3: Diff View */}
                 <Box
                   sx={{
                     height: 250,
                     borderRadius: 1,
                     overflow: "hidden",
-                    mt: 5,
+                    marginTop: "auto",
                   }}
                 >
                   <Box
