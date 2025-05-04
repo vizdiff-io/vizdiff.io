@@ -42,7 +42,6 @@ export const MarketingLayout: React.FC<MarketingLayoutProps> = ({ children }) =>
   return (
     <Box
       sx={{
-        minHeight: { xs: "50vh", md: "70vh", lg: "100vh" },
         display: "flex",
         flexDirection: "column",
         transition: "background-color 0.2s ease",
