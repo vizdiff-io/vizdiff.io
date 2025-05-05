@@ -323,6 +323,20 @@ export default function Home(): JSX.Element {
           </MuiLink>
           <Box sx={{ display: "flex", justifyContent: "center", gap: 3 }}>
             <MuiLink
+              href="mailto:ada@vizdiff.io"
+              variant="body2"
+              sx={{ color: "var(--text-secondary)" }}
+            >
+              Contact Us
+            </MuiLink>
+            <MuiLink
+              href="https://discord.gg/ezgd2AER4H"
+              variant="body2"
+              sx={{ color: "var(--text-secondary)" }}
+            >
+              Discord
+            </MuiLink>
+            <MuiLink
               href="/docs/privacy-policy"
               variant="body2"
               sx={{ color: "var(--text-secondary)" }}
