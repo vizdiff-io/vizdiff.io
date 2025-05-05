@@ -45,7 +45,7 @@
     "@types/pino-pretty": "^5.0.0",
     "@types/supertest": "6.0.3",
     "esbuild": "^0.25.3",
-    "eslint": "9.25.1",
+    "eslint": "9.26.0",
     "supertest": "7.1.0",
     "ts-node": "10.9.2",
     "tsconfig-paths": "^4.2.0",
