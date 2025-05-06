@@ -48,7 +48,7 @@ jobs:
       - name: Commit changes
         run: |
           git add .
-          git commit -m '[dependabot skip] Dedupe dependencies' || true
+          git commit -m 'yarn dedupe' || true
 
       - name: Push changes
         run: git push
