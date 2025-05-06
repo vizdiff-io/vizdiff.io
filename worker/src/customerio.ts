@@ -33,6 +33,7 @@ export function reportBuildEvents(screenshotTest: ScreenshotTest, _results: Test
         repo: screenshotTest.project.githubRepoUrl,
 
         // Build details
+        buildId: screenshotTest.id,
         buildNumber: screenshotTest.buildNumber,
         buildDurationSec: screenshotTest.buildDurationSec,
         commitSha: screenshotTest.commitSha,
