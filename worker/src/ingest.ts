@@ -230,6 +230,7 @@ export async function ingestStorybook(
         const startedSec = screenshotTest.createdAt.getTime() / 1000
         screenshotTest.status = changeCount > 0 ? "unapproved" : "no_changes"
         screenshotTest.buildDurationSec = Date.now() / 1000 - startedSec
+        screenshotTest.totalChanges = changeCount
         await screenshotTestRepo.save(screenshotTest)
 
         // Update GitHub check run "Visual Tests" with the build results
