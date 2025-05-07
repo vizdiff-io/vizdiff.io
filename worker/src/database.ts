@@ -1,4 +1,4 @@
-import pg from "pg"
+import pg, { type PoolClient } from "pg"
 import {
   Project,
   ScreenshotTest,
@@ -12,6 +12,7 @@ import {
 import { DataSource } from "typeorm"
 
 import {
+  IS_PRODUCTION,
   POSTGRES_USER,
   POSTGRES_HOST,
   POSTGRES_DATABASE,
@@ -45,6 +46,7 @@ export async function Database(): Promise<DataSource> {
     username: POSTGRES_USER,
     password: POSTGRES_PASS,
     database: POSTGRES_DATABASE,
+    logger: IS_PRODUCTION ? undefined : "formatted-console",
     entities: [
       GitHubInstallation,
       Project,
@@ -63,7 +65,7 @@ export async function Database(): Promise<DataSource> {
   return database
 }
 
-export async function DatabasePool(): Promise<pg.PoolClient> {
+export async function DatabasePool(): Promise<PoolClient> {
   // eslint-disable-next-line @typescript-eslint/return-await
   return pool.connect()
 }
