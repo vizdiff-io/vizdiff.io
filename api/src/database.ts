@@ -12,6 +12,7 @@ import {
 import { DataSource } from "typeorm"
 
 import {
+  IS_PRODUCTION,
   IS_TEST,
   POSTGRES_DATABASE,
   POSTGRES_HOST,
@@ -28,6 +29,7 @@ const database = new DataSource({
   username: POSTGRES_USER,
   password: POSTGRES_PASS,
   database: POSTGRES_DATABASE,
+  logger: IS_PRODUCTION ? undefined : "formatted-console",
   // Synchronize in dev and production. The plan is to either switch to
   // migrations or drop TypeORM
   synchronize: true,
