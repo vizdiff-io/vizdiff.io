@@ -1,5 +1,5 @@
 # Dependencies installation stage
-FROM node:22-alpine AS deps
+FROM node:24-alpine AS deps
 WORKDIR /app
 RUN corepack enable
 COPY .yarn/releases/yarn-4.3.0.cjs ./.yarn/releases/
@@ -18,7 +18,7 @@ RUN yarn workspace api build \
   && rm -rf api/src shared/src
 
 # Final production image
-FROM node:22-alpine
+FROM node:24-alpine
 WORKDIR /app
 ENV NODE_ENV=production \
     PORT=3001
