@@ -16,7 +16,7 @@
     "@customerio/cdp-analytics-node": "^0.3.3",
     "@octokit/rest": "^21.1.1",
     "@wdio/cli": "^9.12.7",
-    "commander": "13.1.0",
+    "commander": "14.0.1",
     "dd-trace": "^5.51.0",
     "dotenv-flow": "4.1.0",
     "octokit": "4.1.3",
