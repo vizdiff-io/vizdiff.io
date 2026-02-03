@@ -261,8 +261,7 @@ export default function Signup(): JSX.Element {
 
               {stripeDisabled && (
                 <Alert severity="info" sx={{ mb: 4 }}>
-                  Billing is disabled for this installation. Subscription changes are not
-                  available.
+                  Billing is disabled for this installation. Subscription changes are not available.
                 </Alert>
               )}
 

@@ -246,91 +246,91 @@ jobs:
           echo "ECR_REPOSITORY_WORKER=vizdiff.io/worker" >> $GITHUB_ENV
           echo "IMAGE_TAG=${{ github.sha }}" >> $GITHUB_ENV
 
-      # Set up SSH for EC2 deployment
-      - name: Configure SSH
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
-          SSH_KNOWN_HOSTS: ${{ secrets.EC2_SSH_KNOWN_HOSTS }}
-        run: |
-          mkdir -p ~/.ssh
-          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          echo "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+      # # Set up SSH for EC2 deployment
+      # - name: Configure SSH
+      #   env:
+      #     SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+      #     SSH_KNOWN_HOSTS: ${{ secrets.EC2_SSH_KNOWN_HOSTS }}
+      #   run: |
+      #     mkdir -p ~/.ssh
+      #     echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+      #     chmod 600 ~/.ssh/id_ed25519
+      #     echo "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
 
-      # Deploy backend services to EC2
-      - name: Deploy backend to EC2
-        env:
-          EC2_HOST: ${{ secrets.EC2_HOST }}
-          EC2_USER: ${{ secrets.EC2_USER }}
-          ECR_REGISTRY: ${{ env.ECR_REGISTRY }}
-          ECR_REPOSITORY_BACKEND: ${{ env.ECR_REPOSITORY_BACKEND }}
-          ECR_REPOSITORY_WORKER: ${{ env.ECR_REPOSITORY_WORKER }}
-          IMAGE_TAG: ${{ env.IMAGE_TAG }}
-        run: |
-          set -euo pipefail  # Make script fail on any error
+      # # Deploy backend services to EC2
+      # - name: Deploy backend to EC2
+      #   env:
+      #     EC2_HOST: ${{ secrets.EC2_HOST }}
+      #     EC2_USER: ${{ secrets.EC2_USER }}
+      #     ECR_REGISTRY: ${{ env.ECR_REGISTRY }}
+      #     ECR_REPOSITORY_BACKEND: ${{ env.ECR_REPOSITORY_BACKEND }}
+      #     ECR_REPOSITORY_WORKER: ${{ env.ECR_REPOSITORY_WORKER }}
+      #     IMAGE_TAG: ${{ env.IMAGE_TAG }}
+      #   run: |
+      #     set -euo pipefail  # Make script fail on any error
 
-          # Create docker-compose.yml file
-          cat > docker-compose.yml << EOL
-          services:
-            api:
-              image: ${ECR_REGISTRY}/${ECR_REPOSITORY_BACKEND}:${IMAGE_TAG}
-              container_name: vizdiff-api
-              restart: always
-              network_mode: host
-              environment:
-                - NODE_ENV=production
-                - PORT=80
-              volumes:
-                - ./.env.production:/app/api/.env.production:ro
+      #     # Create docker-compose.yml file
+      #     cat > docker-compose.yml << EOL
+      #     services:
+      #       api:
+      #         image: ${ECR_REGISTRY}/${ECR_REPOSITORY_BACKEND}:${IMAGE_TAG}
+      #         container_name: vizdiff-api
+      #         restart: always
+      #         network_mode: host
+      #         environment:
+      #           - NODE_ENV=production
+      #           - PORT=80
+      #         volumes:
+      #           - ./.env.production:/app/api/.env.production:ro
 
-            worker:
-              image: ${ECR_REGISTRY}/${ECR_REPOSITORY_WORKER}:${IMAGE_TAG}
-              container_name: vizdiff-worker
-              restart: always
-              network_mode: host
-              environment:
-                - NODE_ENV=production
-              volumes:
-                - ./.env.production:/app/worker/.env.production:ro
-          EOL
+      #       worker:
+      #         image: ${ECR_REGISTRY}/${ECR_REPOSITORY_WORKER}:${IMAGE_TAG}
+      #         container_name: vizdiff-worker
+      #         restart: always
+      #         network_mode: host
+      #         environment:
+      #           - NODE_ENV=production
+      #         volumes:
+      #           - ./.env.production:/app/worker/.env.production:ro
+      #     EOL
 
-          # Create .env.production file from secrets
-          cat > .env.production << EOL
-          ${{ secrets.ENV_FILE }}
-          EOL
+      #     # Create .env.production file from secrets
+      #     cat > .env.production << EOL
+      #     ${{ secrets.ENV_FILE }}
+      #     EOL
 
-          # Copy docker-compose file and env files to EC2
-          scp docker-compose.yml .env.production ${EC2_USER}@${EC2_HOST}:~/app/
+      #     # Copy docker-compose file and env files to EC2
+      #     scp docker-compose.yml .env.production ${EC2_USER}@${EC2_HOST}:~/app/
 
-          # Execute deployment commands on the EC2 instance
-          ssh ${EC2_USER}@${EC2_HOST} "ECR_REGISTRY='${ECR_REGISTRY}' bash -s" << 'ENDSSH'
-            set -euo pipefail  # Make script fail on any error
+      #     # Execute deployment commands on the EC2 instance
+      #     ssh ${EC2_USER}@${EC2_HOST} "ECR_REGISTRY='${ECR_REGISTRY}' bash -s" << 'ENDSSH'
+      #       set -euo pipefail  # Make script fail on any error
 
-            # Login to ECR
-            echo "Logging into ECR..."
-            aws ecr get-login-password | docker login --username AWS --password-stdin "${ECR_REGISTRY}"
+      #       # Login to ECR
+      #       echo "Logging into ECR..."
+      #       aws ecr get-login-password | docker login --username AWS --password-stdin "${ECR_REGISTRY}"
 
-            # Pull and run the containers
-            cd ~/app
-            echo "Pulling latest images..."
-            docker compose pull
+      #       # Pull and run the containers
+      #       cd ~/app
+      #       echo "Pulling latest images..."
+      #       docker compose pull
 
-            echo "Starting containers..."
-            docker compose up -d
+      #       echo "Starting containers..."
+      #       docker compose up -d
 
-            # Verify containers are running
-            echo "Verifying containers..."
-            sleep 10
-            if ! docker compose ps | grep -q "Up"; then
-              echo "Containers failed to start properly"
-              docker compose logs
-              exit 1
-            fi
+      #       # Verify containers are running
+      #       echo "Verifying containers..."
+      #       sleep 10
+      #       if ! docker compose ps | grep -q "Up"; then
+      #         echo "Containers failed to start properly"
+      #         docker compose logs
+      #         exit 1
+      #       fi
 
-            # Clean up old images
-            echo "Cleaning up old images..."
-            docker image prune -a -f --filter "until=24h"
-          ENDSSH
+      #       # Clean up old images
+      #       echo "Cleaning up old images..."
+      #       docker image prune -a -f --filter "until=24h"
+      #     ENDSSH
 
       - name: Deploy frontend
         run: |
@@ -370,11 +370,11 @@ jobs:
         working-directory: frontend
         run: yarn build-storybook
 
-      - name: Upload Storybook to VizDiff
-        uses: vizdiff-io/upload-action@v1
-        with:
-          project-token: ${{ secrets.VIZDIFF_PROJECT_TOKEN }}
-          storybook-dir: "./frontend/storybook-static"
+      # - name: Upload Storybook to VizDiff
+      #   uses: vizdiff-io/upload-action@v1
+      #   with:
+      #     project-token: ${{ secrets.VIZDIFF_PROJECT_TOKEN }}
+      #     storybook-dir: "./frontend/storybook-static"
 
       - name: Publish to Chromatic
         working-directory: frontend
