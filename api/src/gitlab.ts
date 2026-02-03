@@ -203,16 +203,49 @@ export async function syncUserGitLabProjects(user: User): Promise<number> {
 
     // Atomically update UserGitlabProjectAccess table
     await db.manager.transaction(async (transactionalEntityManager) => {
-      // Delete old records for this user and host
-      await transactionalEntityManager
-        .createQueryBuilder()
-        .delete()
-        .from(UserGitlabProjectAccess)
-        .where("user_id = :userId AND gitlab_host = :gitlabHost", {
-          userId: user.id,
-          gitlabHost,
-        })
-        .execute()
+      // Delete old records for this user and host.
+      // Also delete any records that would conflict (same userId + gitlabProjectId but different gitlabHost).
+      // This handles the case where gitlabHost might not be part of the primary key constraint in the database,
+      // which would cause primary key violations when inserting new records with overlapping project IDs.
+      if (accessibleProjectIds.size > 0) {
+        // Delete records matching the current host
+        await transactionalEntityManager
+          .createQueryBuilder()
+          .delete()
+          .from(UserGitlabProjectAccess)
+          .where("user_id = :userId AND gitlab_host = :gitlabHost", {
+            userId: user.id,
+            gitlabHost,
+          })
+          .execute()
+
+        // Also delete any conflicting records (same userId + projectId but different host)
+        // This prevents primary key violations if gitlabHost is not part of the primary key
+        await transactionalEntityManager
+          .createQueryBuilder()
+          .delete()
+          .from(UserGitlabProjectAccess)
+          .where(
+            "user_id = :userId AND gitlab_project_id IN (:...projectIds) AND gitlab_host != :gitlabHost",
+            {
+              userId: user.id,
+              projectIds: Array.from(accessibleProjectIds),
+              gitlabHost,
+            },
+          )
+          .execute()
+      } else {
+        // No projects found, just delete all records for this user and host
+        await transactionalEntityManager
+          .createQueryBuilder()
+          .delete()
+          .from(UserGitlabProjectAccess)
+          .where("user_id = :userId AND gitlab_host = :gitlabHost", {
+            userId: user.id,
+            gitlabHost,
+          })
+          .execute()
+      }
 
       // Insert new records if any projects were found
       if (accessibleProjectIds.size > 0) {
