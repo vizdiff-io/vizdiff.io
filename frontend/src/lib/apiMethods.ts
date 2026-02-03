@@ -43,6 +43,24 @@ export async function apiGet<T>(endpoint: string): Promise<[T | null, AxiosError
   }
 }
 
+export async function publicApiGet<T>(
+  endpoint: string,
+  headers?: Record<string, string>,
+): Promise<[T | null, AxiosError | null]> {
+  try {
+    const response = await axios.get<T>(endpoint, {
+      withCredentials: true,
+      timeout: TIMEOUT_MS,
+      headers,
+    })
+    return [response.data, null]
+  } catch (err) {
+    const axErr = err as AxiosError
+    extractServerErrorMessage(axErr)
+    return [null, axErr]
+  }
+}
+
 export async function tryApiGet<T>(endpoint: string): Promise<[T | null, AxiosError | null]> {
   if (!isAuthenticated()) {
     const error = new AxiosError()
@@ -83,6 +101,26 @@ export async function apiPost<T>(
     const axErr = err as AxiosError
     console.error(`Failed to POST ${endpoint}`, axErr)
     redirectIfUnauthorized(axErr)
+    extractServerErrorMessage(axErr)
+    return [undefined, axErr]
+  }
+}
+
+export async function publicApiPost<T>(
+  endpoint: string,
+  body: unknown,
+  timeoutMs: number = TIMEOUT_MS,
+  headers?: Record<string, string>,
+): Promise<[T | undefined, AxiosError | undefined]> {
+  try {
+    const response = await axios.post<T>(endpoint, body, {
+      headers: { "Content-Type": "application/json", ...headers },
+      withCredentials: true,
+      timeout: timeoutMs,
+    })
+    return [response.data, undefined]
+  } catch (err) {
+    const axErr = err as AxiosError
     extractServerErrorMessage(axErr)
     return [undefined, axErr]
   }

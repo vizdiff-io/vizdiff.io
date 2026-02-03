@@ -36,10 +36,11 @@ interface StripeCheckoutResponse {
 }
 
 // Hook to fetch billing usage
-function useBillingUsage(): [BillingPeriodUsageResponse | null, boolean, Error | null] {
+function useBillingUsage(): [BillingPeriodUsageResponse | null, boolean, Error | null, boolean] {
   const [usageData, setUsageData] = useState<BillingPeriodUsageResponse | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
+  const [stripeDisabled, setStripeDisabled] = useState(false)
 
   useEffect(() => {
     const fetchUsage = async () => {
@@ -48,6 +49,11 @@ function useBillingUsage(): [BillingPeriodUsageResponse | null, boolean, Error |
       try {
         const [data, apiError] = await apiGet<BillingPeriodUsageResponse>("/api/stripe/usage")
         if (apiError) {
+          if (apiError.response?.status === 404) {
+            setStripeDisabled(true)
+            setUsageData(null)
+            return
+          }
           throw new Error(apiError.message || "Failed to fetch billing usage")
         }
         setUsageData(data)
@@ -62,7 +68,7 @@ function useBillingUsage(): [BillingPeriodUsageResponse | null, boolean, Error |
     void fetchUsage()
   }, [])
 
-  return [usageData, isLoading, error]
+  return [usageData, isLoading, error, stripeDisabled]
 }
 
 export default function Signup(): JSX.Element {
@@ -71,12 +77,16 @@ export default function Signup(): JSX.Element {
   const [isCheckoutLoading, setIsCheckoutLoading] = useState(false)
   const [checkoutError, setCheckoutError] = useState<string | null>(null)
   const [billingInterval, setBillingInterval] = useState<"monthly" | "yearly">("monthly")
-  const [usageData, isUsageLoading, usageError] = useBillingUsage()
+  const [usageData, isUsageLoading, usageError, stripeDisabled] = useBillingUsage()
 
   const redirectToCheckout = useCallback(
     async (plan: string, interval: string) => {
       if (!user) {
         setCheckoutError("User is not logged in.")
+        return
+      }
+      if (stripeDisabled) {
+        setCheckoutError("Billing is disabled for this installation.")
         return
       }
       if (isCheckoutLoading) {
@@ -249,6 +259,13 @@ export default function Signup(): JSX.Element {
                 </Alert>
               )}
 
+              {stripeDisabled && (
+                <Alert severity="info" sx={{ mb: 4 }}>
+                  Billing is disabled for this installation. Subscription changes are not
+                  available.
+                </Alert>
+              )}
+
               {checkoutError && (
                 <Alert severity="error" sx={{ mb: 4 }}>
                   {checkoutError}
@@ -387,7 +404,7 @@ export default function Signup(): JSX.Element {
                             onClick={() =>
                               void redirectToCheckout(plan.name.toLowerCase(), billingInterval)
                             }
-                            disabled={isCheckoutLoading || isPlanActive}
+                            disabled={isCheckoutLoading || isPlanActive || stripeDisabled}
                           >
                             {isPlanActive ? "Current Plan" : plan.ctaText}
                           </Button>
@@ -411,18 +428,18 @@ export default function Signup(): JSX.Element {
               <Box sx={{ my: 5 }} />
 
               {/* Display Billing Usage */}
-              {isUsageLoading && (
+              {isUsageLoading && !stripeDisabled && (
                 <Box sx={{ display: "flex", justifyContent: "center", mb: 4 }}>
                   <CircularProgress size={24} />
                   <Typography sx={{ ml: 2 }}>Loading usage data...</Typography>
                 </Box>
               )}
-              {usageError && !isUsageLoading && (
+              {usageError && !isUsageLoading && !stripeDisabled && (
                 <Alert severity="warning" sx={{ mb: 4 }}>
                   Could not load current usage data: {usageError.message}
                 </Alert>
               )}
-              {usageData && !isUsageLoading && !usageError && (
+              {usageData && !isUsageLoading && !usageError && !stripeDisabled && (
                 <Card sx={{ mb: 4, p: 3 }}>
                   <Typography variant="h6" gutterBottom>
                     Current {usageData.status === "trial" ? "Trial" : "Billing"} Period Usage

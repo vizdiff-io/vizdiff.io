@@ -17,7 +17,6 @@ import {
   ListItemButton,
   ListItemText,
 } from "@mui/material"
-import { Inter } from "next/font/google"
 import { useRouter } from "next/router"
 import React, { useEffect, useState, useMemo } from "react"
 
@@ -28,9 +27,6 @@ import type { SidebarItem } from "./LeftSidebar"
 import ProtectedRoute from "./ProtectedRoute"
 import SidebarContent from "./SidebarContent"
 import { AnalyticsEvents, trackEvent } from "../lib/analytics"
-
-const inter = Inter({ subsets: ["latin"] })
-void inter
 
 const drawerWidth = 240
 
