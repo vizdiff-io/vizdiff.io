@@ -34,6 +34,8 @@ export const me: RequestHandler = async (_req, res) => {
     groupName: group.groupName,
     fullPath: group.fullPath,
     gitlabHost: group.gitlabHost,
+    avatarUrl: group.avatarUrl,
+    webUrl: group.webUrl,
     createdStampSec: toSeconds(group.createdAt),
   }))
 

@@ -19,6 +19,8 @@ export type GitLabGroupResponse = {
   groupName: string
   fullPath: string
   gitlabHost: string
+  avatarUrl: string | null
+  webUrl: string
   createdStampSec: number
 }
 
