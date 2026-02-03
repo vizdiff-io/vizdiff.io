@@ -358,10 +358,10 @@ export async function gitlabCallback(req: DefaultRequest, res: DefaultResponse):
   }
 
   finalRedirect ??= `${APP_URL}/projects`
-  
+
   // Use the request origin to support dynamic URLs (e.g., ngrok)
   const requestOrigin = getRequestOrigin(req)
-  
+
   // Validate redirect URL against the request origin to support dynamic URLs (e.g., ngrok)
   if (!isValidRedirectUrl(finalRedirect, requestOrigin)) {
     throw new Error(`Invalid redirect URL: ${finalRedirect}`)
