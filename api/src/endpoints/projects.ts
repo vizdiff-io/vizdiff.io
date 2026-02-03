@@ -158,9 +158,18 @@ export const create: RequestHandler = async (req, res) => {
 
   const name = body?.name
   // Support both new fields and legacy GitHub-specific fields
-  const vcsProvider: VCSProvider = body?.vcsProvider ?? "github"
+  const vcsProviderRaw = body?.vcsProvider ?? "github"
   const repoId = body?.repoId ?? body?.githubRepoId
   const repoUrl = body?.repoUrl ?? body?.githubRepoUrl
+
+  // Validate vcsProvider at runtime to prevent invalid values from being stored
+  if (vcsProviderRaw !== "github" && vcsProviderRaw !== "gitlab") {
+    res
+      .status(400)
+      .json({ error: `Invalid vcsProvider: "${vcsProviderRaw}". Must be "github" or "gitlab"` })
+    return
+  }
+  const vcsProvider: VCSProvider = vcsProviderRaw
 
   if (!name) {
     res.status(400).json({ error: "Missing name" })
