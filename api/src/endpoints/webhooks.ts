@@ -78,6 +78,13 @@ export function verifyGitLabWebhookToken(
 }
 
 /**
+ * Escape special regex characters in a string so it can be used as a literal pattern
+ */
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+}
+
+/**
  * Find a project by repository URL (supports both GitHub and GitLab)
  */
 async function findProjectByRepo(
@@ -96,9 +103,15 @@ async function findProjectByRepo(
   const projects = await projectRepo.find({ where: { vcsProvider: provider } })
 
   const hostPattern = provider === "gitlab" ? "gitlab" : "github"
+  // Escape special regex characters in repoOwner and repoName to prevent regex injection
+  const escapedOwner = escapeRegex(repoOwner)
+  const escapedName = escapeRegex(repoName)
   return projects.find((project) => {
     const url = project.repoUrl.toLowerCase()
-    const repoPattern = new RegExp(`${hostPattern}[^/]*[/:]${repoOwner}/${repoName}(\\.git)?$`, "i")
+    const repoPattern = new RegExp(
+      `${hostPattern}[^/]*[/:]${escapedOwner}/${escapedName}(\\.git)?$`,
+      "i",
+    )
     return repoPattern.test(url)
   })
 }
