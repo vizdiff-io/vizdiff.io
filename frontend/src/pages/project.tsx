@@ -315,7 +315,12 @@ export default function Project(): JSX.Element {
                         Created {formatDistanceToNow(build.initiatedStampSec * 1000)} ago •{" "}
                         <Tooltip title={build.commitSha}>
                           <MuiLink
-                            href={getCommitUrl(build.commitSha, project?.repoUrl, build.prNumber)}
+                            href={getCommitUrl(
+                              build.commitSha,
+                              project?.repoUrl,
+                              build.prNumber,
+                              build.vcsProvider,
+                            )}
                             target="_blank"
                             rel="noopener noreferrer"
                             onClick={(e) => e.stopPropagation()} // Prevent triggering the parent Link
@@ -326,7 +331,7 @@ export default function Project(): JSX.Element {
                         </Tooltip>{" "}
                         on{" "}
                         <MuiLink
-                          href={getBranchUrl(build.branch, project?.repoUrl)}
+                          href={getBranchUrl(build.branch, project?.repoUrl, build.vcsProvider)}
                           target="_blank"
                           rel="noopener noreferrer"
                           onClick={(e) => e.stopPropagation()} // Prevent triggering the parent Link
@@ -346,7 +351,11 @@ export default function Project(): JSX.Element {
                           <>
                             {" • "}
                             <MuiLink
-                              href={getPullRequestUrl(build.prNumber, project?.repoUrl)}
+                              href={getPullRequestUrl(
+                                build.prNumber,
+                                project?.repoUrl,
+                                build.vcsProvider,
+                              )}
                               target="_blank"
                               rel="noopener noreferrer"
                               onClick={(e) => e.stopPropagation()} // Prevent triggering the parent Link

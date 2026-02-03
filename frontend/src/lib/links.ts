@@ -17,8 +17,7 @@ function parseRepoUrl(
     const owner = match[2]
     const repo = match[3].replace(/\.git$/, "")
     // Use provided vcsProvider if available, otherwise infer from hostname
-    const provider: VCSProvider =
-      vcsProvider ?? (host.includes("gitlab") ? "gitlab" : "github")
+    const provider: VCSProvider = vcsProvider ?? (host.includes("gitlab") ? "gitlab" : "github")
     return { provider, owner, repo, host }
   }
   return null

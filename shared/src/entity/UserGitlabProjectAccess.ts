@@ -1,12 +1,4 @@
-import {
-  Entity,
-  CreateDateColumn,
-  ManyToOne,
-  JoinColumn,
-  PrimaryColumn,
-  Index,
-  Column,
-} from "typeorm"
+import { Entity, CreateDateColumn, ManyToOne, JoinColumn, PrimaryColumn, Index } from "typeorm"
 
 import type { User } from "./User"
 
@@ -25,7 +17,12 @@ export class UserGitlabProjectAccess {
 
   // GitLab host URL (for self-hosted instances)
   // Part of the composite primary key to prevent conflicts when users switch GitLab instances
-  @PrimaryColumn({ name: "gitlab_host", type: "text", nullable: false, default: "https://gitlab.com" })
+  @PrimaryColumn({
+    name: "gitlab_host",
+    type: "text",
+    nullable: false,
+    default: "https://gitlab.com",
+  })
   gitlabHost!: string
 
   @ManyToOne("User", { onDelete: "CASCADE" })

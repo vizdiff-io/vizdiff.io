@@ -1,6 +1,7 @@
-import { Project } from "shared"
+import { Project, User } from "shared"
 
 import { Database } from "./database"
+import { GITLAB_HOST } from "./environment"
 
 /**
  * Get all `projects.id`s that the user has access to, including both directly owned projects
@@ -15,6 +16,10 @@ export async function getAccessibleProjectIds(
 ): Promise<number[]> {
   const projectTable = db.getRepository(Project)
 
+  // Get the user's GitLab host (or default) to filter GitLab access records
+  const user = await db.getRepository(User).findOneBy({ id: userId })
+  const gitlabHost = user?.gitlabHost ?? GITLAB_HOST
+
   // Get both directly owned projects and those accessible via GitHub/GitLab repo access
   const accessibleProjectsRaw = await projectTable
     .createQueryBuilder("project")
@@ -27,12 +32,12 @@ export async function getAccessibleProjectIds(
     .leftJoin(
       "user_gitlab_project_access",
       "gl_access",
-      "gl_access.gitlab_project_id = project.repo_id AND project.vcs_provider = 'gitlab'",
+      "gl_access.gitlab_project_id = project.repo_id AND project.vcs_provider = 'gitlab' AND gl_access.gitlab_host = :gitlabHost",
     )
     .where(
       // User either owns the project directly OR has access via GitHub/GitLab repo
       "(project.user_id = :userId OR gh_access.user_id = :userId OR gl_access.user_id = :userId)",
-      { userId },
+      { userId, gitlabHost },
     )
     .getRawMany<{ id: number }>()
 

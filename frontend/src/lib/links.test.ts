@@ -164,10 +164,43 @@ describe("links", () => {
       expect(url).toContain("/-/commit/")
     })
 
-    it("treats unknown hosts as GitHub", () => {
+    it("treats unknown hosts as GitHub when vcsProvider not provided", () => {
       const url = getCommitUrl("abc", "https://code.example.com/owner/repo")
       expect(url).toContain("/commit/")
       expect(url).not.toContain("/-/commit/")
+    })
+
+    it("uses provided vcsProvider for self-hosted GitLab", () => {
+      const url = getCommitUrl("abc", "https://code.company.com/group/project", undefined, "gitlab")
+      expect(url).toContain("/-/commit/")
+      expect(url).toBe("https://code.company.com/group/project/-/commit/abc")
+    })
+
+    it("uses provided vcsProvider for self-hosted GitHub", () => {
+      const url = getCommitUrl("abc", "https://git.example.org/owner/repo", undefined, "github")
+      expect(url).toContain("/commit/")
+      expect(url).not.toContain("/-/commit/")
+      expect(url).toBe("https://git.example.org/owner/repo/commit/abc")
+    })
+
+    it("vcsProvider overrides hostname-based detection", () => {
+      // Even if hostname contains "gitlab", if vcsProvider is "github", use GitHub format
+      const url = getCommitUrl("abc", "https://gitlab.com/group/project", undefined, "github")
+      expect(url).toContain("/commit/")
+      expect(url).not.toContain("/-/commit/")
+      expect(url).toBe("https://gitlab.com/group/project/commit/abc")
+    })
+
+    it("getBranchUrl uses provided vcsProvider for self-hosted GitLab", () => {
+      const url = getBranchUrl("main", "https://code.company.com/group/project", "gitlab")
+      expect(url).toContain("/-/tree/")
+      expect(url).toBe("https://code.company.com/group/project/-/tree/main")
+    })
+
+    it("getPullRequestUrl uses provided vcsProvider for self-hosted GitLab", () => {
+      const url = getPullRequestUrl(42, "https://code.company.com/group/project", "gitlab")
+      expect(url).toContain("/-/merge_requests/")
+      expect(url).toBe("https://code.company.com/group/project/-/merge_requests/42")
     })
   })
 })
