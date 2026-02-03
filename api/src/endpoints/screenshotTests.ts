@@ -4,7 +4,6 @@ import type {
   ScreenshotTestResponse,
   ScreenshotTestSummaryResponse,
   TestResponse,
-  TestResultResponse,
 } from "../apiTypes"
 import { toSeconds } from "../conversions"
 import { trackPageView } from "../customerio"
@@ -213,7 +212,7 @@ export const get: RequestHandler = async (req, res) => {
     testResults: testResults.map((result) => ({
       id: result.id,
       name: result.name,
-      changeStatus: result.changeStatus as TestResultResponse["changeStatus"],
+      changeStatus: result.changeStatus,
       screenshotUrl: result.newImageUrl,
       ancestorScreenshotUrl: result.baselineImageUrl ?? undefined,
       diffMaskUrl: result.diffImageUrl ?? undefined,

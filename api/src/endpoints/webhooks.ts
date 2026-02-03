@@ -429,26 +429,33 @@ export async function gitlabWebhook(req: RequestWithRawBody, res: DefaultRespons
     return
   }
 
-  const payload = req.body as GitLabWebhookPayload
-  if (!payload || !payload.object_kind) {
+  // Validate payload has object_kind before type assertion
+  const body = req.body as unknown
+  if (
+    !body ||
+    typeof body !== "object" ||
+    !("object_kind" in body) ||
+    typeof (body as { object_kind?: unknown }).object_kind !== "string"
+  ) {
     log.error("Missing or invalid GitLab webhook payload")
     res.status(400).json({ error: "Missing or invalid payload" })
     return
   }
 
+  const payload = body as GitLabWebhookPayload
   const eventType = payload.object_kind
   log.info(`Received GitLab webhook event: ${eventType}`)
 
   try {
     switch (eventType) {
       case "push":
-        await handleGitLabPush(res, payload as GitLabPushPayload)
+        await handleGitLabPush(res, payload)
         break
       case "merge_request":
-        await handleGitLabMergeRequest(res, payload as GitLabMergeRequestPayload)
+        await handleGitLabMergeRequest(res, payload)
         break
       case "pipeline":
-        await handleGitLabPipeline(res, payload as GitLabPipelinePayload)
+        await handleGitLabPipeline(res, payload)
         break
       default:
         log.info(`Ignoring GitLab webhook event type: "${eventType}"`)

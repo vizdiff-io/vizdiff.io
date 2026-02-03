@@ -311,7 +311,9 @@ export async function gitlabLogin(req: DefaultRequest, res: DefaultResponse): Pr
   }
 
   // Get the redirect URL from query params (where to send user after auth)
-  const redirect = (req.query.redirect as string) ?? `${APP_URL}/projects`
+  const redirect =
+    (typeof req.query.redirect === "string" ? req.query.redirect : undefined) ??
+    `${APP_URL}/projects`
 
   // Build the state parameter with redirect info
   const state = encodeURIComponent(`redirect=${encodeURIComponent(redirect)}`)
