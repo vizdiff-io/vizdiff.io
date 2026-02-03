@@ -11,6 +11,7 @@ import {
 } from "typeorm"
 
 import type { Project } from "./Project"
+import type { ScreenshotTestStatus } from "./types"
 import type { TestResult } from "./TestResult"
 import type { WorkTask } from "./WorkTask"
 
@@ -49,18 +50,28 @@ export class ScreenshotTest {
   @Column({ name: "base_branch", type: "text", nullable: true })
   baseBranch!: string | null
 
+  // Pull Request number (GitHub) or Merge Request IID (GitLab)
   @Column({ name: "pr_number", type: "integer", nullable: true })
   prNumber!: number | null
 
   @Column({ name: "upload_id", type: "text", unique: true, nullable: false })
   uploadId!: string
 
-  // "pending" | "running" | "no_changes" | "unapproved" | "approved" | "denied" | "failed"
   @Column({ type: "text", nullable: false })
-  status!: string
+  status!: ScreenshotTestStatus
 
-  @Column({ name: "github_check_run_id", type: "bigint", nullable: true })
-  githubCheckRunId!: number | null
+  // VCS status ID (GitHub Check Run ID or GitLab Commit Status ID)
+  @Column({ name: "vcs_status_id", type: "bigint", nullable: true })
+  vcsStatusId!: number | null
+
+  // Legacy alias for backward compatibility
+  get githubCheckRunId(): number | null {
+    return this.vcsStatusId
+  }
+
+  set githubCheckRunId(value: number | null) {
+    this.vcsStatusId = value
+  }
 
   @Column({ name: "tag", type: "text", nullable: true })
   tag!: string | null
@@ -78,6 +89,6 @@ export class ScreenshotTest {
   updatedAt!: Date
 
   toString(): string {
-    return `[test_id=${this.id} ${this.project.githubRepoUrl}#${this.commitSha}]`
+    return `[test_id=${this.id} ${this.project.repoUrl}#${this.commitSha}]`
   }
 }

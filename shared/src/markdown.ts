@@ -1,42 +1,68 @@
 import type { ScreenshotTest } from "./entity/ScreenshotTest"
 import type { TestResult } from "./entity/TestResult"
+import type { VCSProvider } from "./entity/types"
 
 const EMPTY_IMAGE_URL = "https://upload.wikimedia.org/wikipedia/commons/5/59/Empty.png"
 const FAILED_IMAGE_URL =
   "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5f/Red_X.svg/480px-Red_X.svg.png"
 
-// Generates a GitHub Flavored Markdown summary for a screenshot test build
+/**
+ * Get the commit URL for a given provider
+ * GitHub: /commit/{sha}
+ * GitLab: /-/commit/{sha}
+ */
+function getCommitUrl(repoUrl: string, sha: string, provider: VCSProvider): string {
+  const separator = provider === "gitlab" ? "/-/commit/" : "/commit/"
+  return `${repoUrl}${separator}${sha}`
+}
+
+/**
+ * Get the branch/tree URL for a given provider
+ * GitHub: /tree/{branch}
+ * GitLab: /-/tree/{branch}
+ */
+function getBranchUrl(repoUrl: string, branch: string, provider: VCSProvider): string {
+  const separator = provider === "gitlab" ? "/-/tree/" : "/tree/"
+  return `${repoUrl}${separator}${branch}`
+}
+
+// Generates a Markdown summary for a screenshot test build (works for both GitHub and GitLab)
 export function createSummaryForBuild(build: ScreenshotTest): string {
+  const repoUrl = build.project.repoUrl
+  const provider = build.project.vcsProvider
+
   if (build.baseCommitSha) {
     let summary =
       `Rendering storybook components for [build #${build.buildNumber}](https://vizdiff.io/build?id=${build.id}), ` +
-      `comparing commit [${build.commitSha}](${build.project.githubRepoUrl}/commit/${build.commitSha}) ` +
-      `(branch [${build.branch}](${build.project.githubRepoUrl}/tree/${build.branch})) against ` +
-      `[${build.baseCommitSha}](${build.project.githubRepoUrl}/commit/${build.baseCommitSha})`
+      `comparing commit [${build.commitSha}](${getCommitUrl(repoUrl, build.commitSha, provider)}) ` +
+      `(branch [${build.branch}](${getBranchUrl(repoUrl, build.branch, provider)})) against ` +
+      `[${build.baseCommitSha}](${getCommitUrl(repoUrl, build.baseCommitSha, provider)})`
     summary += build.baseBranch
-      ? ` (branch [${build.baseBranch}](${build.project.githubRepoUrl}/tree/${build.baseBranch}))`
+      ? ` (branch [${build.baseBranch}](${getBranchUrl(repoUrl, build.baseBranch, provider)}))`
       : "."
     return summary
   }
 
   return (
     `Rendering storybook components for [build #${build.buildNumber}](https://vizdiff.io/build?id=${build.id}), ` +
-    `commit [${build.commitSha}](${build.project.githubRepoUrl}/commit/${build.commitSha}) ` +
-    `(branch [${build.branch}](${build.project.githubRepoUrl}/tree/${build.branch})).`
+    `commit [${build.commitSha}](${getCommitUrl(repoUrl, build.commitSha, provider)}) ` +
+    `(branch [${build.branch}](${getBranchUrl(repoUrl, build.branch, provider)})).`
   )
 }
 
 export function createSummaryForFailedBuild(build: ScreenshotTest, error: unknown): string {
   const errString = error instanceof Error ? error.message : String(error)
+  const repoUrl = build.project.repoUrl
+  const provider = build.project.vcsProvider
 
   if (build.baseCommitSha) {
     let summary =
       `⚠️ Failed to render storybook components for [build #${build.buildNumber}](https://vizdiff.io/build?id=${build.id}), ` +
-      `comparing commit [${build.commitSha}](${build.project.githubRepoUrl}/commit/${build.commitSha}) ` +
-      `(branch [${build.branch}](${build.project.githubRepoUrl}/tree/${build.branch})) against ` +
-      `[${build.baseCommitSha}](${build.project.githubRepoUrl}/commit/${build.baseCommitSha})`
+      `comparing commit [${build.commitSha}](${getCommitUrl(repoUrl, build.commitSha, provider)}) ` +
+      `(branch [${build.branch}](${getBranchUrl(repoUrl, build.branch, provider)})) against ` +
+      `[${build.baseCommitSha}](${getCommitUrl(repoUrl, build.baseCommitSha, provider)})`
     summary += build.baseBranch
-      ? ` (branch [${build.baseBranch}](${build.project.githubRepoUrl}/tree/${build.baseBranch}))`
+      ? ` (branch [${build.baseBranch}](${getBranchUrl(repoUrl, build.baseBranch, provider)}))`
       : "."
     summary += `\n\n---\nUpload ID: ${build.uploadId}\nReason: ${errString}`
     return summary
@@ -44,8 +70,8 @@ export function createSummaryForFailedBuild(build: ScreenshotTest, error: unknow
 
   let summary =
     `⚠️ Failed to render storybook components for [build #${build.buildNumber}](https://vizdiff.io/build?id=${build.id}), ` +
-    `commit [${build.commitSha}](${build.project.githubRepoUrl}/commit/${build.commitSha}) ` +
-    `(branch [${build.branch}](${build.project.githubRepoUrl}/tree/${build.branch})).`
+    `commit [${build.commitSha}](${getCommitUrl(repoUrl, build.commitSha, provider)}) ` +
+    `(branch [${build.branch}](${getBranchUrl(repoUrl, build.branch, provider)})).`
   summary += `\n\n---\nUpload ID: ${build.uploadId}\nReason: ${errString}`
   return summary
 }

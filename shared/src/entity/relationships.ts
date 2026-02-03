@@ -1,9 +1,11 @@
 import { GitHubInstallation } from "./GitHubInstallation"
+import { GitLabGroup } from "./GitLabGroup"
 import { Project } from "./Project"
 import { ScreenshotTest } from "./ScreenshotTest"
 import { TestResult } from "./TestResult"
 import { User } from "./User"
 import { UserGithubRepoAccess } from "./UserGithubRepoAccess"
+import { UserGitlabProjectAccess } from "./UserGitlabProjectAccess"
 import { WorkTask } from "./WorkTask"
 
 // Define relationships after all entities are loaded
@@ -15,7 +17,10 @@ export function defineRelationships(): void {
   const TestResultEntity = TestResult as unknown as typeof TestResult
   const WorkTaskEntity = WorkTask as unknown as typeof WorkTask
   const GitHubInstallationEntity = GitHubInstallation as unknown as typeof GitHubInstallation
+  const GitLabGroupEntity = GitLabGroup as unknown as typeof GitLabGroup
   const UserGithubRepoAccessEntity = UserGithubRepoAccess as unknown as typeof UserGithubRepoAccess
+  const UserGitlabProjectAccessEntity =
+    UserGitlabProjectAccess as unknown as typeof UserGitlabProjectAccess
 
   // User <-> Project
   UserEntity.prototype.projects = Promise.resolve([] as Project[])
@@ -44,4 +49,12 @@ export function defineRelationships(): void {
   // User <-> UserGithubRepoAccess
   UserEntity.prototype.githubRepoAccesses = Promise.resolve([] as UserGithubRepoAccess[])
   UserGithubRepoAccessEntity.prototype.user = Promise.resolve({} as User)
+
+  // User <-> GitLabGroup (ManyToMany for access)
+  UserEntity.prototype.gitlabGroups = Promise.resolve([] as GitLabGroup[])
+  GitLabGroupEntity.prototype.users = [] as User[]
+
+  // User <-> UserGitlabProjectAccess
+  UserEntity.prototype.gitlabProjectAccesses = Promise.resolve([] as UserGitlabProjectAccess[])
+  UserGitlabProjectAccessEntity.prototype.user = Promise.resolve({} as User)
 }
