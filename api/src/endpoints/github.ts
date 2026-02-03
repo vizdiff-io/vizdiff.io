@@ -118,11 +118,11 @@ export const repos: RequestHandler = async (req, res) => {
     const results = await db
       .getRepository(Project)
       .createQueryBuilder("project")
-      .select("project.githubRepoId", "githubRepoId")
+      .select("project.repoId", "repoId")
       .where("project.id IN (:...ids)", { ids: accessibleProjectIds })
-      .getRawMany<{ githubRepoId: string }>()
+      .getRawMany<{ repoId: string }>()
     for (const row of results) {
-      accessibleRepoIds.add(parseInt(row.githubRepoId, 10))
+      accessibleRepoIds.add(parseInt(row.repoId, 10))
     }
   }
 

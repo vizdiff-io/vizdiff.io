@@ -8,6 +8,8 @@ import {
   defineRelationships,
   GitHubInstallation,
   UserGithubRepoAccess,
+  GitLabGroup,
+  UserGitlabProjectAccess,
 } from "shared"
 import { DataSource } from "typeorm"
 
@@ -37,11 +39,13 @@ const database = new DataSource({
   logging: !IS_TEST,
   entities: [
     GitHubInstallation,
+    GitLabGroup,
     Project,
     ScreenshotTest,
     TestResult,
     User,
     UserGithubRepoAccess,
+    UserGitlabProjectAccess,
     WorkTask,
   ],
   subscribers: [],
