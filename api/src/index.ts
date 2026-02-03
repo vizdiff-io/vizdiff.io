@@ -14,13 +14,15 @@ import { InitializeDatabase } from "./database"
 import * as Approval from "./endpoints/approval"
 import * as Auth from "./endpoints/auth"
 import * as Github from "./endpoints/github"
+import * as Health from "./endpoints/health"
 import * as Projects from "./endpoints/projects"
 import * as ScreenshotTests from "./endpoints/screenshotTests"
+import * as Setup from "./endpoints/setup"
 import * as StripeEndpoints from "./endpoints/stripe"
 import * as Upload from "./endpoints/upload"
 import * as User from "./endpoints/user"
 import * as Webhooks from "./endpoints/webhooks"
-import { IS_PRODUCTION, IS_TEST, PORT } from "./environment"
+import { IS_PRODUCTION, IS_TEST, PORT, STRIPE_SECRET_KEY } from "./environment"
 import { log } from "./log"
 import type { DefaultRequest, DefaultResponse } from "./types"
 
@@ -86,6 +88,7 @@ app.use(
 router.get("/", (_req: DefaultRequest, res: DefaultResponse) => {
   res.json({ uptime: (new Date().getTime() - startTime) / 1000 })
 })
+router.get("/health", Health.health)
 
 // Auth routes
 router.get("/auth/github/callback", Auth.githubCallback)
@@ -112,9 +115,19 @@ router.delete("/users/me", authenticateJWT, requireUser, User.deleteAccount)
 router.post("/sync-github-repos", authenticateJWT, requireUser, User.syncGithubRepos)
 router.post("/upload/storybook", Upload.uploadStorybook) // ?token=<project_token>
 
-router.post("/stripe/checkout", authenticateJWT, requireUser, StripeEndpoints.createCheckoutSession)
-router.get("/stripe/usage", authenticateJWT, requireUser, StripeEndpoints.getBillingPeriodUsage)
-router.post("/stripe/webhook", StripeEndpoints.stripeWebhook)
+// Setup/validation routes (optionally protected by SETUP_TOKEN)
+router.get("/setup/status", Setup.status)
+router.post("/setup/github/validate", Setup.validateGithub)
+router.post("/setup/s3/validate", Setup.validateS3)
+router.post("/setup/ses/test", Setup.testEmail)
+
+if (STRIPE_SECRET_KEY) {
+  router.post("/stripe/checkout", authenticateJWT, requireUser, StripeEndpoints.createCheckoutSession)
+  router.get("/stripe/usage", authenticateJWT, requireUser, StripeEndpoints.getBillingPeriodUsage)
+  router.post("/stripe/webhook", StripeEndpoints.stripeWebhook)
+} else {
+  log.info("Stripe is disabled; skipping Stripe routes")
+}
 
 // GitHub webhook route
 router.post("/webhooks/github", Webhooks.githubWebhook)

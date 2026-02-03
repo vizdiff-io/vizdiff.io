@@ -33,6 +33,8 @@ export const POSTGRES_DATABASE = process.env.POSTGRES_DATABASE ?? "vizdiff"
 export const POSTGRES_PASS = process.env.POSTGRES_PASS ?? "postgres"
 export const POSTGRES_PORT = parseInt(process.env.POSTGRES_PORT ?? "5432")
 
+export const S3_BUCKET_NAME = process.env.S3_BUCKET_NAME ?? "vizdiffio-testing"
+
 export const JWT_SECRET = process.env.JWT_SECRET ?? "secret"
 
 export const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY
@@ -41,6 +43,11 @@ export const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET
 export const STRIPE_API_VERSION = "2025-04-30.basil"
 
 export const CUSTOMER_IO_API_KEY = process.env.CUSTOMER_IO_API_KEY
+
+export const SES_REGION = process.env.SES_REGION
+export const SES_FROM_EMAIL = process.env.SES_FROM_EMAIL
+
+export const SETUP_TOKEN = process.env.SETUP_TOKEN ?? ""
 
 export const TRIAL_PERIOD_MS = 14 * 24 * 60 * 60 * 1000 // 14 days
 export const MAX_PROJECTS_PER_USER = 256
