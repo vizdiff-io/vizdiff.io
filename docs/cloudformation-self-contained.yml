@@ -47,6 +47,11 @@ Parameters:
     Type: String
     Default: ""
     NoEcho: true
+  JwtSecret:
+    Type: String
+    Description: Secret key for signing JWT tokens (must be unique per deployment)
+    NoEcho: true
+    MinLength: 32
 
 Resources:
   VizDiffSecurityGroup:
@@ -78,7 +83,7 @@ Resources:
           cd /opt/vizdiff
           cat > .env <<'EOF'
           APP_URL=${AppUrl}
-          JWT_SECRET=change-me
+          JWT_SECRET=${JwtSecret}
           POSTGRES_USER=vizdiff
           POSTGRES_PASS=vizdiff_password
           POSTGRES_DATABASE=vizdiff
