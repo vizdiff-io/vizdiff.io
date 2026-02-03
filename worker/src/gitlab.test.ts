@@ -9,6 +9,7 @@ vi.mock("./environment", () => ({
   GITLAB_HOST: "https://gitlab.com",
   GITLAB_REJECT_UNAUTHORIZED: true,
   APP_URL: "https://vizdiff.io",
+  ENABLE_VCS_STATUS: false, // Disabled in tests by default
   IS_PRODUCTION: false,
   IS_STAGING: false,
   IS_TEST: true,
@@ -29,7 +30,9 @@ describe("gitlab (worker)", () => {
       },
     }
 
-    vi.mocked(Gitlab).mockImplementation(() => mockGitlabClient as unknown as InstanceType<typeof Gitlab>)
+    vi.mocked(Gitlab).mockImplementation(
+      () => mockGitlabClient as unknown as InstanceType<typeof Gitlab>,
+    )
   })
 
   afterEach(() => {
@@ -61,8 +64,8 @@ describe("gitlab (worker)", () => {
   })
 
   describe("updateGitLabCommitStatus", () => {
-    it("skips update in development environment", async () => {
-      // IS_PRODUCTION and IS_STAGING are both false in our mock
+    it("skips update when ENABLE_VCS_STATUS is false", async () => {
+      // ENABLE_VCS_STATUS is false in our mock
       await updateGitLabCommitStatus({
         projectId: 123,
         commitSha: "abc123",
@@ -79,13 +82,12 @@ describe("gitlab (worker)", () => {
     })
 
     it("skips update when no access token provided", async () => {
-      // Even with production flag, should skip if no token
+      // Even with ENABLE_VCS_STATUS=true, should skip if no token
       vi.doMock("./environment", () => ({
         GITLAB_HOST: "https://gitlab.com",
         GITLAB_REJECT_UNAUTHORIZED: true,
         APP_URL: "https://vizdiff.io",
-        IS_PRODUCTION: true,
-        IS_STAGING: false,
+        ENABLE_VCS_STATUS: true,
       }))
 
       await updateGitLabCommitStatus({
@@ -104,15 +106,14 @@ describe("gitlab (worker)", () => {
     })
   })
 
-  describe("updateGitLabCommitStatus in production", () => {
+  describe("updateGitLabCommitStatus with ENABLE_VCS_STATUS=true", () => {
     beforeEach(() => {
-      // Re-mock environment for production tests
+      // Re-mock environment with VCS status enabled
       vi.doMock("./environment", () => ({
         GITLAB_HOST: "https://gitlab.com",
         GITLAB_REJECT_UNAUTHORIZED: true,
         APP_URL: "https://vizdiff.io",
-        IS_PRODUCTION: true,
-        IS_STAGING: false,
+        ENABLE_VCS_STATUS: true,
       }))
     })
 
