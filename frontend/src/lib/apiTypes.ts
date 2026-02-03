@@ -32,12 +32,12 @@ export type GitHubInstallationResponse = {
 
 export type GitLabGroupResponse = {
   id: number
-  gitlabGroupId: string
+  gitlabGroupId: number
   groupPath: string
   groupName: string
   fullPath: string
-  avatarUrl: string | null
-  webUrl: string
+  gitlabHost: string
+  createdStampSec: number
 }
 
 export type UserResponse = {
@@ -60,6 +60,7 @@ export type UserResponse = {
   gitlabId: string | null
   gitlabUsername: string | null
   gitlabProfile: GitlabUser | null
+  gitlabHost: string | null
   gitlabGroups: GitLabGroupResponse[]
 }
 

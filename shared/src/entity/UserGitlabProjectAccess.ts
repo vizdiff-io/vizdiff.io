@@ -24,7 +24,8 @@ export class UserGitlabProjectAccess {
   gitlabProjectId!: number
 
   // GitLab host URL (for self-hosted instances)
-  @Column({ name: "gitlab_host", type: "text", nullable: false, default: "https://gitlab.com" })
+  // Part of the composite primary key to prevent conflicts when users switch GitLab instances
+  @PrimaryColumn({ name: "gitlab_host", type: "text", nullable: false, default: "https://gitlab.com" })
   gitlabHost!: string
 
   @ManyToOne("User", { onDelete: "CASCADE" })

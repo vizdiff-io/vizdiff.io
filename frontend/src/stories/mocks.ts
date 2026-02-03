@@ -34,6 +34,7 @@ export const mockUser: UserResponse = {
   gitlabId: null,
   gitlabUsername: null,
   gitlabProfile: null,
+  gitlabHost: null,
   gitlabGroups: [],
 }
 
