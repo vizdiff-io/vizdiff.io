@@ -20,7 +20,8 @@ import { remote } from "webdriverio"
 import { reportBuildEvents } from "./customerio"
 import { Database } from "./database"
 import { downloadWithTimeout } from "./download"
-import { IS_PRODUCTION, STRIPE_API_VERSION, STRIPE_SECRET_KEY } from "./environment"
+import { sendBuildCompletedEmail } from "./email"
+import { IS_PRODUCTION, S3_BUCKET_NAME, STRIPE_API_VERSION, STRIPE_SECRET_KEY } from "./environment"
 import { updateGitHubCheckRun, type GitHubCheckData } from "./github"
 import { log } from "./log"
 import { startStaticServer } from "./server"
@@ -250,6 +251,9 @@ export async function ingestStorybook(
 
         // Report build events to Customer.io for all users who have access to the project
         reportBuildEvents(screenshotTest, testResults)
+
+        // Send a basic build completion email to the project owner if configured
+        void sendBuildCompletedEmail(screenshotTest)
       } finally {
         log.debug("Shutting down local server")
         await new Promise<void>((resolve) => server.close(() => resolve()))
@@ -424,5 +428,5 @@ async function reportScreenshotUsageToStripe(
 }
 
 async function getS3BucketForProjectId(_projectId: string): Promise<string> {
-  return "vizdiffio-testing"
+  return S3_BUCKET_NAME
 }
