@@ -119,7 +119,10 @@ export const repos: RequestHandler = async (req, res) => {
       .getRepository(Project)
       .createQueryBuilder("project")
       .select("project.repoId", "repoId")
-      .where("project.id IN (:...ids)", { ids: accessibleProjectIds })
+      .where("project.id IN (:...ids) AND project.vcsProvider = :provider", {
+        ids: accessibleProjectIds,
+        provider: "github",
+      })
       .getRawMany<{ repoId: string }>()
     for (const row of results) {
       accessibleRepoIds.add(parseInt(row.repoId, 10))
