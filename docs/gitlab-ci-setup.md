@@ -113,7 +113,7 @@ vizdiff:
   before_script:
     - apk add --no-cache curl tar gzip
   script:
-    - tar -czf storybook.tar.gz storybook-static/
+    - tar -czf storybook.tar.gz -C storybook-static .
     - |
       echo "Uploading Storybook to VizDiff..."
       
