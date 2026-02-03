@@ -79,8 +79,9 @@ export function verifyGitLabWebhookToken(
 
 /**
  * Escape special regex characters in a string so it can be used as a literal pattern
+ * This prevents regex injection attacks when interpolating user input into regex patterns
  */
-function escapeRegex(str: string): string {
+export function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 }
 

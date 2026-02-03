@@ -1,7 +1,7 @@
 import crypto from "crypto"
 import { describe, expect, it } from "vitest"
 
-import { verifyWebhookSignature, verifyGitLabWebhookToken } from "./webhooks"
+import { verifyWebhookSignature, verifyGitLabWebhookToken, escapeRegex } from "./webhooks"
 
 describe("verifyWebhookSignature", () => {
   const testSecret = "test_webhook_secret"
@@ -142,5 +142,120 @@ describe("verifyGitLabWebhookToken", () => {
   it("should handle unicode in tokens", () => {
     const unicodeToken = "token_中文_🔐"
     expect(verifyGitLabWebhookToken(unicodeToken, unicodeToken)).toBe(true)
+  })
+})
+
+describe("escapeRegex", () => {
+  it("should escape dot (.) character", () => {
+    expect(escapeRegex("my.project")).toBe("my\\.project")
+    const regex = new RegExp(`^${escapeRegex("my.project")}$`)
+    expect(regex.test("my.project")).toBe(true)
+    expect(regex.test("myXproject")).toBe(false)
+  })
+
+  it("should escape plus (+) character", () => {
+    expect(escapeRegex("repo+name")).toBe("repo\\+name")
+    const regex = new RegExp(`^${escapeRegex("repo+name")}$`)
+    expect(regex.test("repo+name")).toBe(true)
+    expect(regex.test("reponame")).toBe(false)
+  })
+
+  it("should escape asterisk (*) character", () => {
+    expect(escapeRegex("repo*name")).toBe("repo\\*name")
+    const regex = new RegExp(`^${escapeRegex("repo*name")}$`)
+    expect(regex.test("repo*name")).toBe(true)
+    expect(regex.test("reponame")).toBe(false)
+  })
+
+  it("should escape question mark (?) character", () => {
+    expect(escapeRegex("repo?name")).toBe("repo\\?name")
+    const regex = new RegExp(`^${escapeRegex("repo?name")}$`)
+    expect(regex.test("repo?name")).toBe(true)
+    expect(regex.test("reponame")).toBe(false)
+  })
+
+  it("should escape caret (^) character", () => {
+    expect(escapeRegex("^repo")).toBe("\\^repo")
+    const regex = new RegExp(`${escapeRegex("^repo")}$`)
+    expect(regex.test("^repo")).toBe(true)
+  })
+
+  it("should escape dollar ($) character", () => {
+    expect(escapeRegex("repo$")).toBe("repo\\$")
+    const regex = new RegExp(`^${escapeRegex("repo$")}`)
+    expect(regex.test("repo$")).toBe(true)
+  })
+
+  it("should escape curly braces ({})", () => {
+    expect(escapeRegex("repo{name}")).toBe("repo\\{name\\}")
+    const regex = new RegExp(`^${escapeRegex("repo{name}")}$`)
+    expect(regex.test("repo{name}")).toBe(true)
+    expect(regex.test("reponame")).toBe(false)
+  })
+
+  it("should escape parentheses (())", () => {
+    expect(escapeRegex("repo(name)")).toBe("repo\\(name\\)")
+    const regex = new RegExp(`^${escapeRegex("repo(name)")}$`)
+    expect(regex.test("repo(name)")).toBe(true)
+    expect(regex.test("reponame")).toBe(false)
+  })
+
+  it("should escape pipe (|) character", () => {
+    expect(escapeRegex("repo|name")).toBe("repo\\|name")
+    const regex = new RegExp(`^${escapeRegex("repo|name")}$`)
+    expect(regex.test("repo|name")).toBe(true)
+    expect(regex.test("reponame")).toBe(false)
+  })
+
+  it("should escape square brackets ([])", () => {
+    expect(escapeRegex("repo[name]")).toBe("repo\\[name\\]")
+    const regex = new RegExp(`^${escapeRegex("repo[name]")}$`)
+    expect(regex.test("repo[name]")).toBe(true)
+    expect(regex.test("reponame")).toBe(false)
+  })
+
+  it("should escape backslash (\\) character", () => {
+    expect(escapeRegex("repo\\name")).toBe("repo\\\\name")
+    const regex = new RegExp(`^${escapeRegex("repo\\name")}$`)
+    expect(regex.test("repo\\name")).toBe(true)
+  })
+
+  it("should handle multiple special characters", () => {
+    const input = "my.repo+name*test?value"
+    const escaped = escapeRegex(input)
+    expect(escaped).toBe("my\\.repo\\+name\\*test\\?value")
+    const regex = new RegExp(`^${escaped}$`)
+    expect(regex.test(input)).toBe(true)
+    expect(regex.test("myXrepo+name*test?value")).toBe(false)
+  })
+
+  it("should handle normal repository names without special characters", () => {
+    expect(escapeRegex("myrepo")).toBe("myrepo")
+    const regex = new RegExp(`^${escapeRegex("myrepo")}$`)
+    expect(regex.test("myrepo")).toBe(true)
+    expect(regex.test("myrepos")).toBe(false)
+  })
+
+  it("should handle empty string", () => {
+    expect(escapeRegex("")).toBe("")
+  })
+
+  it("should handle repository names that would cause regex injection", () => {
+    // Test case from the issue: repo named "my.project" should not match "myXproject"
+    const repoName = "my.project"
+    const escaped = escapeRegex(repoName)
+    expect(escaped).toBe("my\\.project")
+
+    // Create a regex pattern similar to findProjectByRepo
+    const pattern = new RegExp(`github[^/]*[/:]owner/${escaped}(\\.git)?$`, "i")
+
+    // Should match the correct repo
+    expect(pattern.test("https://github.com/owner/my.project")).toBe(true)
+    expect(pattern.test("https://github.com/owner/my.project.git")).toBe(true)
+
+    // Should NOT match incorrect repos (regex injection attempt)
+    expect(pattern.test("https://github.com/owner/myXproject")).toBe(false)
+    expect(pattern.test("https://github.com/owner/myAproject")).toBe(false)
+    expect(pattern.test("https://github.com/owner/my123project")).toBe(false)
   })
 })
