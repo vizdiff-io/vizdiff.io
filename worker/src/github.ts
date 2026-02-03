@@ -7,8 +7,7 @@ import {
   GITHUB_CLIENT_SECRET,
   GITHUB_PRIVATE_KEY,
   APP_URL,
-  IS_PRODUCTION,
-  IS_STAGING,
+  ENABLE_VCS_STATUS,
 } from "./environment"
 import { log } from "./log"
 
@@ -81,8 +80,8 @@ export async function updateGitHubCheckRun({
   text?: string
   actions?: GitHubCheckAction[]
 }): Promise<void> {
-  if (!IS_PRODUCTION && !IS_STAGING) {
-    log.info(`Skipping GitHub check_run update in development environment`)
+  if (!ENABLE_VCS_STATUS) {
+    log.info(`Skipping GitHub check_run update (ENABLE_VCS_STATUS not set)`)
     return
   }
 

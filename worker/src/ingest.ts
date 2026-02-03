@@ -23,6 +23,7 @@ import { downloadWithTimeout } from "./download"
 import { sendBuildCompletedEmail } from "./email"
 import { IS_PRODUCTION, S3_BUCKET_NAME, STRIPE_API_VERSION, STRIPE_SECRET_KEY } from "./environment"
 import { updateGitHubCheckRun, type GitHubCheckData } from "./github"
+import { updateGitLabCommitStatus, type GitLabCheckData } from "./gitlab"
 import { log } from "./log"
 import { startStaticServer } from "./server"
 import { getStorybookStories, navigateToStorybook, processStory } from "./stories"
@@ -32,6 +33,7 @@ export async function ingestStorybook(
   screenshotTestId: number,
   uploadId: string,
   githubCheckData?: GitHubCheckData,
+  gitlabCheckData?: GitLabCheckData,
 ): Promise<void> {
   log.info(`Starting storybook ingestion for project ${projectId}, upload ${uploadId}`)
 
@@ -43,7 +45,7 @@ export async function ingestStorybook(
     throw new Error(`Screenshot test not found: ${screenshotTestId}`)
   }
 
-  // Update GitHub check run title and summary if we have GitHub check data
+  // Update VCS status based on provider
   if (githubCheckData) {
     try {
       await updateGitHubCheckRun({
@@ -60,6 +62,14 @@ export async function ingestStorybook(
       log.error(error, "Failed to update GitHub check run to in-progress")
       // Continue with the ingest process even if the GitHub API call fails
     }
+  } else if (gitlabCheckData) {
+    await updateGitLabCommitStatus({
+      ...gitlabCheckData,
+      state: "running",
+      testId: screenshotTestId,
+      name: "vizdiff/visual-tests",
+      description: "Rendering storybook components…",
+    })
   }
 
   // Clean up previous test results for the same commit/branch
@@ -234,7 +244,7 @@ export async function ingestStorybook(
         screenshotTest.totalChanges = changeCount
         await screenshotTestRepo.save(screenshotTest)
 
-        // Update GitHub check run "Visual Tests" with the build results
+        // Update VCS status with the build results
         if (githubCheckData) {
           await updateGitHubCheckRunWithBuildResults(
             githubCheckData,
@@ -242,6 +252,22 @@ export async function ingestStorybook(
             testResults,
             changeCount,
           )
+        } else if (gitlabCheckData) {
+          const hasChanges = changeCount > 0
+          if (!hasChanges) {
+            // Only update status to success if no changes - otherwise stay in pending until approved
+            await updateGitLabCommitStatus({
+              ...gitlabCheckData,
+              state: "success",
+              testId: screenshotTest.id,
+              name: "vizdiff/visual-tests",
+              description: "No visual changes detected",
+            })
+          } else {
+            log.info(
+              `GitLab status staying in pending for ${changeCount} unapproved change(s) - approval will set success`,
+            )
+          }
         }
 
         // Report screenshot usage to Stripe
@@ -270,7 +296,7 @@ export async function ingestStorybook(
     screenshotTest.status = "failed"
     await screenshotTestRepo.save(screenshotTest)
 
-    // Update GitHub check run with failure if we have GitHub check data
+    // Update VCS status with failure
     if (githubCheckData) {
       try {
         await updateGitHubCheckRun({
@@ -287,6 +313,14 @@ export async function ingestStorybook(
       } catch (githubError) {
         log.error(githubError, "Failed to update GitHub check run to failure")
       }
+    } else if (gitlabCheckData) {
+      await updateGitLabCommitStatus({
+        ...gitlabCheckData,
+        state: "failed",
+        testId: screenshotTestId,
+        name: "vizdiff/visual-tests",
+        description: "Failed to render storybook components",
+      })
     }
 
     throw error
@@ -300,7 +334,7 @@ export async function ingestStorybook(
       screenshotTest.status = "failed"
       await screenshotTestRepo.save(screenshotTest)
 
-      // Update GitHub check run with cancelled if we have GitHub check data
+      // Update VCS status with cancelled
       if (githubCheckData) {
         try {
           await updateGitHubCheckRun({
@@ -317,6 +351,14 @@ export async function ingestStorybook(
         } catch (error) {
           log.error(error, "Failed to update GitHub check run to cancelled")
         }
+      } else if (gitlabCheckData) {
+        await updateGitLabCommitStatus({
+          ...gitlabCheckData,
+          state: "canceled",
+          testId: screenshotTestId,
+          name: "vizdiff/visual-tests",
+          description: "Storybook rendering was cancelled or timed out",
+        })
       }
     }
 

@@ -1,12 +1,6 @@
 import { Gitlab } from "@gitbeaker/rest"
 
-import {
-  GITLAB_HOST,
-  GITLAB_REJECT_UNAUTHORIZED,
-  APP_URL,
-  IS_PRODUCTION,
-  IS_STAGING,
-} from "./environment"
+import { GITLAB_HOST, GITLAB_REJECT_UNAUTHORIZED, APP_URL, ENABLE_VCS_STATUS } from "./environment"
 import { log } from "./log"
 
 export interface GitLabCheckData {
@@ -51,8 +45,8 @@ export async function updateGitLabCommitStatus({
   name: string
   description: string
 }): Promise<void> {
-  if (!IS_PRODUCTION && !IS_STAGING) {
-    log.info(`Skipping GitLab commit status update in development environment`)
+  if (!ENABLE_VCS_STATUS) {
+    log.info(`Skipping GitLab commit status update (ENABLE_VCS_STATUS not set)`)
     return
   }
 
