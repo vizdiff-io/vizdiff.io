@@ -16,6 +16,11 @@ configEnv({
 export const IS_PRODUCTION = process.env.NODE_ENV === "production"
 export const IS_STAGING = process.env.NODE_ENV === "staging"
 export const IS_TEST = process.env.NODE_ENV === "test"
+// Allow VCS status posting in dev mode for testing
+export const ENABLE_VCS_STATUS =
+  process.env.ENABLE_VCS_STATUS != undefined
+    ? process.env.ENABLE_VCS_STATUS === "true"
+    : IS_PRODUCTION || IS_STAGING
 
 export const PORT = parseInt(process.env.PORT ?? "") || (IS_TEST ? 3002 : 3001)
 

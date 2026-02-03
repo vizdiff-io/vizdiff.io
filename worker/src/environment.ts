@@ -16,6 +16,11 @@ configEnv({
 export const IS_PRODUCTION = process.env.NODE_ENV === "production"
 export const IS_STAGING = process.env.NODE_ENV === "staging"
 export const IS_TEST = process.env.NODE_ENV === "test"
+// Allow VCS status posting in dev mode for testing (defaults to true in prod/staging)
+export const ENABLE_VCS_STATUS =
+  process.env.ENABLE_VCS_STATUS != undefined
+    ? process.env.ENABLE_VCS_STATUS === "true"
+    : IS_PRODUCTION || IS_STAGING
 
 export const POSTGRES_USER = process.env.POSTGRES_USER ?? "postgres"
 export const POSTGRES_HOST = process.env.POSTGRES_HOST ?? "localhost"
