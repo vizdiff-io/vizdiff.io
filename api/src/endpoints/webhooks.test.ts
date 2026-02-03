@@ -1,7 +1,7 @@
 import crypto from "crypto"
 import { describe, expect, it } from "vitest"
 
-import { verifyWebhookSignature } from "./webhooks"
+import { verifyWebhookSignature, verifyGitLabWebhookToken } from "./webhooks"
 
 describe("verifyWebhookSignature", () => {
   const testSecret = "test_webhook_secret"
@@ -86,5 +86,61 @@ describe("verifyWebhookSignature", () => {
     const githubStyleSignature = `sha1=${sha1Sig},sha256=${sha256Sig}`
 
     expect(verifyWebhookSignature(testPayload, githubStyleSignature, testSecret)).toBe(true)
+  })
+})
+
+describe("verifyGitLabWebhookToken", () => {
+  const testSecret = "gitlab_webhook_secret_token"
+
+  it("should return true for valid matching token", () => {
+    expect(verifyGitLabWebhookToken(testSecret, testSecret)).toBe(true)
+  })
+
+  it("should return false for invalid token", () => {
+    expect(verifyGitLabWebhookToken("wrong_token", testSecret)).toBe(false)
+  })
+
+  it("should return false for undefined received token", () => {
+    expect(verifyGitLabWebhookToken(undefined, testSecret)).toBe(false)
+  })
+
+  it("should return false for empty received token", () => {
+    expect(verifyGitLabWebhookToken("", testSecret)).toBe(false)
+  })
+
+  it("should return false for empty expected token", () => {
+    expect(verifyGitLabWebhookToken(testSecret, "")).toBe(false)
+  })
+
+  it("should handle token array (first element)", () => {
+    expect(verifyGitLabWebhookToken([testSecret, "other"], testSecret)).toBe(true)
+  })
+
+  it("should return false for empty array", () => {
+    expect(verifyGitLabWebhookToken([], testSecret)).toBe(false)
+  })
+
+  it("should return false for array with wrong token", () => {
+    expect(verifyGitLabWebhookToken(["wrong_token"], testSecret)).toBe(false)
+  })
+
+  it("should return false for tokens of different lengths", () => {
+    expect(verifyGitLabWebhookToken("short", "much_longer_token")).toBe(false)
+    expect(verifyGitLabWebhookToken("much_longer_token", "short")).toBe(false)
+  })
+
+  it("should be case sensitive", () => {
+    expect(verifyGitLabWebhookToken("Secret", "secret")).toBe(false)
+    expect(verifyGitLabWebhookToken("SECRET", "secret")).toBe(false)
+  })
+
+  it("should handle special characters in tokens", () => {
+    const specialToken = "token!@#$%^&*()_+-=[]{}|;':\",./<>?"
+    expect(verifyGitLabWebhookToken(specialToken, specialToken)).toBe(true)
+  })
+
+  it("should handle unicode in tokens", () => {
+    const unicodeToken = "token_中文_🔐"
+    expect(verifyGitLabWebhookToken(unicodeToken, unicodeToken)).toBe(true)
   })
 })
