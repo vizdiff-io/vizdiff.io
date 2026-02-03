@@ -33,7 +33,9 @@ describe("links", () => {
 
       it("returns MR commit URL for GitLab when prNumber provided", () => {
         const url = getCommitUrl("abc123", gitlabRepoUrl, 42)
-        expect(url).toBe("https://gitlab.com/group/project/-/merge_requests/42/diffs?commit_id=abc123")
+        expect(url).toBe(
+          "https://gitlab.com/group/project/-/merge_requests/42/diffs?commit_id=abc123",
+        )
       })
 
       it("handles self-hosted GitLab", () => {
