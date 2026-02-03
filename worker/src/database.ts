@@ -8,6 +8,8 @@ import {
   defineRelationships,
   GitHubInstallation,
   UserGithubRepoAccess,
+  GitLabGroup,
+  UserGitlabProjectAccess,
 } from "shared"
 import { DataSource } from "typeorm"
 
@@ -49,11 +51,13 @@ export async function Database(): Promise<DataSource> {
     logger: IS_PRODUCTION ? undefined : "formatted-console",
     entities: [
       GitHubInstallation,
+      GitLabGroup,
       Project,
       ScreenshotTest,
       TestResult,
       User,
       UserGithubRepoAccess,
+      UserGitlabProjectAccess,
       WorkTask,
     ],
     synchronize: false,
