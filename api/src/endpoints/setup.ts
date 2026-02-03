@@ -1,4 +1,9 @@
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3"
+import {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
+  DeleteObjectCommand,
+} from "@aws-sdk/client-s3"
 import { SESv2Client, SendEmailCommand } from "@aws-sdk/client-sesv2"
 import { createAppAuth } from "@octokit/auth-app"
 import { Octokit } from "@octokit/rest"
@@ -34,7 +39,9 @@ function hasPlaceholder(value: string | undefined): boolean {
 
 function requireSetupToken(req: DefaultRequest, res: DefaultResponse): boolean {
   if (!SETUP_TOKEN) {
-    return true
+    log.warn("Setup endpoint accessed but SETUP_TOKEN is not configured")
+    res.status(403).json({ error: "Setup endpoints are disabled. Set SETUP_TOKEN to enable." })
+    return false
   }
   const token = req.headers["x-setup-token"]
   if (token !== SETUP_TOKEN) {
@@ -90,7 +97,7 @@ export async function validateGithub(req: DefaultRequest, res: DefaultResponse):
     const appAuth = await auth({ type: "app" })
     const octokit = new Octokit({ auth: appAuth.token })
     const app = await octokit.rest.apps.getAuthenticated()
-    res.json({ ok: true, app: { id: app.data.id, slug: app.data.slug } })
+    res.json({ ok: true, app: { id: app.data!.id, slug: app.data!.slug } })
   } catch (error) {
     log.error(error, "GitHub App validation failed")
     res.status(500).json({ ok: false, error: "GitHub App validation failed" })

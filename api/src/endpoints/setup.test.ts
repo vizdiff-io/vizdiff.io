@@ -10,6 +10,8 @@
  * All external dependencies (AWS SDK, Octokit) are mocked.
  */
 
+/* eslint-disable import/first, import/order */
+
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 
 import type { DefaultRequest, DefaultResponse } from "../types"
@@ -26,8 +28,10 @@ const mockEnv = vi.hoisted(() => ({
   S3_BUCKET_NAME: "vizdiff-test-bucket",
   SES_REGION: "us-east-1",
   SES_FROM_EMAIL: "noreply@vizdiff.acme.com",
-  SETUP_TOKEN: "",
+  SETUP_TOKEN: "test-setup-token",
 }))
+
+const DEFAULT_SETUP_TOKEN = "test-setup-token"
 
 // Mock AWS SDK clients
 vi.mock("@aws-sdk/client-s3", () => ({
@@ -67,7 +71,12 @@ vi.mock("../log", () => ({
 }))
 
 // Import mocked modules after vi.mock calls
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3"
+import {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
+  DeleteObjectCommand,
+} from "@aws-sdk/client-s3"
 import { SESv2Client, SendEmailCommand } from "@aws-sdk/client-sesv2"
 import { createAppAuth } from "@octokit/auth-app"
 import { Octokit } from "@octokit/rest"
@@ -77,12 +86,21 @@ import { status, validateGithub, validateS3, testEmail } from "./setup"
 function createMockReqRes(options: {
   headers?: Record<string, string>
   body?: Record<string, unknown>
-}): { req: DefaultRequest; res: DefaultResponse; resJson: ReturnType<typeof vi.fn>; resStatus: ReturnType<typeof vi.fn> } {
+  skipDefaultToken?: boolean
+}): {
+  req: DefaultRequest
+  res: DefaultResponse
+  resJson: ReturnType<typeof vi.fn>
+  resStatus: ReturnType<typeof vi.fn>
+} {
   const resJson = vi.fn()
   const resStatus = vi.fn().mockReturnThis()
 
+  // Include setup token by default unless explicitly skipped
+  const defaultHeaders = options.skipDefaultToken ? {} : { "x-setup-token": DEFAULT_SETUP_TOKEN }
+
   const req = {
-    headers: options.headers ?? {},
+    headers: { ...defaultHeaders, ...options.headers },
     body: options.body ?? {},
   } as unknown as DefaultRequest
 
@@ -113,7 +131,7 @@ describe("setup endpoints", () => {
       S3_BUCKET_NAME: "vizdiff-test-bucket",
       SES_REGION: "us-east-1",
       SES_FROM_EMAIL: "noreply@vizdiff.acme.com",
-      SETUP_TOKEN: "",
+      SETUP_TOKEN: DEFAULT_SETUP_TOKEN,
     })
   })
 
@@ -143,6 +161,7 @@ describe("setup endpoints", () => {
 
       expect(resJson).toHaveBeenCalledWith(
         expect.objectContaining({
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
           missing: expect.arrayContaining(["GITHUB_APP_ID", "S3_BUCKET_NAME"]),
         }),
       )
@@ -158,15 +177,29 @@ describe("setup endpoints", () => {
 
       expect(resJson).toHaveBeenCalledWith(
         expect.objectContaining({
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
           placeholders: expect.arrayContaining(["GITHUB_APP_ID", "GITHUB_CLIENT_SECRET"]),
         }),
       )
     })
 
-    it("should require setup token when configured", async () => {
-      mockEnv.SETUP_TOKEN = "secret-setup-token"
+    it("should deny access when SETUP_TOKEN is not configured", async () => {
+      mockEnv.SETUP_TOKEN = ""
 
-      const { req, res, resJson, resStatus } = createMockReqRes({})
+      const { req, res, resJson, resStatus } = createMockReqRes({ skipDefaultToken: true })
+
+      await status(req, res)
+
+      expect(resStatus).toHaveBeenCalledWith(403)
+      expect(resJson).toHaveBeenCalledWith({
+        error: "Setup endpoints are disabled. Set SETUP_TOKEN to enable.",
+      })
+    })
+
+    it("should require valid setup token when configured", async () => {
+      const { req, res, resJson, resStatus } = createMockReqRes({
+        headers: { "x-setup-token": "wrong-token" },
+      })
 
       await status(req, res)
 
@@ -175,11 +208,7 @@ describe("setup endpoints", () => {
     })
 
     it("should allow access with valid setup token", async () => {
-      mockEnv.SETUP_TOKEN = "secret-setup-token"
-
-      const { req, res, resJson, resStatus } = createMockReqRes({
-        headers: { "x-setup-token": "secret-setup-token" },
-      })
+      const { req, res, resJson, resStatus } = createMockReqRes({})
 
       await status(req, res)
 
@@ -209,7 +238,9 @@ describe("setup endpoints", () => {
 
     it("should validate GitHub App credentials successfully", async () => {
       const mockAuth = vi.fn().mockResolvedValue({ token: "test-token" })
-      vi.mocked(createAppAuth).mockReturnValue(mockAuth)
+      vi.mocked(createAppAuth).mockReturnValue(
+        mockAuth as unknown as ReturnType<typeof createAppAuth>,
+      )
       vi.mocked(Octokit).mockImplementation(
         () =>
           ({
@@ -236,7 +267,9 @@ describe("setup endpoints", () => {
 
     it("should handle GitHub API errors", async () => {
       const mockAuth = vi.fn().mockRejectedValue(new Error("Invalid private key"))
-      vi.mocked(createAppAuth).mockReturnValue(mockAuth)
+      vi.mocked(createAppAuth).mockReturnValue(
+        mockAuth as unknown as ReturnType<typeof createAppAuth>,
+      )
 
       const { req, res, resJson, resStatus } = createMockReqRes({})
 
@@ -309,6 +342,22 @@ describe("setup endpoints", () => {
   })
 
   describe("testEmail", () => {
+    it("should deny access when SETUP_TOKEN is not configured", async () => {
+      mockEnv.SETUP_TOKEN = ""
+
+      const { req, res, resJson, resStatus } = createMockReqRes({
+        body: { email: "test@example.com" },
+        skipDefaultToken: true,
+      })
+
+      await testEmail(req, res)
+
+      expect(resStatus).toHaveBeenCalledWith(403)
+      expect(resJson).toHaveBeenCalledWith({
+        error: "Setup endpoints are disabled. Set SETUP_TOKEN to enable.",
+      })
+    })
+
     it("should return error when SES is not configured", async () => {
       mockEnv.SES_REGION = ""
 
