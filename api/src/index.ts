@@ -122,7 +122,12 @@ router.post("/setup/s3/validate", Setup.validateS3)
 router.post("/setup/ses/test", Setup.testEmail)
 
 if (STRIPE_SECRET_KEY) {
-  router.post("/stripe/checkout", authenticateJWT, requireUser, StripeEndpoints.createCheckoutSession)
+  router.post(
+    "/stripe/checkout",
+    authenticateJWT,
+    requireUser,
+    StripeEndpoints.createCheckoutSession,
+  )
   router.get("/stripe/usage", authenticateJWT, requireUser, StripeEndpoints.getBillingPeriodUsage)
   router.post("/stripe/webhook", StripeEndpoints.stripeWebhook)
 } else {

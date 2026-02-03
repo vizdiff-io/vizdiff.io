@@ -10,8 +10,8 @@ import {
   POSTGRES_PASS,
   POSTGRES_PORT,
 } from "./environment"
-import { markTaskFinished, markTaskStarted, startHealthServer } from "./health"
 import type { GitHubCheckData } from "./github"
+import { markTaskFinished, markTaskStarted, startHealthServer } from "./health"
 import { ingestStorybook } from "./ingest"
 import { log } from "./log"
 import { latestTaskQueueId, fetchTask } from "./tasks"
