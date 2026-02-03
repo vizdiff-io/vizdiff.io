@@ -1,17 +1,9 @@
-import {
-  Alert,
-  Box,
-  Button,
-  Container,
-  Grid,
-  TextField,
-  Typography,
-} from "@mui/material"
-import { type JSX, useCallback, useState } from "react"
+import { Alert, Box, Button, Container, Grid, TextField, Typography } from "@mui/material"
+import { type JSX, useCallback, useMemo, useState } from "react"
 
 import { Seo } from "@/components/Seo"
-import { APP_URL } from "@/lib/environment"
 import { publicApiGet, publicApiPost } from "@/lib/apiMethods"
+import { APP_URL } from "@/lib/environment"
 
 type SetupStatus = {
   missing: string[]
@@ -27,7 +19,10 @@ export default function Setup(): JSX.Element {
   const [sesStatus, setSesStatus] = useState<string | null>(null)
   const [testEmail, setTestEmail] = useState("")
 
-  const setupHeaders = setupToken ? { "x-setup-token": setupToken } : undefined
+  const setupHeaders = useMemo(
+    () => (setupToken ? { "x-setup-token": setupToken } : undefined),
+    [setupToken],
+  )
 
   const loadStatus = useCallback(async () => {
     setStatusError(null)
@@ -37,7 +32,7 @@ export default function Setup(): JSX.Element {
       return
     }
     setStatus(data)
-  }, [])
+  }, [setupHeaders])
 
   const validateGithub = useCallback(async () => {
     setGithubStatus(null)
@@ -133,8 +128,7 @@ export default function Setup(): JSX.Element {
           {status && (
             <Alert severity="info" sx={{ mt: 2 }}>
               Missing: {status.missing.length ? status.missing.join(", ") : "none"} <br />
-              Placeholders:{" "}
-              {status.placeholders.length ? status.placeholders.join(", ") : "none"}
+              Placeholders: {status.placeholders.length ? status.placeholders.join(", ") : "none"}
             </Alert>
           )}
         </Box>
