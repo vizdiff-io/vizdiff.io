@@ -52,6 +52,11 @@ Parameters:
     Description: Secret key for signing JWT tokens (must be unique per deployment)
     NoEcho: true
     MinLength: 32
+  PostgresPass:
+    Type: String
+    Description: PostgreSQL database password (must be unique per deployment)
+    NoEcho: true
+    MinLength: 16
 
 Resources:
   VizDiffSecurityGroup:
@@ -85,7 +90,7 @@ Resources:
           APP_URL=${AppUrl}
           JWT_SECRET=${JwtSecret}
           POSTGRES_USER=vizdiff
-          POSTGRES_PASS=vizdiff_password
+          POSTGRES_PASS=${PostgresPass}
           POSTGRES_DATABASE=vizdiff
           POSTGRES_PORT=5432
           AWS_ACCESS_KEY_ID=${AwsAccessKeyId}
