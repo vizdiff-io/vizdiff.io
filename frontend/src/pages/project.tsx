@@ -319,7 +319,9 @@ export default function Project(): JSX.Element {
                               build.commitSha,
                               project?.repoUrl,
                               build.prNumber,
-                              build.vcsProvider,
+                              // Use project.vcsProvider when using project.repoUrl for consistency
+                              // build.vcsProvider should always match, but project is the source of truth
+                              project?.vcsProvider ?? build.vcsProvider,
                             )}
                             target="_blank"
                             rel="noopener noreferrer"
@@ -331,7 +333,12 @@ export default function Project(): JSX.Element {
                         </Tooltip>{" "}
                         on{" "}
                         <MuiLink
-                          href={getBranchUrl(build.branch, project?.repoUrl, build.vcsProvider)}
+                          href={getBranchUrl(
+                            build.branch,
+                            project?.repoUrl,
+                            // Use project.vcsProvider when using project.repoUrl for consistency
+                            project?.vcsProvider ?? build.vcsProvider,
+                          )}
                           target="_blank"
                           rel="noopener noreferrer"
                           onClick={(e) => e.stopPropagation()} // Prevent triggering the parent Link
@@ -354,7 +361,8 @@ export default function Project(): JSX.Element {
                               href={getPullRequestUrl(
                                 build.prNumber,
                                 project?.repoUrl,
-                                build.vcsProvider,
+                                // Use project.vcsProvider when using project.repoUrl for consistency
+                                project?.vcsProvider ?? build.vcsProvider,
                               )}
                               target="_blank"
                               rel="noopener noreferrer"
