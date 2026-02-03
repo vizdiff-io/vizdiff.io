@@ -116,14 +116,16 @@ export async function githubCallback(req: DefaultRequest, res: DefaultResponse):
   }
 
   finalRedirect ??= `${APP_URL}/projects` // Default fallback
-  if (!isValidRedirectUrl(finalRedirect)) {
-    throw new Error(`Invalid redirect URL: ${finalRedirect}`)
-  }
 
   // The request to GITHUB_TOKEN_EXCHANGE requires a `redirect_uri` parameter that matches the
   // `redirect_uri` parameter used in the initial request to GITHUB_AUTH_URL, i.e. this endpoint
   // Use the request origin to support dynamic URLs (e.g., ngrok)
   const requestOrigin = getRequestOrigin(req)
+
+  // Validate redirect URL against the request origin to support dynamic URLs (e.g., ngrok)
+  if (!isValidRedirectUrl(finalRedirect, requestOrigin)) {
+    throw new Error(`Invalid redirect URL: ${finalRedirect}`)
+  }
   const callbackUri = `${requestOrigin}/api/auth/github/callback`
 
   // Exchange the code for an access token
