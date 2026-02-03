@@ -12,18 +12,33 @@ import {
   GITHUB_CLIENT_SECRET,
   GITHUB_APP_ID,
   GITHUB_PRIVATE_KEY,
+  GITLAB_HOST,
+  GITLAB_CLIENT_ID,
+  GITLAB_CLIENT_SECRET,
   IS_PRODUCTION,
   JWT_SECRET,
   STRIPE_SECRET_KEY,
   STRIPE_API_VERSION,
 } from "../environment"
 import { syncUserInstallations, syncUserGithubRepos } from "../github"
+import { syncUserGitLabGroups, syncUserGitLabProjects } from "../gitlab"
 import { isValidRedirectUrl, parseSimpleQueryString, requiredQueryString } from "../http"
 import { log } from "../log"
 import type { GithubUser } from "../schemas/GithubUser"
 import type { DefaultRequest, DefaultResponse } from "../types"
 
 const GITHUB_TOKEN_EXCHANGE = "https://github.com/login/oauth/access_token"
+
+// GitLab user profile type
+interface GitLabUser {
+  id: number
+  username: string
+  email: string | null
+  name: string | null
+  avatar_url: string | null
+  web_url: string
+  state: string
+}
 
 if (!GITHUB_CLIENT_ID) {
   throw new Error("Missing GITHUB_CLIENT_ID")
@@ -247,4 +262,241 @@ export async function logout(req: DefaultRequest, res: DefaultResponse): Promise
     path: "/",
   })
   res.redirect(APP_URL)
+}
+
+// ============================================================================
+// GitLab OAuth Flow
+// ============================================================================
+
+/**
+ * Initiates the GitLab OAuth flow by redirecting to GitLab's authorization page.
+ * This is called when a user clicks "Sign in with GitLab".
+ */
+export async function gitlabLogin(req: DefaultRequest, res: DefaultResponse): Promise<void> {
+  if (!GITLAB_CLIENT_ID) {
+    res.status(500).json({ error: "GitLab OAuth not configured" })
+    return
+  }
+
+  // Get the redirect URL from query params (where to send user after auth)
+  const redirect = (req.query.redirect as string) ?? `${APP_URL}/projects`
+
+  // Build the state parameter with redirect info
+  const state = encodeURIComponent(`redirect=${encodeURIComponent(redirect)}`)
+
+  // Build the callback URI
+  const callbackUri = encodeURIComponent(`${APP_URL}/api/auth/gitlab/callback`)
+
+  // GitLab OAuth scopes needed for our integration:
+  // - read_user: Access user profile info
+  // - read_api: Read API resources (groups, projects)
+  // - read_repository: Read repository data
+  // - api: Full API access (needed for commit status updates)
+  const scope = encodeURIComponent("read_user read_api api")
+
+  // Redirect to GitLab's authorization page
+  const authUrl =
+    `${GITLAB_HOST}/oauth/authorize?` +
+    `client_id=${GITLAB_CLIENT_ID}` +
+    `&redirect_uri=${callbackUri}` +
+    `&response_type=code` +
+    `&scope=${scope}` +
+    `&state=${state}`
+
+  res.redirect(authUrl)
+}
+
+/**
+ * Handles the GitLab OAuth callback after user authorizes the application.
+ */
+export async function gitlabCallback(req: DefaultRequest, res: DefaultResponse): Promise<void> {
+  if (!GITLAB_CLIENT_ID || !GITLAB_CLIENT_SECRET) {
+    res.status(500).json({ error: "GitLab OAuth not configured" })
+    return
+  }
+
+  const code = requiredQueryString("code", req)
+
+  // Parse state to get redirect URL
+  let finalRedirect: string | undefined
+  const state = req.query.state as string | undefined
+  if (state) {
+    const stateValues = parseSimpleQueryString(state)
+    finalRedirect = stateValues.get("redirect")
+  }
+
+  finalRedirect ??= `${APP_URL}/projects`
+  if (!isValidRedirectUrl(finalRedirect)) {
+    throw new Error(`Invalid redirect URL: ${finalRedirect}`)
+  }
+
+  const callbackUri = `${APP_URL}/api/auth/gitlab/callback`
+
+  // Exchange the authorization code for access token
+  log.debug(`Exchanging GitLab code for access token for ${req.ip}`)
+  const tokenRes = await fetch(`${GITLAB_HOST}/oauth/token`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Accept: "application/json",
+    },
+    body: new URLSearchParams({
+      client_id: GITLAB_CLIENT_ID,
+      client_secret: GITLAB_CLIENT_SECRET,
+      code,
+      grant_type: "authorization_code",
+      redirect_uri: callbackUri,
+    }),
+  })
+
+  if (!tokenRes.ok) {
+    const errorText = await tokenRes.text()
+    log.error(`GitLab token exchange failed: ${errorText}`)
+    throw new Error(`Failed to exchange GitLab code for token: ${tokenRes.status}`)
+  }
+
+  const tokenData = (await tokenRes.json()) as {
+    access_token?: string
+    refresh_token?: string
+    token_type?: string
+    expires_in?: number
+  }
+
+  if (!tokenData.access_token) {
+    throw new Error("Missing access_token in GitLab response")
+  }
+
+  // Fetch user profile from GitLab
+  log.debug(`GitLab OAuth authenticated for ${req.ip}, retrieving user info`)
+  const userRes = await fetch(`${GITLAB_HOST}/api/v4/user`, {
+    headers: {
+      Authorization: `Bearer ${tokenData.access_token}`,
+      Accept: "application/json",
+    },
+  })
+
+  if (!userRes.ok) {
+    throw new Error(`Failed to fetch GitLab user profile: ${userRes.status}`)
+  }
+
+  const glUser = (await userRes.json()) as GitLabUser
+  if (!glUser.username) {
+    const json = JSON.stringify(glUser)
+    log.error(`GitLab user response did not contain "username": ${json}`)
+    throw new Error('Missing "username" in GitLab user response')
+  }
+
+  const gitlabId = String(glUser.id)
+
+  // Check if user already exists with this GitLab ID
+  const db = await Database()
+  const userTable = db.getRepository(User)
+  let user = await userTable.findOneBy({ gitlabId })
+
+  if (!user) {
+    // Check if user exists with the same email (to link accounts)
+    if (glUser.email) {
+      user = await userTable.findOneBy({ email: glUser.email })
+    }
+
+    if (!user) {
+      // Create a new user
+      log.info(
+        { event: "user_created", gitlabUser: glUser },
+        `Creating new user for GitLab user ${glUser.username} (${glUser.id})`,
+      )
+      user = new User()
+    } else {
+      // Link GitLab to existing user
+      log.info(
+        { event: "account_linked", gitlabUser: glUser },
+        `Linking GitLab account ${glUser.username} to existing user ${user.id}`,
+      )
+    }
+  }
+
+  // Set or update the user's GitLab info
+  user.gitlabId = gitlabId
+  user.gitlabUsername = glUser.username
+  user.gitlabProfile = glUser
+  user.gitlabAccessToken = tokenData.access_token
+  user.gitlabRefreshToken = tokenData.refresh_token ?? null
+  user.gitlabHost = GITLAB_HOST
+
+  // Set email if not already set
+  if (!user.email && glUser.email) {
+    user.email = glUser.email
+  }
+
+  user = await userTable.save(user)
+
+  // Ensure user has a Stripe customer ID
+  if (STRIPE_SECRET_KEY && !user.stripeCustomerId) {
+    try {
+      log.debug(`Creating Stripe customer for GitLab user ${glUser.username} (${glUser.id})`)
+      const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: STRIPE_API_VERSION })
+      const customer = await stripe.customers.create({
+        email: glUser.email ?? undefined,
+        name: glUser.name ?? glUser.username,
+        metadata: {
+          gitlab_id: gitlabId,
+          gitlab_username: glUser.username,
+          user_id: user.id.toString(),
+        },
+        description: `GitLab user: ${glUser.username}`,
+      })
+
+      user.stripeCustomerId = customer.id
+      log.info(`Created Stripe customer ${customer.id} for GitLab user ${glUser.username}`)
+
+      user = await userTable.save(user)
+    } catch (error) {
+      log.error(error, `Failed to create Stripe customer for GitLab user ${glUser.username}`)
+    }
+  }
+
+  // Sync GitLab groups for this user
+  await syncUserGitLabGroups(user)
+
+  // Sync GitLab projects that this user has access to (asynchronously)
+  syncUserGitLabProjects(user)
+    .catch((error: unknown) => {
+      log.error(
+        error,
+        `Failed to sync GitLab projects for user ${user.id} (${user.gitlabUsername}) after creation`,
+      )
+    })
+    .finally(() => {
+      // Identify the user with Customer.io
+      identifyUser(user, req)
+    })
+
+  // Generate a JWT
+  const token = jwt.sign({ sub: user.id }, JWT_SECRET, { expiresIn: "8h" })
+
+  // Set secure cookies
+  const domain = new URL(APP_URL).hostname
+  res.cookie("token", token, {
+    domain,
+    httpOnly: true,
+    secure: IS_PRODUCTION || req.secure ? true : undefined,
+    sameSite: "lax",
+    maxAge: 8 * 60 * 60 * 1000, // 8 hours
+    path: "/",
+  })
+  res.cookie("authenticated", "true", {
+    domain,
+    httpOnly: false,
+    secure: false,
+    sameSite: "lax",
+    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+    path: "/",
+  })
+
+  // Append signed_in query param for tracking
+  const url = new URL(finalRedirect)
+  url.searchParams.set("signed_in", "true")
+  finalRedirect = url.toString()
+
+  res.redirect(finalRedirect)
 }

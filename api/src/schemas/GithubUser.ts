@@ -1,5 +1,31 @@
 export type GithubUser = GithubPrivateUser | GithubPublicUser
 
+// GitLab user type
+export interface GitlabUser {
+  id: number
+  username: string
+  name: string | null
+  email: string | null
+  avatar_url: string | null
+  web_url: string
+  state: string
+  bio: string | null
+  location: string | null
+  public_email: string | null
+  skype: string | null
+  linkedin: string | null
+  twitter: string | null
+  organization: string | null
+  job_title: string | null
+  created_at: string
+  last_sign_in_at: string | null
+  confirmed_at: string | null
+  two_factor_enabled: boolean
+  external: boolean
+  is_admin: boolean
+  [k: string]: unknown
+}
+
 // Example:
 //
 // {

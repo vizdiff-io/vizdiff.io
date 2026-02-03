@@ -58,8 +58,8 @@ export const approveOrDeny: RequestHandler = async (req, res) => {
   test.status = status
   await testTable.save(test)
 
-  // Update GitHub check run if available
-  if ((IS_PRODUCTION || IS_STAGING) && test.githubCheckRunId) {
+  // Update VCS status if available (GitHub check run or GitLab commit status)
+  if ((IS_PRODUCTION || IS_STAGING) && test.vcsStatusId && test.project.vcsProvider === "github") {
     try {
       // Count the number of visual changes that were approved or denied
       const testResultTable = db.getRepository(TestResult)
@@ -67,10 +67,10 @@ export const approveOrDeny: RequestHandler = async (req, res) => {
         where: { screenshotTest: { id: test.id } },
       })
 
-      // Extract the GitHub owner and repo from the GitHub repository URL
-      const [owner, repo] = test.project.githubRepoUrl.split("/").slice(-2)
+      // Extract the GitHub owner and repo from the repository URL
+      const [owner, repo] = test.project.repoUrl.split("/").slice(-2)
       if (!owner || !repo) {
-        throw new Error(`Invalid GitHub repository URL: ${test.project.githubRepoUrl}`)
+        throw new Error(`Invalid GitHub repository URL: ${test.project.repoUrl}`)
       }
 
       // Get the installation ID for this project
@@ -79,11 +79,10 @@ export const approveOrDeny: RequestHandler = async (req, res) => {
         throw new Error(`GitHub App installation not found for ${owner}`)
       }
 
-      const { title, summary, text } = createMarkdownForBuildApproval(
-        test,
-        testResults,
-        user.githubUsername,
-      )
+      // Get username (prefer GitHub for GitHub projects, fall back to GitLab)
+      const username = user.githubUsername ?? user.gitlabUsername ?? "Unknown"
+
+      const { title, summary, text } = createMarkdownForBuildApproval(test, testResults, username)
 
       // Create a new check run with the success or failure conclusion
       const conclusion = status === "approved" ? "success" : "failure"

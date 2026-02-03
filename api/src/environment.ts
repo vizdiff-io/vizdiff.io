@@ -25,6 +25,14 @@ export const GITHUB_APP_ID = process.env.GITHUB_APP_ID ?? ""
 export const GITHUB_WEBHOOK_SECRET = process.env.GITHUB_WEBHOOK_SECRET ?? ""
 export const GITHUB_PRIVATE_KEY = process.env.GITHUB_PRIVATE_KEY ?? ""
 
+// GitLab OAuth settings
+export const GITLAB_HOST = process.env.GITLAB_HOST ?? "https://gitlab.com"
+export const GITLAB_CLIENT_ID = process.env.GITLAB_CLIENT_ID ?? ""
+export const GITLAB_CLIENT_SECRET = process.env.GITLAB_CLIENT_SECRET ?? ""
+export const GITLAB_WEBHOOK_SECRET = process.env.GITLAB_WEBHOOK_SECRET ?? ""
+// For self-hosted GitLab with self-signed certificates
+export const GITLAB_REJECT_UNAUTHORIZED = process.env.GITLAB_REJECT_UNAUTHORIZED !== "false"
+
 export const APP_URL = process.env.APP_URL ?? "https://vizdiff.io"
 
 export const POSTGRES_USER = process.env.POSTGRES_USER ?? "postgres"

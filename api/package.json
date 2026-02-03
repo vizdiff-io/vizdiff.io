@@ -15,6 +15,7 @@
     "@aws-sdk/client-sesv2": "^3.975.0",
     "@aws-sdk/lib-storage": "^3.804.0",
     "@customerio/cdp-analytics-node": "^0.3.3",
+    "@gitbeaker/rest": "^42.5.0",
     "@octokit/rest": "^21.1.1",
     "body-parser": "2.2.0",
     "cookie-parser": "1.4.7",

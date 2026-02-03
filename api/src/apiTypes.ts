@@ -1,6 +1,6 @@
-import type { TestResultStatus } from "shared"
+import type { TestResultStatus, VCSProvider } from "shared"
 
-import type { GithubUser } from "./schemas/GithubUser"
+import type { GithubUser, GitlabUser } from "./schemas/GithubUser"
 
 export type GitHubInstallationResponse = {
   id: number
@@ -12,17 +12,35 @@ export type GitHubInstallationResponse = {
   createdStampSec: number
 }
 
+export type GitLabGroupResponse = {
+  id: number
+  gitlabGroupId: number
+  groupPath: string
+  groupName: string
+  fullPath: string
+  gitlabHost: string
+  createdStampSec: number
+}
+
 export type UserResponse = {
   id: number
-  githubId: string
   email: string | null
-  githubUsername: string
-  githubProfile: GithubUser
+  // GitHub fields (nullable for GitLab-only users)
+  githubId: string | null
+  githubUsername: string | null
+  githubProfile: GithubUser | null
+  githubInstallations: GitHubInstallationResponse[]
+  // GitLab fields (nullable for GitHub-only users)
+  gitlabId: string | null
+  gitlabUsername: string | null
+  gitlabProfile: GitlabUser | null
+  gitlabHost: string | null
+  gitlabGroups: GitLabGroupResponse[]
+  // Common fields
   ownedProjectCount: number
   trialEndStampSec: number
   createdStampSec: number
   updatedStampSec: number
-  githubInstallations: GitHubInstallationResponse[]
   subscription: {
     plan: string
     interval: string
@@ -32,6 +50,9 @@ export type UserResponse = {
 export type ProjectResponse = {
   id: number
   name: string
+  vcsProvider: VCSProvider
+  repoUrl: string
+  // Legacy alias for backward compatibility
   githubRepoUrl: string
   token: string
   ownerId: number
@@ -46,6 +67,9 @@ export type ScreenshotTestResponse = {
   id: number
   projectId: number
   projectName: string
+  vcsProvider: VCSProvider
+  repoUrl: string
+  // Legacy alias for backward compatibility
   githubRepoUrl: string
   buildNumber: number
   commitSha: string

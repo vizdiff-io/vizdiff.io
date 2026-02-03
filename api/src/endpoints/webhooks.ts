@@ -2,7 +2,13 @@ import crypto from "crypto"
 import { createMarkdownForBuildApproval, Project, ScreenshotTest, TestResult } from "shared"
 
 import { Database } from "../database"
-import { APP_URL, GITHUB_WEBHOOK_SECRET, IS_PRODUCTION, IS_STAGING } from "../environment"
+import {
+  APP_URL,
+  GITHUB_WEBHOOK_SECRET,
+  GITLAB_WEBHOOK_SECRET,
+  IS_PRODUCTION,
+  IS_STAGING,
+} from "../environment"
 import { getOctokitForInstallation } from "../github"
 import { log } from "../log"
 import type { CheckRunPayload } from "../schemas/CheckRunPayload"
@@ -44,26 +50,72 @@ export function verifyWebhookSignature(
 }
 
 /**
- * Find a project by GitHub repository URL
+ * Verify the GitLab webhook token.
+ * GitLab uses a simple token comparison via the X-Gitlab-Token header.
+ */
+export function verifyGitLabWebhookToken(
+  receivedToken: string | string[] | undefined,
+  expectedToken: string,
+): boolean {
+  if (!receivedToken || !expectedToken) {
+    return false
+  }
+
+  // Handle case where header might be an array
+  const token = Array.isArray(receivedToken) ? receivedToken[0] : receivedToken
+
+  if (!token) {
+    return false
+  }
+
+  // Use timing-safe comparison to prevent timing attacks
+  try {
+    return crypto.timingSafeEqual(Buffer.from(token), Buffer.from(expectedToken))
+  } catch {
+    // Lengths don't match
+    return false
+  }
+}
+
+/**
+ * Find a project by repository URL (supports both GitHub and GitLab)
  */
 async function findProjectByRepo(
   repoOwner: string,
   repoName: string,
+  provider: "github" | "gitlab" = "github",
 ): Promise<Project | undefined> {
   const db = await Database()
   const projectRepo = db.getRepository(Project)
 
-  // Look for projects with matching GitHub repository URL
+  // Look for projects with matching repository URL
   // URLs can be in forms like:
   // - https://github.com/owner/repo
   // - https://github.com/owner/repo.git
-  const projects = await projectRepo.find()
+  // - https://gitlab.com/group/project
+  const projects = await projectRepo.find({ where: { vcsProvider: provider } })
 
+  const hostPattern = provider === "gitlab" ? "gitlab" : "github"
   return projects.find((project) => {
-    const url = project.githubRepoUrl.toLowerCase()
-    const repoPattern = new RegExp(`github\\.com[/:]${repoOwner}/${repoName}(\\.git)?$`, "i")
+    const url = project.repoUrl.toLowerCase()
+    const repoPattern = new RegExp(`${hostPattern}[^/]*[/:]${repoOwner}/${repoName}(\\.git)?$`, "i")
     return repoPattern.test(url)
   })
+}
+
+/**
+ * Find a project by GitLab project ID
+ */
+async function findProjectByGitLabId(gitlabProjectId: number): Promise<Project | undefined> {
+  const db = await Database()
+  const projectRepo = db.getRepository(Project)
+  const project = await projectRepo.findOne({
+    where: {
+      vcsProvider: "gitlab",
+      repoId: gitlabProjectId,
+    },
+  })
+  return project ?? undefined
 }
 
 export async function githubWebhook(req: RequestWithRawBody, res: DefaultResponse): Promise<void> {
@@ -279,4 +331,259 @@ async function githubCheckRunRequestedAction(
       `Created GitHub check run ${result.data.id} from webhook for ${test.toString()} with conclusion: ${conclusion}`,
     )
   }
+}
+
+// =============================================================================
+// GitLab Webhook Handling
+// =============================================================================
+
+/**
+ * GitLab webhook payload types
+ */
+interface GitLabPushPayload {
+  object_kind: "push"
+  event_name: string
+  before: string
+  after: string
+  ref: string
+  checkout_sha: string
+  project_id: number
+  project: {
+    id: number
+    name: string
+    path_with_namespace: string
+    web_url: string
+  }
+  commits: Array<{
+    id: string
+    message: string
+    author: { name: string; email: string }
+  }>
+  user_name: string
+  user_username: string
+}
+
+interface GitLabMergeRequestPayload {
+  object_kind: "merge_request"
+  event_type: string
+  project: {
+    id: number
+    name: string
+    path_with_namespace: string
+    web_url: string
+  }
+  object_attributes: {
+    id: number
+    iid: number
+    source_branch: string
+    target_branch: string
+    last_commit: {
+      id: string
+      message: string
+    }
+    state: string
+    action: string
+  }
+  user: {
+    name: string
+    username: string
+  }
+}
+
+interface GitLabPipelinePayload {
+  object_kind: "pipeline"
+  object_attributes: {
+    id: number
+    ref: string
+    sha: string
+    status: string
+  }
+  project: {
+    id: number
+    path_with_namespace: string
+    web_url: string
+  }
+  commit: {
+    id: string
+    message: string
+  }
+}
+
+type GitLabWebhookPayload = GitLabPushPayload | GitLabMergeRequestPayload | GitLabPipelinePayload
+
+/**
+ * Handle GitLab webhook events
+ */
+export async function gitlabWebhook(req: RequestWithRawBody, res: DefaultResponse): Promise<void> {
+  // Verify webhook token
+  const webhookToken = req.headers["x-gitlab-token"]
+  if (!GITLAB_WEBHOOK_SECRET) {
+    log.warn("GitLab webhook received but GITLAB_WEBHOOK_SECRET is not configured")
+    res.status(500).json({ error: "GitLab webhooks not configured" })
+    return
+  }
+
+  if (!verifyGitLabWebhookToken(webhookToken, GITLAB_WEBHOOK_SECRET)) {
+    log.error("Invalid GitLab webhook token")
+    res.status(401).json({ error: "Invalid webhook token" })
+    return
+  }
+
+  const payload = req.body as GitLabWebhookPayload
+  if (!payload || !payload.object_kind) {
+    log.error("Missing or invalid GitLab webhook payload")
+    res.status(400).json({ error: "Missing or invalid payload" })
+    return
+  }
+
+  const eventType = payload.object_kind
+  log.info(`Received GitLab webhook event: ${eventType}`)
+
+  try {
+    switch (eventType) {
+      case "push":
+        await handleGitLabPush(res, payload as GitLabPushPayload)
+        break
+      case "merge_request":
+        await handleGitLabMergeRequest(res, payload as GitLabMergeRequestPayload)
+        break
+      case "pipeline":
+        await handleGitLabPipeline(res, payload as GitLabPipelinePayload)
+        break
+      default:
+        log.info(`Ignoring GitLab webhook event type: "${eventType}"`)
+        res.status(202).json({ message: "Event ignored" })
+    }
+  } catch (error) {
+    log.error(error, `Error processing GitLab ${eventType} webhook`)
+    res.status(500).json({ error: "Internal server error" })
+  }
+}
+
+/**
+ * Handle GitLab push events
+ */
+async function handleGitLabPush(res: DefaultResponse, payload: GitLabPushPayload): Promise<void> {
+  const projectId = payload.project_id
+  const commitSha = payload.checkout_sha || payload.after
+  const branch = payload.ref.replace("refs/heads/", "")
+
+  log.info(`GitLab push event for project ${projectId}, commit ${commitSha}, branch ${branch}`)
+
+  // Find the associated VizDiff project
+  const project = await findProjectByGitLabId(projectId)
+  if (!project) {
+    log.info(`No VizDiff project found for GitLab project ${projectId}`)
+    res.status(200).json({ message: "No project found, event acknowledged" })
+    return
+  }
+
+  // Check if a screenshot test already exists for this commit
+  const db = await Database()
+  const screenshotTestRepository = db.getRepository(ScreenshotTest)
+  const existingTest = await screenshotTestRepository.findOne({
+    where: {
+      commitSha,
+      project: { id: project.id },
+    },
+  })
+
+  if (existingTest) {
+    log.info(`Screenshot test already exists for commit ${commitSha}`)
+  } else {
+    log.info(`GitLab push event received for ${payload.project.path_with_namespace}#${commitSha}`)
+  }
+
+  res.status(200).json({ message: "Push event processed" })
+}
+
+/**
+ * Handle GitLab merge request events
+ */
+async function handleGitLabMergeRequest(
+  res: DefaultResponse,
+  payload: GitLabMergeRequestPayload,
+): Promise<void> {
+  const projectId = payload.project.id
+  const mrIid = payload.object_attributes.iid
+  const action = payload.object_attributes.action
+  const commitSha = payload.object_attributes.last_commit.id
+  const sourceBranch = payload.object_attributes.source_branch
+
+  log.info(
+    `GitLab MR event: project ${projectId}, MR !${mrIid}, action "${action}", commit ${commitSha}`,
+  )
+
+  // Find the associated VizDiff project
+  const project = await findProjectByGitLabId(projectId)
+  if (!project) {
+    log.info(`No VizDiff project found for GitLab project ${projectId}`)
+    res.status(200).json({ message: "No project found, event acknowledged" })
+    return
+  }
+
+  // Only process relevant MR actions
+  if (action !== "open" && action !== "update" && action !== "reopen") {
+    log.info(`Ignoring GitLab MR action: ${action}`)
+    res.status(202).json({ message: "Action ignored" })
+    return
+  }
+
+  // Check if a screenshot test exists for this commit
+  const db = await Database()
+  const screenshotTestRepository = db.getRepository(ScreenshotTest)
+  const existingTest = await screenshotTestRepository.findOne({
+    where: {
+      commitSha,
+      project: { id: project.id },
+    },
+  })
+
+  if (existingTest) {
+    // Update the MR number if not already set
+    if (!existingTest.prNumber) {
+      existingTest.prNumber = mrIid
+      await screenshotTestRepository.save(existingTest)
+      log.info(`Updated screenshot test ${existingTest.id} with MR !${mrIid}`)
+    }
+  } else {
+    log.info(
+      `GitLab MR event received for ${payload.project.path_with_namespace}!${mrIid} (commit ${commitSha}, branch ${sourceBranch})`,
+    )
+  }
+
+  res.status(200).json({ message: "Merge request event processed" })
+}
+
+/**
+ * Handle GitLab pipeline events
+ */
+async function handleGitLabPipeline(
+  res: DefaultResponse,
+  payload: GitLabPipelinePayload,
+): Promise<void> {
+  const projectId = payload.project.id
+  const pipelineId = payload.object_attributes.id
+  const status = payload.object_attributes.status
+  const commitSha = payload.object_attributes.sha
+
+  log.info(
+    `GitLab pipeline event: project ${projectId}, pipeline ${pipelineId}, status "${status}"`,
+  )
+
+  // Find the associated VizDiff project
+  const project = await findProjectByGitLabId(projectId)
+  if (!project) {
+    log.info(`No VizDiff project found for GitLab project ${projectId}`)
+    res.status(200).json({ message: "No project found, event acknowledged" })
+    return
+  }
+
+  // We mainly log pipeline events for debugging; the actual status updates
+  // happen when the storybook is uploaded via the API
+  log.info(
+    `GitLab pipeline ${pipelineId} for ${payload.project.path_with_namespace}#${commitSha}: ${status}`,
+  )
+
+  res.status(200).json({ message: "Pipeline event processed" })
 }

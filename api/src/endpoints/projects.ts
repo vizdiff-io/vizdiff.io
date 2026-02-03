@@ -1,5 +1,6 @@
 import { randomBytes } from "crypto"
 import { Project, User } from "shared"
+import type { VCSProvider } from "shared"
 
 import type { ProjectResponse } from "../apiTypes"
 import { toSeconds } from "../conversions"
@@ -14,8 +15,9 @@ import type { RequestHandler } from "../types"
 type ProjectWithStats = {
   project_id: number
   project_name: string
-  project_github_repo_id: number
-  project_github_repo_url: string
+  project_vcs_provider: VCSProvider
+  project_repo_id: number
+  project_repo_url: string
   project_token: string
   project_created_at: Date
   owner_id: number
@@ -28,8 +30,12 @@ type ProjectWithStats = {
 
 type CreateProjectBody = {
   name: string
-  githubRepoId: number
-  githubRepoUrl: string
+  vcsProvider?: VCSProvider
+  repoId?: number
+  repoUrl?: string
+  // Legacy fields (backward compatibility)
+  githubRepoId?: number
+  githubRepoUrl?: string
 }
 
 /**
@@ -104,8 +110,9 @@ async function getProjectWithStats(
     .select([
       "project.id",
       "project.name",
-      "project.githubRepoId",
-      "project.githubRepoUrl",
+      "project.vcsProvider",
+      "project.repoId",
+      "project.repoUrl",
       "project.token",
       "project.createdAt",
       "project.user as owner_id",
@@ -129,7 +136,9 @@ function convertToProjectResponse(project: ProjectWithStats): ProjectResponse {
   return {
     id: project.project_id,
     name: project.project_name,
-    githubRepoUrl: project.project_github_repo_url,
+    vcsProvider: project.project_vcs_provider,
+    repoUrl: project.project_repo_url,
+    githubRepoUrl: project.project_repo_url, // Legacy alias
     token: project.project_token,
     ownerId: project.owner_id,
     hasActiveSubscription: userSubscriptionIsActive(
@@ -146,18 +155,23 @@ function convertToProjectResponse(project: ProjectWithStats): ProjectResponse {
 export const create: RequestHandler = async (req, res) => {
   const { user, ownedProjectCount } = res.locals
   const body = req.body as Partial<CreateProjectBody> | undefined
-  const { name, githubRepoUrl, githubRepoId } = body ?? {}
+
+  const name = body?.name
+  // Support both new fields and legacy GitHub-specific fields
+  const vcsProvider: VCSProvider = body?.vcsProvider ?? "github"
+  const repoId = body?.repoId ?? body?.githubRepoId
+  const repoUrl = body?.repoUrl ?? body?.githubRepoUrl
 
   if (!name) {
     res.status(400).json({ error: "Missing name" })
     return
   }
-  if (!githubRepoId) {
-    res.status(400).json({ error: "Missing githubRepoId" })
+  if (!repoId) {
+    res.status(400).json({ error: "Missing repoId (or githubRepoId)" })
     return
   }
-  if (!githubRepoUrl) {
-    res.status(400).json({ error: "Missing githubRepoUrl" })
+  if (!repoUrl) {
+    res.status(400).json({ error: "Missing repoUrl (or githubRepoUrl)" })
     return
   }
 
@@ -177,8 +191,9 @@ export const create: RequestHandler = async (req, res) => {
 
   const project = new Project()
   project.name = name
-  project.githubRepoId = githubRepoId
-  project.githubRepoUrl = githubRepoUrl
+  project.vcsProvider = vcsProvider
+  project.repoId = repoId
+  project.repoUrl = repoUrl
   project.user = user
   project.token = generateProjectToken()
 
@@ -188,14 +203,17 @@ export const create: RequestHandler = async (req, res) => {
   // Track the project creation event with Customer.io
   trackEvent(user.id, req, "project_created", {
     projectName: project.name,
-    repo: project.githubRepoUrl,
+    vcsProvider: project.vcsProvider,
+    repo: project.repoUrl,
     plan: user.subscriptionPlan,
   })
 
   const response: ProjectResponse = {
     id: project.id,
     name: project.name,
-    githubRepoUrl: project.githubRepoUrl,
+    vcsProvider: project.vcsProvider,
+    repoUrl: project.repoUrl,
+    githubRepoUrl: project.repoUrl, // Legacy alias
     token: project.token,
     ownerId: user.id,
     hasActiveSubscription: userSubscriptionIsActive(user.subscriptionPlan, user.trialEndsAt),
@@ -229,7 +247,7 @@ export const remove: RequestHandler = async (req, res) => {
   // Track the project deletion event with Customer.io
   trackEvent(user.id, req, "project_deleted", {
     projectName: project.name,
-    repo: project.githubRepoUrl,
+    repo: project.repoUrl,
   })
 
   res.json({ success: true })
@@ -310,8 +328,9 @@ export const list: RequestHandler = async (_req, res) => {
     .select([
       "project.id",
       "project.name",
-      "project.githubRepoId",
-      "project.githubRepoUrl",
+      "project.vcsProvider",
+      "project.repoId",
+      "project.repoUrl",
       "project.token",
       "project.createdAt",
       "project.user as owner_id",
@@ -373,7 +392,7 @@ export const get: RequestHandler = async (req, res) => {
 
   trackPageView(user.id, req, `/project?id=${id}`, {
     name: response.name,
-    repo: response.githubRepoUrl,
+    repo: response.repoUrl,
     builds: response.builds,
     tests: response.tests,
     isProjectOwner: response.ownerId === user.id,
