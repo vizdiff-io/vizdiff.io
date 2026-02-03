@@ -1,15 +1,16 @@
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline"
 import GitHubIcon from "@mui/icons-material/GitHub"
-import { Typography, Box, Button, Container, Stack, Link } from "@mui/material"
+import { Typography, Box, Button, Container, Stack, Link, Divider } from "@mui/material"
 import Head from "next/head"
 import { useRouter } from "next/router"
 import { type JSX, useEffect } from "react"
 
+import { GitLabIcon } from "@/components/GitLabIcon"
 import { MarketingLayout } from "@/components/NavBody"
 import { Seo } from "@/components/Seo"
 import useAuth from "@/hooks/useAuth"
-import { githubSignIn } from "@/lib/apiMethods"
-import { APP_URL, GITHUB_APP_NAME, GITHUB_CLIENT_ID } from "@/lib/environment"
+import { githubSignIn, gitlabSignIn } from "@/lib/apiMethods"
+import { APP_URL, GITHUB_APP_NAME, GITHUB_CLIENT_ID, GITLAB_CLIENT_ID } from "@/lib/environment"
 
 export default function Login(): JSX.Element {
   const router = useRouter()
@@ -26,7 +27,10 @@ export default function Login(): JSX.Element {
     }
   }, [user, isLoading, router, router.isReady, redirectUri])
 
-  if (!GITHUB_APP_NAME || !GITHUB_CLIENT_ID) {
+  const hasGitHub = GITHUB_APP_NAME && GITHUB_CLIENT_ID
+  const hasGitLab = GITLAB_CLIENT_ID
+
+  if (!hasGitHub && !hasGitLab) {
     return (
       <MarketingLayout>
         <Container maxWidth="lg">
@@ -118,24 +122,45 @@ export default function Login(): JSX.Element {
                     screenshot changes.
                   </Typography>
                 </Box>
-                <Box sx={{ pt: 3 }}>
-                  <Button
-                    variant="contained"
-                    size="large"
-                    onClick={() => githubSignIn(redirectUri)}
-                    startIcon={<GitHubIcon />}
-                    sx={{
-                      bgcolor: "white",
-                      color: "black",
-                      "&:hover": {
-                        bgcolor: "#f5f5f5",
-                      },
-                      boxShadow: "0 2px 4px rgba(0,0,0,0.15)",
-                    }}
-                  >
-                    Sign in with GitHub
-                  </Button>
-                </Box>
+                <Stack direction="column" spacing={2} sx={{ pt: 3 }}>
+                  {hasGitHub && (
+                    <Button
+                      variant="contained"
+                      size="large"
+                      onClick={() => githubSignIn(redirectUri)}
+                      startIcon={<GitHubIcon />}
+                      sx={{
+                        bgcolor: "white",
+                        color: "black",
+                        "&:hover": {
+                          bgcolor: "#f5f5f5",
+                        },
+                        boxShadow: "0 2px 4px rgba(0,0,0,0.15)",
+                      }}
+                    >
+                      Sign in with GitHub
+                    </Button>
+                  )}
+                  {hasGitHub && hasGitLab && <Divider sx={{ my: 1 }}>or</Divider>}
+                  {hasGitLab && (
+                    <Button
+                      variant="contained"
+                      size="large"
+                      onClick={() => gitlabSignIn(redirectUri)}
+                      startIcon={<GitLabIcon sx={{ color: "#FC6D26" }} />}
+                      sx={{
+                        bgcolor: "white",
+                        color: "black",
+                        "&:hover": {
+                          bgcolor: "#f5f5f5",
+                        },
+                        boxShadow: "0 2px 4px rgba(0,0,0,0.15)",
+                      }}
+                    >
+                      Sign in with GitLab
+                    </Button>
+                  )}
+                </Stack>
               </Box>
             </Stack>
 

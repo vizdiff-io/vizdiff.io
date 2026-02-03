@@ -1,4 +1,4 @@
-import type { TestResultStatus } from "../../../shared/src/entity/TestResult"
+import type { TestResultStatus } from "../../../shared/src/entity/types"
 
 export function changeStatusMessage(changeStatus: TestResultStatus, diffRatio: number): string {
   switch (changeStatus) {

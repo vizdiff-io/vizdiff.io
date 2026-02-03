@@ -23,6 +23,17 @@ export function githubSignIn(redirectUri: string): void {
   window.location.href = authUrl
 }
 
+export function gitlabSignIn(redirectUri: string): void {
+  trackEvent(
+    { action: AnalyticsEvents.LOGIN, category: "Auth", label: "gitlab_signin" },
+    { sendBeforeNavigation: true },
+  )
+
+  // GitLab OAuth flow - redirect to our API which handles the OAuth redirect
+  const authUrl = `${APP_URL}/api/auth/gitlab/login?redirect=${encodeURIComponent(redirectUri)}`
+  window.location.href = authUrl
+}
+
 export async function apiGet<T>(endpoint: string): Promise<[T | null, AxiosError | null]> {
   if (!isAuthenticated()) {
     const error = new AxiosError()
