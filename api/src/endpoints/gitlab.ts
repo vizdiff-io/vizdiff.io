@@ -48,11 +48,9 @@ export const groups: RequestHandler = async (_req, res) => {
   const gitlabGroups = await getGitLabGroupsForUserId(user.id)
 
   if (gitlabGroups.length === 0) {
-    res
-      .status(403)
-      .json({
-        error: "No GitLab groups found. Please ensure you have access to at least one group.",
-      })
+    res.status(403).json({
+      error: "No GitLab groups found. Please ensure you have access to at least one group.",
+    })
     return
   }
 

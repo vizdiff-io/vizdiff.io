@@ -156,13 +156,15 @@ describe("gitlab", () => {
             findOneBy: mockFindOneBy,
             createQueryBuilder: vi.fn().mockReturnValue(mockQueryBuilder),
             save: mockSave,
-            transaction: vi.fn().mockImplementation(async (cb: (em: EntityManager) => Promise<void>) => {
-              const transactionManager = {
-                createQueryBuilder: vi.fn().mockReturnValue(mockQueryBuilder),
-                save: mockSave,
-              } as unknown as EntityManager
-              await cb(transactionManager)
-            }),
+            transaction: vi
+              .fn()
+              .mockImplementation(async (cb: (em: EntityManager) => Promise<void>) => {
+                const transactionManager = {
+                  createQueryBuilder: vi.fn().mockReturnValue(mockQueryBuilder),
+                  save: mockSave,
+                } as unknown as EntityManager
+                await cb(transactionManager)
+              }),
           },
         }) as unknown as DataSource,
     )
@@ -182,18 +184,25 @@ describe("gitlab", () => {
       },
     }
 
-    vi.mocked(Gitlab).mockImplementation(() => mockGitlabClient as unknown as InstanceType<typeof Gitlab>)
+    vi.mocked(Gitlab).mockImplementation(
+      () => mockGitlabClient as unknown as InstanceType<typeof Gitlab>,
+    )
 
     // Setup save mock to return the input with an id
-    mockSave.mockImplementation(async (_entityType: unknown, entity: GitLabGroup | UserGitlabProjectAccess | UserGitlabProjectAccess[]) => {
-      if (Array.isArray(entity)) {
+    mockSave.mockImplementation(
+      async (
+        _entityType: unknown,
+        entity: GitLabGroup | UserGitlabProjectAccess | UserGitlabProjectAccess[],
+      ) => {
+        if (Array.isArray(entity)) {
+          return entity
+        }
+        if (entity instanceof GitLabGroup && !entity.id) {
+          entity.id = Math.floor(Math.random() * 1000)
+        }
         return entity
-      }
-      if (entity instanceof GitLabGroup && !entity.id) {
-        entity.id = Math.floor(Math.random() * 1000)
-      }
-      return entity
-    })
+      },
+    )
   })
 
   afterEach(() => {
