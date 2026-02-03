@@ -433,25 +433,14 @@ export async function gitlabCallback(req: DefaultRequest, res: DefaultResponse):
   let user = await userTable.findOneBy({ gitlabId })
 
   if (!user) {
-    // Check if user exists with the same email (to link accounts)
-    if (glUser.email) {
-      user = await userTable.findOneBy({ email: glUser.email })
-    }
-
-    if (!user) {
-      // Create a new user
-      log.info(
-        { event: "user_created", gitlabUser: glUser },
-        `Creating new user for GitLab user ${glUser.username} (${glUser.id})`,
-      )
-      user = new User()
-    } else {
-      // Link GitLab to existing user
-      log.info(
-        { event: "account_linked", gitlabUser: glUser },
-        `Linking GitLab account ${glUser.username} to existing user ${user.id}`,
-      )
-    }
+    // Create a new user
+    // Note: We do NOT link accounts by email address to prevent account takeover attacks.
+    // Users must explicitly link accounts through a verified process if needed.
+    log.info(
+      { event: "user_created", gitlabUser: glUser },
+      `Creating new user for GitLab user ${glUser.username} (${glUser.id})`,
+    )
+    user = new User()
   }
 
   // Set or update the user's GitLab info
