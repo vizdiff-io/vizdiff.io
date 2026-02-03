@@ -32,6 +32,10 @@ export const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET ?? ""
 export const GITHUB_PRIVATE_KEY = process.env.GITHUB_PRIVATE_KEY ?? ""
 export const GITHUB_WEBHOOK_SECRET = process.env.GITHUB_WEBHOOK_SECRET ?? ""
 
+// GitLab API settings
+export const GITLAB_HOST = process.env.GITLAB_HOST ?? "https://gitlab.com"
+export const GITLAB_REJECT_UNAUTHORIZED = process.env.GITLAB_REJECT_UNAUTHORIZED !== "false"
+
 // Stripe settings
 export const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY
 export const STRIPE_API_VERSION = "2025-04-30.basil"

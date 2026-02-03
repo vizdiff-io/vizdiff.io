@@ -15,6 +15,7 @@
     "@aws-sdk/client-s3": "^3.804.0",
     "@aws-sdk/client-sesv2": "^3.975.0",
     "@customerio/cdp-analytics-node": "^0.3.3",
+    "@gitbeaker/rest": "^42.5.0",
     "@octokit/rest": "^21.1.1",
     "@wdio/cli": "^9.12.7",
     "commander": "13.1.0",
