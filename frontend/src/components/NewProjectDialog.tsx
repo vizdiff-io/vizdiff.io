@@ -112,8 +112,9 @@ export default function NewProjectDialog({
     // Create the project
     const [_project, projectError] = await apiPost("/api/projects", {
       name: repo.name,
-      githubRepoId: repo.id,
-      githubRepoUrl: repo.html_url,
+      vcsProvider: "github",
+      repoId: repo.id,
+      repoUrl: repo.html_url,
     })
     updateLoading()
     if (projectError) {
@@ -174,12 +175,7 @@ export default function NewProjectDialog({
           pb: 2,
         }}
       >
-        <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
-          Add GitHub Repository
-        </Box>
-        <Box component="span" sx={{ display: { xs: "inline", sm: "none" } }}>
-          Add Repository
-        </Box>
+        <Box component="span">Add Repository</Box>
         <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
           {!isOrgsLoading && !loading && loadingStartTime == null && orgs && orgs.length > 0 && (
             <Button
@@ -246,7 +242,7 @@ export default function NewProjectDialog({
           ) : (
             <>
               <div style={{ width: "49%", overflowX: "hidden" }}>
-                <h4>Organizations</h4>
+                <h4>GitHub Organizations</h4>
                 {orgs?.length === 0 ? (
                   <Box
                     sx={{
@@ -261,8 +257,8 @@ export default function NewProjectDialog({
                     }}
                   >
                     <Typography sx={{ fontSize: { xs: "0.875rem", sm: "1rem" } }}>
-                      Install the vizdiff GitHub App to enable screenshot testing for your
-                      repositories.
+                      <strong>GitHub:</strong> Install the vizdiff GitHub App to enable screenshot
+                      testing for your GitHub repositories.
                     </Typography>
                     <Button
                       variant="contained"
@@ -284,6 +280,12 @@ export default function NewProjectDialog({
                     >
                       Install GitHub App
                     </Button>
+                    <Typography
+                      sx={{ fontSize: { xs: "0.8rem", sm: "0.9rem" }, color: "text.secondary" }}
+                    >
+                      <strong>GitLab:</strong> Projects are created automatically when you upload
+                      your first Storybook build from GitLab CI.
+                    </Typography>
                   </Box>
                 ) : (
                   <List
@@ -314,7 +316,7 @@ export default function NewProjectDialog({
                 }}
               />
               <Box sx={{ width: "50%", px: { xs: 1, sm: "1rem" } }}>
-                <h4>Repositories</h4>
+                <h4>GitHub Repositories</h4>
                 {reposLoading ? (
                   <div
                     style={{

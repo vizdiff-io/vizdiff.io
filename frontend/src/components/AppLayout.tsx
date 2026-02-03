@@ -74,10 +74,18 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   // Update the avatar URL when the user changes
   useEffect(() => {
     const updateAvatarUrl = async () => {
-      if (typeof user?.githubProfile.avatar_url === "string") {
+      // Try GitHub profile avatar first
+      if (typeof user?.githubProfile?.avatar_url === "string") {
         setAvatarUrl(user.githubProfile.avatar_url)
         return
-      } else if (typeof user?.email === "string") {
+      }
+      // Try GitLab profile avatar
+      if (typeof user?.gitlabProfile?.avatar_url === "string") {
+        setAvatarUrl(user.gitlabProfile.avatar_url)
+        return
+      }
+      // Fall back to Gravatar based on email
+      if (typeof user?.email === "string") {
         try {
           const encoder = new TextEncoder()
           const data = encoder.encode(user.email.toLowerCase().trim())
@@ -275,7 +283,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
                   <Link href="/settings">
                     <Avatar
                       src={avatarUrl}
-                      alt={user.githubUsername}
+                      alt={user.githubUsername ?? user.gitlabUsername ?? "User"}
                       sx={{ width: 32, height: 32 }}
                     />
                   </Link>

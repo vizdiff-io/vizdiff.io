@@ -40,7 +40,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }): JSX.E
     if (user) {
       setAnalyticsUser({
         id: user.id,
-        name: user.githubUsername,
+        name: user.githubUsername ?? user.gitlabUsername ?? undefined,
         email: user.email ?? undefined,
       })
     }
