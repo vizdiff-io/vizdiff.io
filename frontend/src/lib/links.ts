@@ -10,17 +10,64 @@ function parseRepoUrl(
   repoUrl: string,
   vcsProvider?: VCSProvider,
 ): { provider: VCSProvider; owner: string; repo: string; host: string } | null {
-  // Match: https://github.com/owner/repo or https://gitlab.com/group/project
-  const match = /https?:\/\/([^/]+)\/([^/]+)\/([^/]+)/.exec(repoUrl)
-  if (match?.[1] && match[2] && match[3]) {
-    const host = match[1]
-    const owner = match[2]
-    const repo = match[3].replace(/\.git$/, "")
-    // Use provided vcsProvider if available, otherwise infer from hostname
-    const provider: VCSProvider = vcsProvider ?? (host.includes("gitlab") ? "gitlab" : "github")
-    return { provider, owner, repo, host }
+  // Extract hostname and path
+  const match = /https?:\/\/([^/]+)(\/.*)?/.exec(repoUrl)
+  if (!match?.[1]) {
+    return null
   }
-  return null
+
+  const host = match[1]
+  const fullPath = match[2] ?? ""
+
+  // Split path into segments, filter out empty segments
+  const pathSegments = fullPath.split("/").filter((segment) => segment.length > 0)
+
+  // Remove .git suffix from the last segment if present
+  if (pathSegments.length > 0) {
+    const lastIndex = pathSegments.length - 1
+    const lastSegment = pathSegments[lastIndex]
+    if (lastSegment) {
+      pathSegments[lastIndex] = lastSegment.replace(/\.git$/, "")
+    }
+  }
+
+  // Determine provider (use provided vcsProvider if available, otherwise infer from hostname)
+  const provider: VCSProvider = vcsProvider ?? (host.includes("gitlab") ? "gitlab" : "github")
+
+  if (provider === "github") {
+    // GitHub URLs always have exactly 2 path segments: owner/repo
+    if (pathSegments.length !== 2) {
+      return null
+    }
+    const owner = pathSegments[0]
+    const repo = pathSegments[1]
+    if (!owner || !repo) {
+      return null
+    }
+    return {
+      provider,
+      owner,
+      repo,
+      host,
+    }
+  } else {
+    // GitLab URLs can have 2+ path segments: group/project or group/subgroup/project, etc.
+    // The last segment is the project name, all preceding segments form the group path
+    if (pathSegments.length < 2) {
+      return null
+    }
+    const repo = pathSegments[pathSegments.length - 1]
+    if (!repo) {
+      return null
+    }
+    const owner = pathSegments.slice(0, -1).join("/")
+    return {
+      provider,
+      owner,
+      repo,
+      host,
+    }
+  }
 }
 
 /**

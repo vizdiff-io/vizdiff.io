@@ -42,6 +42,16 @@ describe("links", () => {
         const url = getCommitUrl("abc123", "https://gitlab.company.com/group/project")
         expect(url).toBe("https://gitlab.company.com/group/project/-/commit/abc123")
       })
+
+      it("handles nested GitLab groups", () => {
+        const url = getCommitUrl("abc123", "https://gitlab.com/group/subgroup/project")
+        expect(url).toBe("https://gitlab.com/group/subgroup/project/-/commit/abc123")
+      })
+
+      it("handles deeply nested GitLab groups", () => {
+        const url = getCommitUrl("abc123", "https://gitlab.com/group/subgroup/subsubgroup/project")
+        expect(url).toBe("https://gitlab.com/group/subgroup/subsubgroup/project/-/commit/abc123")
+      })
     })
 
     describe("edge cases", () => {
@@ -93,6 +103,11 @@ describe("links", () => {
         const url = getBranchUrl("feature/my-feature", gitlabRepoUrl)
         expect(url).toBe("https://gitlab.com/group/project/-/tree/feature/my-feature")
       })
+
+      it("handles nested GitLab groups", () => {
+        const url = getBranchUrl("main", "https://gitlab.com/group/subgroup/project")
+        expect(url).toBe("https://gitlab.com/group/subgroup/project/-/tree/main")
+      })
     })
 
     describe("edge cases", () => {
@@ -128,6 +143,11 @@ describe("links", () => {
       it("handles self-hosted GitLab", () => {
         const url = getPullRequestUrl(42, "https://gitlab.company.com/group/project")
         expect(url).toBe("https://gitlab.company.com/group/project/-/merge_requests/42")
+      })
+
+      it("handles nested GitLab groups", () => {
+        const url = getPullRequestUrl(42, "https://gitlab.com/group/subgroup/project")
+        expect(url).toBe("https://gitlab.com/group/subgroup/project/-/merge_requests/42")
       })
     })
 
