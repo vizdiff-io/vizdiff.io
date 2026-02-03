@@ -12,7 +12,8 @@ using Docker Compose. It assumes no shared services are hosted by VizDiff.
 
 External integrations still required:
 - AWS S3 for storybook uploads and screenshots
-- GitHub App for OAuth + check runs (BYO app)
+- GitHub App for OAuth + check runs (BYO app), **OR**
+- GitLab OAuth Application for OAuth + commit statuses (see [GitLab CI Setup](gitlab-ci-setup.md))
 - AWS SES for email sending (optional; no email will be sent if unset)
 - Stripe is disabled by default in self-contained mode (no billing or usage metering)
 
@@ -21,7 +22,9 @@ External integrations still required:
 - An EC2 instance with Docker + Docker Compose installed
 - A public DNS name with TLS termination (nginx in container is HTTP only)
 - An S3 bucket for artifacts (storybook tarballs, screenshots, diff masks)
-- A GitHub App created in your GitHub org
+- **One of the following for VCS integration:**
+  - A GitHub App created in your GitHub org, **OR**
+  - A GitLab OAuth Application (gitlab.com or self-hosted)
 - Optional: AWS SES domain or email identity verified
 
 ## Setup Steps
@@ -72,6 +75,31 @@ Required permissions:
 Required events:
 - `check_suite`
 - `check_run`
+
+## GitLab Integration (Alternative to GitHub)
+
+VizDiff also supports GitLab (gitlab.com or self-hosted). See [GitLab CI Setup](gitlab-ci-setup.md) for complete instructions.
+
+**Quick setup:**
+
+1. Create a GitLab OAuth Application at `https://gitlab.com/-/user_settings/applications`:
+   - Redirect URI: `https://your-domain/api/auth/gitlab/callback`
+   - Scopes: `read_user`, `read_api`, `read_repository`
+
+2. Add to your `.env`:
+   ```bash
+   GITLAB_HOST=https://gitlab.com
+   GITLAB_CLIENT_ID=your_application_id
+   GITLAB_CLIENT_SECRET=your_application_secret
+   GITLAB_WEBHOOK_SECRET=your_webhook_secret
+   NEXT_PUBLIC_GITLAB_CLIENT_ID=your_application_id
+   ```
+
+3. Configure GitLab webhook (per project):
+   - URL: `https://your-domain/api/webhooks/gitlab`
+   - Secret: same as `GITLAB_WEBHOOK_SECRET`
+
+For self-hosted GitLab with self-signed certificates, set `GITLAB_REJECT_UNAUTHORIZED=false`.
 
 ## Email via SES
 
