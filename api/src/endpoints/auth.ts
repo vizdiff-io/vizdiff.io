@@ -136,14 +136,11 @@ export async function githubCallback(req: DefaultRequest, res: DefaultResponse):
   // `redirect_uri` parameter used in the initial request to GITHUB_AUTH_URL, i.e. this endpoint
   // Use the request origin to support dynamic URLs (e.g., ngrok)
   const requestOrigin = getRequestOrigin(req)
-<<<<<<< HEAD
-=======
 
   // Validate redirect URL against the request origin to support dynamic URLs (e.g., ngrok)
   if (!isValidRedirectUrl(finalRedirect, requestOrigin)) {
     throw new Error(`Invalid redirect URL: ${finalRedirect}`)
   }
->>>>>>> main
   const callbackUri = `${requestOrigin}/api/auth/github/callback`
 
   // Exchange the code for an access token
@@ -361,11 +358,16 @@ export async function gitlabCallback(req: DefaultRequest, res: DefaultResponse):
   }
 
   finalRedirect ??= `${APP_URL}/projects`
-  if (!isValidRedirectUrl(finalRedirect)) {
+  
+  // Use the request origin to support dynamic URLs (e.g., ngrok)
+  const requestOrigin = getRequestOrigin(req)
+  
+  // Validate redirect URL against the request origin to support dynamic URLs (e.g., ngrok)
+  if (!isValidRedirectUrl(finalRedirect, requestOrigin)) {
     throw new Error(`Invalid redirect URL: ${finalRedirect}`)
   }
 
-  const callbackUri = `${APP_URL}/api/auth/gitlab/callback`
+  const callbackUri = `${requestOrigin}/api/auth/gitlab/callback`
 
   // Exchange the authorization code for access token
   log.debug(`Exchanging GitLab code for access token for ${req.ip}`)
