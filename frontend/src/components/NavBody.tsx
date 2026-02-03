@@ -11,11 +11,7 @@ import {
   Toolbar,
   Typography,
 } from "@mui/material"
-import { Inter } from "next/font/google"
 import { useState, useEffect } from "react"
-
-const inter = Inter({ subsets: ["latin"] })
-void inter
 
 interface MarketingLayoutProps {
   children: React.ReactNode

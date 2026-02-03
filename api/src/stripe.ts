@@ -15,7 +15,8 @@ export type StripeInterval = "monthly" | "yearly"
  */
 export async function deleteStripeCustomer(customerId: string): Promise<void> {
   if (!STRIPE_SECRET_KEY) {
-    throw new Error("STRIPE_SECRET_KEY is not set")
+    log.info({ customerId }, "Stripe is disabled; skipping customer deletion")
+    return
   }
 
   const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: STRIPE_API_VERSION })

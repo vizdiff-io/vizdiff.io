@@ -1,0 +1,119 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: VizDiff self-contained AMI deployment (single instance)
+
+Parameters:
+  AmiId:
+    Type: AWS::EC2::Image::Id
+    Description: Pre-baked AMI with VizDiff and Docker
+  InstanceType:
+    Type: String
+    Default: t3.large
+    AllowedValues:
+      - t3.large
+      - t3.xlarge
+      - m6i.large
+      - m6i.xlarge
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: SSH key pair for the instance
+  AppUrl:
+    Type: String
+    Description: Public URL (e.g. https://vizdiff.example.com)
+  S3BucketName:
+    Type: String
+  GithubAppId:
+    Type: String
+  GithubClientId:
+    Type: String
+  GithubClientSecret:
+    Type: String
+    NoEcho: true
+  GithubPrivateKey:
+    Type: String
+    NoEcho: true
+  GithubWebhookSecret:
+    Type: String
+    NoEcho: true
+  AwsAccessKeyId:
+    Type: String
+    NoEcho: true
+  AwsSecretAccessKey:
+    Type: String
+    NoEcho: true
+  AwsRegion:
+    Type: String
+    Default: us-west-2
+  SetupToken:
+    Type: String
+    Default: ""
+    NoEcho: true
+  JwtSecret:
+    Type: String
+    Description: Secret key for signing JWT tokens (must be unique per deployment)
+    NoEcho: true
+    MinLength: 32
+  PostgresPass:
+    Type: String
+    Description: PostgreSQL database password (must be unique per deployment)
+    NoEcho: true
+    MinLength: 16
+
+Resources:
+  VizDiffSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: VizDiff self-contained access
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+
+  VizDiffInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref AmiId
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyName
+      SecurityGroupIds:
+        - !Ref VizDiffSecurityGroup
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          set -e
+          cd /opt/vizdiff
+          cat > .env <<'EOF'
+          APP_URL=${AppUrl}
+          JWT_SECRET=${JwtSecret}
+          POSTGRES_USER=vizdiff
+          POSTGRES_PASS=${PostgresPass}
+          POSTGRES_DATABASE=vizdiff
+          POSTGRES_PORT=5432
+          AWS_ACCESS_KEY_ID=${AwsAccessKeyId}
+          AWS_SECRET_ACCESS_KEY=${AwsSecretAccessKey}
+          AWS_REGION=${AwsRegion}
+          S3_BUCKET_NAME=${S3BucketName}
+          GITHUB_APP_ID=${GithubAppId}
+          GITHUB_CLIENT_ID=${GithubClientId}
+          GITHUB_CLIENT_SECRET=${GithubClientSecret}
+          GITHUB_PRIVATE_KEY="${GithubPrivateKey}"
+          GITHUB_WEBHOOK_SECRET=${GithubWebhookSecret}
+          STRIPE_SECRET_KEY=
+          STRIPE_SCREENSHOT_METER_ID=
+          STRIPE_WEBHOOK_SECRET=
+          CUSTOMER_IO_API_KEY=
+          SES_REGION=${AwsRegion}
+          SES_FROM_EMAIL=alerts@example.com
+          SETUP_TOKEN=${SetupToken}
+          EOF
+          ./scripts/bootstrap-self-contained.sh
+
+Outputs:
+  InstanceId:
+    Value: !Ref VizDiffInstance
+  PublicDns:
+    Value: !GetAtt VizDiffInstance.PublicDnsName

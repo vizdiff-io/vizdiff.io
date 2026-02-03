@@ -16,7 +16,10 @@ export function githubSignIn(redirectUri: string): void {
   )
 
   // GitHub OAuth flow
-  const callbackUri = encodeURIComponent(`${APP_URL}/api/auth/github/callback`)
+  // Use current origin instead of APP_URL to support dynamic URLs (e.g., ngrok)
+  // The backend will validate the redirect_uri matches what's registered
+  const currentOrigin = typeof window !== "undefined" ? window.location.origin : APP_URL
+  const callbackUri = encodeURIComponent(`${currentOrigin}/api/auth/github/callback`)
   const scope = "read:user,user:email"
   const state = encodeURIComponent(`redirect=${encodeURIComponent(redirectUri)}`)
   const authUrl = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&redirect_uri=${callbackUri}&scope=${scope}&state=${state}`
@@ -38,6 +41,24 @@ export async function apiGet<T>(endpoint: string): Promise<[T | null, AxiosError
     const axErr = err as AxiosError
     console.warn(`Failed to GET ${endpoint}`, axErr)
     redirectIfUnauthorized(axErr)
+    extractServerErrorMessage(axErr)
+    return [null, axErr]
+  }
+}
+
+export async function publicApiGet<T>(
+  endpoint: string,
+  headers?: Record<string, string>,
+): Promise<[T | null, AxiosError | null]> {
+  try {
+    const response = await axios.get<T>(endpoint, {
+      withCredentials: true,
+      timeout: TIMEOUT_MS,
+      headers,
+    })
+    return [response.data, null]
+  } catch (err) {
+    const axErr = err as AxiosError
     extractServerErrorMessage(axErr)
     return [null, axErr]
   }
@@ -83,6 +104,26 @@ export async function apiPost<T>(
     const axErr = err as AxiosError
     console.error(`Failed to POST ${endpoint}`, axErr)
     redirectIfUnauthorized(axErr)
+    extractServerErrorMessage(axErr)
+    return [undefined, axErr]
+  }
+}
+
+export async function publicApiPost<T>(
+  endpoint: string,
+  body: unknown,
+  timeoutMs: number = TIMEOUT_MS,
+  headers?: Record<string, string>,
+): Promise<[T | undefined, AxiosError | undefined]> {
+  try {
+    const response = await axios.post<T>(endpoint, body, {
+      headers: { "Content-Type": "application/json", ...headers },
+      withCredentials: true,
+      timeout: timeoutMs,
+    })
+    return [response.data, undefined]
+  } catch (err) {
+    const axErr = err as AxiosError
     extractServerErrorMessage(axErr)
     return [undefined, axErr]
   }

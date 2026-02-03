@@ -11,6 +11,7 @@ import {
   POSTGRES_PORT,
 } from "./environment"
 import type { GitHubCheckData } from "./github"
+import { markTaskFinished, markTaskStarted, startHealthServer } from "./health"
 import { ingestStorybook } from "./ingest"
 import { log } from "./log"
 import { latestTaskQueueId, fetchTask } from "./tasks"
@@ -46,6 +47,8 @@ function clearFailedTaskId(taskId: number): void {
 }
 
 async function main() {
+  startHealthServer()
+
   subscriber.notifications.on(TASKS_CHANNEL, (payload) => {
     log.info(`Received notification in '${TASKS_CHANNEL}':`, payload)
     if (typeof payload !== "string" && typeof payload !== "number") {
@@ -187,6 +190,7 @@ export async function startTask(taskQueueId: number): Promise<void> {
     return
   }
   currentTaskId = taskQueueId
+  markTaskStarted(taskQueueId)
 
   try {
     const task = await fetchTask(taskQueueId)
@@ -205,6 +209,7 @@ export async function startTask(taskQueueId: number): Promise<void> {
     log.error(error, `Error processing task ${taskQueueId}`)
     throw error
   } finally {
+    markTaskFinished()
     currentTaskId = undefined
   }
 }

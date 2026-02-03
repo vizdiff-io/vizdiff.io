@@ -2,15 +2,7 @@ import type { Request } from "express"
 import { parse as parseQs, stringify as stringifyQs } from "qs"
 import { URL } from "url"
 
-import { APP_URL } from "./environment"
 import type { DefaultRequest } from "./types"
-
-const ALLOWED_REDIRECT_DOMAINS = new Set([
-  new URL(APP_URL).hostname,
-  "vizdiff.io",
-  "localhost",
-  "127.0.0.1",
-])
 
 export function getParamInt(name: string, req: Request): number | undefined {
   const value = req.params[name]
@@ -56,7 +48,7 @@ export function requiredCookieString(key: string, req: DefaultRequest): string {
   return maybeValue
 }
 
-export function isValidRedirectUrl(redirectUrl: string): boolean {
+export function isValidRedirectUrl(redirectUrl: string, allowedOrigin: string): boolean {
   try {
     const parsedUrl = new URL(redirectUrl)
 
@@ -64,10 +56,10 @@ export function isValidRedirectUrl(redirectUrl: string): boolean {
       return false
     }
 
-    return ALLOWED_REDIRECT_DOMAINS.has(parsedUrl.hostname)
-  } catch (err) {
-    // If there's an error parsing the URL, it's not valid.
-    void err
+    const allowedUrl = new URL(allowedOrigin)
+    return parsedUrl.hostname === allowedUrl.hostname && parsedUrl.protocol === allowedUrl.protocol
+  } catch {
+    // If there's an error parsing either URL, it's not valid.
     return false
   }
 }
