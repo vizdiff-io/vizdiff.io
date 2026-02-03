@@ -16,7 +16,10 @@ export function githubSignIn(redirectUri: string): void {
   )
 
   // GitHub OAuth flow
-  const callbackUri = encodeURIComponent(`${APP_URL}/api/auth/github/callback`)
+  // Use current origin instead of APP_URL to support dynamic URLs (e.g., ngrok)
+  // The backend will validate the redirect_uri matches what's registered
+  const currentOrigin = typeof window !== "undefined" ? window.location.origin : APP_URL
+  const callbackUri = encodeURIComponent(`${currentOrigin}/api/auth/github/callback`)
   const scope = "read:user,user:email"
   const state = encodeURIComponent(`redirect=${encodeURIComponent(redirectUri)}`)
   const authUrl = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&redirect_uri=${callbackUri}&scope=${scope}&state=${state}`

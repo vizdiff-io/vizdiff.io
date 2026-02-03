@@ -41,21 +41,49 @@ if (!APP_URL) {
   throw new Error("Missing APP_URL")
 }
 
+/**
+ * Get the origin (protocol + host) from the request, supporting proxies and ngrok.
+ * Falls back to APP_URL if headers are not available.
+ */
+function getRequestOrigin(req: DefaultRequest): string {
+  // Check for X-Forwarded-Proto and X-Forwarded-Host (used by proxies/ngrok)
+  const forwardedProto = req.headers["x-forwarded-proto"] as string | undefined
+  const forwardedHost = req.headers["x-forwarded-host"] as string | undefined
+
+  if (forwardedProto && forwardedHost) {
+    return `${forwardedProto}://${forwardedHost}`
+  }
+
+  // Check for Host header (standard)
+  const host = req.headers.host
+  if (host) {
+    // Determine protocol from request
+    const protocol = req.secure || req.headers["x-forwarded-proto"] === "https" ? "https" : "http"
+    return `${protocol}://${host}`
+  }
+
+  // Fallback to APP_URL
+  return APP_URL
+}
+
 export async function githubAppInstalled(req: DefaultRequest, res: DefaultResponse): Promise<void> {
   const setupAction = requiredQueryString("setup_action", req)
   const installationId = requiredQueryString("installation_id", req)
 
   // Only proceed if this was a new installation
   if (setupAction !== "install") {
-    res.redirect(APP_URL)
+    const requestOrigin = getRequestOrigin(req)
+    res.redirect(requestOrigin)
     return
   }
 
   // Start the OAuth flow to get user details, passing the installation_id
+  // Use the request origin to support dynamic URLs (e.g., ngrok)
+  const requestOrigin = getRequestOrigin(req)
   const state = encodeURIComponent(
-    `redirect=${encodeURIComponent(`${APP_URL}/projects`)}&installation_id=${installationId}`,
+    `redirect=${encodeURIComponent(`${requestOrigin}/projects`)}&installation_id=${installationId}`,
   )
-  const callbackUri = encodeURIComponent(`${APP_URL}/api/auth/github/callback`)
+  const callbackUri = encodeURIComponent(`${requestOrigin}/api/auth/github/callback`)
   const scope = "read:user,user:email"
   const authUrl = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&redirect_uri=${callbackUri}&scope=${scope}&state=${state}`
   res.redirect(authUrl)
@@ -94,7 +122,9 @@ export async function githubCallback(req: DefaultRequest, res: DefaultResponse):
 
   // The request to GITHUB_TOKEN_EXCHANGE requires a `redirect_uri` parameter that matches the
   // `redirect_uri` parameter used in the initial request to GITHUB_AUTH_URL, i.e. this endpoint
-  const callbackUri = `${APP_URL}/api/auth/github/callback`
+  // Use the request origin to support dynamic URLs (e.g., ngrok)
+  const requestOrigin = getRequestOrigin(req)
+  const callbackUri = `${requestOrigin}/api/auth/github/callback`
 
   // Exchange the code for an access token
   log.debug(`Exchanging GitHub code for access token for ${req.ip} (redirect_uri=${callbackUri})`)
