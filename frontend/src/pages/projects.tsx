@@ -36,7 +36,7 @@ export default function Projects(): JSX.Element {
   const { user } = useAuth()
   const projects = projectsResponse ?? []
   const activity = activityResponse ?? []
-  const hasGitHubConnected = user?.githubId != null
+  const hasVCSConnected = user?.githubId != null || user?.gitlabId != null
 
   // Show loading state if the page is not yet ready
   if (loading) {
@@ -75,7 +75,7 @@ export default function Projects(): JSX.Element {
               <Typography variant="h4" component="h1" sx={{ fontWeight: 600 }}>
                 Projects
               </Typography>
-              {hasGitHubConnected && (
+              {hasVCSConnected && (
                 <Button
                   variant="contained"
                   color="primary"
