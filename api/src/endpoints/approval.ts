@@ -64,8 +64,7 @@ export const approveOrDeny: RequestHandler = async (req, res) => {
   // GitLab does not need vcsStatusId - we can post a final status by commit SHA alone.
   // This allows recovery when the initial pending status failed during upload (transient API errors).
   const shouldUpdateVcs =
-    ENABLE_VCS_STATUS &&
-    (test.vcsStatusId || test.project.vcsProvider === "gitlab")
+    ENABLE_VCS_STATUS && (test.vcsStatusId != null || test.project.vcsProvider === "gitlab")
   if (shouldUpdateVcs) {
     try {
       // Count the number of visual changes that were approved or denied
