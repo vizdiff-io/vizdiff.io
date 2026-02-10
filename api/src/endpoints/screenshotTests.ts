@@ -8,6 +8,7 @@ import type {
 import { toSeconds } from "../conversions"
 import { trackPageView } from "../customerio"
 import { Database } from "../database"
+import { GITLAB_HOST } from "../environment"
 import { getParamInt } from "../http"
 import { log } from "../log"
 import { getAccessibleProjectIds } from "../projectAccess"
@@ -59,7 +60,7 @@ export const list: RequestHandler = async (req, res) => {
   const db = await Database()
 
   // Permissions check
-  const projectIds = await getAccessibleProjectIds(db, user.id)
+  const projectIds = await getAccessibleProjectIds(db, user.id, user.gitlabHost ?? GITLAB_HOST)
   if (!projectIds.includes(projectId)) {
     log.error({ user, projectId, projectIds }, "Project not found in accessible projects")
     res.status(404).json({ error: "Project not found" })
@@ -240,7 +241,7 @@ export const listActivity: RequestHandler = async (req, res) => {
   const screenshotTestTable = db.getRepository(ScreenshotTest)
 
   // Get all project IDs the user has access to
-  const projectIds = await getAccessibleProjectIds(db, user.id)
+  const projectIds = await getAccessibleProjectIds(db, user.id, user.gitlabHost ?? GITLAB_HOST)
   if (projectIds.length === 0) {
     res.json([])
     return

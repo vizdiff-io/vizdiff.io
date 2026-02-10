@@ -115,7 +115,7 @@ export const projects: RequestHandler = async (req, res) => {
 
   // Get the list of project IDs that this user already has VizDiff projects for
   const db = await Database()
-  const accessibleProjectIds = await getAccessibleProjectIds(db, user.id)
+  const accessibleProjectIds = await getAccessibleProjectIds(db, user.id, user.gitlabHost ?? GITLAB_HOST)
 
   // Get a set of GitLab project IDs from the list of accessible project IDs
   const existingGitlabProjectIds = new Set<number>()

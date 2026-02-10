@@ -1,24 +1,21 @@
-import { Project, User } from "shared"
+import { Project } from "shared"
 
 import { Database } from "./database"
-import { GITLAB_HOST } from "./environment"
 
 /**
  * Get all `projects.id`s that the user has access to, including both directly owned projects
  * and those accessible via GitHub/GitLab repo access
  * @param db TypeORM database connection
  * @param userId User ID to check access for
+ * @param gitlabHost GitLab host for filtering GitLab access records (e.g. user.gitlabHost ?? GITLAB_HOST)
  * @returns Array of project IDs that the user has access to
  */
 export async function getAccessibleProjectIds(
   db: Awaited<ReturnType<typeof Database>>,
   userId: number,
+  gitlabHost: string,
 ): Promise<number[]> {
   const projectTable = db.getRepository(Project)
-
-  // Get the user's GitLab host (or default) to filter GitLab access records
-  const user = await db.getRepository(User).findOneBy({ id: userId })
-  const gitlabHost = user?.gitlabHost ?? GITLAB_HOST
 
   // Get both directly owned projects and those accessible via GitHub/GitLab repo access
   const accessibleProjectsRaw = await projectTable
