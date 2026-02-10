@@ -15,6 +15,7 @@ import {
   GITHUB_CLIENT_SECRET,
   IS_PRODUCTION,
   S3_BUCKET_NAME,
+  GITLAB_HOST,
 } from "./environment"
 import { getInstallationsForUserId } from "./github"
 import { log } from "./log"
@@ -55,6 +56,38 @@ async function validateGitHubToken(user: User): Promise<boolean> {
   }
 }
 
+async function validateGitLabToken(user: User): Promise<boolean> {
+  try {
+    if (!user.gitlabAccessToken) {
+      return false
+    }
+
+    const gitlabHost = user.gitlabHost ?? GITLAB_HOST
+
+    // Validate the token by fetching the current user
+    // Using direct fetch similar to auth.ts since gitbeaker doesn't have a current() method
+    const userRes = await fetch(`${gitlabHost}/api/v4/user`, {
+      headers: {
+        Authorization: `Bearer ${user.gitlabAccessToken}`,
+        Accept: "application/json",
+      },
+    })
+
+    if (!userRes.ok) {
+      return false
+    }
+
+    return true
+  } catch (error) {
+    if (error instanceof Error) {
+      log.warn(`GitLab token validation failed: ${error.message}`)
+    } else {
+      log.warn("GitLab token validation failed with unknown error")
+    }
+    return false
+  }
+}
+
 async function refreshJWT(userId: number, req: Request, res: Response): Promise<boolean> {
   try {
     // Get the user from the database
@@ -64,8 +97,29 @@ async function refreshJWT(userId: number, req: Request, res: Response): Promise<
       return false
     }
 
-    // Validate both OAuth and GitHub App tokens as needed
-    const isValid = await validateGitHubToken(user)
+    // Validate tokens based on which VCS provider(s) the user has
+    // For GitHub users, validate GitHub token
+    // For GitLab users, validate GitLab token
+    // For users with both, validate at least one (prefer GitHub if both exist)
+    let isValid = false
+
+    if (user.githubAccessToken) {
+      isValid = await validateGitHubToken(user)
+      if (isValid) {
+        // GitHub token is valid, proceed with refresh
+      } else if (user.gitlabAccessToken) {
+        // GitHub token invalid, try GitLab token as fallback
+        isValid = await validateGitLabToken(user)
+      }
+    } else if (user.gitlabAccessToken) {
+      // GitLab-only user, validate GitLab token
+      isValid = await validateGitLabToken(user)
+    } else {
+      // User has no VCS tokens - this shouldn't happen for authenticated users
+      log.warn(`User ${user.id} has no GitHub or GitLab access token`)
+      return false
+    }
+
     if (!isValid) {
       return false
     }
