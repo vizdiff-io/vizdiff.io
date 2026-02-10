@@ -161,7 +161,6 @@ describe("setup endpoints", () => {
 
       expect(resJson).toHaveBeenCalledWith(
         expect.objectContaining({
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
           missing: expect.arrayContaining(["GITHUB_APP_ID", "S3_BUCKET_NAME"]),
         }),
       )
@@ -177,7 +176,6 @@ describe("setup endpoints", () => {
 
       expect(resJson).toHaveBeenCalledWith(
         expect.objectContaining({
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
           placeholders: expect.arrayContaining(["GITHUB_APP_ID", "GITHUB_CLIENT_SECRET"]),
         }),
       )

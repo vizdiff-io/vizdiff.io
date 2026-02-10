@@ -12,7 +12,6 @@ delete foxglove.configs.typescript[6].plugins.import
 
 module.exports = tseslint.config(
   ...foxglove.configs.base,
-  ...foxglove.configs.react,
   ...foxglove.configs.typescript,
   ...compat.config({
     extends: ["next/core-web-vitals"],

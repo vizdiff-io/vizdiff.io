@@ -13,9 +13,9 @@
   },
   "dependencies": {
     "reflect-metadata": "0.2.2",
-    "typeorm": "^0.3.23"
+    "typeorm": "^0.3.28"
   },
   "devDependencies": {
-    "typescript": "^5.8.3"
+    "typescript": "^5.9.3"
   }
 }

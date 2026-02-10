@@ -17,7 +17,7 @@
  * - PostgreSQL notification system
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // These eslint-disable directives are used because we're mocking complex database types for testing
 
 import "reflect-metadata"
@@ -561,7 +561,7 @@ describe("worker", () => {
 
       // Override the mock implementation for these tests
       // We're not testing the mock, we're testing the actual implementation
-      /* eslint-disable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
+
       vi.mocked(sweepStuckBuilds).mockImplementation(async () => {
         // Get stuck running builds
         const stuckRunningBuilds = await mockGetMany()
@@ -578,14 +578,13 @@ describe("worker", () => {
 
         return allStuckBuilds.length
       })
-      /* eslint-enable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
 
       // Create mocks we can control in tests
       mockGetMany = vi.fn()
       mockSave = vi.fn()
 
       // Mock the database with a structure that matches our usage
-      /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument */
+      /* eslint-disable @typescript-eslint/no-explicit-any */
       vi.mocked(Database).mockResolvedValue({
         getRepository: () => ({
           createQueryBuilder: () => ({
@@ -598,7 +597,7 @@ describe("worker", () => {
           save: mockSave,
         }),
       } as any)
-      /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument */
+      /* eslint-enable @typescript-eslint/no-explicit-any */
     })
 
     it("should update stuck builds to failed status", async () => {
@@ -619,10 +618,9 @@ describe("worker", () => {
       }
 
       // Mock responses for running and pending builds
-      /* eslint-disable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
+
       mockGetMany.mockResolvedValueOnce([stuckRunningBuild])
       mockGetMany.mockResolvedValueOnce([stuckPendingBuild])
-      /* eslint-enable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
 
       // Run the function
       const count = await sweepStuckBuilds()
@@ -647,7 +645,7 @@ describe("worker", () => {
 
     it("should not update any builds if none are stuck", async () => {
       // Mock empty results
-      /* eslint-disable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
+
       mockGetMany.mockResolvedValueOnce([])
       mockGetMany.mockResolvedValueOnce([])
 
@@ -657,14 +655,12 @@ describe("worker", () => {
       // Verify results
       expect(count).toBe(0)
       expect(mockSave).not.toHaveBeenCalled()
-      /* eslint-enable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
     })
 
     it("should handle errors properly", async () => {
       // Mock error
-      /* eslint-disable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
+
       mockGetMany.mockRejectedValueOnce(new Error("Database error"))
-      /* eslint-enable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
 
       // Verify the function throws
       await expect(sweepStuckBuilds()).rejects.toThrow("Database error")
