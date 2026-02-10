@@ -126,6 +126,7 @@ export default function Login(): JSX.Element {
                   {hasGitHub && (
                     <Button
                       variant="contained"
+                      size="small"
                       onClick={() => githubSignIn(redirectUri)}
                       startIcon={<GitHubIcon />}
                       sx={{
@@ -144,6 +145,7 @@ export default function Login(): JSX.Element {
                   {hasGitLab && (
                     <Button
                       variant="contained"
+                      size="small"
                       onClick={() => gitlabSignIn(redirectUri)}
                       startIcon={<GitLabIcon sx={{ color: "#FC6D26" }} />}
                       sx={{
