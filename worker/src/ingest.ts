@@ -46,16 +46,15 @@ export async function ingestStorybook(
   }
 
   // Resolve GitLab token from project owner at processing time (never stored in task data)
-  const gitlabCredentials =
-    gitlabCheckData && screenshotTest.project.user
-      ? {
-          accessToken: screenshotTest.project.user.gitlabAccessToken ?? undefined,
-          host: screenshotTest.project.user.gitlabHost ?? gitlabCheckData.gitlabHost,
-        }
-      : null
+  const gitlabCredentials = gitlabCheckData
+    ? {
+        accessToken: screenshotTest.project.user.gitlabAccessToken ?? undefined,
+        host: screenshotTest.project.user.gitlabHost ?? gitlabCheckData.gitlabHost,
+      }
+    : null
   if (gitlabCheckData && !gitlabCredentials?.accessToken) {
     log.warn(
-      { projectOwnerId: screenshotTest.project.user?.id },
+      { projectOwnerId: screenshotTest.project.user.id },
       "Skipping GitLab commit status updates: project owner has no access token",
     )
   }

@@ -41,8 +41,12 @@ interface GitLabUser {
 }
 
 // Require at least one VCS provider (GitHub or GitLab) for OAuth
-const hasGitHub =
-  !!(GITHUB_CLIENT_ID && GITHUB_CLIENT_SECRET && GITHUB_APP_ID && GITHUB_PRIVATE_KEY)
+const hasGitHub = !!(
+  GITHUB_CLIENT_ID &&
+  GITHUB_CLIENT_SECRET &&
+  GITHUB_APP_ID &&
+  GITHUB_PRIVATE_KEY
+)
 const hasGitLab = !!(GITLAB_CLIENT_ID && GITLAB_CLIENT_SECRET)
 
 if (!hasGitHub && !hasGitLab) {
