@@ -9,7 +9,7 @@ import { trackEvent } from "../customerio"
 import { Database } from "../database"
 import { APP_URL, ENABLE_VCS_STATUS, TRIAL_PERIOD_MS } from "../environment"
 import { getInstallationForOrg, getOctokitForInstallation } from "../github"
-import { updateGitLabCommitStatus } from "../gitlab"
+import { type GitLabCheckData, updateGitLabCommitStatus } from "../gitlab"
 import { getQueryString } from "../http"
 import { log } from "../log"
 import { createScreenshotTest } from "../screenshotTests"
@@ -169,9 +169,7 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
   let githubCheckData:
     | { owner: string; repo: string; checkRunId: number; installationId: number }
     | undefined
-  let gitlabCheckData:
-    | { projectId: number; commitSha: string; gitlabHost: string; accessToken: string }
-    | undefined
+  let gitlabCheckData: GitLabCheckData | undefined
 
   if (project.vcsProvider === "github") {
     // Get the installation ID for this project

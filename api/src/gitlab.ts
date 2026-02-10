@@ -154,24 +154,6 @@ export async function getGitLabGroupsForUserId(userId: number): Promise<GitLabGr
 }
 
 /**
- * Get a specific GitLab group by full path
- */
-export async function getGitLabGroupByPath(
-  userId: number,
-  fullPath: string,
-): Promise<GitLabGroup | null> {
-  const db = await Database()
-  return await db.manager
-    .createQueryBuilder(GitLabGroup, "grp")
-    .innerJoin("user_gitlab_groups", "ug", "ug.group_id = grp.id")
-    .where("ug.user_id = :userId AND grp.full_path = :fullPath", {
-      userId,
-      fullPath,
-    })
-    .getOne()
-}
-
-/**
  * Sync GitLab projects for a user
  */
 export async function syncUserGitLabProjects(user: User): Promise<number> {
@@ -271,19 +253,6 @@ export async function syncUserGitLabProjects(user: User): Promise<number> {
     log.error({ user, error }, "GitLab project sync failed")
     throw error
   }
-}
-
-/**
- * Fetch GitLab project details
- */
-export async function getGitLabProject(
-  projectId: number,
-  accessToken: string,
-  host: string = GITLAB_HOST,
-): Promise<GitLabProjectResponse> {
-  const client = getGitLabClient(accessToken, host)
-  const project = (await client.Projects.show(projectId)) as GitLabProjectResponse
-  return project
 }
 
 /**
