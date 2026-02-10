@@ -33,7 +33,9 @@ export function gitlabSignIn(redirectUri: string): void {
   )
 
   // GitLab OAuth flow - redirect to our API which handles the OAuth redirect
-  const authUrl = `${APP_URL}/api/auth/gitlab/login?redirect=${encodeURIComponent(redirectUri)}`
+  // Use current origin instead of APP_URL to support dynamic URLs (e.g., ngrok)
+  const currentOrigin = typeof window !== "undefined" ? window.location.origin : APP_URL
+  const authUrl = `${currentOrigin}/api/auth/gitlab/login?redirect=${encodeURIComponent(redirectUri)}`
   window.location.href = authUrl
 }
 
