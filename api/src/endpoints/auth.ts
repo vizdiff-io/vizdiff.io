@@ -40,18 +40,19 @@ interface GitLabUser {
   state: string
 }
 
-if (!GITHUB_CLIENT_ID) {
-  throw new Error("Missing GITHUB_CLIENT_ID")
+// Require at least one VCS provider (GitHub or GitLab) for OAuth
+const hasGitHub =
+  !!(GITHUB_CLIENT_ID && GITHUB_CLIENT_SECRET && GITHUB_APP_ID && GITHUB_PRIVATE_KEY)
+const hasGitLab = !!(GITLAB_CLIENT_ID && GITLAB_CLIENT_SECRET)
+
+if (!hasGitHub && !hasGitLab) {
+  throw new Error(
+    "At least one VCS provider must be configured. " +
+      "For GitHub: set GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, GITHUB_APP_ID, GITHUB_PRIVATE_KEY. " +
+      "For GitLab: set GITLAB_CLIENT_ID, GITLAB_CLIENT_SECRET.",
+  )
 }
-if (!GITHUB_CLIENT_SECRET) {
-  throw new Error("Missing GITHUB_CLIENT_SECRET")
-}
-if (!GITHUB_APP_ID) {
-  throw new Error("Missing GITHUB_APP_ID")
-}
-if (!GITHUB_PRIVATE_KEY) {
-  throw new Error("Missing GITHUB_PRIVATE_KEY")
-}
+
 if (!APP_URL) {
   throw new Error("Missing APP_URL")
 }
@@ -82,6 +83,11 @@ function getRequestOrigin(req: DefaultRequest): string {
 }
 
 export async function githubAppInstalled(req: DefaultRequest, res: DefaultResponse): Promise<void> {
+  if (!GITHUB_CLIENT_ID || !GITHUB_CLIENT_SECRET || !GITHUB_APP_ID || !GITHUB_PRIVATE_KEY) {
+    res.status(500).json({ error: "GitHub OAuth not configured" })
+    return
+  }
+
   const setupAction = requiredQueryString("setup_action", req)
   const installationId = requiredQueryString("installation_id", req)
 
@@ -105,6 +111,11 @@ export async function githubAppInstalled(req: DefaultRequest, res: DefaultRespon
 }
 
 export async function githubCallback(req: DefaultRequest, res: DefaultResponse): Promise<void> {
+  if (!GITHUB_CLIENT_ID || !GITHUB_CLIENT_SECRET) {
+    res.status(500).json({ error: "GitHub OAuth not configured" })
+    return
+  }
+
   const code = requiredQueryString("code", req)
 
   // Handle both direct app installation callback and OAuth callback
