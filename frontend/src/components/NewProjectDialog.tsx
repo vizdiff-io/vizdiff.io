@@ -328,8 +328,8 @@ export default function NewProjectDialog({
             </IconButton>
           </div>
         </Box>
-        <Tabs value={provider} onChange={handleProviderChange} aria-label="VCS provider tabs">
-          {user?.githubId && (
+        {user?.githubId && user.gitlabId && (
+          <Tabs value={provider} onChange={handleProviderChange} aria-label="VCS provider tabs">
             <Tab
               icon={<GitHubIcon />}
               iconPosition="start"
@@ -337,8 +337,6 @@ export default function NewProjectDialog({
               value="github"
               sx={{ textTransform: "none" }}
             />
-          )}
-          {user?.gitlabId && (
             <Tab
               icon={<GitLabIcon />}
               iconPosition="start"
@@ -346,8 +344,8 @@ export default function NewProjectDialog({
               value="gitlab"
               sx={{ textTransform: "none" }}
             />
-          )}
-        </Tabs>
+          </Tabs>
+        )}
       </DialogTitle>
       <DialogContent sx={{ px: { xs: 1.5, sm: 3 } }}>
         <Box
