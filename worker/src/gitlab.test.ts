@@ -130,19 +130,18 @@ describe("gitlab (worker)", () => {
   })
 
   describe("GitLabCheckData interface", () => {
-    it("accepts required fields", () => {
+    it("accepts required fields (token resolved at processing time, not stored)", () => {
       // This test verifies TypeScript interface compliance at compile time
+      // accessToken is never stored - worker resolves from project owner at runtime
       const checkData = {
         projectId: 123,
         commitSha: "abc123def456",
         gitlabHost: "https://gitlab.com",
-        accessToken: "glpat-xxxxxxxxxxxxxxxxxxxx",
       }
 
       expect(checkData.projectId).toBe(123)
       expect(checkData.commitSha).toBe("abc123def456")
       expect(checkData.gitlabHost).toBe("https://gitlab.com")
-      expect(checkData.accessToken).toBe("glpat-xxxxxxxxxxxxxxxxxxxx")
     })
   })
 

@@ -35,11 +35,14 @@ interface GitLabProjectResponse {
   }
 }
 
+/**
+ * Data stored in WorkTask for GitLab commit status updates.
+ * Token is resolved from the project owner at processing time - never stored in the task.
+ */
 export interface GitLabCheckData {
   projectId: number
   commitSha: string
   gitlabHost: string
-  accessToken: string
 }
 
 /**

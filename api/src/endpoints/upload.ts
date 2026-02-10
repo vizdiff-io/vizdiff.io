@@ -212,11 +212,11 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
         })
         // GitLab doesn't return an ID for commit statuses, use 1 as a flag
         vcsStatusId = 1
+        // Store only non-sensitive data; worker resolves token from project owner at processing time
         gitlabCheckData = {
           projectId: project.repoId,
           commitSha,
           gitlabHost,
-          accessToken,
         }
         logChild.info(`Created GitLab commit status for ${project.repoUrl}#${commitSha}`)
       } catch (error) {
