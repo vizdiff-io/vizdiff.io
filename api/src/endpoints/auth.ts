@@ -310,16 +310,19 @@ export async function gitlabLogin(req: DefaultRequest, res: DefaultResponse): Pr
     return
   }
 
+  // Use the request origin to support dynamic URLs (e.g., ngrok)
+  const requestOrigin = getRequestOrigin(req)
+
   // Get the redirect URL from query params (where to send user after auth)
   const redirect =
     (typeof req.query.redirect === "string" ? req.query.redirect : undefined) ??
-    `${APP_URL}/projects`
+    `${requestOrigin}/projects`
 
   // Build the state parameter with redirect info
   const state = encodeURIComponent(`redirect=${encodeURIComponent(redirect)}`)
 
-  // Build the callback URI
-  const callbackUri = encodeURIComponent(`${APP_URL}/api/auth/gitlab/callback`)
+  // Build the callback URI (must match exactly in gitlabCallback for OAuth token exchange)
+  const callbackUri = encodeURIComponent(`${requestOrigin}/api/auth/gitlab/callback`)
 
   // GitLab OAuth scopes needed for our integration:
   // - read_user: Access user profile info
