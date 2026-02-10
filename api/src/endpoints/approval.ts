@@ -31,7 +31,7 @@ export const approveOrDeny: RequestHandler = async (req, res) => {
   const db = await Database()
 
   // Get project IDs the user has access to
-  const accessibleProjectIds = await getAccessibleProjectIds(db, user.id, user.gitlabHost ?? GITLAB_HOST)
+  const accessibleProjectIds = await getAccessibleProjectIds(db, user.id)
   if (accessibleProjectIds.length === 0) {
     log.error({ user, testId, status }, "User does not have access to any projects")
     res.status(403).json({ error: "User does not have access to any projects" })

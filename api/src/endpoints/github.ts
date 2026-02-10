@@ -9,7 +9,6 @@ import {
   GITHUB_CLIENT_ID,
   GITHUB_CLIENT_SECRET,
   GITHUB_PRIVATE_KEY,
-  GITLAB_HOST,
 } from "../environment"
 import { getInstallationForOrg, getInstallationsForUserId, syncUserInstallations } from "../github"
 import { log } from "../log"
@@ -111,7 +110,7 @@ export const repos: RequestHandler = async (req, res) => {
 
   // Get the list of project IDs that this user has access to
   const db = await Database()
-  const accessibleProjectIds = await getAccessibleProjectIds(db, user.id, user.gitlabHost ?? GITLAB_HOST)
+  const accessibleProjectIds = await getAccessibleProjectIds(db, user.id)
 
   // Get a set of repo IDs from the list of accessible project IDs
   const accessibleRepoIds = new Set<number>()

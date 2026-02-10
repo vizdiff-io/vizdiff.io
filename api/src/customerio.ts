@@ -2,7 +2,7 @@ import { Analytics as CustomerIoAnalytics } from "@customerio/cdp-analytics-node
 import type { User } from "shared"
 
 import { Database } from "./database"
-import { APP_URL, CUSTOMER_IO_API_KEY, GITLAB_HOST } from "./environment"
+import { APP_URL, CUSTOMER_IO_API_KEY } from "./environment"
 import { log } from "./log"
 import { getAccessibleProjectIds } from "./projectAccess"
 import type { GithubUser } from "./schemas/GithubUser"
@@ -42,7 +42,7 @@ export function identifyUser(user: User, req: DefaultRequest): void {
     // Try to get the count of accessible projects for this user
     try {
       const db = await Database()
-      const ids = await getAccessibleProjectIds(db, user.id, user.gitlabHost ?? GITLAB_HOST)
+      const ids = await getAccessibleProjectIds(db, user.id)
       accessibleProjects = ids.length
     } catch (error) {
       log.error(error, `Failed to get accessible project IDs for user ${user.id}`)
