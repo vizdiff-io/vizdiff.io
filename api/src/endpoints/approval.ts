@@ -61,7 +61,12 @@ export const approveOrDeny: RequestHandler = async (req, res) => {
   await testTable.save(test)
 
   // Update VCS status if available (GitHub check run or GitLab commit status)
-  if (ENABLE_VCS_STATUS && test.vcsStatusId) {
+  // GitLab does not need vcsStatusId - we can post a final status by commit SHA alone.
+  // This allows recovery when the initial pending status failed during upload (transient API errors).
+  const shouldUpdateVcs =
+    ENABLE_VCS_STATUS &&
+    (test.vcsStatusId || test.project.vcsProvider === "gitlab")
+  if (shouldUpdateVcs) {
     try {
       // Count the number of visual changes that were approved or denied
       const testResultTable = db.getRepository(TestResult)
