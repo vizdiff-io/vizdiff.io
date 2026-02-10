@@ -7,7 +7,7 @@ import { uuidv7 } from "uuidv7"
 import { getProjectByToken, getS3BucketForProject } from "../authenticate"
 import { trackEvent } from "../customerio"
 import { Database } from "../database"
-import { APP_URL, ENABLE_VCS_STATUS, TRIAL_PERIOD_MS } from "../environment"
+import { APP_URL, ENABLE_VCS_STATUS, GITLAB_HOST, TRIAL_PERIOD_MS } from "../environment"
 import { getInstallationForOrg, getOctokitForInstallation } from "../github"
 import { type GitLabCheckData, updateGitLabCommitStatus } from "../gitlab"
 import { getQueryString } from "../http"
@@ -198,7 +198,7 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
     }
   } else {
     // Create GitLab commit status for this upload
-    const gitlabHost = projectOwner.gitlabHost ?? "https://gitlab.com"
+    const gitlabHost = projectOwner.gitlabHost ?? GITLAB_HOST
     const accessToken = projectOwner.gitlabAccessToken
 
     if (accessToken && ENABLE_VCS_STATUS) {
