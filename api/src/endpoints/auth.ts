@@ -21,7 +21,7 @@ import {
   STRIPE_API_VERSION,
 } from "../environment"
 import { syncUserInstallations, syncUserGithubRepos } from "../github"
-import { syncUserGitLabGroups, syncUserGitLabProjects } from "../gitlab"
+import { gitlabFetch, syncUserGitLabGroups, syncUserGitLabProjects } from "../gitlab"
 import { isValidRedirectUrl, parseSimpleQueryString, requiredQueryString } from "../http"
 import { log } from "../log"
 import type { GithubUser } from "../schemas/GithubUser"
@@ -413,7 +413,7 @@ export async function gitlabCallback(req: DefaultRequest, res: DefaultResponse):
 
   // Exchange the authorization code for access token
   log.debug(`Exchanging GitLab code for access token for ${req.ip}`)
-  const tokenRes = await fetch(`${GITLAB_HOST}/oauth/token`, {
+  const tokenRes = await gitlabFetch(`${GITLAB_HOST}/oauth/token`, {
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
@@ -447,7 +447,7 @@ export async function gitlabCallback(req: DefaultRequest, res: DefaultResponse):
 
   // Fetch user profile from GitLab
   log.debug(`GitLab OAuth authenticated for ${req.ip}, retrieving user info`)
-  const userRes = await fetch(`${GITLAB_HOST}/api/v4/user`, {
+  const userRes = await gitlabFetch(`${GITLAB_HOST}/api/v4/user`, {
     headers: {
       Authorization: `Bearer ${tokenData.access_token}`,
       Accept: "application/json",

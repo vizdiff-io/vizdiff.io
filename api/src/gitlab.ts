@@ -1,9 +1,33 @@
 import { Gitlab } from "@gitbeaker/rest"
 import { GitLabGroup, User, UserGitlabProjectAccess } from "shared"
+import { Agent, fetch } from "undici"
 
 import { Database } from "./database"
 import { GITLAB_HOST, GITLAB_REJECT_UNAUTHORIZED } from "./environment"
 import { log } from "./log"
+
+/**
+ * Agent for GitLab API fetch calls, respecting GITLAB_REJECT_UNAUTHORIZED.
+ * Required for self-hosted GitLab with self-signed certificates.
+ */
+const gitlabAgent = new Agent({
+  connect: { rejectUnauthorized: GITLAB_REJECT_UNAUTHORIZED },
+})
+
+/**
+ * fetch wrapper for GitLab API calls that respects GITLAB_REJECT_UNAUTHORIZED.
+ * Use this for OAuth token exchange, user profile retrieval, and token validation
+ * when calling self-hosted GitLab with self-signed certificates.
+ */
+export function gitlabFetch(
+  url: string | URL,
+  init?: Parameters<typeof fetch>[1],
+): ReturnType<typeof fetch> {
+  return fetch(url, {
+    ...init,
+    dispatcher: gitlabAgent,
+  } as Parameters<typeof fetch>[1])
+}
 
 /**
  * GitLab group from API
