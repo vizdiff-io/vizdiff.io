@@ -216,7 +216,7 @@ describe("gitlab", () => {
       expect(Gitlab).toHaveBeenCalledWith({
         host: "https://gitlab.com",
         oauthToken: "test-token",
-        rejectUnauthorized: true,
+        agent: undefined,
       })
       expect(client).toBeDefined()
     })
@@ -227,7 +227,7 @@ describe("gitlab", () => {
       expect(Gitlab).toHaveBeenCalledWith({
         host: "https://gitlab.company.com",
         oauthToken: "test-token",
-        rejectUnauthorized: true,
+        agent: undefined,
       })
       expect(client).toBeDefined()
     })
@@ -425,7 +425,7 @@ describe("gitlab", () => {
       expect(Gitlab).toHaveBeenCalledWith({
         host: "https://gitlab.company.com",
         oauthToken: "test-token",
-        rejectUnauthorized: true,
+        agent: undefined,
       })
     })
 
