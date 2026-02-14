@@ -1,7 +1,6 @@
 import { createRequire } from "node:module"
 import type { StorybookConfig } from "@storybook/nextjs"
 import { join, dirname } from "path"
-import webpack from "webpack"
 
 const require = createRequire(import.meta.url)
 
@@ -36,8 +35,9 @@ const config: StorybookConfig = {
     autodocs: "tag",
   },
   webpackFinal: async (config) => {
-    // Add environment variables to webpack's DefinePlugin
-    const definePlugin = new webpack.DefinePlugin({
+    // Add environment variables via DefinePlugin, using the compiler's own
+    // webpack reference to avoid version mismatches with Next.js's bundled webpack
+    const envDefinitions = {
       "process.env.NEXT_PUBLIC_GITHUB_APP_NAME": JSON.stringify(
         process.env.NEXT_PUBLIC_GITHUB_APP_NAME,
       ),
@@ -46,9 +46,13 @@ const config: StorybookConfig = {
       ),
       "process.env.NEXT_PUBLIC_APP_URL": JSON.stringify(process.env.NEXT_PUBLIC_APP_URL),
       "process.env.NEXT_PUBLIC_API_URL": JSON.stringify(process.env.NEXT_PUBLIC_API_URL),
-    })
+    }
     config.plugins = config.plugins || []
-    config.plugins.push(definePlugin as any)
+    config.plugins.push({
+      apply(compiler) {
+        new compiler.webpack.DefinePlugin(envDefinitions).apply(compiler)
+      },
+    })
     return config
   },
 }
