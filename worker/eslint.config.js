@@ -1,7 +1,7 @@
 import foxglove from "@foxglove/eslint-plugin"
 import * as tseslint from "typescript-eslint"
 
-import { baseConfig, nodeConfig, rulesConfig } from "../eslint.config.mjs"
+import { baseConfig, nodeConfig, rulesConfig, testOverrides } from "../eslint.config.mjs"
 
 export default tseslint.config(
   ...baseConfig,
@@ -11,4 +11,5 @@ export default tseslint.config(
   nodeConfig,
   { files: ["src/**/*.ts"] },
   rulesConfig,
+  testOverrides,
 )

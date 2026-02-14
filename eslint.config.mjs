@@ -33,6 +33,13 @@ export const rulesConfig = {
     "@typescript-eslint/no-misused-promises": ["error", { checksVoidReturn: false }],
     "@typescript-eslint/promise-function-async": "off",
     "@typescript-eslint/no-confusing-void-expression": "off",
+  },
+}
+
+// Relaxed rules for test files where complex mocks require `any`
+export const testOverrides = {
+  files: ["**/*.test.ts"],
+  rules: {
     "@typescript-eslint/no-unsafe-assignment": "off",
     "@typescript-eslint/no-unsafe-call": "off",
     "@typescript-eslint/no-unsafe-member-access": "off",
