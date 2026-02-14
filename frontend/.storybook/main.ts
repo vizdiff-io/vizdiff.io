@@ -9,8 +9,8 @@ const require = createRequire(import.meta.url)
  * This function is used to resolve the absolute path of a package.
  * It is needed in projects that use Yarn PnP or are set up within a monorepo.
  */
-function getAbsolutePath(value: string): string {
-  return dirname(require.resolve(join(value, "package.json")))
+function getAbsolutePath(packageName: string): string {
+  return dirname(require.resolve(join(packageName, "package.json")))
 }
 
 const config: StorybookConfig = {
@@ -48,7 +48,7 @@ const config: StorybookConfig = {
       "process.env.NEXT_PUBLIC_API_URL": JSON.stringify(process.env.NEXT_PUBLIC_API_URL),
     })
     config.plugins = config.plugins || []
-    config.plugins.push(definePlugin)
+    config.plugins.push(definePlugin as any)
     return config
   },
 }

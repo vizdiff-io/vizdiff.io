@@ -1,4 +1,5 @@
 import { Gitlab } from "@gitbeaker/rest"
+import https from "node:https"
 
 import { GITLAB_HOST, GITLAB_REJECT_UNAUTHORIZED, APP_URL, ENABLE_VCS_STATUS } from "./environment"
 import { log } from "./log"
@@ -26,7 +27,7 @@ export function getGitLabClient(
   return new Gitlab({
     host,
     oauthToken,
-    rejectUnauthorized: GITLAB_REJECT_UNAUTHORIZED,
+    agent: GITLAB_REJECT_UNAUTHORIZED ? undefined : new https.Agent({ rejectUnauthorized: false }),
   })
 }
 
