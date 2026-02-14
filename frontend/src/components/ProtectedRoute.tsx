@@ -1,7 +1,7 @@
 import { type JSX, useEffect, useState } from "react"
 
 import useAuth from "@/hooks/useAuth"
-import { githubSignIn, isAuthenticated } from "@/lib/apiMethods"
+import { isAuthenticated, redirectToLogin } from "@/lib/apiMethods"
 
 export default function ProtectedRoute({
   children,
@@ -19,8 +19,8 @@ export default function ProtectedRoute({
     const authenticated = isAuthenticated()
 
     if (!authenticated) {
-      // If not authenticated via cookie, redirect immediately
-      githubSignIn(window.location.href)
+      // If not authenticated via cookie, redirect to login (user chooses GitHub or GitLab)
+      redirectToLogin(window.location.href)
     } else if (!user && !isLoading && !fetchAttempted) {
       // If authenticated via cookie but no user data yet, and not attempted yet
       setFetchAttempted(true)
@@ -39,7 +39,7 @@ export default function ProtectedRoute({
     // If we are on the client, the fetch was attempted (meaning the cookie check passed initially),
     // but it failed (user is null), then the session is invalid. Redirect to login.
     if (isClient && fetchAttempted) {
-      githubSignIn(window.location.href)
+      redirectToLogin(window.location.href)
       return null // Return null immediately after initiating redirect
     }
 

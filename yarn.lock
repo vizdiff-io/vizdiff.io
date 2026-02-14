@@ -7749,7 +7749,7 @@ __metadata:
     pino-http: "npm:11.0.0"
     pino-pretty: "npm:13.1.3"
     reflect-metadata: "npm:0.2.2"
-    stripe: "npm:^18.1.0"
+    stripe: "npm:^20.3.1"
     supertest: "npm:7.2.2"
     ts-node: "npm:10.9.2"
     tsconfig-paths: "npm:^4.2.0"
@@ -16098,7 +16098,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"qs@npm:^6.11.0, qs@npm:^6.12.3, qs@npm:^6.14.0, qs@npm:^6.14.1":
+"qs@npm:^6.12.3, qs@npm:^6.14.0, qs@npm:^6.14.1":
   version: 6.14.1
   resolution: "qs@npm:6.14.1"
   dependencies:
@@ -17983,20 +17983,6 @@ __metadata:
   dependencies:
     js-tokens: "npm:^9.0.1"
   checksum: 10/6eb00906a1c343a1050579d1d6023e067a2d72152edb92e64cad49535115beb2e77905ace24aa459f29b66e75edba75ef9d8eca90575b0322640d64a5d37e131
-  languageName: node
-  linkType: hard
-
-"stripe@npm:^18.1.0":
-  version: 18.1.0
-  resolution: "stripe@npm:18.1.0"
-  dependencies:
-    qs: "npm:^6.11.0"
-  peerDependencies:
-    "@types/node": ">=12.x.x"
-  peerDependenciesMeta:
-    "@types/node":
-      optional: true
-  checksum: 10/f11bf752b548cc0914d1bc82d35ceb8bbc852ae77e9c78993f68d7a39a8414365b582c2f6be3c40fea88d49e69db874990ae35e99b59964426c2269992fe9c53
   languageName: node
   linkType: hard
 

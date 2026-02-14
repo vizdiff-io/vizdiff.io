@@ -1,9 +1,33 @@
 import { Gitlab } from "@gitbeaker/rest"
 import { GitLabGroup, User, UserGitlabProjectAccess } from "shared"
+import { Agent, fetch } from "undici"
 
 import { Database } from "./database"
 import { GITLAB_HOST, GITLAB_REJECT_UNAUTHORIZED } from "./environment"
 import { log } from "./log"
+
+/**
+ * Agent for GitLab API fetch calls, respecting GITLAB_REJECT_UNAUTHORIZED.
+ * Required for self-hosted GitLab with self-signed certificates.
+ */
+const gitlabAgent = new Agent({
+  connect: { rejectUnauthorized: GITLAB_REJECT_UNAUTHORIZED },
+})
+
+/**
+ * fetch wrapper for GitLab API calls that respects GITLAB_REJECT_UNAUTHORIZED.
+ * Use this for OAuth token exchange, user profile retrieval, and token validation
+ * when calling self-hosted GitLab with self-signed certificates.
+ */
+export function gitlabFetch(
+  url: string | URL,
+  init?: Parameters<typeof fetch>[1],
+): ReturnType<typeof fetch> {
+  return fetch(url, {
+    ...init,
+    dispatcher: gitlabAgent,
+  } as Parameters<typeof fetch>[1])
+}
 
 /**
  * GitLab group from API
@@ -35,11 +59,14 @@ interface GitLabProjectResponse {
   }
 }
 
+/**
+ * Data stored in WorkTask for GitLab commit status updates.
+ * Token is resolved from the project owner at processing time - never stored in the task.
+ */
 export interface GitLabCheckData {
   projectId: number
   commitSha: string
   gitlabHost: string
-  accessToken: string
 }
 
 /**
@@ -271,19 +298,6 @@ export async function syncUserGitLabProjects(user: User): Promise<number> {
     log.error({ user, error }, "GitLab project sync failed")
     throw error
   }
-}
-
-/**
- * Fetch GitLab project details
- */
-export async function getGitLabProject(
-  projectId: number,
-  accessToken: string,
-  host: string = GITLAB_HOST,
-): Promise<GitLabProjectResponse> {
-  const client = getGitLabClient(accessToken, host)
-  const project = (await client.Projects.show(projectId)) as GitLabProjectResponse
-  return project
 }
 
 /**

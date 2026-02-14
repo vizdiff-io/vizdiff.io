@@ -33,8 +33,22 @@ export function gitlabSignIn(redirectUri: string): void {
   )
 
   // GitLab OAuth flow - redirect to our API which handles the OAuth redirect
-  const authUrl = `${APP_URL}/api/auth/gitlab/login?redirect=${encodeURIComponent(redirectUri)}`
+  // Use current origin instead of APP_URL to support dynamic URLs (e.g., ngrok)
+  const currentOrigin = typeof window !== "undefined" ? window.location.origin : APP_URL
+  const authUrl = `${currentOrigin}/api/auth/gitlab/login?redirect=${encodeURIComponent(redirectUri)}`
   window.location.href = authUrl
+}
+
+/**
+ * Redirects to the login page with a redirect param so the user returns after signing in.
+ * Use this instead of githubSignIn when the user's VCS provider is unknown (e.g. on 401),
+ * since GitLab-only users would be locked out if redirected to GitHub OAuth.
+ */
+export function redirectToLogin(redirectUri?: string): void {
+  const target =
+    redirectUri ?? (typeof window !== "undefined" ? window.location.href : `${APP_URL}/projects`)
+  const origin = typeof window !== "undefined" ? window.location.origin : APP_URL
+  window.location.href = `${origin}/login?redirect=${encodeURIComponent(target)}`
 }
 
 export async function apiGet<T>(endpoint: string): Promise<[T | null, AxiosError | null]> {
@@ -163,7 +177,7 @@ export async function apiDelete<T>(
 
 function redirectIfUnauthorized(err: AxiosError): void {
   if (err.response?.status === 401) {
-    githubSignIn(window.location.href)
+    redirectToLogin(window.location.href)
   }
 }
 

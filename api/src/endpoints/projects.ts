@@ -6,7 +6,7 @@ import type { ProjectResponse } from "../apiTypes"
 import { toSeconds } from "../conversions"
 import { trackEvent, trackPageView } from "../customerio"
 import { Database } from "../database"
-import { MAX_PROJECTS_PER_USER, TRIAL_PERIOD_MS } from "../environment"
+import { GITLAB_HOST, MAX_PROJECTS_PER_USER, TRIAL_PERIOD_MS } from "../environment"
 import { getParamInt } from "../http"
 import { log } from "../log"
 import { getAccessibleProjectIds } from "../projectAccess"
@@ -206,6 +206,9 @@ export const create: RequestHandler = async (req, res) => {
   project.repoUrl = repoUrl
   project.user = user
   project.token = generateProjectToken()
+  if (vcsProvider === "gitlab") {
+    project.gitlabHost = user.gitlabHost ?? GITLAB_HOST
+  }
 
   const projectTable = db.getRepository(Project)
   await projectTable.save(project)

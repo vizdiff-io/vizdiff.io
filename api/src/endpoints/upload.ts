@@ -7,9 +7,9 @@ import { uuidv7 } from "uuidv7"
 import { getProjectByToken, getS3BucketForProject } from "../authenticate"
 import { trackEvent } from "../customerio"
 import { Database } from "../database"
-import { APP_URL, ENABLE_VCS_STATUS, TRIAL_PERIOD_MS } from "../environment"
+import { APP_URL, ENABLE_VCS_STATUS, GITLAB_HOST, TRIAL_PERIOD_MS } from "../environment"
 import { getInstallationForOrg, getOctokitForInstallation } from "../github"
-import { updateGitLabCommitStatus } from "../gitlab"
+import { type GitLabCheckData, updateGitLabCommitStatus } from "../gitlab"
 import { getQueryString } from "../http"
 import { log } from "../log"
 import { createScreenshotTest } from "../screenshotTests"
@@ -169,9 +169,7 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
   let githubCheckData:
     | { owner: string; repo: string; checkRunId: number; installationId: number }
     | undefined
-  let gitlabCheckData:
-    | { projectId: number; commitSha: string; gitlabHost: string; accessToken: string }
-    | undefined
+  let gitlabCheckData: GitLabCheckData | undefined
 
   if (project.vcsProvider === "github") {
     // Get the installation ID for this project
@@ -200,7 +198,7 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
     }
   } else {
     // Create GitLab commit status for this upload
-    const gitlabHost = projectOwner.gitlabHost ?? "https://gitlab.com"
+    const gitlabHost = projectOwner.gitlabHost ?? GITLAB_HOST
     const accessToken = projectOwner.gitlabAccessToken
 
     if (accessToken && ENABLE_VCS_STATUS) {
@@ -214,11 +212,11 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
         })
         // GitLab doesn't return an ID for commit statuses, use 1 as a flag
         vcsStatusId = 1
+        // Store only non-sensitive data; worker resolves token from project owner at processing time
         gitlabCheckData = {
           projectId: project.repoId,
           commitSha,
           gitlabHost,
-          accessToken,
         }
         logChild.info(`Created GitLab commit status for ${project.repoUrl}#${commitSha}`)
       } catch (error) {

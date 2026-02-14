@@ -54,9 +54,7 @@ GITLAB_WEBHOOK_SECRET=generate_a_random_secret    # Any secure random string
 GITLAB_REJECT_UNAUTHORIZED=false
 
 # Frontend environment variables
-NEXT_PUBLIC_GITLAB_APP_NAME=VizDiff
 NEXT_PUBLIC_GITLAB_CLIENT_ID=your_application_id
-NEXT_PUBLIC_GITLAB_HOST=https://gitlab.com
 ```
 
 After updating environment variables, restart your VizDiff services.

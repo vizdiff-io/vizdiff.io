@@ -122,7 +122,7 @@ export default function Login(): JSX.Element {
                     screenshot changes.
                   </Typography>
                 </Box>
-                <Stack direction="column" spacing={2} sx={{ pt: 3 }}>
+                <Stack direction="column" spacing={2} sx={{ pt: 3, alignItems: "flex-start" }}>
                   {hasGitHub && (
                     <Button
                       variant="contained"
@@ -132,6 +132,9 @@ export default function Login(): JSX.Element {
                       sx={{
                         bgcolor: "white",
                         color: "black",
+                        py: 0.75,
+                        px: 1.5,
+                        minHeight: "unset",
                         "&:hover": {
                           bgcolor: "#f5f5f5",
                         },
@@ -151,6 +154,9 @@ export default function Login(): JSX.Element {
                       sx={{
                         bgcolor: "white",
                         color: "black",
+                        py: 0.75,
+                        px: 1.5,
+                        minHeight: "unset",
                         "&:hover": {
                           bgcolor: "#f5f5f5",
                         },

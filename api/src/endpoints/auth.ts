@@ -21,7 +21,7 @@ import {
   STRIPE_API_VERSION,
 } from "../environment"
 import { syncUserInstallations, syncUserGithubRepos } from "../github"
-import { syncUserGitLabGroups, syncUserGitLabProjects } from "../gitlab"
+import { gitlabFetch, syncUserGitLabGroups, syncUserGitLabProjects } from "../gitlab"
 import { isValidRedirectUrl, parseSimpleQueryString, requiredQueryString } from "../http"
 import { log } from "../log"
 import type { GithubUser } from "../schemas/GithubUser"
@@ -40,18 +40,23 @@ interface GitLabUser {
   state: string
 }
 
-if (!GITHUB_CLIENT_ID) {
-  throw new Error("Missing GITHUB_CLIENT_ID")
+// Require at least one VCS provider (GitHub or GitLab) for OAuth
+const hasGitHub = !!(
+  GITHUB_CLIENT_ID &&
+  GITHUB_CLIENT_SECRET &&
+  GITHUB_APP_ID &&
+  GITHUB_PRIVATE_KEY
+)
+const hasGitLab = !!(GITLAB_CLIENT_ID && GITLAB_CLIENT_SECRET)
+
+if (!hasGitHub && !hasGitLab) {
+  throw new Error(
+    "At least one VCS provider must be configured. " +
+      "For GitHub: set GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, GITHUB_APP_ID, GITHUB_PRIVATE_KEY. " +
+      "For GitLab: set GITLAB_CLIENT_ID, GITLAB_CLIENT_SECRET.",
+  )
 }
-if (!GITHUB_CLIENT_SECRET) {
-  throw new Error("Missing GITHUB_CLIENT_SECRET")
-}
-if (!GITHUB_APP_ID) {
-  throw new Error("Missing GITHUB_APP_ID")
-}
-if (!GITHUB_PRIVATE_KEY) {
-  throw new Error("Missing GITHUB_PRIVATE_KEY")
-}
+
 if (!APP_URL) {
   throw new Error("Missing APP_URL")
 }
@@ -82,6 +87,11 @@ function getRequestOrigin(req: DefaultRequest): string {
 }
 
 export async function githubAppInstalled(req: DefaultRequest, res: DefaultResponse): Promise<void> {
+  if (!GITHUB_CLIENT_ID || !GITHUB_CLIENT_SECRET || !GITHUB_APP_ID || !GITHUB_PRIVATE_KEY) {
+    res.status(500).json({ error: "GitHub OAuth not configured" })
+    return
+  }
+
   const setupAction = requiredQueryString("setup_action", req)
   const installationId = requiredQueryString("installation_id", req)
 
@@ -105,6 +115,11 @@ export async function githubAppInstalled(req: DefaultRequest, res: DefaultRespon
 }
 
 export async function githubCallback(req: DefaultRequest, res: DefaultResponse): Promise<void> {
+  if (!GITHUB_CLIENT_ID || !GITHUB_CLIENT_SECRET) {
+    res.status(500).json({ error: "GitHub OAuth not configured" })
+    return
+  }
+
   const code = requiredQueryString("code", req)
 
   // Handle both direct app installation callback and OAuth callback
@@ -310,16 +325,21 @@ export async function gitlabLogin(req: DefaultRequest, res: DefaultResponse): Pr
     return
   }
 
+  // Use the request origin to support dynamic URLs (e.g., ngrok)
+  const requestOrigin = getRequestOrigin(req)
+
   // Get the redirect URL from query params (where to send user after auth)
   const redirect =
     (typeof req.query.redirect === "string" ? req.query.redirect : undefined) ??
-    `${APP_URL}/projects`
+    `${requestOrigin}/projects`
 
-  // Build the state parameter with redirect info
-  const state = encodeURIComponent(`redirect=${encodeURIComponent(redirect)}`)
-
-  // Build the callback URI
-  const callbackUri = encodeURIComponent(`${APP_URL}/api/auth/gitlab/callback`)
+  // Build the callback URI - must be identical in authorize and token exchange.
+  // Store in state so callback uses the exact same value (avoids mismatch when
+  // requestOrigin differs between steps, e.g. behind ngrok, proxies, or load balancers).
+  const callbackUri = `${requestOrigin}/api/auth/gitlab/callback`
+  const state = encodeURIComponent(
+    `redirect=${encodeURIComponent(redirect)}&callback_uri=${encodeURIComponent(callbackUri)}`,
+  )
 
   // GitLab OAuth scopes needed for our integration:
   // - read_user: Access user profile info
@@ -332,7 +352,7 @@ export async function gitlabLogin(req: DefaultRequest, res: DefaultResponse): Pr
   const authUrl =
     `${GITLAB_HOST}/oauth/authorize?` +
     `client_id=${GITLAB_CLIENT_ID}` +
-    `&redirect_uri=${callbackUri}` +
+    `&redirect_uri=${encodeURIComponent(callbackUri)}` +
     `&response_type=code` +
     `&scope=${scope}` +
     `&state=${state}`
@@ -351,17 +371,19 @@ export async function gitlabCallback(req: DefaultRequest, res: DefaultResponse):
 
   const code = requiredQueryString("code", req)
 
-  // Parse state to get redirect URL
+  // Parse state to get redirect URL and callback URI
   let finalRedirect: string | undefined
+  let callbackUri: string | undefined
   const state = req.query.state as string | undefined
   if (state) {
     const stateValues = parseSimpleQueryString(state)
     finalRedirect = stateValues.get("redirect")
+    callbackUri = stateValues.get("callback_uri")
   }
 
   finalRedirect ??= `${APP_URL}/projects`
 
-  // Use the request origin to support dynamic URLs (e.g., ngrok)
+  // Use the request origin to validate redirect URL and as fallback for callback_uri
   const requestOrigin = getRequestOrigin(req)
 
   // Validate redirect URL against the request origin to support dynamic URLs (e.g., ngrok)
@@ -369,11 +391,29 @@ export async function gitlabCallback(req: DefaultRequest, res: DefaultResponse):
     throw new Error(`Invalid redirect URL: ${finalRedirect}`)
   }
 
-  const callbackUri = `${requestOrigin}/api/auth/gitlab/callback`
+  // Use callback_uri from state so it matches exactly what was sent to GitLab in the authorize step.
+  // This avoids redirect_uri mismatch when requestOrigin differs between steps (ngrok, proxies, etc.).
+  callbackUri ??= `${requestOrigin}/api/auth/gitlab/callback`
+
+  // Validate callback_uri is our auth endpoint (GitLab also validates against registered URIs)
+  try {
+    const parsed = new URL(callbackUri)
+    if (
+      (parsed.protocol !== "http:" && parsed.protocol !== "https:") ||
+      !parsed.pathname.endsWith("/api/auth/gitlab/callback")
+    ) {
+      throw new Error(`Invalid callback_uri in state`)
+    }
+  } catch (err) {
+    if (err instanceof TypeError) {
+      throw new Error("Invalid callback_uri in state")
+    }
+    throw err
+  }
 
   // Exchange the authorization code for access token
   log.debug(`Exchanging GitLab code for access token for ${req.ip}`)
-  const tokenRes = await fetch(`${GITLAB_HOST}/oauth/token`, {
+  const tokenRes = await gitlabFetch(`${GITLAB_HOST}/oauth/token`, {
     method: "POST",
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
@@ -407,7 +447,7 @@ export async function gitlabCallback(req: DefaultRequest, res: DefaultResponse):
 
   // Fetch user profile from GitLab
   log.debug(`GitLab OAuth authenticated for ${req.ip}, retrieving user info`)
-  const userRes = await fetch(`${GITLAB_HOST}/api/v4/user`, {
+  const userRes = await gitlabFetch(`${GITLAB_HOST}/api/v4/user`, {
     headers: {
       Authorization: `Bearer ${tokenData.access_token}`,
       Accept: "application/json",

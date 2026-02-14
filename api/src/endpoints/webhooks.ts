@@ -5,6 +5,7 @@ import { Database } from "../database"
 import {
   APP_URL,
   GITHUB_WEBHOOK_SECRET,
+  GITLAB_HOST,
   GITLAB_WEBHOOK_SECRET,
   IS_PRODUCTION,
   IS_STAGING,
@@ -118,7 +119,8 @@ async function findProjectByRepo(
 }
 
 /**
- * Find a project by GitLab project ID
+ * Find a project by GitLab project ID and host. Webhooks from the configured GitLab instance
+ * are matched by GITLAB_HOST to prevent cross-host mismatches when serving multiple instances.
  */
 async function findProjectByGitLabId(gitlabProjectId: number): Promise<Project | undefined> {
   const db = await Database()
@@ -127,6 +129,7 @@ async function findProjectByGitLabId(gitlabProjectId: number): Promise<Project |
     where: {
       vcsProvider: "gitlab",
       repoId: gitlabProjectId,
+      gitlabHost: GITLAB_HOST,
     },
   })
   return project ?? undefined

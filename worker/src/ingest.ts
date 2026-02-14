@@ -37,12 +37,26 @@ export async function ingestStorybook(
 ): Promise<void> {
   log.info(`Starting storybook ingestion for project ${projectId}, upload ${uploadId}`)
 
-  // Fetch the screenshot test record
+  // Fetch the screenshot test record (project and user loaded via eager relations)
   const db = await Database()
   const screenshotTestRepo = db.getRepository(ScreenshotTest)
   const screenshotTest = await screenshotTestRepo.findOneBy({ id: screenshotTestId })
   if (!screenshotTest) {
     throw new Error(`Screenshot test not found: ${screenshotTestId}`)
+  }
+
+  // Resolve GitLab token from project owner at processing time (never stored in task data)
+  const gitlabCredentials = gitlabCheckData
+    ? {
+        accessToken: screenshotTest.project.user.gitlabAccessToken ?? undefined,
+        host: screenshotTest.project.user.gitlabHost ?? gitlabCheckData.gitlabHost,
+      }
+    : null
+  if (gitlabCheckData && !gitlabCredentials?.accessToken) {
+    log.warn(
+      { projectOwnerId: screenshotTest.project.user.id },
+      "Skipping GitLab commit status updates: project owner has no access token",
+    )
   }
 
   // Update VCS status based on provider
@@ -62,9 +76,11 @@ export async function ingestStorybook(
       log.error(error, "Failed to update GitHub check run to in-progress")
       // Continue with the ingest process even if the GitHub API call fails
     }
-  } else if (gitlabCheckData) {
+  } else if (gitlabCheckData && gitlabCredentials?.accessToken) {
     await updateGitLabCommitStatus({
       ...gitlabCheckData,
+      accessToken: gitlabCredentials.accessToken,
+      gitlabHost: gitlabCredentials.host,
       state: "running",
       testId: screenshotTestId,
       name: "vizdiff/visual-tests",
@@ -252,12 +268,14 @@ export async function ingestStorybook(
             testResults,
             changeCount,
           )
-        } else if (gitlabCheckData) {
+        } else if (gitlabCheckData && gitlabCredentials?.accessToken) {
           const hasChanges = changeCount > 0
           if (!hasChanges) {
             // Only update status to success if no changes - otherwise stay in pending until approved
             await updateGitLabCommitStatus({
               ...gitlabCheckData,
+              accessToken: gitlabCredentials.accessToken,
+              gitlabHost: gitlabCredentials.host,
               state: "success",
               testId: screenshotTest.id,
               name: "vizdiff/visual-tests",
@@ -313,9 +331,11 @@ export async function ingestStorybook(
       } catch (githubError) {
         log.error(githubError, "Failed to update GitHub check run to failure")
       }
-    } else if (gitlabCheckData) {
+    } else if (gitlabCheckData && gitlabCredentials?.accessToken) {
       await updateGitLabCommitStatus({
         ...gitlabCheckData,
+        accessToken: gitlabCredentials.accessToken,
+        gitlabHost: gitlabCredentials.host,
         state: "failed",
         testId: screenshotTestId,
         name: "vizdiff/visual-tests",
@@ -351,9 +371,11 @@ export async function ingestStorybook(
         } catch (error) {
           log.error(error, "Failed to update GitHub check run to cancelled")
         }
-      } else if (gitlabCheckData) {
+      } else if (gitlabCheckData && gitlabCredentials?.accessToken) {
         await updateGitLabCommitStatus({
           ...gitlabCheckData,
+          accessToken: gitlabCredentials.accessToken,
+          gitlabHost: gitlabCredentials.host,
           state: "canceled",
           testId: screenshotTestId,
           name: "vizdiff/visual-tests",

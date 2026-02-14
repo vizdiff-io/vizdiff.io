@@ -18,6 +18,7 @@ import {
   GITLAB_HOST,
 } from "./environment"
 import { getInstallationsForUserId } from "./github"
+import { gitlabFetch } from "./gitlab"
 import { log } from "./log"
 import type { RequestLocals } from "./types"
 
@@ -64,9 +65,8 @@ async function validateGitLabToken(user: User): Promise<boolean> {
 
     const gitlabHost = user.gitlabHost ?? GITLAB_HOST
 
-    // Validate the token by fetching the current user
-    // Using direct fetch similar to auth.ts since gitbeaker doesn't have a current() method
-    const userRes = await fetch(`${gitlabHost}/api/v4/user`, {
+    // Using gitlabFetch (respects GITLAB_REJECT_UNAUTHORIZED for self-signed certs)
+    const userRes = await gitlabFetch(`${gitlabHost}/api/v4/user`, {
       headers: {
         Authorization: `Bearer ${user.gitlabAccessToken}`,
         Accept: "application/json",
