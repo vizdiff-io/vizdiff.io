@@ -4,8 +4,6 @@ import { expect, describe, it, afterAll } from "vitest"
 import { Database } from "./database"
 import server from "./index"
 
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-
 describe("app", () => {
   it("should have a correctly configured test environment", () => {
     expect(process.env.NODE_ENV).toBe("test")

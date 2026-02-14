@@ -202,9 +202,9 @@ export async function captureStableScreenshot(
     log.debug(`Injecting CSS to remove body padding for story ${storyId}`)
     await browser.execute(() => {
       // @ts-expect-error: document is not defined
-      // eslint-disable-next-line
+
       const style = document.createElement("style")
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+
       style.textContent = `
         body.sb-main-padded.sb-show-main {
           padding: 0 !important;
@@ -212,7 +212,7 @@ export async function captureStableScreenshot(
         }
       `
       // @ts-expect-error: document is not defined
-      // eslint-disable-next-line
+
       document.head.appendChild(style)
     })
 
@@ -554,7 +554,7 @@ async function waitForStorybookToLoad(browser: Browser): Promise<void> {
           // eslint-disable-next-line
           return !!(window.__STORYBOOK_PREVIEW__ && window.__STORYBOOK_PREVIEW__.ready)
         })
-        log.debug(`Storybook ready: ${ready}`)
+        log.debug("Storybook ready:", ready)
         return ready
       } catch (err) {
         log.error(err, "Error checking Storybook ready state")
@@ -661,17 +661,17 @@ async function adjustViewportForStory(
   try {
     const contentHeight = await browser.execute(() => {
       // @ts-expect-error: document is not defined
-      // eslint-disable-next-line
+
       const b = document.body as { scrollHeight?: number } | undefined
       // @ts-expect-error: document is not defined
-      // eslint-disable-next-line
+
       const h = document.documentElement as { scrollHeight?: number } | undefined
       // Ensure elements exist before accessing properties
       const bodyScrollHeight = b?.scrollHeight ? b.scrollHeight : 0
       const docScrollHeight = h?.scrollHeight ? h.scrollHeight : 0
       return Math.max(bodyScrollHeight, docScrollHeight)
     })
-    log.debug(`Content height for story ${storyId}: ${contentHeight}`)
+    log.debug(`Content height for story ${storyId}: ${Number(contentHeight)}`)
 
     // Calculate desired height, respecting content and initial viewport
     const desiredHeight = Math.max(originalHeight, contentHeight)
@@ -688,7 +688,7 @@ async function adjustViewportForStory(
     if (finalHeight !== originalHeight) {
       log.info(
         `Adjusting viewport height for story ${storyId} from ${originalHeight} to ${finalHeight} ` +
-          `(content: ${contentHeight})`,
+          `(content: ${Number(contentHeight)})`,
       )
       await browser.setViewport({
         width: originalWidth,
