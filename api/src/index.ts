@@ -14,6 +14,7 @@ import { InitializeDatabase } from "./database"
 import * as Approval from "./endpoints/approval"
 import * as Auth from "./endpoints/auth"
 import * as Github from "./endpoints/github"
+import * as Gitlab from "./endpoints/gitlab"
 import * as Health from "./endpoints/health"
 import * as Projects from "./endpoints/projects"
 import * as ScreenshotTests from "./endpoints/screenshotTests"
@@ -90,13 +91,22 @@ router.get("/", (_req: DefaultRequest, res: DefaultResponse) => {
 })
 router.get("/health", Health.health)
 
-// Auth routes
+// Auth routes - GitHub
 router.get("/auth/github/callback", Auth.githubCallback)
 router.get("/auth/github/installed", Auth.githubAppInstalled)
 router.get("/auth/logout", Auth.logout) // Clears cookies only, no auth needed
 
+// Auth routes - GitLab
+router.get("/auth/gitlab/login", Auth.gitlabLogin)
+router.get("/auth/gitlab/callback", Auth.gitlabCallback)
+
+// GitHub API routes
 router.get("/github/orgs", authenticateJWT, requireUser, Github.orgs)
 router.get("/github/repos", authenticateJWT, requireUser, Github.repos)
+
+// GitLab API routes
+router.get("/gitlab/groups", authenticateJWT, requireUser, Gitlab.groups)
+router.get("/gitlab/projects", authenticateJWT, requireUser, Gitlab.projects)
 
 router.get("/activity", authenticateJWT, requireUser, ScreenshotTests.listActivity)
 
@@ -113,6 +123,7 @@ router.post("/tests/:id/status/:status", authenticateJWT, requireUser, Approval.
 router.get("/users/me", authenticateJWT, requireUser, User.me)
 router.delete("/users/me", authenticateJWT, requireUser, User.deleteAccount)
 router.post("/sync-github-repos", authenticateJWT, requireUser, User.syncGithubRepos)
+router.post("/sync-gitlab-projects", authenticateJWT, requireUser, User.syncGitlabProjects)
 router.post("/upload/storybook", Upload.uploadStorybook) // ?token=<project_token>
 
 // Setup/validation routes (optionally protected by SETUP_TOKEN)
@@ -134,8 +145,9 @@ if (STRIPE_SECRET_KEY) {
   log.info("Stripe is disabled; skipping Stripe routes")
 }
 
-// GitHub webhook route
+// Webhook routes
 router.post("/webhooks/github", Webhooks.githubWebhook)
+router.post("/webhooks/gitlab", Webhooks.gitlabWebhook)
 
 app.use("/api", router)
 

@@ -2,8 +2,9 @@ import { createMarkdownForBuildApproval, ScreenshotTest, TestResult } from "shar
 
 import { trackEvent } from "../customerio"
 import { Database } from "../database"
-import { APP_URL, IS_PRODUCTION, IS_STAGING } from "../environment"
+import { APP_URL, ENABLE_VCS_STATUS, GITLAB_HOST } from "../environment"
 import { getInstallationForOrg, getOctokitForInstallation } from "../github"
+import { updateGitLabCommitStatus } from "../gitlab"
 import { getParamInt } from "../http"
 import { log } from "../log"
 import { getAccessibleProjectIds } from "../projectAccess"
@@ -41,6 +42,7 @@ export const approveOrDeny: RequestHandler = async (req, res) => {
   const test = await testTable
     .createQueryBuilder("test")
     .innerJoinAndSelect("test.project", "project")
+    .innerJoinAndSelect("project.user", "projectOwner")
     .where("test.id = :id", { id: testId })
     .andWhere("project.id IN (:...projectIds)", { projectIds: accessibleProjectIds })
     .getOne()
@@ -58,8 +60,12 @@ export const approveOrDeny: RequestHandler = async (req, res) => {
   test.status = status
   await testTable.save(test)
 
-  // Update GitHub check run if available
-  if ((IS_PRODUCTION || IS_STAGING) && test.githubCheckRunId) {
+  // Update VCS status if available (GitHub check run or GitLab commit status)
+  // GitLab does not need vcsStatusId - we can post a final status by commit SHA alone.
+  // This allows recovery when the initial pending status failed during upload (transient API errors).
+  const shouldUpdateVcs =
+    ENABLE_VCS_STATUS && (test.vcsStatusId != null || test.project.vcsProvider === "gitlab")
+  if (shouldUpdateVcs) {
     try {
       // Count the number of visual changes that were approved or denied
       const testResultTable = db.getRepository(TestResult)
@@ -67,55 +73,97 @@ export const approveOrDeny: RequestHandler = async (req, res) => {
         where: { screenshotTest: { id: test.id } },
       })
 
-      // Extract the GitHub owner and repo from the GitHub repository URL
-      const [owner, repo] = test.project.githubRepoUrl.split("/").slice(-2)
-      if (!owner || !repo) {
-        throw new Error(`Invalid GitHub repository URL: ${test.project.githubRepoUrl}`)
-      }
+      if (test.project.vcsProvider === "github") {
+        // Extract the GitHub owner and repo from the repository URL
+        const [owner, repo] = test.project.repoUrl.split("/").slice(-2)
+        if (!owner || !repo) {
+          throw new Error(`Invalid GitHub repository URL: ${test.project.repoUrl}`)
+        }
 
-      // Get the installation ID for this project
-      const installation = await getInstallationForOrg(user.id, owner)
-      if (!installation) {
-        throw new Error(`GitHub App installation not found for ${owner}`)
-      }
+        // Get the installation ID for this project
+        const installation = await getInstallationForOrg(user.id, owner)
+        if (!installation) {
+          throw new Error(`GitHub App installation not found for ${owner}`)
+        }
 
-      const { title, summary, text } = createMarkdownForBuildApproval(
-        test,
-        testResults,
-        user.githubUsername,
-      )
+        // Get username (prefer GitHub for GitHub projects, fall back to GitLab)
+        const username = user.githubUsername ?? user.gitlabUsername ?? "Unknown"
 
-      // Create a new check run with the success or failure conclusion
-      const conclusion = status === "approved" ? "success" : "failure"
-      const octokit = await getOctokitForInstallation(installation.installationId)
-      const result = await octokit.checks.create({
-        owner,
-        repo,
-        head_sha: test.commitSha,
-        external_id: String(test.id),
-        name: "Visual Tests",
-        status: "completed",
-        conclusion,
-        details_url: `${APP_URL}/build?id=${test.id}`,
-        output: { title, summary, text },
-      })
-      log.info(
-        {
-          userId: user.id,
-          testId: test.id,
-          checkRunId: result.data.id,
-          status,
-          createStatus: result.status,
+        const { title, summary, text } = createMarkdownForBuildApproval(test, testResults, username)
+
+        // Create a new check run with the success or failure conclusion
+        const conclusion = status === "approved" ? "success" : "failure"
+        const octokit = await getOctokitForInstallation(installation.installationId)
+        const result = await octokit.checks.create({
+          owner,
+          repo,
+          head_sha: test.commitSha,
+          external_id: String(test.id),
+          name: "Visual Tests",
+          status: "completed",
           conclusion,
-        },
-        `Created GitHub check run ${result.data.id} for ${test.toString()} with conclusion: ${conclusion}`,
-      )
+          details_url: `${APP_URL}/build?id=${test.id}`,
+          output: { title, summary, text },
+        })
+        log.info(
+          {
+            userId: user.id,
+            testId: test.id,
+            checkRunId: result.data.id,
+            status,
+            createStatus: result.status,
+            conclusion,
+          },
+          `Created GitHub check run ${result.data.id} for ${test.toString()} with conclusion: ${conclusion}`,
+        )
+      } else {
+        // Update GitLab commit status using the project owner's credentials
+        const projectOwner = test.project.user
+        const gitlabHost = projectOwner.gitlabHost ?? GITLAB_HOST
+        const accessToken = projectOwner.gitlabAccessToken
+
+        if (!accessToken) {
+          log.warn(
+            {
+              projectOwnerId: projectOwner.id,
+              testId: test.id,
+              projectId: test.project.id,
+            },
+            `Project owner ${projectOwner.id} does not have GitLab access token, skipping commit status update`,
+          )
+          // Don't throw - allow approval/denial to succeed even if we can't update GitLab status
+        } else {
+          const state = status === "approved" ? "success" : "failed"
+          const changeCount = testResults.filter((r) => r.diffRatio && r.diffRatio > 0).length
+
+          await updateGitLabCommitStatus(test.project.repoId, test.commitSha, state, {
+            name: "vizdiff/visual-tests",
+            targetUrl: `${APP_URL}/build?id=${test.id}`,
+            description:
+              status === "approved"
+                ? `${changeCount} visual change${changeCount === 1 ? "" : "s"} approved`
+                : `${changeCount} visual change${changeCount === 1 ? "" : "s"} denied`,
+            accessToken,
+            host: gitlabHost,
+          })
+
+          log.info(
+            {
+              projectOwnerId: projectOwner.id,
+              approvingUserId: user.id,
+              testId: test.id,
+              projectId: test.project.repoId,
+              commitSha: test.commitSha,
+              status,
+              state,
+            },
+            `Updated GitLab commit status for ${test.toString()} with state: ${state}`,
+          )
+        }
+      }
     } catch (err) {
-      log.error(
-        { user, test, status, err },
-        `Failed to update GitHub check run for ${test.toString()}`,
-      )
-      // Don't fail the API call if GitHub update fails
+      log.error({ user, test, status, err }, `Failed to update VCS status for ${test.toString()}`)
+      // Don't fail the API call if VCS update fails
     }
   }
 

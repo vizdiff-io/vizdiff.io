@@ -16,6 +16,11 @@ configEnv({
 export const IS_PRODUCTION = process.env.NODE_ENV === "production"
 export const IS_STAGING = process.env.NODE_ENV === "staging"
 export const IS_TEST = process.env.NODE_ENV === "test"
+// Allow VCS status posting in dev mode for testing (defaults to true in prod/staging)
+export const ENABLE_VCS_STATUS =
+  process.env.ENABLE_VCS_STATUS != undefined
+    ? process.env.ENABLE_VCS_STATUS === "true"
+    : IS_PRODUCTION || IS_STAGING
 
 export const POSTGRES_USER = process.env.POSTGRES_USER ?? "postgres"
 export const POSTGRES_HOST = process.env.POSTGRES_HOST ?? "localhost"
@@ -31,6 +36,10 @@ export const GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID ?? ""
 export const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET ?? ""
 export const GITHUB_PRIVATE_KEY = process.env.GITHUB_PRIVATE_KEY ?? ""
 export const GITHUB_WEBHOOK_SECRET = process.env.GITHUB_WEBHOOK_SECRET ?? ""
+
+// GitLab API settings
+export const GITLAB_HOST = process.env.GITLAB_HOST ?? "https://gitlab.com"
+export const GITLAB_REJECT_UNAUTHORIZED = process.env.GITLAB_REJECT_UNAUTHORIZED !== "false"
 
 // Stripe settings
 export const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY

@@ -4,7 +4,6 @@ import type {
   ScreenshotTestResponse,
   ScreenshotTestSummaryResponse,
   TestResponse,
-  TestResultResponse,
 } from "../apiTypes"
 import { toSeconds } from "../conversions"
 import { trackPageView } from "../customerio"
@@ -44,7 +43,8 @@ interface ActivityQueryResult {
   screenshot_test_tag: string | null
   project_id: number
   project_name: string
-  project_github_repo_url: string
+  project_vcs_provider: string
+  project_repo_url: string
   testcount: string
 }
 
@@ -136,7 +136,9 @@ export const list: RequestHandler = async (req, res) => {
     id: test.screenshot_test_id,
     projectId,
     projectName: project.name,
-    githubRepoUrl: project.githubRepoUrl,
+    vcsProvider: project.vcsProvider,
+    repoUrl: project.repoUrl,
+    githubRepoUrl: project.repoUrl, // Legacy alias
     buildNumber: test.screenshot_test_build_number,
     commitSha: test.screenshot_test_git_commit,
     branch: test.screenshot_test_git_branch,
@@ -193,7 +195,9 @@ export const get: RequestHandler = async (req, res) => {
     id: screenshotTest.id,
     projectId: project.id,
     projectName: project.name,
-    githubRepoUrl: project.githubRepoUrl,
+    vcsProvider: project.vcsProvider,
+    repoUrl: project.repoUrl,
+    githubRepoUrl: project.repoUrl, // Legacy alias
     buildNumber: screenshotTest.buildNumber,
     commitSha: screenshotTest.commitSha,
     branch: screenshotTest.branch,
@@ -208,7 +212,7 @@ export const get: RequestHandler = async (req, res) => {
     testResults: testResults.map((result) => ({
       id: result.id,
       name: result.name,
-      changeStatus: result.changeStatus as TestResultResponse["changeStatus"],
+      changeStatus: result.changeStatus,
       screenshotUrl: result.newImageUrl,
       ancestorScreenshotUrl: result.baselineImageUrl ?? undefined,
       diffMaskUrl: result.diffImageUrl ?? undefined,
@@ -220,7 +224,7 @@ export const get: RequestHandler = async (req, res) => {
   trackPageView(user.id, req, `/build?id=${screenshotTest.id}`, {
     projectId: project.id,
     projectName: project.name,
-    repo: project.githubRepoUrl,
+    repo: project.repoUrl,
     buildNumber: screenshotTest.buildNumber,
     status: screenshotTest.status,
     testCount: testResults.length,
@@ -299,7 +303,8 @@ export const listActivity: RequestHandler = async (req, res) => {
       "screenshot_test.tag as screenshot_test_tag",
       "project.id as project_id",
       "project.name as project_name",
-      "project.github_repo_url as project_github_repo_url",
+      "project.vcs_provider as project_vcs_provider",
+      "project.repo_url as project_repo_url",
       "COALESCE(test_counts.testcount, '0') as testcount",
     ])
     .orderBy("screenshot_test.createdAt", "DESC")
@@ -317,8 +322,10 @@ export const listActivity: RequestHandler = async (req, res) => {
     id: test.screenshot_test_id,
     projectId: test.project_id,
     projectName: test.project_name,
+    vcsProvider: test.project_vcs_provider as ScreenshotTestResponse["vcsProvider"],
+    repoUrl: test.project_repo_url,
+    githubRepoUrl: test.project_repo_url, // Legacy alias
     buildNumber: test.screenshot_test_build_number,
-    githubRepoUrl: test.project_github_repo_url,
     commitSha: test.screenshot_test_git_commit,
     branch: test.screenshot_test_git_branch,
     baseCommitSha: test.screenshot_test_base_commit_sha ?? undefined,

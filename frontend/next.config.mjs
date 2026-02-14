@@ -19,7 +19,7 @@ const nextConfigDev = {
     return [
       {
         source: "/api/:path*",
-        destination: `${process.env.NEXT_PUBLIC_API_URL}/:path*`, // Proxy to API server
+        destination: `${process.env.NEXT_PUBLIC_API_URL}/api/:path*`, // Proxy to API server
       },
     ]
   },

@@ -7,8 +7,9 @@ import { uuidv7 } from "uuidv7"
 import { getProjectByToken, getS3BucketForProject } from "../authenticate"
 import { trackEvent } from "../customerio"
 import { Database } from "../database"
-import { APP_URL, IS_PRODUCTION, IS_STAGING, TRIAL_PERIOD_MS } from "../environment"
+import { APP_URL, ENABLE_VCS_STATUS, GITLAB_HOST, TRIAL_PERIOD_MS } from "../environment"
 import { getInstallationForOrg, getOctokitForInstallation } from "../github"
+import { type GitLabCheckData, updateGitLabCommitStatus } from "../gitlab"
 import { getQueryString } from "../http"
 import { log } from "../log"
 import { createScreenshotTest } from "../screenshotTests"
@@ -75,7 +76,8 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
   const logChild = log.child({
     userId: project.user.id,
     projectId: project.id,
-    repo: project.githubRepoUrl,
+    repo: project.repoUrl,
+    vcsProvider: project.vcsProvider,
     uploadId,
     uploadLength: length,
     commitSha,
@@ -143,20 +145,12 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
     throw new Error(`Failed to upload to S3: ${msg}`)
   }
 
-  logChild.info(
-    `Uploaded ${length} bytes to ${Bucket}/${Key} for ${project.githubRepoUrl}#${commitSha}`,
-  )
+  logChild.info(`Uploaded ${length} bytes to ${Bucket}/${Key} for ${project.repoUrl}#${commitSha}`)
 
-  // Extract the GitHub owner and repo from the GitHub repository URL
-  const [owner, repo] = project.githubRepoUrl.split("/").slice(-2)
+  // Extract the owner and repo from the repository URL
+  const [owner, repo] = project.repoUrl.split("/").slice(-2)
   if (!owner || !repo) {
-    throw new Error(`Invalid GitHub repository URL: ${project.githubRepoUrl}`)
-  }
-
-  // Get the installation ID for this project
-  const installation = await getInstallationForOrg(project.user.id, owner)
-  if (!installation) {
-    throw new Error(`GitHub App installation not found for ${owner}`)
+    throw new Error(`Invalid repository URL: ${project.repoUrl}`)
   }
 
   // Create a row in `screenshot_tests` for this upload
@@ -170,18 +164,76 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
     prNumber,
   })
 
-  // Create a GitHub check_run for this upload
-  const githubCheckRunId = await createGitHubCheckRun({
-    logChild,
-    installationId: installation.installationId,
-    owner,
-    repo,
-    commitSha,
-    screenshotTest,
-  })
+  // Create VCS status update based on provider
+  let vcsStatusId: number | null = null
+  let githubCheckData:
+    | { owner: string; repo: string; checkRunId: number; installationId: number }
+    | undefined
+  let gitlabCheckData: GitLabCheckData | undefined
 
-  // Update the screenshot test with the GitHub check_run ID
-  screenshotTest.githubCheckRunId = githubCheckRunId
+  if (project.vcsProvider === "github") {
+    // Get the installation ID for this project
+    const installation = await getInstallationForOrg(project.user.id, owner)
+    if (!installation) {
+      throw new Error(`GitHub App installation not found for ${owner}`)
+    }
+
+    // Create a GitHub check_run for this upload
+    vcsStatusId = await createGitHubCheckRun({
+      logChild,
+      installationId: installation.installationId,
+      owner,
+      repo,
+      commitSha,
+      screenshotTest,
+    })
+
+    if (vcsStatusId) {
+      githubCheckData = {
+        owner,
+        repo,
+        checkRunId: vcsStatusId,
+        installationId: installation.installationId,
+      }
+    }
+  } else {
+    // Create GitLab commit status for this upload
+    const gitlabHost = projectOwner.gitlabHost ?? GITLAB_HOST
+    const accessToken = projectOwner.gitlabAccessToken
+
+    if (accessToken && ENABLE_VCS_STATUS) {
+      try {
+        await updateGitLabCommitStatus(project.repoId, commitSha, "pending", {
+          name: "vizdiff/visual-tests",
+          targetUrl: `${APP_URL}/build?id=${screenshotTest.id}`,
+          description: "Queued storybook upload for rendering",
+          accessToken,
+          host: gitlabHost,
+        })
+        // GitLab doesn't return an ID for commit statuses, use 1 as a flag
+        vcsStatusId = 1
+        // Store only non-sensitive data; worker resolves token from project owner at processing time
+        gitlabCheckData = {
+          projectId: project.repoId,
+          commitSha,
+          gitlabHost,
+        }
+        logChild.info(`Created GitLab commit status for ${project.repoUrl}#${commitSha}`)
+      } catch (error) {
+        logChild.error(error, `Failed to create GitLab commit status`)
+        // Don't fail the upload if we can't create the commit status
+      }
+    } else if (!ENABLE_VCS_STATUS) {
+      logChild.info(`Skipping GitLab commit status creation (ENABLE_VCS_STATUS not set)`)
+    } else {
+      logChild.warn(`No GitLab access token for user ${projectOwner.id}, skipping commit status`)
+    }
+  }
+
+  // Update the screenshot test with the VCS status ID
+  if (vcsStatusId != null) {
+    screenshotTest.vcsStatusId = vcsStatusId
+  }
   const screenshotTestTable = db.getRepository(ScreenshotTest)
   await screenshotTestTable.save(screenshotTest)
 
@@ -192,14 +244,8 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
   task.data = {
     projectId: project.id,
     uploadId,
-    githubCheckData: githubCheckRunId
-      ? {
-          owner,
-          repo,
-          checkRunId: githubCheckRunId,
-          installationId: installation.installationId,
-        }
-      : undefined,
+    githubCheckData,
+    gitlabCheckData,
   }
   task.createdAt = new Date()
   task.updatedAt = task.createdAt
@@ -215,7 +261,7 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
   // these events and attribute them to the project owner
   trackEvent(project.user.id, req, "upload_storybook", {
     projectName: project.name,
-    repo: project.githubRepoUrl,
+    repo: project.repoUrl,
     buildId: screenshotTest.id,
     byteLength: length,
   })
@@ -241,8 +287,8 @@ async function createGitHubCheckRun({
   commitSha,
   screenshotTest,
 }: GitHubCheckRunData): Promise<number | null> {
-  if (!IS_PRODUCTION && !IS_STAGING) {
-    logChild.info(`Skipping GitHub check_run creation in development environment`)
+  if (!ENABLE_VCS_STATUS) {
+    logChild.info(`Skipping GitHub check_run creation (ENABLE_VCS_STATUS not set)`)
     return null
   }
 

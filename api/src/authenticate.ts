@@ -15,8 +15,10 @@ import {
   GITHUB_CLIENT_SECRET,
   IS_PRODUCTION,
   S3_BUCKET_NAME,
+  GITLAB_HOST,
 } from "./environment"
 import { getInstallationsForUserId } from "./github"
+import { gitlabFetch } from "./gitlab"
 import { log } from "./log"
 import type { RequestLocals } from "./types"
 
@@ -55,6 +57,38 @@ async function validateGitHubToken(user: User): Promise<boolean> {
   }
 }
 
+async function validateGitLabToken(user: User): Promise<boolean> {
+  try {
+    if (!user.gitlabAccessToken) {
+      return false
+    }
+
+    const gitlabHost = user.gitlabHost ?? GITLAB_HOST
+
+    // Validate the token by fetching the current user
+    // Using gitlabFetch (respects GITLAB_REJECT_UNAUTHORIZED for self-signed certs)
+    const userRes = await gitlabFetch(`${gitlabHost}/api/v4/user`, {
+      headers: {
+        Authorization: `Bearer ${user.gitlabAccessToken}`,
+        Accept: "application/json",
+      },
+    })
+
+    if (!userRes.ok) {
+      return false
+    }
+
+    return true
+  } catch (error) {
+    if (error instanceof Error) {
+      log.warn(`GitLab token validation failed: ${error.message}`)
+    } else {
+      log.warn("GitLab token validation failed with unknown error")
+    }
+    return false
+  }
+}
+
 async function refreshJWT(userId: number, req: Request, res: Response): Promise<boolean> {
   try {
     // Get the user from the database
@@ -64,8 +98,29 @@ async function refreshJWT(userId: number, req: Request, res: Response): Promise<
       return false
     }
 
-    // Validate both OAuth and GitHub App tokens as needed
-    const isValid = await validateGitHubToken(user)
+    // Validate tokens based on which VCS provider(s) the user has
+    // For GitHub users, validate GitHub token
+    // For GitLab users, validate GitLab token
+    // For users with both, validate at least one (prefer GitHub if both exist)
+    let isValid = false
+
+    if (user.githubAccessToken) {
+      isValid = await validateGitHubToken(user)
+      if (isValid) {
+        // GitHub token is valid, proceed with refresh
+      } else if (user.gitlabAccessToken) {
+        // GitHub token invalid, try GitLab token as fallback
+        isValid = await validateGitLabToken(user)
+      }
+    } else if (user.gitlabAccessToken) {
+      // GitLab-only user, validate GitLab token
+      isValid = await validateGitLabToken(user)
+    } else {
+      // User has no VCS tokens - this shouldn't happen for authenticated users
+      log.warn(`User ${user.id} has no GitHub or GitLab access token`)
+      return false
+    }
+
     if (!isValid) {
       return false
     }
@@ -173,12 +228,16 @@ export async function requireUser(_req: Request, res: Response, next: NextFuncti
   const ownedProjectCount = await db.manager.count(Project, { where: { user: { id: user.id } } })
 
   // Associate this request with the user in Datadog
-  const name = (user.githubProfile as { name?: string }).name ?? user.githubUsername
+  // Get display name from GitHub or GitLab profile
+  const githubName = (user.githubProfile as { name?: string } | null)?.name
+  const gitlabName = (user.gitlabProfile as { name?: string } | null)?.name
+  const displayName = githubName ?? gitlabName ?? user.githubUsername ?? user.gitlabUsername
   setUser({
     id: user.id.toString(),
-    name,
+    name: displayName ?? undefined,
     email: user.email ?? undefined,
-    githubUsername: user.githubUsername,
+    githubUsername: user.githubUsername ?? undefined,
+    gitlabUsername: user.gitlabUsername ?? undefined,
     ownedProjectCount: ownedProjectCount.toString(),
     subscriptionPlan: user.subscriptionPlan ?? undefined,
     subscriptionInterval: user.subscriptionInterval ?? undefined,

@@ -317,8 +317,11 @@ export default function Project(): JSX.Element {
                           <MuiLink
                             href={getCommitUrl(
                               build.commitSha,
-                              project?.githubRepoUrl,
+                              project?.repoUrl,
                               build.prNumber,
+                              // Use project.vcsProvider when using project.repoUrl for consistency
+                              // build.vcsProvider should always match, but project is the source of truth
+                              project?.vcsProvider ?? build.vcsProvider,
                             )}
                             target="_blank"
                             rel="noopener noreferrer"
@@ -330,7 +333,12 @@ export default function Project(): JSX.Element {
                         </Tooltip>{" "}
                         on{" "}
                         <MuiLink
-                          href={getBranchUrl(build.branch, project?.githubRepoUrl)}
+                          href={getBranchUrl(
+                            build.branch,
+                            project?.repoUrl,
+                            // Use project.vcsProvider when using project.repoUrl for consistency
+                            project?.vcsProvider ?? build.vcsProvider,
+                          )}
                           target="_blank"
                           rel="noopener noreferrer"
                           onClick={(e) => e.stopPropagation()} // Prevent triggering the parent Link
@@ -350,7 +358,12 @@ export default function Project(): JSX.Element {
                           <>
                             {" • "}
                             <MuiLink
-                              href={getPullRequestUrl(build.prNumber, project?.githubRepoUrl)}
+                              href={getPullRequestUrl(
+                                build.prNumber,
+                                project?.repoUrl,
+                                // Use project.vcsProvider when using project.repoUrl for consistency
+                                project?.vcsProvider ?? build.vcsProvider,
+                              )}
                               target="_blank"
                               rel="noopener noreferrer"
                               onClick={(e) => e.stopPropagation()} // Prevent triggering the parent Link

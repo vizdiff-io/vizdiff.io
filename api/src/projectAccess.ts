@@ -4,10 +4,9 @@ import { Database } from "./database"
 
 /**
  * Get all `projects.id`s that the user has access to, including both directly owned projects
- * and those accessible via GitHub repo access
- * @param db TypeORM database connection
- * @param userId User ID to check access for
- * @returns Array of project IDs that the user has access to
+ * and those accessible via GitHub/GitLab repo access. For GitLab projects, access is scoped
+ * by project.gitlab_host to prevent cross-host authorization bypass when a single VizDiff
+ * deployment serves multiple GitLab instances.
  */
 export async function getAccessibleProjectIds(
   db: Awaited<ReturnType<typeof Database>>,
@@ -15,14 +14,23 @@ export async function getAccessibleProjectIds(
 ): Promise<number[]> {
   const projectTable = db.getRepository(Project)
 
-  // Get both directly owned projects and those accessible via GitHub repo access
+  // Get both directly owned projects and those accessible via GitHub/GitLab repo access
   const accessibleProjectsRaw = await projectTable
     .createQueryBuilder("project")
     .select("DISTINCT project.id", "id")
-    .leftJoin("user_github_repo_access", "access", "access.github_repo_id = project.github_repo_id")
+    .leftJoin(
+      "user_github_repo_access",
+      "gh_access",
+      "gh_access.github_repo_id = project.repo_id AND project.vcs_provider = 'github'",
+    )
+    .leftJoin(
+      "user_gitlab_project_access",
+      "gl_access",
+      "gl_access.gitlab_project_id = project.repo_id AND project.vcs_provider = 'gitlab' AND gl_access.gitlab_host = project.gitlab_host AND project.gitlab_host IS NOT NULL",
+    )
     .where(
-      // User either owns the project directly OR has access via GitHub repo
-      "(project.user_id = :userId OR access.user_id = :userId)",
+      // User either owns the project directly OR has access via GitHub/GitLab repo
+      "(project.user_id = :userId OR gh_access.user_id = :userId OR gl_access.user_id = :userId)",
       { userId },
     )
     .getRawMany<{ id: number }>()

@@ -11,6 +11,7 @@ import {
   POSTGRES_PORT,
 } from "./environment"
 import type { GitHubCheckData } from "./github"
+import type { GitLabCheckData } from "./gitlab"
 import { markTaskFinished, markTaskStarted, startHealthServer } from "./health"
 import { ingestStorybook } from "./ingest"
 import { log } from "./log"
@@ -20,6 +21,7 @@ type IngestStorybookPayload = {
   projectId: string
   uploadId: string
   githubCheckData?: GitHubCheckData
+  gitlabCheckData?: GitLabCheckData
 }
 
 const TASKS_CHANNEL = "task_queue"
@@ -223,13 +225,20 @@ export async function processTask(
   try {
     switch (taskType) {
       case "ingest_storybook": {
-        const { projectId, uploadId, githubCheckData } = data as Partial<IngestStorybookPayload>
+        const { projectId, uploadId, githubCheckData, gitlabCheckData } =
+          data as Partial<IngestStorybookPayload>
         if (!projectId || !uploadId) {
           throw new Error(
             `Missing required ingest_storybook fields: projectId=${projectId}, uploadId=${uploadId}`,
           )
         }
-        await ingestStorybook(projectId, screenshotTestId, uploadId, githubCheckData)
+        await ingestStorybook(
+          projectId,
+          screenshotTestId,
+          uploadId,
+          githubCheckData,
+          gitlabCheckData,
+        )
 
         // Task completed successfully, delete it from the queue
         if (currentTaskId) {

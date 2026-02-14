@@ -126,7 +126,11 @@ export default function Settings(): JSX.Element {
     }
   }
 
-  const name = user?.githubProfile.name ?? user?.githubUsername
+  const name =
+    user?.githubProfile?.name ??
+    user?.gitlabProfile?.name ??
+    user?.githubUsername ??
+    user?.gitlabUsername
 
   // Describe the user's subscription or trial status
   const subscriptionInfo = useMemo(() => {
@@ -184,8 +188,8 @@ export default function Settings(): JSX.Element {
                 <Paper sx={{ p: { xs: 2, sm: 3 }, mb: 4 }}>
                   <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
                     <Avatar
-                      src={user.githubProfile.avatar_url}
-                      alt={name}
+                      src={user.githubProfile?.avatar_url ?? user.gitlabProfile?.avatar_url}
+                      alt={name ?? "User"}
                       sx={{ width: 64, height: 64, mr: 3 }}
                     />
                     <Box>
@@ -196,12 +200,30 @@ export default function Settings(): JSX.Element {
                     </Box>
                   </Box>
 
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="subtitle2" color="var(--text-secondary)" sx={{ mb: 0.5 }}>
-                      GitHub Username
-                    </Typography>
-                    <Typography variant="body1">{user.githubUsername}</Typography>
-                  </Box>
+                  {user.githubUsername && (
+                    <Box sx={{ mb: 2 }}>
+                      <Typography
+                        variant="subtitle2"
+                        color="var(--text-secondary)"
+                        sx={{ mb: 0.5 }}
+                      >
+                        GitHub Username
+                      </Typography>
+                      <Typography variant="body1">{user.githubUsername}</Typography>
+                    </Box>
+                  )}
+                  {user.gitlabUsername && (
+                    <Box sx={{ mb: 2 }}>
+                      <Typography
+                        variant="subtitle2"
+                        color="var(--text-secondary)"
+                        sx={{ mb: 0.5 }}
+                      >
+                        GitLab Username
+                      </Typography>
+                      <Typography variant="body1">{user.gitlabUsername}</Typography>
+                    </Box>
+                  )}
                   <Box sx={{ mb: 2 }}>
                     <Typography variant="subtitle2" color="var(--text-secondary)" sx={{ mb: 0.5 }}>
                       Subscription Plan
@@ -228,11 +250,13 @@ export default function Settings(): JSX.Element {
                     }}
                   >
                     <Typography variant="h6">Projects</Typography>
-                    <Tooltip title="Sync GitHub repositories">
-                      <IconButton onClick={handleSyncRepos} disabled={isSyncing} color="primary">
-                        {isSyncing ? <CircularProgress size={24} /> : <RefreshIcon />}
-                      </IconButton>
-                    </Tooltip>
+                    {user.githubId && (
+                      <Tooltip title="Sync GitHub repositories">
+                        <IconButton onClick={handleSyncRepos} disabled={isSyncing} color="primary">
+                          {isSyncing ? <CircularProgress size={24} /> : <RefreshIcon />}
+                        </IconButton>
+                      </Tooltip>
+                    )}
                   </Box>
 
                   {syncError && (
@@ -251,7 +275,9 @@ export default function Settings(): JSX.Element {
                     </Alert>
                   ) : !projectsResponse?.length ? (
                     <Typography variant="body2" color="var(--text-secondary)" sx={{ py: 2 }}>
-                      No projects found. Create a project to start testing.
+                      {user.githubId
+                        ? "No projects found. Add a GitHub repository or upload from CI to start testing."
+                        : "No projects found. Upload your first Storybook build from GitLab CI to create a project."}
                     </Typography>
                   ) : (
                     <List>
@@ -294,7 +320,7 @@ export default function Settings(): JSX.Element {
                                     {project.ownerId === user.id ? "Owner" : ""}
                                   </Typography>
                                   <MuiLink
-                                    href={project.githubRepoUrl}
+                                    href={project.repoUrl}
                                     target="_blank"
                                     rel="noopener"
                                     variant="body2"
@@ -307,7 +333,7 @@ export default function Settings(): JSX.Element {
                                       textAlign: "left",
                                     }}
                                   >
-                                    {project.githubRepoUrl.replace("https://github.com/", "")}
+                                    {project.repoUrl.replace(/^https?:\/\/[^/]+\//, "")}
                                   </MuiLink>
                                 </Box>
                               }

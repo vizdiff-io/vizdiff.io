@@ -12,12 +12,16 @@ import {
   GITHUB_CLIENT_SECRET,
   GITHUB_APP_ID,
   GITHUB_PRIVATE_KEY,
+  GITLAB_HOST,
+  GITLAB_CLIENT_ID,
+  GITLAB_CLIENT_SECRET,
   IS_PRODUCTION,
   JWT_SECRET,
   STRIPE_SECRET_KEY,
   STRIPE_API_VERSION,
 } from "../environment"
 import { syncUserInstallations, syncUserGithubRepos } from "../github"
+import { gitlabFetch, syncUserGitLabGroups, syncUserGitLabProjects } from "../gitlab"
 import { isValidRedirectUrl, parseSimpleQueryString, requiredQueryString } from "../http"
 import { log } from "../log"
 import type { GithubUser } from "../schemas/GithubUser"
@@ -25,18 +29,34 @@ import type { DefaultRequest, DefaultResponse } from "../types"
 
 const GITHUB_TOKEN_EXCHANGE = "https://github.com/login/oauth/access_token"
 
-if (!GITHUB_CLIENT_ID) {
-  throw new Error("Missing GITHUB_CLIENT_ID")
+// GitLab user profile type
+interface GitLabUser {
+  id: number
+  username: string
+  email: string | null
+  name: string | null
+  avatar_url: string | null
+  web_url: string
+  state: string
 }
-if (!GITHUB_CLIENT_SECRET) {
-  throw new Error("Missing GITHUB_CLIENT_SECRET")
+
+// Require at least one VCS provider (GitHub or GitLab) for OAuth
+const hasGitHub = !!(
+  GITHUB_CLIENT_ID &&
+  GITHUB_CLIENT_SECRET &&
+  GITHUB_APP_ID &&
+  GITHUB_PRIVATE_KEY
+)
+const hasGitLab = !!(GITLAB_CLIENT_ID && GITLAB_CLIENT_SECRET)
+
+if (!hasGitHub && !hasGitLab) {
+  throw new Error(
+    "At least one VCS provider must be configured. " +
+      "For GitHub: set GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET, GITHUB_APP_ID, GITHUB_PRIVATE_KEY. " +
+      "For GitLab: set GITLAB_CLIENT_ID, GITLAB_CLIENT_SECRET.",
+  )
 }
-if (!GITHUB_APP_ID) {
-  throw new Error("Missing GITHUB_APP_ID")
-}
-if (!GITHUB_PRIVATE_KEY) {
-  throw new Error("Missing GITHUB_PRIVATE_KEY")
-}
+
 if (!APP_URL) {
   throw new Error("Missing APP_URL")
 }
@@ -67,6 +87,11 @@ function getRequestOrigin(req: DefaultRequest): string {
 }
 
 export async function githubAppInstalled(req: DefaultRequest, res: DefaultResponse): Promise<void> {
+  if (!GITHUB_CLIENT_ID || !GITHUB_CLIENT_SECRET || !GITHUB_APP_ID || !GITHUB_PRIVATE_KEY) {
+    res.status(500).json({ error: "GitHub OAuth not configured" })
+    return
+  }
+
   const setupAction = requiredQueryString("setup_action", req)
   const installationId = requiredQueryString("installation_id", req)
 
@@ -90,6 +115,11 @@ export async function githubAppInstalled(req: DefaultRequest, res: DefaultRespon
 }
 
 export async function githubCallback(req: DefaultRequest, res: DefaultResponse): Promise<void> {
+  if (!GITHUB_CLIENT_ID || !GITHUB_CLIENT_SECRET) {
+    res.status(500).json({ error: "GitHub OAuth not configured" })
+    return
+  }
+
   const code = requiredQueryString("code", req)
 
   // Handle both direct app installation callback and OAuth callback
@@ -279,4 +309,262 @@ export async function logout(req: DefaultRequest, res: DefaultResponse): Promise
     path: "/",
   })
   res.redirect(APP_URL)
+}
+
+// ============================================================================
+// GitLab OAuth Flow
+// ============================================================================
+
+/**
+ * Initiates the GitLab OAuth flow by redirecting to GitLab's authorization page.
+ * This is called when a user clicks "Sign in with GitLab".
+ */
+export async function gitlabLogin(req: DefaultRequest, res: DefaultResponse): Promise<void> {
+  if (!GITLAB_CLIENT_ID) {
+    res.status(500).json({ error: "GitLab OAuth not configured" })
+    return
+  }
+
+  // Use the request origin to support dynamic URLs (e.g., ngrok)
+  const requestOrigin = getRequestOrigin(req)
+
+  // Get the redirect URL from query params (where to send user after auth)
+  const redirect =
+    (typeof req.query.redirect === "string" ? req.query.redirect : undefined) ??
+    `${requestOrigin}/projects`
+
+  // Build the callback URI - must be identical in authorize and token exchange.
+  // Store in state so callback uses the exact same value (avoids mismatch when
+  // requestOrigin differs between steps, e.g. behind ngrok, proxies, or load balancers).
+  const callbackUri = `${requestOrigin}/api/auth/gitlab/callback`
+  const state = encodeURIComponent(
+    `redirect=${encodeURIComponent(redirect)}&callback_uri=${encodeURIComponent(callbackUri)}`,
+  )
+
+  // GitLab OAuth scopes needed for our integration:
+  // - read_user: Access user profile info
+  // - read_api: Read API resources (groups, projects)
+  // - read_repository: Read repository data
+  // - api: Full API access (needed for commit status updates)
+  const scope = encodeURIComponent("read_user read_api api")
+
+  // Redirect to GitLab's authorization page
+  const authUrl =
+    `${GITLAB_HOST}/oauth/authorize?` +
+    `client_id=${GITLAB_CLIENT_ID}` +
+    `&redirect_uri=${encodeURIComponent(callbackUri)}` +
+    `&response_type=code` +
+    `&scope=${scope}` +
+    `&state=${state}`
+
+  res.redirect(authUrl)
+}
+
+/**
+ * Handles the GitLab OAuth callback after user authorizes the application.
+ */
+export async function gitlabCallback(req: DefaultRequest, res: DefaultResponse): Promise<void> {
+  if (!GITLAB_CLIENT_ID || !GITLAB_CLIENT_SECRET) {
+    res.status(500).json({ error: "GitLab OAuth not configured" })
+    return
+  }
+
+  const code = requiredQueryString("code", req)
+
+  // Parse state to get redirect URL and callback URI
+  let finalRedirect: string | undefined
+  let callbackUri: string | undefined
+  const state = req.query.state as string | undefined
+  if (state) {
+    const stateValues = parseSimpleQueryString(state)
+    finalRedirect = stateValues.get("redirect")
+    callbackUri = stateValues.get("callback_uri")
+  }
+
+  finalRedirect ??= `${APP_URL}/projects`
+
+  // Use the request origin to validate redirect URL and as fallback for callback_uri
+  const requestOrigin = getRequestOrigin(req)
+
+  // Validate redirect URL against the request origin to support dynamic URLs (e.g., ngrok)
+  if (!isValidRedirectUrl(finalRedirect, requestOrigin)) {
+    throw new Error(`Invalid redirect URL: ${finalRedirect}`)
+  }
+
+  // Use callback_uri from state so it matches exactly what was sent to GitLab in the authorize step.
+  // This avoids redirect_uri mismatch when requestOrigin differs between steps (ngrok, proxies, etc.).
+  callbackUri ??= `${requestOrigin}/api/auth/gitlab/callback`
+
+  // Validate callback_uri is our auth endpoint (GitLab also validates against registered URIs)
+  try {
+    const parsed = new URL(callbackUri)
+    if (
+      (parsed.protocol !== "http:" && parsed.protocol !== "https:") ||
+      !parsed.pathname.endsWith("/api/auth/gitlab/callback")
+    ) {
+      throw new Error(`Invalid callback_uri in state`)
+    }
+  } catch (err) {
+    if (err instanceof TypeError) {
+      throw new Error("Invalid callback_uri in state")
+    }
+    throw err
+  }
+
+  // Exchange the authorization code for access token
+  log.debug(`Exchanging GitLab code for access token for ${req.ip}`)
+  const tokenRes = await gitlabFetch(`${GITLAB_HOST}/oauth/token`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Accept: "application/json",
+    },
+    body: new URLSearchParams({
+      client_id: GITLAB_CLIENT_ID,
+      client_secret: GITLAB_CLIENT_SECRET,
+      code,
+      grant_type: "authorization_code",
+      redirect_uri: callbackUri,
+    }),
+  })
+
+  if (!tokenRes.ok) {
+    const errorText = await tokenRes.text()
+    log.error(`GitLab token exchange failed: ${errorText}`)
+    throw new Error(`Failed to exchange GitLab code for token: ${tokenRes.status}`)
+  }
+
+  const tokenData = (await tokenRes.json()) as {
+    access_token?: string
+    refresh_token?: string
+    token_type?: string
+    expires_in?: number
+  }
+
+  if (!tokenData.access_token) {
+    throw new Error("Missing access_token in GitLab response")
+  }
+
+  // Fetch user profile from GitLab
+  log.debug(`GitLab OAuth authenticated for ${req.ip}, retrieving user info`)
+  const userRes = await gitlabFetch(`${GITLAB_HOST}/api/v4/user`, {
+    headers: {
+      Authorization: `Bearer ${tokenData.access_token}`,
+      Accept: "application/json",
+    },
+  })
+
+  if (!userRes.ok) {
+    throw new Error(`Failed to fetch GitLab user profile: ${userRes.status}`)
+  }
+
+  const glUser = (await userRes.json()) as GitLabUser
+  if (!glUser.username) {
+    const json = JSON.stringify(glUser)
+    log.error(`GitLab user response did not contain "username": ${json}`)
+    throw new Error('Missing "username" in GitLab user response')
+  }
+
+  const gitlabId = String(glUser.id)
+
+  // Check if user already exists with this GitLab ID
+  const db = await Database()
+  const userTable = db.getRepository(User)
+  let user = await userTable.findOneBy({ gitlabId })
+
+  if (!user) {
+    // Create a new user
+    // Note: We do NOT link accounts by email address to prevent account takeover attacks.
+    // Users must explicitly link accounts through a verified process if needed.
+    log.info(
+      { event: "user_created", gitlabUser: glUser },
+      `Creating new user for GitLab user ${glUser.username} (${glUser.id})`,
+    )
+    user = new User()
+  }
+
+  // Set or update the user's GitLab info
+  user.gitlabId = gitlabId
+  user.gitlabUsername = glUser.username
+  user.gitlabProfile = glUser
+  user.gitlabAccessToken = tokenData.access_token
+  user.gitlabRefreshToken = tokenData.refresh_token ?? null
+  user.gitlabHost = GITLAB_HOST
+
+  // Set email if not already set
+  if (!user.email && glUser.email) {
+    user.email = glUser.email
+  }
+
+  user = await userTable.save(user)
+
+  // Ensure user has a Stripe customer ID
+  if (STRIPE_SECRET_KEY && !user.stripeCustomerId) {
+    try {
+      log.debug(`Creating Stripe customer for GitLab user ${glUser.username} (${glUser.id})`)
+      const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: STRIPE_API_VERSION })
+      const customer = await stripe.customers.create({
+        email: glUser.email ?? undefined,
+        name: glUser.name ?? glUser.username,
+        metadata: {
+          gitlab_id: gitlabId,
+          gitlab_username: glUser.username,
+          user_id: user.id.toString(),
+        },
+        description: `GitLab user: ${glUser.username}`,
+      })
+
+      user.stripeCustomerId = customer.id
+      log.info(`Created Stripe customer ${customer.id} for GitLab user ${glUser.username}`)
+
+      user = await userTable.save(user)
+    } catch (error) {
+      log.error(error, `Failed to create Stripe customer for GitLab user ${glUser.username}`)
+    }
+  }
+
+  // Sync GitLab groups for this user
+  await syncUserGitLabGroups(user)
+
+  // Sync GitLab projects that this user has access to (asynchronously)
+  syncUserGitLabProjects(user)
+    .catch((error: unknown) => {
+      log.error(
+        error,
+        `Failed to sync GitLab projects for user ${user.id} (${user.gitlabUsername}) after creation`,
+      )
+    })
+    .finally(() => {
+      // Identify the user with Customer.io
+      identifyUser(user, req)
+    })
+
+  // Generate a JWT
+  const token = jwt.sign({ sub: user.id }, JWT_SECRET, { expiresIn: "8h" })
+
+  // Set secure cookies
+  const domain = new URL(APP_URL).hostname
+  res.cookie("token", token, {
+    domain,
+    httpOnly: true,
+    secure: IS_PRODUCTION || req.secure ? true : undefined,
+    sameSite: "lax",
+    maxAge: 8 * 60 * 60 * 1000, // 8 hours
+    path: "/",
+  })
+  res.cookie("authenticated", "true", {
+    domain,
+    httpOnly: false,
+    secure: false,
+    sameSite: "lax",
+    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+    path: "/",
+  })
+
+  // Append signed_in query param for tracking
+  const url = new URL(finalRedirect)
+  url.searchParams.set("signed_in", "true")
+  finalRedirect = url.toString()
+
+  res.redirect(finalRedirect)
 }

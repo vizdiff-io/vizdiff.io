@@ -11,8 +11,10 @@ using Docker Compose. It assumes no shared services are hosted by VizDiff.
 - `postgres`: database and task queue (LISTEN/NOTIFY)
 
 External integrations still required:
+
 - AWS S3 for storybook uploads and screenshots
-- GitHub App for OAuth + check runs (BYO app)
+- GitHub App for OAuth + check runs (BYO app), **OR**
+- GitLab OAuth Application for OAuth + commit statuses (see [GitLab CI Setup](gitlab-ci-setup.md))
 - AWS SES for email sending (optional; no email will be sent if unset)
 - Stripe is disabled by default in self-contained mode (no billing or usage metering)
 
@@ -21,18 +23,22 @@ External integrations still required:
 - An EC2 instance with Docker + Docker Compose installed
 - A public DNS name with TLS termination (nginx in container is HTTP only)
 - An S3 bucket for artifacts (storybook tarballs, screenshots, diff masks)
-- A GitHub App created in your GitHub org
+- **One of the following for VCS integration:**
+  - A GitHub App created in your GitHub org, **OR**
+  - A GitLab OAuth Application (gitlab.com or self-hosted)
 - Optional: AWS SES domain or email identity verified
 
 ## Setup Steps
 
 1. Copy environment templates
+
    - Root: `.env.example` -> `.env`
    - API: `api/.env.example` (reference only)
    - Worker: `worker/.env.example` (reference only)
    - Frontend: `frontend/.env.example` (reference only)
 
 2. Configure environment values in `.env`
+
    - `APP_URL` must match your public domain (e.g. `https://vizdiff.example.com`)
    - `S3_BUCKET_NAME` and AWS credentials
    - GitHub App credentials and webhook secret
@@ -41,9 +47,11 @@ External integrations still required:
    - Optional `SETUP_TOKEN` to protect setup endpoints
 
 3. Build and start services
+
    - `./scripts/bootstrap-self-contained.sh`
 
 4. Configure GitHub App webhook
+
    - Webhook URL: `https://your-domain/api/webhooks/github`
    - Webhook secret: `GITHUB_WEBHOOK_SECRET`
 
@@ -53,9 +61,11 @@ External integrations still required:
 ## Setup Validation UI
 
 After the stack is running, visit:
+
 - `https://your-domain/setup`
 
 If `SETUP_TOKEN` is set, provide it in the Setup UI. The UI can validate:
+
 - GitHub App configuration
 - S3 bucket read/write
 - SES test email
@@ -64,14 +74,43 @@ If `SETUP_TOKEN` is set, provide it in the Setup UI. The UI can validate:
 
 Because this is self-contained, the GitHub App must be created and owned by the installer.
 Required permissions:
+
 - Checks: Read & Write
 - Contents: Read
 - Pull requests: Read
 - Statuses: Read & Write
 
 Required events:
+
 - `check_suite`
 - `check_run`
+
+## GitLab Integration (Alternative to GitHub)
+
+VizDiff also supports GitLab (gitlab.com or self-hosted). See [GitLab CI Setup](gitlab-ci-setup.md) for complete instructions.
+
+**Quick setup:**
+
+1. Create a GitLab OAuth Application at `https://gitlab.com/-/user_settings/applications`:
+
+   - Redirect URI: `https://your-domain/api/auth/gitlab/callback`
+   - Scopes: `read_user`, `read_api`, `read_repository`
+
+2. Add to your `.env`:
+
+   ```bash
+   GITLAB_HOST=https://gitlab.com
+   GITLAB_CLIENT_ID=your_application_id
+   GITLAB_CLIENT_SECRET=your_application_secret
+   GITLAB_WEBHOOK_SECRET=your_webhook_secret
+   NEXT_PUBLIC_GITLAB_CLIENT_ID=your_application_id
+   ```
+
+3. Configure GitLab webhook (per project):
+   - URL: `https://your-domain/api/webhooks/gitlab`
+   - Secret: same as `GITLAB_WEBHOOK_SECRET`
+
+For self-hosted GitLab with self-signed certificates, set `GITLAB_REJECT_UNAUTHORIZED=false`.
 
 ## Email via SES
 
@@ -89,7 +128,7 @@ Set `SES_REGION` and `SES_FROM_EMAIL`. If unset, VizDiff will not attempt to sen
   - Launches the AMI
   - Opens ports 80/443 for HTTPS termination
   - Optionally creates an S3 bucket and IAM role
- - Example template: `docs/cloudformation-self-contained.yml`
+- Example template: `docs/cloudformation-self-contained.yml`
 
 ## Troubleshooting
 

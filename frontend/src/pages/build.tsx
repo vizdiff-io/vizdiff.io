@@ -187,7 +187,7 @@ export default function Build(): JSX.Element {
               Created {formatDistanceToNow(data.initiatedStampSec * 1000)} ago •{" "}
               <Tooltip title={data.commitSha}>
                 <MuiLink
-                  href={getCommitUrl(data.commitSha, data.githubRepoUrl, data.prNumber)}
+                  href={getCommitUrl(data.commitSha, data.repoUrl, data.prNumber, data.vcsProvider)}
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={(e) => e.stopPropagation()} // Prevent triggering the parent Link
@@ -198,7 +198,7 @@ export default function Build(): JSX.Element {
               </Tooltip>{" "}
               on{" "}
               <MuiLink
-                href={getBranchUrl(data.branch, data.githubRepoUrl)}
+                href={getBranchUrl(data.branch, data.repoUrl, data.vcsProvider)}
                 target="_blank"
                 rel="noopener noreferrer"
                 sx={{ fontFamily: "monospace" }}
@@ -209,7 +209,7 @@ export default function Build(): JSX.Element {
                 <>
                   {" • "}
                   <MuiLink
-                    href={getPullRequestUrl(data.prNumber, data.githubRepoUrl)}
+                    href={getPullRequestUrl(data.prNumber, data.repoUrl, data.vcsProvider)}
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={(e) => e.stopPropagation()} // Prevent triggering the parent Link

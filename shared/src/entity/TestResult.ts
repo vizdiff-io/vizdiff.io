@@ -9,8 +9,7 @@ import {
 } from "typeorm"
 
 import type { ScreenshotTest } from "./ScreenshotTest"
-
-export type TestResultStatus = "new" | "unchanged" | "changed" | "failed"
+import type { TestResultStatus } from "./types"
 
 @Entity("test_results")
 export class TestResult {
@@ -49,7 +48,7 @@ export class TestResult {
 
   // Can be "new", "unchanged", "changed", or "failed"
   @Column({ type: "text", name: "change_status", nullable: false })
-  changeStatus!: string
+  changeStatus!: TestResultStatus
 
   @CreateDateColumn({ name: "created_at", type: "timestamptz", nullable: false })
   createdAt!: Date

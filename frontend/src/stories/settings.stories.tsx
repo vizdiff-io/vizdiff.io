@@ -35,7 +35,8 @@ const mockProjects: ProjectResponse[] = [
   {
     id: 1,
     name: "vizdiff.io",
-    githubRepoUrl: "https://github.com/mvi-llc/vizdiff.io",
+    vcsProvider: "github",
+    repoUrl: "https://github.com/mvi-llc/vizdiff.io",
     token: "abc123def456",
     ownerId: 123,
     hasActiveSubscription: true,
@@ -47,7 +48,8 @@ const mockProjects: ProjectResponse[] = [
   {
     id: 2,
     name: "Expired Trial Project",
-    githubRepoUrl: "https://github.com/example/example-project",
+    vcsProvider: "github",
+    repoUrl: "https://github.com/example/example-project",
     token: "def456ghi789",
     ownerId: 123,
     hasActiveSubscription: false,
@@ -59,7 +61,8 @@ const mockProjects: ProjectResponse[] = [
   {
     id: 3,
     name: "MyAwesomeProject",
-    githubRepoUrl: "https://github.com/test/MyAwesomeProject",
+    vcsProvider: "github",
+    repoUrl: "https://github.com/test/MyAwesomeProject",
     token: "ghi789jkl012",
     ownerId: 456,
     hasActiveSubscription: true,
@@ -71,7 +74,8 @@ const mockProjects: ProjectResponse[] = [
   {
     id: 4,
     name: "Expired Other Project",
-    githubRepoUrl: "https://github.com/example-long-organization-name/example-project",
+    vcsProvider: "github",
+    repoUrl: "https://github.com/example-long-organization-name/example-project",
     token: "jkl012mno345",
     ownerId: 456,
     hasActiveSubscription: false,
