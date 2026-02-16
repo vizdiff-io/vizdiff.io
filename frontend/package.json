@@ -24,7 +24,7 @@
     "@emotion/styled": "11.14.1",
     "@eslint/eslintrc": "^3.3.3",
     "@foxglove/eslint-plugin": "2.0.0",
-    "@mui/icons-material": "7.3.7",
+    "@mui/icons-material": "7.3.8",
     "@mui/material": "7.3.7",
     "@next/third-parties": "15.3.2",
     "@octokit/rest": "^22.0.1",
