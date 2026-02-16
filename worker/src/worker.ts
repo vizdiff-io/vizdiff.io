@@ -52,9 +52,10 @@ async function main() {
   startHealthServer()
 
   subscriber.notifications.on(TASKS_CHANNEL, (payload) => {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument -- pg-listen payload is untyped
     log.info(`Received notification in '${TASKS_CHANNEL}':`, payload)
     if (typeof payload !== "string" && typeof payload !== "number") {
-      log.error("Invalid payload type", typeof payload)
+      log.error(`Invalid payload type: ${typeof payload}`)
       return
     }
 

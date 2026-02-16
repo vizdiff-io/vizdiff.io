@@ -36,6 +36,17 @@ export const rulesConfig = {
   },
 }
 
+// Relaxed rules for test files where complex mocks require `any`
+export const testOverrides = {
+  files: ["**/*.test.ts"],
+  rules: {
+    "@typescript-eslint/no-unsafe-assignment": "off",
+    "@typescript-eslint/no-unsafe-call": "off",
+    "@typescript-eslint/no-unsafe-member-access": "off",
+    "@typescript-eslint/no-unsafe-argument": "off",
+  },
+}
+
 export const nodeConfig = {
   languageOptions: {
     globals: {

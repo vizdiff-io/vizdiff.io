@@ -248,6 +248,7 @@ describe("processStory", () => {
   // Mock story data that would come from Storybook
   const mockStory = {
     id: "stories-components-teststory--mycomponent",
+    kind: "stories/components/TestStory",
     name: "My Component",
     title: "stories/components/TestStory",
     importPath: "./stories/Test.stories.tsx",

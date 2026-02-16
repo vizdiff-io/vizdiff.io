@@ -1,4 +1,5 @@
 import { Gitlab } from "@gitbeaker/rest"
+import https from "node:https"
 import { GitLabGroup, User, UserGitlabProjectAccess } from "shared"
 import { Agent, fetch } from "undici"
 
@@ -79,7 +80,7 @@ export function getGitLabClient(
   return new Gitlab({
     host,
     oauthToken,
-    rejectUnauthorized: GITLAB_REJECT_UNAUTHORIZED,
+    agent: GITLAB_REJECT_UNAUTHORIZED ? undefined : new https.Agent({ rejectUnauthorized: false }),
   })
 }
 

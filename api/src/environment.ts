@@ -53,7 +53,7 @@ export const JWT_SECRET = process.env.JWT_SECRET ?? "secret"
 export const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY
 export const STRIPE_SCREENSHOT_METER_ID = process.env.STRIPE_SCREENSHOT_METER_ID
 export const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET
-export const STRIPE_API_VERSION = "2025-04-30.basil"
+export const STRIPE_API_VERSION = "2026-01-28.clover"
 
 export const CUSTOMER_IO_API_KEY = process.env.CUSTOMER_IO_API_KEY
 

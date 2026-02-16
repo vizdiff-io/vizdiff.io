@@ -1,7 +1,6 @@
 import { createRequire } from "node:module"
 import type { StorybookConfig } from "@storybook/nextjs"
 import { join, dirname } from "path"
-import webpack from "webpack"
 
 const require = createRequire(import.meta.url)
 
@@ -9,8 +8,8 @@ const require = createRequire(import.meta.url)
  * This function is used to resolve the absolute path of a package.
  * It is needed in projects that use Yarn PnP or are set up within a monorepo.
  */
-function getAbsolutePath(value: string): string {
-  return dirname(require.resolve(join(value, "package.json")))
+function getAbsolutePath(packageName: string): string {
+  return dirname(require.resolve(join(packageName, "package.json")))
 }
 
 const config: StorybookConfig = {
@@ -36,8 +35,9 @@ const config: StorybookConfig = {
     autodocs: "tag",
   },
   webpackFinal: async (config) => {
-    // Add environment variables to webpack's DefinePlugin
-    const definePlugin = new webpack.DefinePlugin({
+    // Add environment variables via DefinePlugin, using the compiler's own
+    // webpack reference to avoid version mismatches with Next.js's bundled webpack
+    const envDefinitions = {
       "process.env.NEXT_PUBLIC_GITHUB_APP_NAME": JSON.stringify(
         process.env.NEXT_PUBLIC_GITHUB_APP_NAME,
       ),
@@ -46,9 +46,13 @@ const config: StorybookConfig = {
       ),
       "process.env.NEXT_PUBLIC_APP_URL": JSON.stringify(process.env.NEXT_PUBLIC_APP_URL),
       "process.env.NEXT_PUBLIC_API_URL": JSON.stringify(process.env.NEXT_PUBLIC_API_URL),
-    })
+    }
     config.plugins = config.plugins || []
-    config.plugins.push(definePlugin)
+    config.plugins.push({
+      apply(compiler) {
+        new compiler.webpack.DefinePlugin(envDefinitions).apply(compiler)
+      },
+    })
     return config
   },
 }

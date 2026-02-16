@@ -16,13 +16,13 @@ vizdiff.io is a visual screenshot testing SaaS platform offering tight integrati
 
 # Software Versions
 
-- TypeScript 5.7
+- TypeScript 5.9
 - React 18
 - Next.js 15 (Static Site Generation only)
 - MaterialUI 7
 - Emotion 11
 - Storybook 8
-- Express 4
+- Express 5
 - TypeORM 0.3
 - PostgreSQL 16
 

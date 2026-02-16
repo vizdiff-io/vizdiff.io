@@ -17,7 +17,7 @@
  * - PostgreSQL notification system
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // These eslint-disable directives are used because we're mocking complex database types for testing
 
 import "reflect-metadata"
@@ -129,13 +129,13 @@ vi.mock("webdriverio", () => ({
     let storyStoreReady = false
     return {
       url: vi.fn().mockImplementation(async (url: string) => {
-        log.debug("WebdriverIO url called with:", url)
+        log.debug(`WebdriverIO url called with: ${url}`)
       }),
       setViewport: vi
         .fn()
         .mockImplementation(
           async (viewport: { width: number; height: number; devicePixelRatio: number }) => {
-            log.debug("WebdriverIO setViewport called with:", viewport)
+            log.debug(`WebdriverIO setViewport called with: ${JSON.stringify(viewport)}`)
           },
         ),
       saveScreenshot: vi.fn().mockImplementation(async () => {
@@ -143,7 +143,7 @@ vi.mock("webdriverio", () => ({
         return Buffer.from("mock screenshot")
       }),
       execute: vi.fn().mockImplementation(async (fn?: () => unknown) => {
-        log.debug("WebdriverIO execute called", { hasFunction: !!fn })
+        log.debug(`WebdriverIO execute called, hasFunction: ${String(!!fn)}`)
         // If a function is passed, this is the storyStore check
         if (fn) {
           if (!storyStoreReady) {
@@ -201,13 +201,13 @@ vi.mock("./stories", () => ({
         testResultTable: Repository<TestResult>
         uploadId: string
       }) => {
-        log.debug("processStory called with story:", story)
+        log.debug(`processStory called with story: ${JSON.stringify(story)}`)
         const result = {
           id: 1,
           name: story.name,
           storyId: story.id,
           screenshotTestId: 123,
-          changeStatus: "new",
+          changeStatus: "new" as const,
           baselineImageUrl: "mock-baseline-url",
           newImageUrl: `mock-new-url-${uploadId}`,
           diffImageUrl: "mock-diff-url",
@@ -215,7 +215,7 @@ vi.mock("./stories", () => ({
           createdAt: new Date(),
           updatedAt: new Date(),
         }
-        log.debug("processStory returning:", result)
+        log.debug(`processStory returning: ${JSON.stringify(result)}`)
         await testResultTable.save(result)
         return result
       },
@@ -471,7 +471,7 @@ describe("worker", () => {
                 return {
                   findOneBy: vi.fn().mockResolvedValue(mockScreenshotTestNoBase),
                   save: mockScreenshotTestSave.mockImplementation(async (test: unknown) => {
-                    log.debug("ScreenshotTest save called with:", test)
+                    log.debug(`ScreenshotTest save called with: ${JSON.stringify(test)}`)
                     return test
                   }),
                 } as unknown as Repository<ScreenshotTest>
@@ -484,7 +484,7 @@ describe("worker", () => {
                   getMany: vi.fn().mockResolvedValue([]),
                 }),
                 save: mockTestResultSave.mockImplementation(async (result: unknown) => {
-                  log.debug("TestResult save called with:", result)
+                  log.debug(`TestResult save called with: ${JSON.stringify(result)}`)
                   return result
                 }),
               } as unknown as Repository<TestResult>
@@ -561,7 +561,7 @@ describe("worker", () => {
 
       // Override the mock implementation for these tests
       // We're not testing the mock, we're testing the actual implementation
-      /* eslint-disable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
+
       vi.mocked(sweepStuckBuilds).mockImplementation(async () => {
         // Get stuck running builds
         const stuckRunningBuilds = await mockGetMany()
@@ -578,14 +578,13 @@ describe("worker", () => {
 
         return allStuckBuilds.length
       })
-      /* eslint-enable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
 
       // Create mocks we can control in tests
       mockGetMany = vi.fn()
       mockSave = vi.fn()
 
       // Mock the database with a structure that matches our usage
-      /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument */
+      /* eslint-disable @typescript-eslint/no-explicit-any */
       vi.mocked(Database).mockResolvedValue({
         getRepository: () => ({
           createQueryBuilder: () => ({
@@ -598,7 +597,7 @@ describe("worker", () => {
           save: mockSave,
         }),
       } as any)
-      /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument */
+      /* eslint-enable @typescript-eslint/no-explicit-any */
     })
 
     it("should update stuck builds to failed status", async () => {
@@ -619,10 +618,9 @@ describe("worker", () => {
       }
 
       // Mock responses for running and pending builds
-      /* eslint-disable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
+
       mockGetMany.mockResolvedValueOnce([stuckRunningBuild])
       mockGetMany.mockResolvedValueOnce([stuckPendingBuild])
-      /* eslint-enable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
 
       // Run the function
       const count = await sweepStuckBuilds()
@@ -647,7 +645,7 @@ describe("worker", () => {
 
     it("should not update any builds if none are stuck", async () => {
       // Mock empty results
-      /* eslint-disable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
+
       mockGetMany.mockResolvedValueOnce([])
       mockGetMany.mockResolvedValueOnce([])
 
@@ -657,14 +655,12 @@ describe("worker", () => {
       // Verify results
       expect(count).toBe(0)
       expect(mockSave).not.toHaveBeenCalled()
-      /* eslint-enable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
     })
 
     it("should handle errors properly", async () => {
       // Mock error
-      /* eslint-disable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
+
       mockGetMany.mockRejectedValueOnce(new Error("Database error"))
-      /* eslint-enable @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
 
       // Verify the function throws
       await expect(sweepStuckBuilds()).rejects.toThrow("Database error")

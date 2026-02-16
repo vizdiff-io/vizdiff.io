@@ -43,7 +43,7 @@ export const GITLAB_REJECT_UNAUTHORIZED = process.env.GITLAB_REJECT_UNAUTHORIZED
 
 // Stripe settings
 export const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY
-export const STRIPE_API_VERSION = "2025-04-30.basil"
+export const STRIPE_API_VERSION = "2026-01-28.clover"
 
 // Customer.io settings
 export const CUSTOMER_IO_API_KEY = process.env.CUSTOMER_IO_API_KEY

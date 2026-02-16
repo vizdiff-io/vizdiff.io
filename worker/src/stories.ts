@@ -202,7 +202,7 @@ export async function captureStableScreenshot(
     log.debug(`Injecting CSS to remove body padding for story ${storyId}`)
     await browser.execute(() => {
       // @ts-expect-error: document is not defined
-      // eslint-disable-next-line
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
       const style = document.createElement("style")
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       style.textContent = `
@@ -212,7 +212,7 @@ export async function captureStableScreenshot(
         }
       `
       // @ts-expect-error: document is not defined
-      // eslint-disable-next-line
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
       document.head.appendChild(style)
     })
 
@@ -235,7 +235,7 @@ export async function captureStableScreenshot(
       await browser.pause(SCREENSHOT_INTERVAL_MS)
       log.debug(`Taking stabilization screenshot attempt ${attempts}/${MAX_ATTEMPTS}...`)
 
-      let currentScreenshotBuffer: Buffer
+      let currentScreenshotBuffer: Buffer<ArrayBuffer>
       try {
         currentScreenshotBuffer = await takeScreenshotWithRetry(browser, currentScreenshotPath)
       } catch (err) {
@@ -367,7 +367,7 @@ export async function processStory({
     testResult.screenshotTest = screenshotTest
     testResult.storyId = storyId
     testResult.story = story
-    testResult.changeStatus = "error" // Indicate failure
+    testResult.changeStatus = "failed"
     await testResultTable.save(testResult)
     throw err // Re-throw to potentially fail the whole build
   }
@@ -554,7 +554,7 @@ async function waitForStorybookToLoad(browser: Browser): Promise<void> {
           // eslint-disable-next-line
           return !!(window.__STORYBOOK_PREVIEW__ && window.__STORYBOOK_PREVIEW__.ready)
         })
-        log.debug(`Storybook ready: ${ready}`)
+        log.debug(`Storybook ready: ${String(ready)}`)
         return ready
       } catch (err) {
         log.error(err, "Error checking Storybook ready state")
@@ -661,17 +661,17 @@ async function adjustViewportForStory(
   try {
     const contentHeight = await browser.execute(() => {
       // @ts-expect-error: document is not defined
-      // eslint-disable-next-line
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       const b = document.body as { scrollHeight?: number } | undefined
       // @ts-expect-error: document is not defined
-      // eslint-disable-next-line
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       const h = document.documentElement as { scrollHeight?: number } | undefined
       // Ensure elements exist before accessing properties
       const bodyScrollHeight = b?.scrollHeight ? b.scrollHeight : 0
       const docScrollHeight = h?.scrollHeight ? h.scrollHeight : 0
       return Math.max(bodyScrollHeight, docScrollHeight)
     })
-    log.debug(`Content height for story ${storyId}: ${contentHeight}`)
+    log.debug(`Content height for story ${storyId}: ${Number(contentHeight)}`)
 
     // Calculate desired height, respecting content and initial viewport
     const desiredHeight = Math.max(originalHeight, contentHeight)
@@ -688,7 +688,7 @@ async function adjustViewportForStory(
     if (finalHeight !== originalHeight) {
       log.info(
         `Adjusting viewport height for story ${storyId} from ${originalHeight} to ${finalHeight} ` +
-          `(content: ${contentHeight})`,
+          `(content: ${Number(contentHeight)})`,
       )
       await browser.setViewport({
         width: originalWidth,
