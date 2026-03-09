@@ -130,7 +130,7 @@ jobs:
 
       # Build and push api Docker image
       - name: Build and push api Docker image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         env:
           ECR_REGISTRY: ${{ env.ECR_REGISTRY }}
           ECR_REPOSITORY_BACKEND: ${{ env.ECR_REPOSITORY_BACKEND }}
@@ -190,7 +190,7 @@ jobs:
 
       # Build and push worker Docker image
       - name: Build and push worker Docker image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         env:
           ECR_REGISTRY: ${{ env.ECR_REGISTRY }}
           ECR_REPOSITORY_WORKER: ${{ env.ECR_REPOSITORY_WORKER }}
