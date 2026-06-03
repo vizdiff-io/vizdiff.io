@@ -157,41 +157,6 @@ export default function Project(): JSX.Element {
             </Paper>
           )}
 
-          {/* Show error banner if project does not have an active subscription */}
-          {project?.hasActiveSubscription === false && (
-            <Paper
-              sx={{
-                p: 2,
-                mb: 3,
-                bgcolor: "warning.main",
-                color: "warning.contrastText",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-              }}
-            >
-              <Typography color="var(--text-on-primary)">
-                {isProjectOwner ? (
-                  <>
-                    ⚠️ Your project does not have an active subscription.{" "}
-                    <MuiLink
-                      href="/signup"
-                      sx={{ color: "inherit", textDecoration: "underline", fontWeight: 600 }}
-                    >
-                      Subscribe to a paid plan
-                    </MuiLink>{" "}
-                    to enable full functionality.
-                  </>
-                ) : (
-                  <>
-                    ⚠️ This project does not have an active subscription. Please contact the project
-                    owner to subscribe to a paid plan.
-                  </>
-                )}
-              </Typography>
-            </Paper>
-          )}
-
           {project && currentToken && (
             <Paper
               sx={{
@@ -223,7 +188,7 @@ export default function Project(): JSX.Element {
                       borderRadius: 1,
                     }}
                   >
-                    {project.hasActiveSubscription ? currentToken : maskToken(currentToken)}
+                    {currentToken}
                   </Typography>
                   <Box sx={{ display: "flex" }}>
                     <Tooltip title={copyTooltip}>
@@ -409,12 +374,4 @@ function getProjectId(id: string | string[] | undefined): number | undefined {
     return isNaN(parsedId) ? undefined : parsedId
   }
   return undefined
-}
-
-/** Replace all but the first four characters of the token with asterisks. */
-function maskToken(token: string): string {
-  if (token.length <= 4) {
-    return token
-  }
-  return token.slice(0, 4) + "*".repeat(token.length - 4)
 }

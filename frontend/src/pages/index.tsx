@@ -1,5 +1,4 @@
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome"
-import CheckCircleOutline from "@mui/icons-material/CheckCircleOutline"
 import CompareArrowsIcon from "@mui/icons-material/CompareArrows"
 import GitHubIcon from "@mui/icons-material/GitHub"
 import GroupsIcon from "@mui/icons-material/Groups"
@@ -62,32 +61,9 @@ export default function Home(): JSX.Element {
               <Box sx={{ display: "flex", gap: 2 }}>
                 <MuiLink href="/projects">
                   <Button variant="contained" color="primary" size="large">
-                    Start your free trial
+                    Go to projects
                   </Button>
                 </MuiLink>
-                {/* <Button variant="outlined" size="large">
-                  Get a demo
-                </Button> */}
-              </Box>
-              <Box sx={{ display: "flex", gap: 2, mt: 2 }}>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                  <CheckCircleOutline sx={{ color: "var(--text-primary)", fontSize: "1rem" }} />
-                  <Typography variant="body2" sx={{ color: "var(--text-primary)" }}>
-                    14-day free trial
-                  </Typography>
-                </Box>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                  <CheckCircleOutline sx={{ color: "var(--text-primary)", fontSize: "1rem" }} />
-                  <Typography variant="body2" sx={{ color: "var(--text-primary)" }}>
-                    No credit card required
-                  </Typography>
-                </Box>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                  <CheckCircleOutline sx={{ color: "var(--text-primary)", fontSize: "1rem" }} />
-                  <Typography variant="body2" sx={{ color: "var(--text-primary)" }}>
-                    Cancel anytime
-                  </Typography>
-                </Box>
               </Box>
             </Box>
             <Box
@@ -318,7 +294,7 @@ export default function Home(): JSX.Element {
         <Container maxWidth="lg">
           <MuiLink href="/projects" sx={{ textDecoration: "none" }}>
             <Button variant="contained" color="primary" size="large" sx={{ mb: 4 }}>
-              Start your free trial
+              Go to projects
             </Button>
           </MuiLink>
           <Box sx={{ display: "flex", justifyContent: "center", gap: 3 }}>

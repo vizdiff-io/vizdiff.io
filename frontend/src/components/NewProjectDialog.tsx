@@ -21,10 +21,8 @@ import React, { type JSX, useState, useEffect, useCallback } from "react"
 
 import { GitLabIcon } from "@/components/GitLabIcon"
 import useAuthenticatedFetch from "@/hooks/useApiGet"
-import useAuth from "@/hooks/useAuth"
-import { AnalyticsEvents, trackEvent } from "@/lib/analytics"
 import { apiGet, apiPost } from "@/lib/apiMethods"
-import { GITHUB_APP_NAME } from "@/lib/environment"
+import { GITHUB_APP_NAME, GITHUB_ENABLED } from "@/lib/environment"
 
 type NewProjectDialogProps = {
   onClose: () => void
@@ -74,8 +72,8 @@ export default function NewProjectDialog({
   mode,
 }: NewProjectDialogProps): JSX.Element {
   void mode
-  const { user } = useAuth()
-  const [provider, setProvider] = useState<VCSProvider>("github")
+  // GitLab is the default provider; GitHub is only available when enabled in this deployment.
+  const [provider, setProvider] = useState<VCSProvider>(GITHUB_ENABLED ? "github" : "gitlab")
   const [githubRepos, setGithubRepos] = useState<GithubRepo[]>([])
   const [gitlabProjects, setGitlabProjects] = useState<GitLabProject[]>([])
   const [loading, setLoading] = useState(true)
@@ -84,17 +82,6 @@ export default function NewProjectDialog({
   const [reposLoading, setReposLoading] = useState(false)
   const [refreshCounter, setRefreshCounter] = useState(0)
   const [loadingStartTime, setLoadingStartTime] = useState<number | null>(null)
-
-  // Determine initial provider based on user's connected accounts
-  useEffect(() => {
-    if (user) {
-      if (user.gitlabId && !user.githubId) {
-        setProvider("gitlab")
-      } else if (user.githubId) {
-        setProvider("github")
-      }
-    }
-  }, [user])
 
   const [githubOrgs, isGithubOrgsLoading, _githubOrgsErr] = useAuthenticatedFetch<GithubOrg[]>(
     provider === "github" ? API_GITHUB_ORGS_URL + `?refresh=${refreshCounter}` : undefined,
@@ -219,31 +206,17 @@ export default function NewProjectDialog({
 
     // Create the project
     const [_project, projectError] = await apiPost("/api/projects", projectData)
+    void label
+    void isPrivate
     updateLoading()
     if (projectError) {
       setError(projectError.message)
-    } else {
-      trackEvent({
-        action: AnalyticsEvents.PROJECT_CREATED,
-        category: "Projects",
-        label,
-        isPrivate,
-      })
     }
     onClose()
   }
 
   const handleInstallApp = () => {
     const installUrl = `https://github.com/apps/${GITHUB_APP_NAME}/installations/new`
-    // Use beacon transport in case the user's browser does not open a new window/tab
-    trackEvent(
-      {
-        action: AnalyticsEvents.INSTALL_APP,
-        category: "Projects",
-        label: "Install GitHub App",
-      },
-      { sendBeforeNavigation: true },
-    )
     window.open(installUrl, "_blank")
   }
 
@@ -328,7 +301,7 @@ export default function NewProjectDialog({
             </IconButton>
           </div>
         </Box>
-        {user?.githubId && user.gitlabId && (
+        {GITHUB_ENABLED && (
           <Tabs value={provider} onChange={handleProviderChange} aria-label="VCS provider tabs">
             <Tab
               icon={<GitHubIcon />}

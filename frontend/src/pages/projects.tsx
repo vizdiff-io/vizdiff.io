@@ -20,7 +20,6 @@ import NewProjectDialog from "@/components/NewProjectDialog"
 import { Seo } from "@/components/Seo"
 import useApiGet from "@/hooks/useApiGet"
 import useAppTheme from "@/hooks/useAppTheme"
-import useAuth from "@/hooks/useAuth"
 import type { ProjectResponse, ScreenshotTestResponse } from "@/lib/apiTypes"
 import { getStatusColor } from "@/lib/colors"
 import { plural } from "@/lib/text"
@@ -33,10 +32,8 @@ export default function Projects(): JSX.Element {
   ])
   const [activityResponse, activityLoading] = useApiGet<ScreenshotTestResponse[]>("/api/activity")
   const theme = useAppTheme()
-  const { user } = useAuth()
   const projects = projectsResponse ?? []
   const activity = activityResponse ?? []
-  const hasVCSConnected = user?.githubId != null || user?.gitlabId != null
 
   // Show loading state if the page is not yet ready
   if (loading) {
@@ -75,19 +72,17 @@ export default function Projects(): JSX.Element {
               <Typography variant="h4" component="h1" sx={{ fontWeight: 600 }}>
                 Projects
               </Typography>
-              {hasVCSConnected && (
-                <Button
-                  variant="contained"
-                  color="primary"
-                  startIcon={<AddIcon />}
-                  onClick={() => setShowModal(true)}
-                  sx={{
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  Add project
-                </Button>
-              )}
+              <Button
+                variant="contained"
+                color="primary"
+                startIcon={<AddIcon />}
+                onClick={() => setShowModal(true)}
+                sx={{
+                  whiteSpace: "nowrap",
+                }}
+              >
+                Add project
+              </Button>
             </Box>
 
             {projectError && (
@@ -118,7 +113,6 @@ export default function Projects(): JSX.Element {
                     >
                       <Box>
                         <Typography variant="h6" component="h2" sx={{ mb: 1 }}>
-                          {!project.hasActiveSubscription && "⚠️ "}
                           {project.name}
                         </Typography>
                         {project.lastBuildStampSec > 0 ? (

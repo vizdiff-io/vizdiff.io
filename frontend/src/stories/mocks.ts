@@ -10,15 +10,12 @@ const fixedDate = new Date("2025-04-01T08:00:00Z")
 export const mockUser: UserResponse = {
   id: 123,
   email: "test@example.com",
+  displayName: "Test User",
+  authProvider: "oidc",
   ownedProjectCount: 2,
-  subscription: {
-    plan: "starter",
-    interval: "monthly",
-  },
-  trialEndStampSec: oneMinuteAgo,
   createdStampSec: fixedDate.getTime() / 1000,
   updatedStampSec: oneMinuteAgo,
-  // GitHub fields
+  // GitHub fields (only populated when GITHUB_ENABLED)
   githubId: "456",
   githubUsername: "testuser",
   githubProfile: {
@@ -30,12 +27,6 @@ export const mockUser: UserResponse = {
     email: null,
   },
   githubInstallations: [],
-  // GitLab fields (null for GitHub-only user)
-  gitlabId: null,
-  gitlabUsername: null,
-  gitlabProfile: null,
-  gitlabHost: null,
-  gitlabGroups: [],
 }
 
 export const userHandler = http.get("/api/users/me", () => HttpResponse.json(mockUser))

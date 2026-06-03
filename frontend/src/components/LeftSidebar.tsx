@@ -3,7 +3,7 @@ import type { JSX } from "react"
 
 import SidebarContent from "./SidebarContent"
 
-export type SidebarItem = "projects" | "billing" | "settings"
+export type SidebarItem = "projects" | "settings"
 
 interface LeftSidebarProps {
   selectedItem: SidebarItem

@@ -1,6 +1,5 @@
-import { type JSX, createContext, useContext, useState, useCallback, useEffect } from "react"
+import { type JSX, createContext, useContext, useState, useCallback } from "react"
 
-import { setAnalyticsUser } from "@/lib/analytics"
 import { tryApiGet } from "@/lib/apiMethods"
 import type { UserResponse } from "@/lib/apiTypes"
 
@@ -34,17 +33,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }): JSX.E
       setError(apiError)
     }
   }, [isLoading, user])
-
-  // Set analytics user whenever user data changes
-  useEffect(() => {
-    if (user) {
-      setAnalyticsUser({
-        id: user.id,
-        name: user.githubUsername ?? user.gitlabUsername ?? undefined,
-        email: user.email ?? undefined,
-      })
-    }
-  }, [user])
 
   return (
     <AuthContext.Provider value={{ user, isLoading, error, fetchUser }}>

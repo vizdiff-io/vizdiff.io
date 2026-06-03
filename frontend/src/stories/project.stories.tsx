@@ -20,7 +20,6 @@ const mockProject: ProjectResponse = {
   repoUrl: "https://github.com/example/example-project",
   token: "abc123def456",
   ownerId: 123,
-  hasActiveSubscription: true,
   createdStampSec: oneMinuteAgo - 3600 * 24, // 1 day ago
   lastBuildStampSec: oneMinuteAgo,
   builds: 15,
@@ -29,12 +28,10 @@ const mockProject: ProjectResponse = {
 
 const mockProjectWithExpiredTrial: ProjectResponse = {
   ...mockProject,
-  hasActiveSubscription: false,
 }
 
 const mockProjectWithExpiredTrialNotOwner: ProjectResponse = {
   ...mockProject,
-  hasActiveSubscription: false,
   ownerId: 456,
 }
 

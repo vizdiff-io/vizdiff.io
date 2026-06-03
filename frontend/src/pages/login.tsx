@@ -1,16 +1,12 @@
-import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline"
-import GitHubIcon from "@mui/icons-material/GitHub"
-import { Typography, Box, Button, Container, Stack, Link, Divider } from "@mui/material"
+import { Typography, Box, Button, Container, Stack, Link } from "@mui/material"
 import Head from "next/head"
 import { useRouter } from "next/router"
 import { type JSX, useEffect } from "react"
 
-import { GitLabIcon } from "@/components/GitLabIcon"
 import { MarketingLayout } from "@/components/NavBody"
 import { Seo } from "@/components/Seo"
 import useAuth from "@/hooks/useAuth"
-import { githubSignIn, gitlabSignIn } from "@/lib/apiMethods"
-import { APP_URL, GITHUB_APP_NAME, GITHUB_CLIENT_ID, GITLAB_CLIENT_ID } from "@/lib/environment"
+import { APP_URL } from "@/lib/environment"
 
 export default function Login(): JSX.Element {
   const router = useRouter()
@@ -27,22 +23,9 @@ export default function Login(): JSX.Element {
     }
   }, [user, isLoading, router, router.isReady, redirectUri])
 
-  const hasGitHub = GITHUB_APP_NAME && GITHUB_CLIENT_ID
-  const hasGitLab = GITLAB_CLIENT_ID
-
-  if (!hasGitHub && !hasGitLab) {
-    return (
-      <MarketingLayout>
-        <Container maxWidth="lg">
-          <Box sx={{ textAlign: "center", pt: { xs: 8, sm: 12, md: 16 }, pb: { xs: 8, sm: 12 } }}>
-            <Stack direction="row" spacing={1} alignItems="center" justifyContent="center">
-              <ErrorOutlineIcon sx={{ fontSize: 24, color: "error.main" }} />
-              <Typography variant="h6">Login is not configured</Typography>
-            </Stack>
-          </Box>
-        </Container>
-      </MarketingLayout>
-    )
+  function signIn(): void {
+    const origin = typeof window !== "undefined" ? window.location.origin : APP_URL
+    window.location.href = `${origin}/api/auth/login?redirect=${encodeURIComponent(redirectUri)}`
   }
 
   // Don't show login page content while checking auth status
@@ -101,73 +84,14 @@ export default function Login(): JSX.Element {
                 vizdiff.io
               </Box>
             </Typography>
-            <Stack
-              direction={{ xs: "column", md: "row" }}
-              spacing={4}
-              sx={{
-                maxWidth: { xs: "400px", md: "100%" },
-                "& > *": { flex: "1 1 0", maxWidth: { md: "400px" } },
-                alignItems: "stretch",
-              }}
-            >
-              <Box
-                sx={{
-                  display: "flex",
-                  flexDirection: "column",
-                }}
-              >
-                <Box flex="1">
-                  <Typography variant="body1" sx={{ mb: 2 }}>
-                    Sign in to view your repositories, storybook builds, and review and approve
-                    screenshot changes.
-                  </Typography>
-                </Box>
-                <Stack direction="column" spacing={2} sx={{ pt: 3, alignItems: "flex-start" }}>
-                  {hasGitHub && (
-                    <Button
-                      variant="contained"
-                      size="small"
-                      onClick={() => githubSignIn(redirectUri)}
-                      startIcon={<GitHubIcon />}
-                      sx={{
-                        bgcolor: "white",
-                        color: "black",
-                        py: 0.75,
-                        px: 1.5,
-                        minHeight: "unset",
-                        "&:hover": {
-                          bgcolor: "#f5f5f5",
-                        },
-                        boxShadow: "0 2px 4px rgba(0,0,0,0.15)",
-                      }}
-                    >
-                      Sign in with GitHub
-                    </Button>
-                  )}
-                  {hasGitHub && hasGitLab && <Divider sx={{ my: 1 }}>or</Divider>}
-                  {hasGitLab && (
-                    <Button
-                      variant="contained"
-                      size="small"
-                      onClick={() => gitlabSignIn(redirectUri)}
-                      startIcon={<GitLabIcon sx={{ color: "#FC6D26" }} />}
-                      sx={{
-                        bgcolor: "white",
-                        color: "black",
-                        py: 0.75,
-                        px: 1.5,
-                        minHeight: "unset",
-                        "&:hover": {
-                          bgcolor: "#f5f5f5",
-                        },
-                        boxShadow: "0 2px 4px rgba(0,0,0,0.15)",
-                      }}
-                    >
-                      Sign in with GitLab
-                    </Button>
-                  )}
-                </Stack>
-              </Box>
+            <Typography variant="body1" sx={{ mb: 3, maxWidth: "400px" }}>
+              Sign in to view your repositories, storybook builds, and review and approve screenshot
+              changes.
+            </Typography>
+            <Stack direction="column" spacing={2} sx={{ alignItems: "flex-start" }}>
+              <Button variant="contained" size="large" onClick={signIn} sx={{ px: 4, py: 1 }}>
+                Sign in
+              </Button>
             </Stack>
 
             <Typography variant="body2" color="var(--seventy-percent-opacity)" sx={{ mt: 4 }}>
