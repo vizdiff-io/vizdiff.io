@@ -1,5 +1,3 @@
-import { createAppAuth } from "@octokit/auth-app"
-import { Octokit } from "@octokit/rest"
 import type { Request, Response, NextFunction } from "express"
 import type { JwtPayload, VerifyErrors } from "jsonwebtoken"
 import jwt from "jsonwebtoken"
@@ -7,121 +5,20 @@ import { Project, User } from "shared"
 
 import { Database } from "./database"
 import { setUser } from "./datadog"
-import {
-  JWT_SECRET,
-  GITHUB_APP_ID,
-  GITHUB_PRIVATE_KEY,
-  GITHUB_CLIENT_ID,
-  GITHUB_CLIENT_SECRET,
-  IS_PRODUCTION,
-  S3_BUCKET_NAME,
-  GITLAB_HOST,
-} from "./environment"
-import { getInstallationsForUserId } from "./github"
-import { gitlabFetch } from "./gitlab"
+import { JWT_SECRET, IS_PRODUCTION, S3_BUCKET_NAME } from "./environment"
 import { log } from "./log"
 import type { RequestLocals } from "./types"
 
-async function validateGitHubToken(user: User): Promise<boolean> {
-  try {
-    // First validate the OAuth token which all users have
-    const octokit = new Octokit({ auth: user.githubAccessToken })
-    await octokit.rest.users.getAuthenticated()
-
-    // If they have any GitHub App installations, validate one of them too
-    const installations = await getInstallationsForUserId(user.id)
-    const firstInstallation = installations[0]
-    if (firstInstallation) {
-      const auth = createAppAuth({
-        appId: GITHUB_APP_ID,
-        privateKey: GITHUB_PRIVATE_KEY,
-        clientId: GITHUB_CLIENT_ID,
-        clientSecret: GITHUB_CLIENT_SECRET,
-      })
-      const installationAuth = await auth({
-        type: "installation",
-        installationId: firstInstallation.installationId,
-      })
-      const appOctokit = new Octokit({ auth: installationAuth.token })
-      await appOctokit.rest.apps.getAuthenticated()
-    }
-
-    return true
-  } catch (error) {
-    if (error instanceof Error) {
-      log.warn(`GitHub token validation failed: ${error.message}`)
-    } else {
-      log.warn("GitHub token validation failed with unknown error")
-    }
-    return false
-  }
-}
-
-async function validateGitLabToken(user: User): Promise<boolean> {
-  try {
-    if (!user.gitlabAccessToken) {
-      return false
-    }
-
-    const gitlabHost = user.gitlabHost ?? GITLAB_HOST
-
-    // Validate the token by fetching the current user
-    // Using gitlabFetch (respects GITLAB_REJECT_UNAUTHORIZED for self-signed certs)
-    const userRes = await gitlabFetch(`${gitlabHost}/api/v4/user`, {
-      headers: {
-        Authorization: `Bearer ${user.gitlabAccessToken}`,
-        Accept: "application/json",
-      },
-    })
-
-    if (!userRes.ok) {
-      return false
-    }
-
-    return true
-  } catch (error) {
-    if (error instanceof Error) {
-      log.warn(`GitLab token validation failed: ${error.message}`)
-    } else {
-      log.warn("GitLab token validation failed with unknown error")
-    }
-    return false
-  }
-}
-
+/**
+ * Re-issue a JWT cookie for a still-valid user whose token has expired. Identity is now owned by
+ * the configured AuthProvider, so there are no VCS tokens to validate here — we simply reload the
+ * user by `sub` and re-issue if they still exist.
+ */
 async function refreshJWT(userId: number, req: Request, res: Response): Promise<boolean> {
   try {
-    // Get the user from the database
     const db = await Database()
     const user = await db.manager.findOneBy(User, { id: userId })
     if (!user) {
-      return false
-    }
-
-    // Validate tokens based on which VCS provider(s) the user has
-    // For GitHub users, validate GitHub token
-    // For GitLab users, validate GitLab token
-    // For users with both, validate at least one (prefer GitHub if both exist)
-    let isValid = false
-
-    if (user.githubAccessToken) {
-      isValid = await validateGitHubToken(user)
-      if (isValid) {
-        // GitHub token is valid, proceed with refresh
-      } else if (user.gitlabAccessToken) {
-        // GitHub token invalid, try GitLab token as fallback
-        isValid = await validateGitLabToken(user)
-      }
-    } else if (user.gitlabAccessToken) {
-      // GitLab-only user, validate GitLab token
-      isValid = await validateGitLabToken(user)
-    } else {
-      // User has no VCS tokens - this shouldn't happen for authenticated users
-      log.warn(`User ${user.id} has no GitHub or GitLab access token`)
-      return false
-    }
-
-    if (!isValid) {
       return false
     }
 
@@ -145,19 +42,6 @@ async function refreshJWT(userId: number, req: Request, res: Response): Promise<
 }
 
 export function authenticateJWT(req: Request, res: Response, next: NextFunction): void {
-  if (!IS_PRODUCTION) {
-    const testUserId = req.headers["x-test-user-id"] as string | undefined
-    if (testUserId) {
-      const userId = parseInt(testUserId, 10)
-      if (!isNaN(userId)) {
-        ;(res.locals as RequestLocals).user = { id: userId } as User
-        log.debug(`Using X-Test-User-Id: ${userId} for ${req.method} ${req.url}`)
-        next()
-        return
-      }
-    }
-  }
-
   const jwtHeader = Array.isArray(req.headers.jwt) ? req.headers.jwt[0] : req.headers.jwt
   const jwtCookie = req.cookies.token as string | undefined
   const token = (jwtHeader?.length ?? 0) > 0 ? jwtHeader : jwtCookie
@@ -227,20 +111,14 @@ export async function requireUser(_req: Request, res: Response, next: NextFuncti
   // Count the number of projects owned by this user
   const ownedProjectCount = await db.manager.count(Project, { where: { user: { id: user.id } } })
 
-  // Associate this request with the user in Datadog
-  // Get display name from GitHub or GitLab profile
-  const githubName = (user.githubProfile as { name?: string } | null)?.name
-  const gitlabName = (user.gitlabProfile as { name?: string } | null)?.name
-  const displayName = githubName ?? gitlabName ?? user.githubUsername ?? user.gitlabUsername
+  // Associate this request with the user in observability tooling
+  const displayName = user.displayName ?? user.githubUsername
   setUser({
     id: user.id.toString(),
     name: displayName ?? undefined,
     email: user.email ?? undefined,
     githubUsername: user.githubUsername ?? undefined,
-    gitlabUsername: user.gitlabUsername ?? undefined,
     ownedProjectCount: ownedProjectCount.toString(),
-    subscriptionPlan: user.subscriptionPlan ?? undefined,
-    subscriptionInterval: user.subscriptionInterval ?? undefined,
   })
 
   locals.user = user

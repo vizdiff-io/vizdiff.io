@@ -18,12 +18,10 @@ import * as Gitlab from "./endpoints/gitlab"
 import * as Health from "./endpoints/health"
 import * as Projects from "./endpoints/projects"
 import * as ScreenshotTests from "./endpoints/screenshotTests"
-import * as Setup from "./endpoints/setup"
-import * as StripeEndpoints from "./endpoints/stripe"
 import * as Upload from "./endpoints/upload"
 import * as User from "./endpoints/user"
 import * as Webhooks from "./endpoints/webhooks"
-import { IS_PRODUCTION, IS_TEST, PORT, STRIPE_SECRET_KEY } from "./environment"
+import { GITHUB_ENABLED, IS_PRODUCTION, IS_TEST, PORT } from "./environment"
 import { log } from "./log"
 import type { DefaultRequest, DefaultResponse } from "./types"
 
@@ -91,18 +89,18 @@ router.get("/", (_req: DefaultRequest, res: DefaultResponse) => {
 })
 router.get("/health", Health.health)
 
-// Auth routes - GitHub
-router.get("/auth/github/callback", Auth.githubCallback)
-router.get("/auth/github/installed", Auth.githubAppInstalled)
-router.get("/auth/logout", Auth.logout) // Clears cookies only, no auth needed
+// Auth routes (pluggable AuthProvider: OIDC/MSAL or dev)
+router.get("/auth/login", Auth.login)
+router.get("/auth/callback", Auth.callback)
+router.get("/auth/logout", Auth.logout) // Clears cookies, no auth needed
 
-// Auth routes - GitLab
-router.get("/auth/gitlab/login", Auth.gitlabLogin)
-router.get("/auth/gitlab/callback", Auth.gitlabCallback)
-
-// GitHub API routes
-router.get("/github/orgs", authenticateJWT, requireUser, Github.orgs)
-router.get("/github/repos", authenticateJWT, requireUser, Github.repos)
+// GitHub API routes (gated; disabled by default)
+if (GITHUB_ENABLED) {
+  router.get("/github/orgs", authenticateJWT, requireUser, Github.orgs)
+  router.get("/github/repos", authenticateJWT, requireUser, Github.repos)
+} else {
+  log.info("GitHub support is disabled; skipping GitHub routes (set GITHUB_ENABLED=true to enable)")
+}
 
 // GitLab API routes
 router.get("/gitlab/groups", authenticateJWT, requireUser, Gitlab.groups)
@@ -122,31 +120,12 @@ router.post("/tests/:id/status/:status", authenticateJWT, requireUser, Approval.
 
 router.get("/users/me", authenticateJWT, requireUser, User.me)
 router.delete("/users/me", authenticateJWT, requireUser, User.deleteAccount)
-router.post("/sync-github-repos", authenticateJWT, requireUser, User.syncGithubRepos)
-router.post("/sync-gitlab-projects", authenticateJWT, requireUser, User.syncGitlabProjects)
 router.post("/upload/storybook", Upload.uploadStorybook) // ?token=<project_token>
 
-// Setup/validation routes (optionally protected by SETUP_TOKEN)
-router.get("/setup/status", Setup.status)
-router.post("/setup/github/validate", Setup.validateGithub)
-router.post("/setup/s3/validate", Setup.validateS3)
-router.post("/setup/ses/test", Setup.testEmail)
-
-if (STRIPE_SECRET_KEY) {
-  router.post(
-    "/stripe/checkout",
-    authenticateJWT,
-    requireUser,
-    StripeEndpoints.createCheckoutSession,
-  )
-  router.get("/stripe/usage", authenticateJWT, requireUser, StripeEndpoints.getBillingPeriodUsage)
-  router.post("/stripe/webhook", StripeEndpoints.stripeWebhook)
-} else {
-  log.info("Stripe is disabled; skipping Stripe routes")
-}
-
 // Webhook routes
-router.post("/webhooks/github", Webhooks.githubWebhook)
+if (GITHUB_ENABLED) {
+  router.post("/webhooks/github", Webhooks.githubWebhook)
+}
 router.post("/webhooks/gitlab", Webhooks.gitlabWebhook)
 
 app.use("/api", router)
