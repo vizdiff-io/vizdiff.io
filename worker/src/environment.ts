@@ -30,6 +30,18 @@ export const POSTGRES_PORT = parseInt(process.env.POSTGRES_PORT ?? "5432", 10)
 
 export const S3_BUCKET_NAME = process.env.S3_BUCKET_NAME ?? "vizdiffio-testing"
 
+// Optional custom S3 endpoint for non-AWS object stores (e.g. MinIO in standalone/air-gapped
+// mode). When unset, the AWS SDK uses the real S3 endpoint. Path-style addressing defaults on
+// whenever a custom endpoint is set (MinIO requires it) and can be overridden explicitly.
+export const S3_ENDPOINT = process.env.S3_ENDPOINT
+export const S3_FORCE_PATH_STYLE = process.env.S3_FORCE_PATH_STYLE
+  ? process.env.S3_FORCE_PATH_STYLE === "true"
+  : Boolean(S3_ENDPOINT)
+// Extra options spread into `new S3Client(...)`; empty object for real AWS S3.
+export const S3_CLIENT_CONFIG: { endpoint?: string; forcePathStyle?: boolean } = S3_ENDPOINT
+  ? { endpoint: S3_ENDPOINT, forcePathStyle: S3_FORCE_PATH_STYLE }
+  : {}
+
 // GitHub support is disabled by default in self-hosted deployments.
 export const GITHUB_ENABLED = process.env.GITHUB_ENABLED === "true"
 

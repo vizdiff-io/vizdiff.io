@@ -6,7 +6,13 @@ import { uuidv7 } from "uuidv7"
 
 import { getProjectByToken, getS3BucketForProject } from "../authenticate"
 import { Database } from "../database"
-import { APP_URL, ENABLE_VCS_STATUS, GITHUB_ENABLED, GITLAB_HOST } from "../environment"
+import {
+  APP_URL,
+  ENABLE_VCS_STATUS,
+  GITHUB_ENABLED,
+  GITLAB_HOST,
+  S3_CLIENT_CONFIG,
+} from "../environment"
 import { getInstallationForOrg, getOctokitForInstallation } from "../github"
 import { getGitLabHostConfig, type GitLabCheckData, updateGitLabCommitStatus } from "../gitlab"
 import { getQueryString } from "../http"
@@ -100,7 +106,7 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
   logChild.debug(`Uploading ${length} bytes to ${Bucket}/${Key}`)
 
   // Proxy the .tar.gz upload to S3
-  const s3Client = new S3Client()
+  const s3Client = new S3Client(S3_CLIENT_CONFIG)
   const upload = new S3Upload({
     client: s3Client,
     params: {

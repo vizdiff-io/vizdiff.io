@@ -18,7 +18,7 @@ import { remote } from "webdriverio"
 
 import { Database } from "./database"
 import { downloadWithTimeout } from "./download"
-import { IS_PRODUCTION, S3_BUCKET_NAME } from "./environment"
+import { IS_PRODUCTION, S3_BUCKET_NAME, S3_CLIENT_CONFIG } from "./environment"
 import { updateGitHubCheckRun, type GitHubCheckData } from "./github"
 import { getGitLabHostConfig, updateGitLabCommitStatus, type GitLabCheckData } from "./gitlab"
 import { log } from "./log"
@@ -116,7 +116,7 @@ export async function ingestStorybook(
   }
 
   // Initialize S3 client
-  const s3Client = new S3Client()
+  const s3Client = new S3Client(S3_CLIENT_CONFIG)
   const bucket = await getS3BucketForProjectId(projectId)
   const key = `projects/${projectId}/${uploadId}.tar.gz`
   log.debug(`Using S3 bucket: ${bucket}, key: ${key}`)

@@ -65,11 +65,15 @@ export class OidcAuthProvider implements AuthProvider {
         ? undefined
         : // eslint-disable-next-line @typescript-eslint/no-deprecated
           [oidc.allowInsecureRequests]
+      // Confidential clients authenticate the token exchange with the client secret. v6 defaults
+      // to ClientSecretPost when a client_secret is present, but we pass it explicitly so the
+      // intent is unambiguous (and public clients with no secret stay unauthenticated).
+      const clientAuth = OIDC_CLIENT_SECRET ? oidc.ClientSecretPost(OIDC_CLIENT_SECRET) : undefined
       const config = await oidc.discovery(
         new URL(OIDC_ISSUER),
         OIDC_CLIENT_ID,
         OIDC_CLIENT_SECRET || undefined,
-        undefined,
+        clientAuth,
         execute ? { execute } : undefined,
       )
       if (!OIDC_REJECT_UNAUTHORIZED) {

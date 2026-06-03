@@ -75,9 +75,13 @@ export class SelfHost1717000000000 implements MigrationInterface {
     await queryRunner.query(`DROP TABLE IF EXISTS "gitlab_groups"`)
 
     // --- projects: re-key uniqueness to (vcs_provider, repo_id, gitlab_host) ---
+    // COALESCE the host so NULL (all GitHub rows, plus legacy GitLab rows) participates in
+    // uniqueness. Postgres treats NULLs as distinct in a plain unique index, which would let
+    // duplicate projects for the same repo slip through. The empty string is not a valid host,
+    // so it is a safe sentinel. (Avoids a hard dependency on PG15+ `NULLS NOT DISTINCT`.)
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_user_vcs_repo"`)
     await queryRunner.query(
-      `CREATE UNIQUE INDEX IF NOT EXISTS "IDX_vcs_repo_host" ON "projects" ("vcs_provider", "repo_id", "gitlab_host")`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS "IDX_vcs_repo_host" ON "projects" ("vcs_provider", "repo_id", (COALESCE("gitlab_host", '')))`,
     )
   }
 

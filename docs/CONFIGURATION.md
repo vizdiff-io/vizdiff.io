@@ -70,7 +70,9 @@ Single-host fallback: when `GITLAB_HOSTS` is unset, a single host is derived fro
 | `POSTGRES_PASS` | api, worker | no | `postgres` | Postgres password. |
 | `POSTGRES_DATABASE` | api, worker | no | `vizdiff` | Postgres database name. |
 | `S3_BUCKET_NAME` | api, worker | yes | `vizdiffio-testing` | Bucket for uploaded Storybook tarballs and screenshots. |
-| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_REGION` | api, worker | yes* | — | Standard AWS SDK credentials (omit when using IRSA / instance roles). |
+| `S3_ENDPOINT` | api, worker | no | — | Custom S3 endpoint for non-AWS object stores (e.g. `http://minio:9000` for the chart's standalone/air-gapped MinIO mode). Unset → real AWS S3. |
+| `S3_FORCE_PATH_STYLE` | api, worker | no | `true` when `S3_ENDPOINT` set | Use path-style addressing (required by MinIO). |
+| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_REGION` | api, worker | yes* | — | Standard AWS SDK credentials (omit when using IRSA / instance roles; for MinIO use its access/secret keys). |
 | `ENABLE_VCS_STATUS` | api, worker | no | `true` in prod/staging | Whether to post VCS commit statuses. |
 | `AUTH_PROVIDER` | api | no | `oidc` (prod), `dev` (else) | Identity provider: `oidc` or `dev`. |
 | `OIDC_ISSUER` | api | yes (oidc) | — | OIDC issuer URL (e.g. `https://login.microsoftonline.com/<tenant>/v2.0`). |
