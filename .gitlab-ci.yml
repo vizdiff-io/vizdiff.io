@@ -1,0 +1,133 @@
+# GitLab CI pipeline for the self-hosted vizdiff.io deployment.
+#
+# This is ADDITIVE and runs alongside the GitHub Actions workflow
+# (.github/workflows/ci.yml), which is retained for the SaaS build. The GitHub
+# path pushes to ECR; this GitLab path targets the self-hosted corporate
+# deployment (GitLab Container Registry + k8s via Terragrunt/Helm).
+#
+# Stages:
+#   test   - install, build, lint and test the Yarn v4 monorepo against Postgres
+#   build  - build & push the api/worker/frontend images to the GitLab registry
+#   deploy - (manual) terragrunt apply, rolling out the freshly built images
+
+stages:
+  - test
+  - build
+  - deploy
+
+variables:
+  # Match the repo's Node version (Dockerfiles use node:22-alpine).
+  NODE_VERSION: "22"
+  # Keep Yarn's global/cache folders inside the project so they can be cached.
+  YARN_ENABLE_GLOBAL_CACHE: "false"
+
+# ---------------------------------------------------------------------------
+# test: build + lint + test the whole monorepo against a Postgres service.
+# ---------------------------------------------------------------------------
+test:
+  stage: test
+  image: node:22
+  services:
+    - name: postgres:16
+      alias: postgres
+  variables:
+    NODE_ENV: test
+    NEXT_TELEMETRY_DISABLED: "1"
+    # Postgres service configuration. The test suite reads these to connect.
+    POSTGRES_DB: vizdiff_test
+    POSTGRES_USER: postgres
+    POSTGRES_PASSWORD: postgres
+    POSTGRES_HOST_AUTH_METHOD: trust
+    PGHOST: postgres
+    PGPORT: "5432"
+    PGUSER: postgres
+    PGPASSWORD: postgres
+    PGDATABASE: vizdiff_test
+    # Cache yarn's local cache directory (created because global cache is off).
+    YARN_CACHE_FOLDER: "$CI_PROJECT_DIR/.yarn/cache"
+  cache:
+    # Key on the lockfile so the cache is reused until dependencies change.
+    key:
+      files:
+        - yarn.lock
+    paths:
+      - .yarn/cache/
+      - .yarn/unplugged/
+      - node_modules/
+      - frontend/.next/cache/
+  script:
+    - corepack enable
+    - yarn install --immutable
+    - yarn build:all
+    # Lint must run after build so the compiled `shared` package can be imported.
+    - yarn lint:all
+    - yarn test:all
+  rules:
+    # Run on the default branch and on merge request pipelines.
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+
+# ---------------------------------------------------------------------------
+# build: docker-in-docker build of each service image, pushed to the
+# GitLab Container Registry. One parallel job per service via matrix.
+# ---------------------------------------------------------------------------
+build:
+  stage: build
+  image: docker:27
+  services:
+    - docker:27-dind
+  variables:
+    DOCKER_HOST: tcp://docker:2376
+    DOCKER_TLS_CERTDIR: "/certs"
+    DOCKER_TLS_VERIFY: "1"
+    DOCKER_CERT_PATH: "/certs/client"
+  parallel:
+    matrix:
+      - SERVICE: [api, worker, frontend]
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+  script:
+    # The Dockerfiles expect the repo root as the build context.
+    - >
+      docker build
+      -f "$SERVICE/Dockerfile"
+      -t "$CI_REGISTRY_IMAGE/$SERVICE:$CI_COMMIT_SHA"
+      -t "$CI_REGISTRY_IMAGE/$SERVICE:latest"
+      --build-arg NODE_ENV=production
+      --build-arg GIT_HASH="$CI_COMMIT_SHA"
+      .
+    - docker push "$CI_REGISTRY_IMAGE/$SERVICE:$CI_COMMIT_SHA"
+    - docker push "$CI_REGISTRY_IMAGE/$SERVICE:latest"
+  rules:
+    # Only build & push images from the default branch.
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+
+# ---------------------------------------------------------------------------
+# deploy: terragrunt apply of the app stack with the new image tag.
+#
+# NOTE: This job depends on the Helm/Terragrunt PR (deploy/** — authored
+# separately) being merged. Until deploy/terragrunt/live/$ENV/app exists this
+# job cannot run; it is also `when: manual` so a human explicitly triggers the
+# production rollout.
+# ---------------------------------------------------------------------------
+deploy:
+  stage: deploy
+  image:
+    # Image bundling terragrunt + helm (and terraform). Pin to a known-good tag.
+    name: devopsinfra/docker-terragrunt:tf-1.9.8-tg-0.69.10
+    entrypoint: [""]
+  variables:
+    # Target environment under deploy/terragrunt/live/<ENV>/app.
+    ENV: production
+  script:
+    - helm version
+    - terragrunt --version
+    - cd "deploy/terragrunt/live/$ENV/app"
+    # Pass the freshly built image tag through to the Helm release values.
+    - terragrunt apply -auto-approve -var "image_tag=$CI_COMMIT_SHA"
+  environment:
+    name: production
+  rules:
+    # Default branch only, and require a human to click "play".
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+      when: manual
