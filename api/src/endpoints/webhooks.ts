@@ -5,12 +5,12 @@ import { Database } from "../database"
 import {
   APP_URL,
   GITHUB_WEBHOOK_SECRET,
-  GITLAB_HOST,
   GITLAB_WEBHOOK_SECRET,
   IS_PRODUCTION,
   IS_STAGING,
 } from "../environment"
 import { getOctokitForInstallation } from "../github"
+import { getGitLabHostConfig } from "../gitlab"
 import { log } from "../log"
 import type { CheckRunPayload } from "../schemas/CheckRunPayload"
 import type { CheckSuitePayload } from "../schemas/CheckSuitePayload"
@@ -118,18 +118,33 @@ async function findProjectByRepo(
   })
 }
 
+/** Extract the origin (scheme://host[:port]) from a GitLab web URL. */
+function originFromWebUrl(webUrl: string | undefined): string | undefined {
+  if (!webUrl) {
+    return undefined
+  }
+  try {
+    return new URL(webUrl).origin
+  } catch {
+    return undefined
+  }
+}
+
 /**
- * Find a project by GitLab project ID and host. Webhooks from the configured GitLab instance
- * are matched by GITLAB_HOST to prevent cross-host mismatches when serving multiple instances.
+ * Find a project by GitLab project ID and host. Webhooks are matched by the host derived from the
+ * payload's `project.web_url` origin to prevent cross-host mismatches when serving multiple instances.
  */
-async function findProjectByGitLabId(gitlabProjectId: number): Promise<Project | undefined> {
+async function findProjectByGitLabId(
+  gitlabProjectId: number,
+  gitlabHost: string | undefined,
+): Promise<Project | undefined> {
   const db = await Database()
   const projectRepo = db.getRepository(Project)
   const project = await projectRepo.findOne({
     where: {
       vcsProvider: "gitlab",
       repoId: gitlabProjectId,
-      gitlabHost: GITLAB_HOST,
+      ...(gitlabHost ? { gitlabHost } : {}),
     },
   })
   return project ?? undefined
@@ -432,20 +447,6 @@ type GitLabWebhookPayload = GitLabPushPayload | GitLabMergeRequestPayload | GitL
  * Handle GitLab webhook events
  */
 export async function gitlabWebhook(req: RequestWithRawBody, res: DefaultResponse): Promise<void> {
-  // Verify webhook token
-  const webhookToken = req.headers["x-gitlab-token"]
-  if (!GITLAB_WEBHOOK_SECRET) {
-    log.warn("GitLab webhook received but GITLAB_WEBHOOK_SECRET is not configured")
-    res.status(500).json({ error: "GitLab webhooks not configured" })
-    return
-  }
-
-  if (!verifyGitLabWebhookToken(webhookToken, GITLAB_WEBHOOK_SECRET)) {
-    log.error("Invalid GitLab webhook token")
-    res.status(401).json({ error: "Invalid webhook token" })
-    return
-  }
-
   // Validate payload has object_kind before type assertion
   const body = req.body as unknown
   if (
@@ -461,18 +462,39 @@ export async function gitlabWebhook(req: RequestWithRawBody, res: DefaultRespons
 
   const payload = body as GitLabWebhookPayload
   const eventType = payload.object_kind
-  log.info(`Received GitLab webhook event: ${eventType}`)
+
+  // Derive the GitLab host from the payload origin and resolve its (optional) per-host secret,
+  // falling back to the global GITLAB_WEBHOOK_SECRET.
+  const gitlabHost = originFromWebUrl(payload.project.web_url)
+  const hostConfig = gitlabHost ? getGitLabHostConfig(gitlabHost) : undefined
+  const expectedSecret = hostConfig?.webhookSecret ?? GITLAB_WEBHOOK_SECRET
+
+  // Verify webhook token
+  const webhookToken = req.headers["x-gitlab-token"]
+  if (!expectedSecret) {
+    log.warn("GitLab webhook received but no webhook secret is configured")
+    res.status(500).json({ error: "GitLab webhooks not configured" })
+    return
+  }
+
+  if (!verifyGitLabWebhookToken(webhookToken, expectedSecret)) {
+    log.error("Invalid GitLab webhook token")
+    res.status(401).json({ error: "Invalid webhook token" })
+    return
+  }
+
+  log.info(`Received GitLab webhook event: ${eventType} from ${gitlabHost ?? "(unknown host)"}`)
 
   try {
     switch (eventType) {
       case "push":
-        await handleGitLabPush(res, payload)
+        await handleGitLabPush(res, payload, gitlabHost)
         break
       case "merge_request":
-        await handleGitLabMergeRequest(res, payload)
+        await handleGitLabMergeRequest(res, payload, gitlabHost)
         break
       case "pipeline":
-        await handleGitLabPipeline(res, payload)
+        await handleGitLabPipeline(res, payload, gitlabHost)
         break
       default:
         log.info(`Ignoring GitLab webhook event type: "${eventType}"`)
@@ -487,7 +509,11 @@ export async function gitlabWebhook(req: RequestWithRawBody, res: DefaultRespons
 /**
  * Handle GitLab push events
  */
-async function handleGitLabPush(res: DefaultResponse, payload: GitLabPushPayload): Promise<void> {
+async function handleGitLabPush(
+  res: DefaultResponse,
+  payload: GitLabPushPayload,
+  gitlabHost: string | undefined,
+): Promise<void> {
   const projectId = payload.project_id
   const commitSha = payload.checkout_sha || payload.after
   const branch = payload.ref.replace("refs/heads/", "")
@@ -495,7 +521,7 @@ async function handleGitLabPush(res: DefaultResponse, payload: GitLabPushPayload
   log.info(`GitLab push event for project ${projectId}, commit ${commitSha}, branch ${branch}`)
 
   // Find the associated VizDiff project
-  const project = await findProjectByGitLabId(projectId)
+  const project = await findProjectByGitLabId(projectId, gitlabHost)
   if (!project) {
     log.info(`No VizDiff project found for GitLab project ${projectId}`)
     res.status(200).json({ message: "No project found, event acknowledged" })
@@ -527,6 +553,7 @@ async function handleGitLabPush(res: DefaultResponse, payload: GitLabPushPayload
 async function handleGitLabMergeRequest(
   res: DefaultResponse,
   payload: GitLabMergeRequestPayload,
+  gitlabHost: string | undefined,
 ): Promise<void> {
   const projectId = payload.project.id
   const mrIid = payload.object_attributes.iid
@@ -539,7 +566,7 @@ async function handleGitLabMergeRequest(
   )
 
   // Find the associated VizDiff project
-  const project = await findProjectByGitLabId(projectId)
+  const project = await findProjectByGitLabId(projectId, gitlabHost)
   if (!project) {
     log.info(`No VizDiff project found for GitLab project ${projectId}`)
     res.status(200).json({ message: "No project found, event acknowledged" })
@@ -585,6 +612,7 @@ async function handleGitLabMergeRequest(
 async function handleGitLabPipeline(
   res: DefaultResponse,
   payload: GitLabPipelinePayload,
+  gitlabHost: string | undefined,
 ): Promise<void> {
   const projectId = payload.project.id
   const pipelineId = payload.object_attributes.id
@@ -596,7 +624,7 @@ async function handleGitLabPipeline(
   )
 
   // Find the associated VizDiff project
-  const project = await findProjectByGitLabId(projectId)
+  const project = await findProjectByGitLabId(projectId, gitlabHost)
   if (!project) {
     log.info(`No VizDiff project found for GitLab project ${projectId}`)
     res.status(200).json({ message: "No project found, event acknowledged" })
