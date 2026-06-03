@@ -1,0 +1,197 @@
+# Default values for the vizdiff chart.
+# This file documents every supported value. Override with -f myvalues.yaml
+# or --set on the helm command line.
+
+# -- Override the chart name used in resource names.
+nameOverride: ""
+# -- Fully override the release-derived resource name prefix.
+fullnameOverride: ""
+
+# Container images. Tags default to the chart appVersion when left empty,
+# so a single `appVersion` bump (or `--set image.tag=<sha>` from CI) moves
+# all three services together. Set image.<svc>.tag to pin a service.
+image:
+  # -- Registry + namespace prefix applied to every repository below,
+  # e.g. "registry.gitlab.com/mvi-llc/vizdiff.io". Leave empty to use bare repos.
+  registry: "ghcr.io/mvi-llc"
+  # -- Global tag fallback. Empty => use .Chart.AppVersion.
+  tag: ""
+  pullPolicy: IfNotPresent
+  api:
+    repository: vizdiff-api
+    tag: ""
+  worker:
+    repository: vizdiff-worker
+    tag: ""
+  frontend:
+    repository: vizdiff-frontend
+    tag: ""
+
+# -- Names of pre-existing image pull secrets (e.g. for a private registry).
+imagePullSecrets: []
+#  - name: gitlab-registry
+
+# Per-service replica counts.
+replicaCount:
+  api: 1
+  worker: 1
+  frontend: 1
+
+# -- Public URL the deployment is served from. Used by the api (APP_URL),
+# the OIDC redirect default, and the frontend runtime config. REQUIRED.
+appUrl: "https://vizdiff.example.com"
+
+# Authentication. See NOTES.txt and docs/CONFIGURATION.md.
+auth:
+  # -- "oidc" (production / MSAL / generic IdP) or "dev" (no-auth, non-prod only).
+  provider: oidc
+  oidc:
+    # -- Issuer URL, e.g. https://login.microsoftonline.com/<tenant>/v2.0
+    issuer: ""
+    clientId: ""
+    # -- OIDC client secret. Stored in the chart Secret (see secrets.*) unless
+    # provided via an existing secret.
+    clientSecret: ""
+    # -- Defaults to "${appUrl}/api/auth/callback" when empty.
+    redirectUri: ""
+    scopes: "openid profile email"
+
+# GitHub support. Disabled by default; GitLab is the focus.
+github:
+  enabled: false
+
+# GitLab per-host service tokens. The JSON value is stored in the Secret as
+# GITLAB_HOSTS. Example:
+#   gitlab:
+#     hosts:
+#       - host: https://gitlab.com
+#         token: glpat-xxxx
+#         rejectUnauthorized: true
+#       - host: https://gitlab.corp.example.com
+#         token: glpat-yyyy
+#         rejectUnauthorized: false
+#         webhookSecret: shhh
+gitlab:
+  hosts: []
+  # -- Optional: reference an existing Secret holding the GITLAB_HOSTS key
+  # instead of rendering tokens into chart-managed Secrets. Takes precedence
+  # over .gitlab.hosts when set.
+  hostsSecret:
+    name: ""
+    key: GITLAB_HOSTS
+  # -- Single global webhook secret (used when per-host webhookSecret is unset).
+  webhookSecret: ""
+
+# Secret handling.
+secrets:
+  # -- When true (default) the chart renders a Secret from the values below.
+  # When false you MUST provide secrets.existingSecret with all required keys.
+  create: true
+  # -- Name of a pre-existing Secret to consume via envFrom instead of creating one.
+  existingSecret: ""
+  # -- JWT signing secret. REQUIRED in production; generate a unique 32+ char value.
+  jwtSecret: ""
+
+# Postgres connection. When postgres.embedded is true, host/port/user/password
+# are wired to the in-chart Postgres and these external values are ignored.
+postgres:
+  # -- Deploy an in-chart single-replica Postgres (StatefulSet) for standalone/
+  # air-gapped trials. NOT for production; use RDS (Terragrunt) instead.
+  embedded: false
+  host: ""
+  port: 5432
+  database: vizdiff
+  user: postgres
+  # -- Password. Stored in the chart Secret as POSTGRES_PASS.
+  password: ""
+  embeddedConfig:
+    image: postgres:16-alpine
+    storage: 8Gi
+    storageClassName: ""
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+
+# Object storage (screenshots/artifacts).
+s3:
+  bucketName: "vizdiff"
+  region: "us-west-2"
+  # -- Custom S3 endpoint (for MinIO / non-AWS). Empty => AWS default.
+  endpoint: ""
+  # -- Path-style addressing, required by MinIO and most S3-compatibles.
+  forcePathStyle: false
+  # -- Deploy an in-chart MinIO for standalone/air-gapped trials. When true,
+  # endpoint/forcePathStyle/credentials are wired automatically.
+  minio:
+    enabled: false
+    image: minio/minio:latest
+    accessKey: minioadmin
+    secretKey: minioadmin
+    storage: 16Gi
+    storageClassName: ""
+
+# Datadog APM (optional backend tracing). The images import dd-trace at boot;
+# tracing is inert unless enabled here.
+ddApm:
+  enabled: false
+  agentHost: "datadog-agent.datadog.svc.cluster.local"
+  env: "production"
+
+# -- ENABLE_VCS_STATUS: post commit/MR statuses to VCS. Defaults to "true" so
+# self-hosted prod posts statuses; set false to disable.
+enableVcsStatus: true
+
+serviceAccount:
+  # -- Create a ServiceAccount for the api/worker pods.
+  create: true
+  name: ""
+  annotations: {}
+    # IRSA: grant the pods an IAM role for S3 access. Terragrunt's irsa module
+    # fills this in. Example:
+    # eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/vizdiff-s3
+
+# Service definitions (api + frontend have inbound Services; worker does not).
+service:
+  api:
+    type: ClusterIP
+    port: 3001
+  frontend:
+    type: ClusterIP
+    port: 80
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations: {}
+  # -- Hostname. Defaults to the host parsed from appUrl when empty.
+  host: ""
+  tls:
+    enabled: false
+    secretName: vizdiff-tls
+  paths:
+    frontend: /
+    api: /api
+
+# Per-service container resource requests/limits.
+resources:
+  api:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { cpu: "1", memory: 512Mi }
+  worker:
+    requests: { cpu: 250m, memory: 512Mi }
+    limits: { cpu: "2", memory: 2Gi }
+  frontend:
+    requests: { cpu: 25m, memory: 64Mi }
+    limits: { cpu: 250m, memory: 128Mi }
+
+# Pre-install/pre-upgrade hook Job that waits for Postgres to accept
+# connections before the api boots (the api runs migrations on boot).
+dbWaitHook:
+  enabled: true
+  image: postgres:16-alpine
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+podAnnotations: {}
