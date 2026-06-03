@@ -15,7 +15,9 @@ import type { VCSProvider } from "./types"
 import type { User } from "./User"
 
 @Entity("projects")
-@Index("IDX_user_vcs_repo", ["user", "vcsProvider", "repoId"], { unique: true })
+// One project per repo regardless of who created it. gitlabHost is part of the key to keep GitLab
+// projects with the same numeric ID on different hosts distinct.
+@Index("IDX_vcs_repo_host", ["vcsProvider", "repoId", "gitlabHost"], { unique: true })
 export class Project {
   @PrimaryGeneratedColumn()
   id!: number
