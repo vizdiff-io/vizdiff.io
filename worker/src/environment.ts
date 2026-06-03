@@ -30,27 +30,20 @@ export const POSTGRES_PORT = parseInt(process.env.POSTGRES_PORT ?? "5432", 10)
 
 export const S3_BUCKET_NAME = process.env.S3_BUCKET_NAME ?? "vizdiffio-testing"
 
-// GitHub API settings
+// GitHub support is disabled by default in self-hosted deployments.
+export const GITHUB_ENABLED = process.env.GITHUB_ENABLED === "true"
+
+// GitHub API settings (only used when GITHUB_ENABLED)
 export const GITHUB_APP_ID = process.env.GITHUB_APP_ID ?? ""
 export const GITHUB_CLIENT_ID = process.env.GITHUB_CLIENT_ID ?? ""
 export const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET ?? ""
 export const GITHUB_PRIVATE_KEY = process.env.GITHUB_PRIVATE_KEY ?? ""
 export const GITHUB_WEBHOOK_SECRET = process.env.GITHUB_WEBHOOK_SECRET ?? ""
 
-// GitLab API settings
+// GitLab API settings.
+// Per-host service tokens are configured via GITLAB_HOSTS (parsed in gitlab.ts via shared/gitlabHosts).
+// GITLAB_HOST is the default host used to resolve a token when a task carries no explicit host.
 export const GITLAB_HOST = process.env.GITLAB_HOST ?? "https://gitlab.com"
-export const GITLAB_REJECT_UNAUTHORIZED = process.env.GITLAB_REJECT_UNAUTHORIZED !== "false"
-
-// Stripe settings
-export const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY
-export const STRIPE_API_VERSION = "2026-01-28.clover"
-
-// Customer.io settings
-export const CUSTOMER_IO_API_KEY = process.env.CUSTOMER_IO_API_KEY
-
-// SES settings (optional)
-export const SES_REGION = process.env.SES_REGION
-export const SES_FROM_EMAIL = process.env.SES_FROM_EMAIL
 
 // Application URLs
 export const APP_URL = process.env.APP_URL ?? "https://vizdiff.io"

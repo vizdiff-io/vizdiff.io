@@ -1,19 +1,30 @@
 import { Gitlab } from "@gitbeaker/rest"
+import type { GitLabHostConfig } from "shared"
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 
-import { getGitLabClient, updateGitLabCommitStatus, type GitLabStatusState } from "./gitlab"
+import {
+  getGitLabClient,
+  getGitLabHostConfig,
+  updateGitLabCommitStatus,
+  type GitLabStatusState,
+} from "./gitlab"
 
 // Mock external dependencies
 vi.mock("@gitbeaker/rest")
 vi.mock("./environment", () => ({
   GITLAB_HOST: "https://gitlab.com",
-  GITLAB_REJECT_UNAUTHORIZED: true,
   APP_URL: "https://vizdiff.io",
   ENABLE_VCS_STATUS: false, // Disabled in tests by default
   IS_PRODUCTION: false,
   IS_STAGING: false,
   IS_TEST: true,
 }))
+
+// Configure per-host service tokens before the module's lazy/cached parse of process.env.
+process.env.GITLAB_HOSTS = JSON.stringify([
+  { host: "https://gitlab.com", token: "glpat-service-token", rejectUnauthorized: true },
+  { host: "https://gitlab.company.com", token: "glpat-corp-token", rejectUnauthorized: false },
+])
 
 describe("gitlab (worker)", () => {
   let mockGitlabClient: {
@@ -23,7 +34,6 @@ describe("gitlab (worker)", () => {
   beforeEach(() => {
     vi.clearAllMocks()
 
-    // Setup GitLab client mock
     mockGitlabClient = {
       Commits: {
         editStatus: vi.fn().mockResolvedValue({}),
@@ -39,109 +49,43 @@ describe("gitlab (worker)", () => {
     vi.resetAllMocks()
   })
 
-  describe("getGitLabClient", () => {
-    it("creates a client with default host", () => {
-      const client = getGitLabClient("test-token")
-
-      expect(Gitlab).toHaveBeenCalledWith({
-        host: "https://gitlab.com",
-        oauthToken: "test-token",
-        agent: undefined,
-      })
-      expect(client).toBeDefined()
+  describe("getGitLabHostConfig", () => {
+    it("resolves the configured token for a host", () => {
+      expect(getGitLabHostConfig("https://gitlab.com")?.token).toBe("glpat-service-token")
     })
 
-    it("creates a client with custom host", () => {
-      const client = getGitLabClient("test-token", "https://gitlab.company.com")
+    it("returns undefined for an unconfigured host", () => {
+      expect(getGitLabHostConfig("https://gitlab.unknown.example.com")).toBeUndefined()
+    })
+  })
 
-      expect(Gitlab).toHaveBeenCalledWith({
-        host: "https://gitlab.company.com",
-        oauthToken: "test-token",
-        agent: undefined,
-      })
-      expect(client).toBeDefined()
+  describe("getGitLabClient", () => {
+    it("creates a client using the host config's service token", () => {
+      const cfg: GitLabHostConfig = {
+        host: "https://gitlab.com",
+        token: "glpat-service-token",
+        rejectUnauthorized: true,
+      }
+      getGitLabClient(cfg)
+      expect(Gitlab).toHaveBeenCalledWith(
+        expect.objectContaining({ host: "https://gitlab.com", token: "glpat-service-token" }),
+      )
     })
   })
 
   describe("updateGitLabCommitStatus", () => {
     it("skips update when ENABLE_VCS_STATUS is false", async () => {
-      // ENABLE_VCS_STATUS is false in our mock
       await updateGitLabCommitStatus({
         projectId: 123,
         commitSha: "abc123",
         gitlabHost: "https://gitlab.com",
-        accessToken: "test-token",
         state: "success",
         testId: 1,
         name: "vizdiff/visual-tests",
         description: "All tests passed",
       })
 
-      // Should not call the API in development
       expect(mockGitlabClient.Commits.editStatus).not.toHaveBeenCalled()
-    })
-
-    it("skips update when no access token provided", async () => {
-      // Even with ENABLE_VCS_STATUS=true, should skip if no token
-      vi.doMock("./environment", () => ({
-        GITLAB_HOST: "https://gitlab.com",
-        GITLAB_REJECT_UNAUTHORIZED: true,
-        APP_URL: "https://vizdiff.io",
-        ENABLE_VCS_STATUS: true,
-      }))
-
-      await updateGitLabCommitStatus({
-        projectId: 123,
-        commitSha: "abc123",
-        gitlabHost: "https://gitlab.com",
-        accessToken: "", // Empty token
-        state: "success",
-        testId: 1,
-        name: "vizdiff/visual-tests",
-        description: "All tests passed",
-      })
-
-      // Should not call the API without token
-      expect(mockGitlabClient.Commits.editStatus).not.toHaveBeenCalled()
-    })
-  })
-
-  describe("updateGitLabCommitStatus with ENABLE_VCS_STATUS=true", () => {
-    beforeEach(() => {
-      // Re-mock environment with VCS status enabled
-      vi.doMock("./environment", () => ({
-        GITLAB_HOST: "https://gitlab.com",
-        GITLAB_REJECT_UNAUTHORIZED: true,
-        APP_URL: "https://vizdiff.io",
-        ENABLE_VCS_STATUS: true,
-      }))
-    })
-
-    it("supports all status states", async () => {
-      const states: GitLabStatusState[] = ["pending", "running", "success", "failed", "canceled"]
-
-      // Note: These tests verify the function shape and state types
-      // In actual production, the API call would be made
-      for (const state of states) {
-        // Verify state is a valid GitLabStatusState
-        expect(["pending", "running", "success", "failed", "canceled"]).toContain(state)
-      }
-    })
-  })
-
-  describe("GitLabCheckData interface", () => {
-    it("accepts required fields (token resolved at processing time, not stored)", () => {
-      // This test verifies TypeScript interface compliance at compile time
-      // accessToken is never stored - worker resolves from project owner at runtime
-      const checkData = {
-        projectId: 123,
-        commitSha: "abc123def456",
-        gitlabHost: "https://gitlab.com",
-      }
-
-      expect(checkData.projectId).toBe(123)
-      expect(checkData.commitSha).toBe("abc123def456")
-      expect(checkData.gitlabHost).toBe("https://gitlab.com")
     })
   })
 
@@ -154,13 +98,7 @@ describe("gitlab (worker)", () => {
         "failed",
         "canceled",
       ]
-
       expect(validStates).toHaveLength(5)
-      expect(validStates).toContain("pending")
-      expect(validStates).toContain("running")
-      expect(validStates).toContain("success")
-      expect(validStates).toContain("failed")
-      expect(validStates).toContain("canceled")
     })
   })
 })

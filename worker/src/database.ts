@@ -7,9 +7,6 @@ import {
   WorkTask,
   defineRelationships,
   GitHubInstallation,
-  UserGithubRepoAccess,
-  GitLabGroup,
-  UserGitlabProjectAccess,
 } from "shared"
 import { DataSource } from "typeorm"
 
@@ -49,17 +46,7 @@ export async function Database(): Promise<DataSource> {
     password: POSTGRES_PASS,
     database: POSTGRES_DATABASE,
     logger: IS_PRODUCTION ? undefined : "formatted-console",
-    entities: [
-      GitHubInstallation,
-      GitLabGroup,
-      Project,
-      ScreenshotTest,
-      TestResult,
-      User,
-      UserGithubRepoAccess,
-      UserGitlabProjectAccess,
-      WorkTask,
-    ],
+    entities: [GitHubInstallation, Project, ScreenshotTest, TestResult, User, WorkTask],
     synchronize: false,
   })
 

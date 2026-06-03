@@ -12,18 +12,15 @@ import {
   createMarkdownForBuildResult,
   createSummaryForFailedBuild,
 } from "shared"
-import { Stripe } from "stripe"
 import { extract } from "tar"
 import { Not, In } from "typeorm"
 import { remote } from "webdriverio"
 
-import { reportBuildEvents } from "./customerio"
 import { Database } from "./database"
 import { downloadWithTimeout } from "./download"
-import { sendBuildCompletedEmail } from "./email"
-import { IS_PRODUCTION, S3_BUCKET_NAME, STRIPE_API_VERSION, STRIPE_SECRET_KEY } from "./environment"
+import { IS_PRODUCTION, S3_BUCKET_NAME } from "./environment"
 import { updateGitHubCheckRun, type GitHubCheckData } from "./github"
-import { updateGitLabCommitStatus, type GitLabCheckData } from "./gitlab"
+import { getGitLabHostConfig, updateGitLabCommitStatus, type GitLabCheckData } from "./gitlab"
 import { log } from "./log"
 import { startStaticServer } from "./server"
 import { getStorybookStories, navigateToStorybook, processStory } from "./stories"
@@ -45,17 +42,15 @@ export async function ingestStorybook(
     throw new Error(`Screenshot test not found: ${screenshotTestId}`)
   }
 
-  // Resolve GitLab token from project owner at processing time (never stored in task data)
-  const gitlabCredentials = gitlabCheckData
-    ? {
-        accessToken: screenshotTest.project.user.gitlabAccessToken ?? undefined,
-        host: screenshotTest.project.user.gitlabHost ?? gitlabCheckData.gitlabHost,
-      }
-    : null
-  if (gitlabCheckData && !gitlabCredentials?.accessToken) {
+  // Resolve the configured GitLab service token by host at processing time (never stored in task data).
+  const gitlabHost = gitlabCheckData
+    ? (screenshotTest.project.gitlabHost ?? gitlabCheckData.gitlabHost)
+    : undefined
+  const gitlabConfigured = gitlabHost ? getGitLabHostConfig(gitlabHost) != undefined : false
+  if (gitlabCheckData && !gitlabConfigured) {
     log.warn(
-      { projectOwnerId: screenshotTest.project.user.id },
-      "Skipping GitLab commit status updates: project owner has no access token",
+      { projectId: screenshotTest.project.id, gitlabHost },
+      "Skipping GitLab commit status updates: no service token configured for host",
     )
   }
 
@@ -76,11 +71,10 @@ export async function ingestStorybook(
       log.error(error, "Failed to update GitHub check run to in-progress")
       // Continue with the ingest process even if the GitHub API call fails
     }
-  } else if (gitlabCheckData && gitlabCredentials?.accessToken) {
+  } else if (gitlabCheckData && gitlabConfigured && gitlabHost) {
     await updateGitLabCommitStatus({
       ...gitlabCheckData,
-      accessToken: gitlabCredentials.accessToken,
-      gitlabHost: gitlabCredentials.host,
+      gitlabHost,
       state: "running",
       testId: screenshotTestId,
       name: "vizdiff/visual-tests",
@@ -268,14 +262,13 @@ export async function ingestStorybook(
             testResults,
             changeCount,
           )
-        } else if (gitlabCheckData && gitlabCredentials?.accessToken) {
+        } else if (gitlabCheckData && gitlabConfigured && gitlabHost) {
           const hasChanges = changeCount > 0
           if (!hasChanges) {
             // Only update status to success if no changes - otherwise stay in pending until approved
             await updateGitLabCommitStatus({
               ...gitlabCheckData,
-              accessToken: gitlabCredentials.accessToken,
-              gitlabHost: gitlabCredentials.host,
+              gitlabHost,
               state: "success",
               testId: screenshotTest.id,
               name: "vizdiff/visual-tests",
@@ -287,17 +280,6 @@ export async function ingestStorybook(
             )
           }
         }
-
-        // Report screenshot usage to Stripe
-        if (STRIPE_SECRET_KEY) {
-          await reportScreenshotUsageToStripe(screenshotTest, testResults)
-        }
-
-        // Report build events to Customer.io for all users who have access to the project
-        reportBuildEvents(screenshotTest, testResults)
-
-        // Send a basic build completion email to the project owner if configured
-        void sendBuildCompletedEmail(screenshotTest)
       } finally {
         log.debug("Shutting down local server")
         await new Promise<void>((resolve) => server.close(() => resolve()))
@@ -331,11 +313,10 @@ export async function ingestStorybook(
       } catch (githubError) {
         log.error(githubError, "Failed to update GitHub check run to failure")
       }
-    } else if (gitlabCheckData && gitlabCredentials?.accessToken) {
+    } else if (gitlabCheckData && gitlabConfigured && gitlabHost) {
       await updateGitLabCommitStatus({
         ...gitlabCheckData,
-        accessToken: gitlabCredentials.accessToken,
-        gitlabHost: gitlabCredentials.host,
+        gitlabHost,
         state: "failed",
         testId: screenshotTestId,
         name: "vizdiff/visual-tests",
@@ -371,11 +352,10 @@ export async function ingestStorybook(
         } catch (error) {
           log.error(error, "Failed to update GitHub check run to cancelled")
         }
-      } else if (gitlabCheckData && gitlabCredentials?.accessToken) {
+      } else if (gitlabCheckData && gitlabConfigured && gitlabHost) {
         await updateGitLabCommitStatus({
           ...gitlabCheckData,
-          accessToken: gitlabCredentials.accessToken,
-          gitlabHost: gitlabCredentials.host,
+          gitlabHost,
           state: "canceled",
           testId: screenshotTestId,
           name: "vizdiff/visual-tests",
@@ -431,63 +411,6 @@ async function updateGitHubCheckRunWithBuildResults(
   } catch (error) {
     log.error(error, "Failed to update GitHub check run to completed")
     // Continue even if the GitHub API calls fail
-  }
-}
-
-async function reportScreenshotUsageToStripe(
-  screenshotTest: ScreenshotTest,
-  testResults: TestResult[],
-): Promise<void> {
-  try {
-    if (!STRIPE_SECRET_KEY) {
-      log.warn("STRIPE_SECRET_KEY is not set, skipping usage reporting")
-      return
-    }
-
-    // Get the user's Stripe customer ID from the project
-    const user = screenshotTest.project.user
-    if (!user.stripeCustomerId) {
-      log.error(
-        `User ${user.id} (${user.email}) has no Stripe customer ID, skipping usage reporting`,
-      )
-      return
-    }
-
-    // Count the number of screenshots to report
-    const screenshotCount = testResults.length
-    if (screenshotCount <= 0) {
-      log.warn(`No screenshots to report for test ${screenshotTest.id}`)
-      return
-    }
-
-    const idempotencyKey = `screenshot-usage-${screenshotTest.id}`
-
-    const stripe = new Stripe(STRIPE_SECRET_KEY, { apiVersion: STRIPE_API_VERSION })
-    await stripe.billing.meterEvents.create(
-      {
-        event_name: "screenshots",
-        payload: {
-          stripe_customer_id: user.stripeCustomerId,
-          value: screenshotCount.toString(),
-          project_id: screenshotTest.project.id.toString(),
-        },
-        identifier: idempotencyKey,
-      },
-      { idempotencyKey },
-    )
-
-    log.info(
-      {
-        userId: user.id,
-        projectId: screenshotTest.project.id,
-        testId: screenshotTest.id,
-        quantity: screenshotCount,
-      },
-      `Reported ${screenshotCount} screenshots to Stripe for user ${user.id} (${user.email})`,
-    )
-  } catch (error) {
-    // Log the error but don't fail the entire test process
-    log.error(error, `Failed to report usage to Stripe for test ${screenshotTest.id}`)
   }
 }
 
