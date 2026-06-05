@@ -72,6 +72,8 @@ Single-host fallback: when `GITLAB_HOSTS` is unset, a single host is derived fro
 | `S3_BUCKET_NAME` | api, worker | yes | `vizdiffio-testing` | Bucket for uploaded Storybook tarballs and screenshots. |
 | `S3_ENDPOINT` | api, worker | no | — | Custom S3 endpoint for non-AWS object stores (e.g. `http://minio:9000` for the chart's standalone/air-gapped MinIO mode). Unset → real AWS S3. |
 | `S3_FORCE_PATH_STYLE` | api, worker | no | `true` when `S3_ENDPOINT` set | Use path-style addressing (required by MinIO). |
+| `IMAGE_URL_TTL_SECONDS` | api | no | `3600` | Presigned-URL lifetime for screenshots served to the interactive build viewer. |
+| `VCS_IMAGE_URL_TTL_SECONDS` | api, worker | no | `604800` (7d) | Presigned-URL lifetime for screenshots embedded in PR/MR comments. Capped at the S3 SigV4 max of 7 days. |
 | `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_REGION` | api, worker | yes* | — | Standard AWS SDK credentials (omit when using IRSA / instance roles; for MinIO use its access/secret keys). |
 | `ENABLE_VCS_STATUS` | api, worker | no | `true` in prod/staging | Whether to post VCS commit statuses. |
 | `AUTH_PROVIDER` | api | no | `oidc` (prod), `dev` (else) | Identity provider: `oidc` or `dev`. |
@@ -136,8 +138,23 @@ WHERE p.vcs_provider = q.vcs_provider AND p.repo_id = q.repo_id
   AND p.gitlab_host IS NOT DISTINCT FROM q.gitlab_host AND p.id > q.id;
 ```
 
-## Follow-up: private S3 (high priority)
+## Private S3 / presigned URLs
 
-The current S3 bucket is public and `build?id=` pages load screenshots from public URLs. A corporate
-deployment should make the bucket **private** and serve images via API presigned URLs / a proxy.
-This is a behavior change tracked as a required follow-up (out of scope for this PR).
+Screenshots live in a **private** bucket (the Terragrunt `s3` module provisions it with public access
+blocked). The worker stores the S3 **object key** in each `test_results` image column, and URLs are
+generated as presigned GET URLs at read time:
+
+- **Interactive build viewer** (`GET /api/builds/:id`): presigned with `IMAGE_URL_TTL_SECONDS` (short).
+- **PR/MR comment images** (markdown posted to GitHub/GitLab): presigned with `VCS_IMAGE_URL_TTL_SECONDS`
+  (long). See `api/src/s3.ts` / `worker/src/s3.ts`.
+
+Caveats:
+
+- **7-day cap on comment images.** S3 SigV4 presigned URLs expire after at most 7 days, so screenshots
+  embedded in older PR/MR comments will stop loading. The build still renders fresh URLs in the web UI.
+  If permanent comment images are required, replace the presigned URL with an authenticated proxy or
+  CloudFront-with-OAC endpoint.
+- **MinIO/standalone mode.** Presigned URLs point at `S3_ENDPOINT`; that host must be reachable from the
+  user's browser (not just from inside the cluster) for images to load.
+- **Legacy rows.** Rows that stored a full public S3 URL (pre-migration) are handled transparently — the
+  presigner extracts the object key from the URL path.

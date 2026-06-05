@@ -22,6 +22,7 @@ import { IS_PRODUCTION, S3_BUCKET_NAME, S3_CLIENT_CONFIG } from "./environment"
 import { updateGitHubCheckRun, type GitHubCheckData } from "./github"
 import { getGitLabHostConfig, updateGitLabCommitStatus, type GitLabCheckData } from "./gitlab"
 import { log } from "./log"
+import { buildImageUrlResolver } from "./s3"
 import { startStaticServer } from "./server"
 import { getStorybookStories, navigateToStorybook, processStory } from "./stories"
 
@@ -380,7 +381,12 @@ async function updateGitHubCheckRunWithBuildResults(
 
   try {
     // Update GitHub check run "Visual Tests" with the build results
-    const { title, summary, text } = createMarkdownForBuildResult(screenshotTest, testResults)
+    const resolveImageUrl = await buildImageUrlResolver(testResults)
+    const { title, summary, text } = createMarkdownForBuildResult(
+      screenshotTest,
+      testResults,
+      resolveImageUrl,
+    )
     await updateGitHubCheckRun({
       owner: githubCheckData.owner,
       repo: githubCheckData.repo,

@@ -10,6 +10,7 @@ import { Database } from "../database"
 import { getParamInt } from "../http"
 import { log } from "../log"
 import { getAccessibleProjectIds } from "../projectAccess"
+import { presignImageUrl, presignImageUrlOrNull } from "../s3"
 import type { RequestHandler } from "../types"
 
 type ScreenshotTestWithStats = {
@@ -189,6 +190,20 @@ export const get: RequestHandler = async (req, res) => {
     .where("result.screenshotTest = :screenshotTestId", { screenshotTestId })
     .getMany()
 
+  // Screenshots live in a private bucket; presign each image for the interactive build viewer.
+  const testResultResponses = await Promise.all(
+    testResults.map(async (result) => ({
+      id: result.id,
+      name: result.name,
+      changeStatus: result.changeStatus,
+      screenshotUrl: await presignImageUrl(result.newImageUrl),
+      ancestorScreenshotUrl: (await presignImageUrlOrNull(result.baselineImageUrl)) ?? undefined,
+      diffMaskUrl: (await presignImageUrlOrNull(result.diffImageUrl)) ?? undefined,
+      diffRatio: result.diffRatio ?? undefined,
+      createdStampSec: toSeconds(result.createdAt),
+    })),
+  )
+
   const response: TestResponse = {
     id: screenshotTest.id,
     projectId: project.id,
@@ -207,16 +222,7 @@ export const get: RequestHandler = async (req, res) => {
     tag: screenshotTest.tag ?? undefined,
     initiatedStampSec: toSeconds(screenshotTest.createdAt),
     buildDurationSec: screenshotTest.buildDurationSec ?? undefined,
-    testResults: testResults.map((result) => ({
-      id: result.id,
-      name: result.name,
-      changeStatus: result.changeStatus,
-      screenshotUrl: result.newImageUrl,
-      ancestorScreenshotUrl: result.baselineImageUrl ?? undefined,
-      diffMaskUrl: result.diffImageUrl ?? undefined,
-      diffRatio: result.diffRatio ?? undefined,
-      createdStampSec: toSeconds(result.createdAt),
-    })),
+    testResults: testResultResponses,
   }
 
   res.json(response)

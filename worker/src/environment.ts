@@ -42,6 +42,13 @@ export const S3_CLIENT_CONFIG: { endpoint?: string; forcePathStyle?: boolean } =
   ? { endpoint: S3_ENDPOINT, forcePathStyle: S3_FORCE_PATH_STYLE }
   : {}
 
+// Screenshots live in a private bucket and are embedded in PR/MR comments via presigned URLs.
+// Long TTL (S3 SigV4 max of 7 days) because the comments persist after the build completes.
+export const VCS_IMAGE_URL_TTL_SECONDS = parseInt(
+  process.env.VCS_IMAGE_URL_TTL_SECONDS ?? "604800",
+  10,
+)
+
 // GitHub support is disabled by default in self-hosted deployments.
 export const GITHUB_ENABLED = process.env.GITHUB_ENABLED === "true"
 
