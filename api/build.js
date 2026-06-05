@@ -1,5 +1,6 @@
 import * as esbuild from "esbuild"
-import { glob } from "node:fs/promises"
+import { existsSync, readdirSync } from "node:fs"
+import path from "node:path"
 
 async function build() {
   try {
@@ -26,10 +27,14 @@ async function build() {
 
     // Compile migrations individually (not bundled) so TypeORM can discover them at runtime via
     // dist/migrations/*.js (referenced by migrations/migrationsRun in database.ts).
-    const migrationEntryPoints = []
-    for await (const file of glob("src/migrations/*.ts")) {
-      migrationEntryPoints.push(file)
-    }
+    // List migration sources without node:fs/promises `glob` (which requires Node 22+; CI builds
+    // on Node 20). A plain readdir is sufficient for a flat migrations directory.
+    const migrationsDir = "src/migrations"
+    const migrationEntryPoints = existsSync(migrationsDir)
+      ? readdirSync(migrationsDir)
+          .filter((file) => file.endsWith(".ts"))
+          .map((file) => path.join(migrationsDir, file))
+      : []
     if (migrationEntryPoints.length > 0) {
       const migrationResult = await esbuild.build({
         entryPoints: migrationEntryPoints,
