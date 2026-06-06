@@ -1,7 +1,6 @@
 import axios, { AxiosError } from "axios"
 
-import { AnalyticsEvents, trackEvent } from "./analytics"
-import { APP_URL, GITHUB_CLIENT_ID } from "./environment"
+import { APP_URL } from "./environment"
 
 const TIMEOUT_MS = 1000 * 30
 
@@ -9,40 +8,9 @@ export function isAuthenticated(): boolean {
   return document.cookie.split("; ").find((row) => row === "authenticated=true") != undefined
 }
 
-export function githubSignIn(redirectUri: string): void {
-  trackEvent(
-    { action: AnalyticsEvents.LOGIN, category: "Auth", label: "github_signin" },
-    { sendBeforeNavigation: true },
-  )
-
-  // GitHub OAuth flow
-  // Use current origin instead of APP_URL to support dynamic URLs (e.g., ngrok)
-  // The backend will validate the redirect_uri matches what's registered
-  const currentOrigin = typeof window !== "undefined" ? window.location.origin : APP_URL
-  const callbackUri = encodeURIComponent(`${currentOrigin}/api/auth/github/callback`)
-  const scope = "read:user,user:email"
-  const state = encodeURIComponent(`redirect=${encodeURIComponent(redirectUri)}`)
-  const authUrl = `https://github.com/login/oauth/authorize?client_id=${GITHUB_CLIENT_ID}&redirect_uri=${callbackUri}&scope=${scope}&state=${state}`
-  window.location.href = authUrl
-}
-
-export function gitlabSignIn(redirectUri: string): void {
-  trackEvent(
-    { action: AnalyticsEvents.LOGIN, category: "Auth", label: "gitlab_signin" },
-    { sendBeforeNavigation: true },
-  )
-
-  // GitLab OAuth flow - redirect to our API which handles the OAuth redirect
-  // Use current origin instead of APP_URL to support dynamic URLs (e.g., ngrok)
-  const currentOrigin = typeof window !== "undefined" ? window.location.origin : APP_URL
-  const authUrl = `${currentOrigin}/api/auth/gitlab/login?redirect=${encodeURIComponent(redirectUri)}`
-  window.location.href = authUrl
-}
-
 /**
- * Redirects to the login page with a redirect param so the user returns after signing in.
- * Use this instead of githubSignIn when the user's VCS provider is unknown (e.g. on 401),
- * since GitLab-only users would be locked out if redirected to GitHub OAuth.
+ * Redirects to the login page with a redirect param so the user returns after signing in. Login is
+ * handled by the configured AuthProvider (OIDC/MSAL or dev) via the API's /api/auth/login endpoint.
  */
 export function redirectToLogin(redirectUri?: string): void {
   const target =

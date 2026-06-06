@@ -21,7 +21,6 @@ const mockProjects: ProjectResponse[] = [
     repoUrl: "https://github.com/mvi-llc/vizdiff.io",
     token: "abc123def456",
     ownerId: 123,
-    hasActiveSubscription: true,
     createdStampSec: oneMinuteAgo - 3600 * 24 * 30, // 1 month ago
     lastBuildStampSec: oneMinuteAgo - 3600, // 1 hour ago
     builds: 42,
@@ -29,12 +28,11 @@ const mockProjects: ProjectResponse[] = [
   },
   {
     id: 2,
-    name: "Expired Trial Project",
+    name: "Design System",
     vcsProvider: "github",
     repoUrl: "https://github.com/example/example-project",
     token: "def456ghi789",
     ownerId: 123,
-    hasActiveSubscription: false,
     createdStampSec: oneMinuteAgo - 3600 * 24 * 7, // 1 week ago
     lastBuildStampSec: oneMinuteAgo - 3600 * 24, // 1 day ago
     builds: 1,
@@ -47,7 +45,6 @@ const mockProjects: ProjectResponse[] = [
     repoUrl: "https://github.com/test/MyAwesomeProject",
     token: "ghi789jkl012",
     ownerId: 456,
-    hasActiveSubscription: true,
     createdStampSec: oneMinuteAgo - 3600, // 1 hour ago
     lastBuildStampSec: oneMinuteAgo, // just now
     builds: 3,
@@ -55,12 +52,11 @@ const mockProjects: ProjectResponse[] = [
   },
   {
     id: 4,
-    name: "Expired Other Project",
+    name: "Marketing Site",
     vcsProvider: "github",
     repoUrl: "https://github.com/example/example-project",
     token: "jkl012mno345",
     ownerId: 456,
-    hasActiveSubscription: false,
     createdStampSec: oneMinuteAgo - 3600 * 24 * 7, // 1 week ago
     lastBuildStampSec: oneMinuteAgo - 3600 * 24, // 1 day ago
     builds: 9001,

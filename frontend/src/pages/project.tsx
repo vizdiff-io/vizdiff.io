@@ -133,7 +133,7 @@ export default function Project(): JSX.Element {
   if (!router.isReady || !projectId) {
     return (
       <>
-        <Seo title="VizDiff: Project" canonical={`https://vizdiff.io/project`}></Seo>
+        <Seo title="VizDiff: Project" path="/project"></Seo>
         <AppLayout>
           <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
             <CircularProgress />
@@ -146,49 +146,14 @@ export default function Project(): JSX.Element {
   return (
     <>
       <Seo
-        title={project?.name ? `${project.name} - vizdiff.io` : "vizdiff.io"}
-        canonical={`https://vizdiff.io/project?id=${projectId}`}
+        title={project?.name ? `${project.name} - VizDiff` : "VizDiff"}
+        path={`/project?id=${projectId}`}
       ></Seo>
       <AppLayout>
         <Box sx={{ px: { xs: 0, sm: 3 }, py: { xs: 0, sm: 4 } }}>
           {error && (
             <Paper sx={{ p: 2, mb: 3, bgcolor: "error.light", color: "error.contrastText" }}>
               {error.message}
-            </Paper>
-          )}
-
-          {/* Show error banner if project does not have an active subscription */}
-          {project?.hasActiveSubscription === false && (
-            <Paper
-              sx={{
-                p: 2,
-                mb: 3,
-                bgcolor: "warning.main",
-                color: "warning.contrastText",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-              }}
-            >
-              <Typography color="var(--text-on-primary)">
-                {isProjectOwner ? (
-                  <>
-                    ⚠️ Your project does not have an active subscription.{" "}
-                    <MuiLink
-                      href="/signup"
-                      sx={{ color: "inherit", textDecoration: "underline", fontWeight: 600 }}
-                    >
-                      Subscribe to a paid plan
-                    </MuiLink>{" "}
-                    to enable full functionality.
-                  </>
-                ) : (
-                  <>
-                    ⚠️ This project does not have an active subscription. Please contact the project
-                    owner to subscribe to a paid plan.
-                  </>
-                )}
-              </Typography>
             </Paper>
           )}
 
@@ -223,7 +188,7 @@ export default function Project(): JSX.Element {
                       borderRadius: 1,
                     }}
                   >
-                    {project.hasActiveSubscription ? currentToken : maskToken(currentToken)}
+                    {currentToken}
                   </Typography>
                   <Box sx={{ display: "flex" }}>
                     <Tooltip title={copyTooltip}>
@@ -409,12 +374,4 @@ function getProjectId(id: string | string[] | undefined): number | undefined {
     return isNaN(parsedId) ? undefined : parsedId
   }
   return undefined
-}
-
-/** Replace all but the first four characters of the token with asterisks. */
-function maskToken(token: string): string {
-  if (token.length <= 4) {
-    return token
-  }
-  return token.slice(0, 4) + "*".repeat(token.length - 4)
 }

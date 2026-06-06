@@ -1,15 +1,20 @@
 import { S3Client } from "@aws-sdk/client-s3"
 import { Upload as S3Upload } from "@aws-sdk/lib-storage"
 import type { Logger } from "pino"
-import { createSummaryForBuild, ScreenshotTest, User, WorkTask } from "shared"
+import { createSummaryForBuild, ScreenshotTest, WorkTask } from "shared"
 import { uuidv7 } from "uuidv7"
 
 import { getProjectByToken, getS3BucketForProject } from "../authenticate"
-import { trackEvent } from "../customerio"
 import { Database } from "../database"
-import { APP_URL, ENABLE_VCS_STATUS, GITLAB_HOST, TRIAL_PERIOD_MS } from "../environment"
+import {
+  APP_URL,
+  ENABLE_VCS_STATUS,
+  GITHUB_ENABLED,
+  GITLAB_HOST,
+  S3_CLIENT_CONFIG,
+} from "../environment"
 import { getInstallationForOrg, getOctokitForInstallation } from "../github"
-import { type GitLabCheckData, updateGitLabCommitStatus } from "../gitlab"
+import { getGitLabHostConfig, type GitLabCheckData, updateGitLabCommitStatus } from "../gitlab"
 import { getQueryString } from "../http"
 import { log } from "../log"
 import { createScreenshotTest } from "../screenshotTests"
@@ -87,36 +92,13 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
     prNumber,
   })
 
-  // Ensure the project owner has a valid subscription or trial
   const db = await Database()
-  const userTable = db.getRepository(User)
-  const projectOwner = await userTable.findOne({ where: { id: project.user.id } })
-  if (!projectOwner) {
-    throw new Error(`Project owner not found: ${project.user.id}`)
-  }
-  if (projectOwner.subscriptionPlan == null) {
-    const owner = projectOwner.githubUsername
-    if (projectOwner.trialEndsAt == null) {
-      // This is an odd state since project creation should have started a trial, but we can start
-      // their trial here.
-      logChild.warn(
-        { projectOwner },
-        `No valid subscription or trial found for ${owner} during upload for project ${project.id}, starting trial`,
-      )
-      projectOwner.trialEndsAt = new Date(Date.now() + TRIAL_PERIOD_MS)
-      await userTable.save(projectOwner)
-    }
 
-    if (projectOwner.trialEndsAt < new Date()) {
-      // Return a 402 Payment Required error
-      logChild.warn({ projectOwner }, `Storybook upload rejected, trial expired for "${owner}"`)
-      res.status(402).json({
-        error:
-          `Free trial expired for "${owner}". Please subscribe at <https://vizdiff.io/signup> ` +
-          `to continue uploading storybook builds.`,
-      })
-      return
-    }
+  // GitHub is disabled by default in self-hosted deployments. Reject GitHub uploads early.
+  if (project.vcsProvider === "github" && !GITHUB_ENABLED) {
+    logChild.warn(`GitHub upload rejected: GitHub support is disabled (set GITHUB_ENABLED=true)`)
+    res.status(400).json({ error: "GitHub support is disabled in this deployment" })
+    return
   }
 
   const Bucket = await getS3BucketForProject(project)
@@ -124,7 +106,7 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
   logChild.debug(`Uploading ${length} bytes to ${Bucket}/${Key}`)
 
   // Proxy the .tar.gz upload to S3
-  const s3Client = new S3Client()
+  const s3Client = new S3Client(S3_CLIENT_CONFIG)
   const upload = new S3Upload({
     client: s3Client,
     params: {
@@ -197,22 +179,21 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
       }
     }
   } else {
-    // Create GitLab commit status for this upload
-    const gitlabHost = projectOwner.gitlabHost ?? GITLAB_HOST
-    const accessToken = projectOwner.gitlabAccessToken
+    // Create GitLab commit status for this upload using the configured per-host service token.
+    const gitlabHost = project.gitlabHost ?? GITLAB_HOST
+    const hostConfig = getGitLabHostConfig(gitlabHost)
 
-    if (accessToken && ENABLE_VCS_STATUS) {
+    if (hostConfig && ENABLE_VCS_STATUS) {
       try {
         await updateGitLabCommitStatus(project.repoId, commitSha, "pending", {
           name: "vizdiff/visual-tests",
           targetUrl: `${APP_URL}/build?id=${screenshotTest.id}`,
           description: "Queued storybook upload for rendering",
-          accessToken,
           host: gitlabHost,
         })
         // GitLab doesn't return an ID for commit statuses, use 1 as a flag
         vcsStatusId = 1
-        // Store only non-sensitive data; worker resolves token from project owner at processing time
+        // Store only non-sensitive data; the worker resolves the service token by host at processing time
         gitlabCheckData = {
           projectId: project.repoId,
           commitSha,
@@ -226,7 +207,9 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
     } else if (!ENABLE_VCS_STATUS) {
       logChild.info(`Skipping GitLab commit status creation (ENABLE_VCS_STATUS not set)`)
     } else {
-      logChild.warn(`No GitLab access token for user ${projectOwner.id}, skipping commit status`)
+      logChild.warn(
+        `No GitLab service token configured for host ${gitlabHost}, skipping commit status`,
+      )
     }
   }
 
@@ -255,16 +238,6 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
 
   // Use Postgres NOTIFY to wake up the worker
   await db.query(`NOTIFY task_queue, '${savedTask.id}'`)
-
-  // Track the upload event with Customer.io. Since the upload is authenticated with a project token
-  // there is no assumption that the uploader *is* the project owner, but it's still useful to track
-  // these events and attribute them to the project owner
-  trackEvent(project.user.id, req, "upload_storybook", {
-    projectName: project.name,
-    repo: project.repoUrl,
-    buildId: screenshotTest.id,
-    byteLength: length,
-  })
 
   res.json({ success: true, uploadId, testId: screenshotTest.id })
 }

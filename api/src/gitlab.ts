@@ -1,51 +1,68 @@
 import { Gitlab } from "@gitbeaker/rest"
 import https from "node:https"
-import { GitLabGroup, User, UserGitlabProjectAccess } from "shared"
+import { type GitLabHostConfig, parseGitLabHosts, resolveGitLabHost } from "shared"
 import { Agent, fetch } from "undici"
 
-import { Database } from "./database"
-import { GITLAB_HOST, GITLAB_REJECT_UNAUTHORIZED } from "./environment"
+import { GITLAB_HOST } from "./environment"
 import { log } from "./log"
 
 /**
- * Agent for GitLab API fetch calls, respecting GITLAB_REJECT_UNAUTHORIZED.
- * Required for self-hosted GitLab with self-signed certificates.
+ * Parsed GitLab host configuration (service tokens, TLS, webhook secrets). Parsed once from the
+ * environment and cached for the process lifetime.
  */
-const gitlabAgent = new Agent({
-  connect: { rejectUnauthorized: GITLAB_REJECT_UNAUTHORIZED },
-})
+let cachedHosts: GitLabHostConfig[] | undefined
+export function getGitLabHosts(): GitLabHostConfig[] {
+  cachedHosts ??= parseGitLabHosts(process.env)
+  return cachedHosts
+}
+
+/** Resolve the configured service-token config for a host, or undefined if not configured. */
+export function getGitLabHostConfig(host: string): GitLabHostConfig | undefined {
+  return resolveGitLabHost(getGitLabHosts(), host)
+}
+
+/** Resolve the configured service-token config for a host, throwing if it is not configured. */
+function requireHostConfig(host: string): GitLabHostConfig {
+  const cfg = getGitLabHostConfig(host)
+  if (!cfg) {
+    throw new Error(
+      `No GitLab service token configured for host "${host}". ` +
+        `Set GITLAB_HOSTS (or GITLAB_HOST + GITLAB_TOKEN) for this instance.`,
+    )
+  }
+  return cfg
+}
+
+// Cache per-host undici Agents so on-prem self-signed instances work while gitlab.com stays strict.
+const agentCache = new Map<string, Agent>()
+function agentFor(cfg: GitLabHostConfig): Agent {
+  let agent = agentCache.get(cfg.host)
+  if (!agent) {
+    agent = new Agent({ connect: { rejectUnauthorized: cfg.rejectUnauthorized } })
+    agentCache.set(cfg.host, agent)
+  }
+  return agent
+}
 
 /**
- * fetch wrapper for GitLab API calls that respects GITLAB_REJECT_UNAUTHORIZED.
- * Use this for OAuth token exchange, user profile retrieval, and token validation
- * when calling self-hosted GitLab with self-signed certificates.
+ * fetch wrapper for raw GitLab API calls against a specific host, honoring that host's
+ * `rejectUnauthorized` setting (required for self-hosted GitLab with self-signed certificates).
  */
-export function gitlabFetch(
+export function gitlabFetchFor(
+  cfg: GitLabHostConfig,
   url: string | URL,
   init?: Parameters<typeof fetch>[1],
 ): ReturnType<typeof fetch> {
   return fetch(url, {
     ...init,
-    dispatcher: gitlabAgent,
+    dispatcher: agentFor(cfg),
   } as Parameters<typeof fetch>[1])
-}
-
-/**
- * GitLab group from API
- */
-interface GitLabGroupResponse {
-  id: number
-  name: string
-  path: string
-  full_path: string
-  web_url: string
-  avatar_url: string | null
 }
 
 /**
  * GitLab project from API
  */
-interface GitLabProjectResponse {
+export interface GitLabProjectResponse {
   id: number
   name: string
   path: string
@@ -62,7 +79,7 @@ interface GitLabProjectResponse {
 
 /**
  * Data stored in WorkTask for GitLab commit status updates.
- * Token is resolved from the project owner at processing time - never stored in the task.
+ * The service token is resolved from the configured host at processing time - never stored.
  */
 export interface GitLabCheckData {
   projectId: number
@@ -71,227 +88,38 @@ export interface GitLabCheckData {
 }
 
 /**
- * Get an authenticated GitLab API client
+ * Get an authenticated GitLab API client for the given host using the configured service token.
  */
-export function getGitLabClient(
-  oauthToken: string,
-  host: string = GITLAB_HOST,
-): InstanceType<typeof Gitlab> {
+export function getGitLabClient(host: string = GITLAB_HOST): InstanceType<typeof Gitlab> {
+  const cfg = requireHostConfig(host)
   return new Gitlab({
-    host,
-    oauthToken,
-    agent: GITLAB_REJECT_UNAUTHORIZED ? undefined : new https.Agent({ rejectUnauthorized: false }),
+    host: cfg.host,
+    token: cfg.token,
+    agent: cfg.rejectUnauthorized ? undefined : new https.Agent({ rejectUnauthorized: false }),
   })
 }
 
 /**
- * Sync GitLab groups for a user
+ * List projects accessible to the service token on the given host (used for the project-create UI).
  */
-export async function syncUserGitLabGroups(user: User): Promise<GitLabGroup[]> {
-  if (!user.gitlabAccessToken) {
-    log.debug(`User ${user.id} has no GitLab access token, skipping group sync`)
-    return []
-  }
-
-  const db = await Database()
-  const gitlabHost = user.gitlabHost ?? GITLAB_HOST
-  const client = getGitLabClient(user.gitlabAccessToken, gitlabHost)
-
-  try {
-    // Fetch all groups the user has access to
-    const groups = (await client.Groups.all({
-      minAccessLevel: 10, // Guest access or higher
-      perPage: 100,
-    })) as GitLabGroupResponse[]
-
-    log.debug(`Found ${groups.length} GitLab groups for user ${user.id}`)
-
-    const results: GitLabGroup[] = []
-
-    for (const group of groups) {
-      // Create or update the group record
-      let gitlabGroup = await db.manager.findOneBy(GitLabGroup, {
-        gitlabGroupId: group.id,
-        gitlabHost,
-      })
-
-      if (!gitlabGroup) {
-        // Create new group
-        gitlabGroup = new GitLabGroup()
-        gitlabGroup.gitlabGroupId = group.id
-        gitlabGroup.gitlabHost = gitlabHost
-      }
-
-      // Update group info
-      gitlabGroup.groupPath = group.path
-      gitlabGroup.groupName = group.name
-      gitlabGroup.fullPath = group.full_path
-      gitlabGroup.webUrl = group.web_url
-      gitlabGroup.avatarUrl = group.avatar_url
-
-      gitlabGroup = await db.manager.save(GitLabGroup, gitlabGroup)
-
-      // Link to user if not already linked
-      const userGroup = await db.manager
-        .createQueryBuilder()
-        .select("ug.user_id", "userId")
-        .from("user_gitlab_groups", "ug")
-        .where("ug.user_id = :userId AND ug.group_id = :groupId", {
-          userId: user.id,
-          groupId: gitlabGroup.id,
-        })
-        .getRawOne<{ userId: number }>()
-
-      if (!userGroup) {
-        await db.manager
-          .createQueryBuilder()
-          .insert()
-          .into("user_gitlab_groups")
-          .values({
-            user_id: user.id,
-            group_id: gitlabGroup.id,
-          })
-          .execute()
-      }
-
-      results.push(gitlabGroup)
-    }
-
-    log.info(
-      `GitLab group sync for user ${user.gitlabUsername} (${user.id}) ` +
-        `found ${results.length} groups`,
-    )
-
-    return results
-  } catch (error) {
-    log.error(error, `Failed to sync GitLab groups for user ${user.id}`)
-    throw error
-  }
+export async function listGitLabProjects(
+  host: string = GITLAB_HOST,
+): Promise<GitLabProjectResponse[]> {
+  const client = getGitLabClient(host)
+  return (await client.Projects.all({
+    membership: true,
+    perPage: 100,
+  })) as GitLabProjectResponse[]
 }
 
 /**
- * Get GitLab groups accessible to a user
- */
-export async function getGitLabGroupsForUserId(userId: number): Promise<GitLabGroup[]> {
-  const db = await Database()
-  return await db.manager
-    .createQueryBuilder(GitLabGroup, "grp")
-    .innerJoin("user_gitlab_groups", "ug", "ug.group_id = grp.id")
-    .where("ug.user_id = :userId", { userId })
-    .getMany()
-}
-
-/**
- * Sync GitLab projects for a user
- */
-export async function syncUserGitLabProjects(user: User): Promise<number> {
-  if (!user.gitlabAccessToken) {
-    log.debug(`User ${user.id} has no GitLab access token, skipping project sync`)
-    return 0
-  }
-
-  const db = await Database()
-  const gitlabHost = user.gitlabHost ?? GITLAB_HOST
-  const client = getGitLabClient(user.gitlabAccessToken, gitlabHost)
-
-  try {
-    log.debug({ userId: user.id }, "Starting GitLab project sync")
-
-    // Fetch all projects the user has access to
-    const projects = (await client.Projects.all({
-      membership: true, // Only projects the user is a member of
-      minAccessLevel: 10, // Guest access or higher
-      perPage: 100,
-    })) as GitLabProjectResponse[]
-
-    log.debug(`Found ${projects.length} GitLab projects for user ${user.id}`)
-
-    const accessibleProjectIds = new Set<number>()
-    for (const project of projects) {
-      accessibleProjectIds.add(project.id)
-    }
-
-    // Atomically update UserGitlabProjectAccess table
-    await db.manager.transaction(async (transactionalEntityManager) => {
-      // Delete old records for this user and host.
-      // Also delete any records that would conflict (same userId + gitlabProjectId but different gitlabHost).
-      // This handles the case where gitlabHost might not be part of the primary key constraint in the database,
-      // which would cause primary key violations when inserting new records with overlapping project IDs.
-      if (accessibleProjectIds.size > 0) {
-        // Delete records matching the current host
-        await transactionalEntityManager
-          .createQueryBuilder()
-          .delete()
-          .from(UserGitlabProjectAccess)
-          .where("user_id = :userId AND gitlab_host = :gitlabHost", {
-            userId: user.id,
-            gitlabHost,
-          })
-          .execute()
-
-        // Also delete any conflicting records (same userId + projectId but different host)
-        // This prevents primary key violations if gitlabHost is not part of the primary key
-        await transactionalEntityManager
-          .createQueryBuilder()
-          .delete()
-          .from(UserGitlabProjectAccess)
-          .where(
-            "user_id = :userId AND gitlab_project_id IN (:...projectIds) AND gitlab_host != :gitlabHost",
-            {
-              userId: user.id,
-              projectIds: Array.from(accessibleProjectIds),
-              gitlabHost,
-            },
-          )
-          .execute()
-      } else {
-        // No projects found, just delete all records for this user and host
-        await transactionalEntityManager
-          .createQueryBuilder()
-          .delete()
-          .from(UserGitlabProjectAccess)
-          .where("user_id = :userId AND gitlab_host = :gitlabHost", {
-            userId: user.id,
-            gitlabHost,
-          })
-          .execute()
-      }
-
-      // Insert new records if any projects were found
-      if (accessibleProjectIds.size > 0) {
-        const newAccessRecords = Array.from(accessibleProjectIds).map((projectId) => ({
-          userId: user.id,
-          gitlabProjectId: projectId,
-          gitlabHost,
-        }))
-
-        await transactionalEntityManager.save(UserGitlabProjectAccess, newAccessRecords, {
-          chunk: 200,
-        })
-      }
-    })
-
-    log.info(
-      { userId: user.id, projectCount: accessibleProjectIds.size },
-      "Successfully completed GitLab project sync",
-    )
-
-    return accessibleProjectIds.size
-  } catch (error) {
-    log.error({ user, error }, "GitLab project sync failed")
-    throw error
-  }
-}
-
-/**
- * List projects in a GitLab group
+ * List projects in a GitLab group using the configured service token.
  */
 export async function listGitLabGroupProjects(
   groupId: number,
-  accessToken: string,
   host: string = GITLAB_HOST,
 ): Promise<GitLabProjectResponse[]> {
-  const client = getGitLabClient(accessToken, host)
+  const client = getGitLabClient(host)
   const projects = (await client.Groups.allProjects(groupId, {
     perPage: 100,
     includeSubgroups: true,
@@ -300,7 +128,7 @@ export async function listGitLabGroupProjects(
 }
 
 /**
- * Create or update a commit status on GitLab
+ * Create or update a commit status on GitLab using the configured per-host service token.
  */
 export async function updateGitLabCommitStatus(
   projectId: number,
@@ -310,11 +138,10 @@ export async function updateGitLabCommitStatus(
     name: string
     targetUrl: string
     description: string
-    accessToken: string
     host?: string
   },
 ): Promise<void> {
-  const client = getGitLabClient(options.accessToken, options.host ?? GITLAB_HOST)
+  const client = getGitLabClient(options.host ?? GITLAB_HOST)
 
   try {
     await client.Commits.editStatus(projectId, commitSha, state, {

@@ -1,12 +1,13 @@
 import { Gitlab } from "@gitbeaker/rest"
 import https from "node:https"
+import { type GitLabHostConfig, parseGitLabHosts, resolveGitLabHost } from "shared"
 
-import { GITLAB_HOST, GITLAB_REJECT_UNAUTHORIZED, APP_URL, ENABLE_VCS_STATUS } from "./environment"
+import { APP_URL, ENABLE_VCS_STATUS, GITLAB_HOST } from "./environment"
 import { log } from "./log"
 
 /**
- * Data stored in WorkTask for GitLab commit status updates.
- * Token is resolved from the project owner at processing time - never stored in the task.
+ * Data stored in WorkTask for GitLab commit status updates. The service token is resolved from the
+ * configured host at processing time - never stored in the task.
  */
 export interface GitLabCheckData {
   projectId: number
@@ -17,34 +18,41 @@ export interface GitLabCheckData {
 // GitLab commit status states
 export type GitLabStatusState = "pending" | "running" | "success" | "failed" | "canceled"
 
+let cachedHosts: GitLabHostConfig[] | undefined
+function getGitLabHosts(): GitLabHostConfig[] {
+  cachedHosts ??= parseGitLabHosts(process.env)
+  return cachedHosts
+}
+
+/** Resolve the configured service-token config for a host, or undefined if not configured. */
+export function getGitLabHostConfig(host: string): GitLabHostConfig | undefined {
+  return resolveGitLabHost(getGitLabHosts(), host)
+}
+
 /**
- * Get an authenticated GitLab API client
+ * Get an authenticated GitLab API client for the given host config using its service token.
  */
-export function getGitLabClient(
-  oauthToken: string,
-  host: string = GITLAB_HOST,
-): InstanceType<typeof Gitlab> {
+export function getGitLabClient(cfg: GitLabHostConfig): InstanceType<typeof Gitlab> {
   return new Gitlab({
-    host,
-    oauthToken,
-    agent: GITLAB_REJECT_UNAUTHORIZED ? undefined : new https.Agent({ rejectUnauthorized: false }),
+    host: cfg.host,
+    token: cfg.token,
+    agent: cfg.rejectUnauthorized ? undefined : new https.Agent({ rejectUnauthorized: false }),
   })
 }
 
 /**
- * Update a GitLab commit status with the results of a screenshot test
+ * Update a GitLab commit status with the results of a screenshot test, using the configured
+ * per-host service token (resolved from the WorkTask's `gitlabHost`).
  */
 export async function updateGitLabCommitStatus({
   projectId,
   commitSha,
   gitlabHost,
-  accessToken,
   state,
   testId,
   name,
   description,
 }: GitLabCheckData & {
-  accessToken: string
   state: GitLabStatusState
   testId: number
   name: string
@@ -55,8 +63,11 @@ export async function updateGitLabCommitStatus({
     return
   }
 
-  if (!accessToken) {
-    log.warn(`No GitLab access token provided, skipping commit status update`)
+  const cfg = getGitLabHostConfig(gitlabHost || GITLAB_HOST)
+  if (!cfg) {
+    log.warn(
+      `No GitLab service token configured for host ${gitlabHost}, skipping commit status update`,
+    )
     return
   }
 
@@ -65,7 +76,7 @@ export async function updateGitLabCommitStatus({
       `Updating GitLab commit status for project ${projectId}, commit ${commitSha}: state=${state}`,
     )
 
-    const client = getGitLabClient(accessToken, gitlabHost)
+    const client = getGitLabClient(cfg)
 
     await client.Commits.editStatus(projectId, commitSha, state, {
       name,

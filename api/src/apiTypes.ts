@@ -1,6 +1,6 @@
 import type { TestResultStatus, VCSProvider } from "shared"
 
-import type { GithubUser, GitlabUser } from "./schemas/GithubUser"
+import type { GithubUser } from "./schemas/GithubUser"
 
 export type GitHubInstallationResponse = {
   id: number
@@ -12,41 +12,20 @@ export type GitHubInstallationResponse = {
   createdStampSec: number
 }
 
-export type GitLabGroupResponse = {
-  id: number
-  gitlabGroupId: number
-  groupPath: string
-  groupName: string
-  fullPath: string
-  gitlabHost: string
-  avatarUrl: string | null
-  webUrl: string
-  createdStampSec: number
-}
-
 export type UserResponse = {
   id: number
   email: string | null
-  // GitHub fields (nullable for GitLab-only users)
+  displayName: string | null
+  authProvider: string | null
+  // GitHub fields (only populated when GITHUB_ENABLED)
   githubId: string | null
   githubUsername: string | null
   githubProfile: GithubUser | null
   githubInstallations: GitHubInstallationResponse[]
-  // GitLab fields (nullable for GitHub-only users)
-  gitlabId: string | null
-  gitlabUsername: string | null
-  gitlabProfile: GitlabUser | null
-  gitlabHost: string | null
-  gitlabGroups: GitLabGroupResponse[]
   // Common fields
   ownedProjectCount: number
-  trialEndStampSec: number
   createdStampSec: number
   updatedStampSec: number
-  subscription: {
-    plan: string
-    interval: string
-  } | null
 }
 
 export type ProjectResponse = {
@@ -58,7 +37,6 @@ export type ProjectResponse = {
   githubRepoUrl: string
   token: string
   ownerId: number
-  hasActiveSubscription: boolean
   createdStampSec: number
   lastBuildStampSec: number
   builds: number
@@ -106,12 +84,4 @@ export type TestResultResponse = {
 export type TestResponse = ScreenshotTestResponse & {
   parent?: ScreenshotTestResponse
   testResults: TestResultResponse[]
-}
-
-export type BillingPeriodUsageResponse = {
-  totalUsage: number
-  subscriptionIncludedUsage: number
-  periodStartSec: number
-  periodEndSec: number
-  status: "draft" | "open" | "paid" | "uncollectible" | "void" | "trial"
 }

@@ -7,9 +7,6 @@ import {
   WorkTask,
   defineRelationships,
   GitHubInstallation,
-  UserGithubRepoAccess,
-  GitLabGroup,
-  UserGitlabProjectAccess,
 } from "shared"
 import { DataSource } from "typeorm"
 
@@ -32,24 +29,16 @@ const database = new DataSource({
   password: POSTGRES_PASS,
   database: POSTGRES_DATABASE,
   logger: IS_PRODUCTION ? undefined : "formatted-console",
-  // Synchronize in dev and production. The plan is to either switch to
-  // migrations or drop TypeORM
-  synchronize: true,
+  // The API is the sole schema owner. In tests we synchronize to spin up a throwaway schema; in
+  // all other environments we use migrations (safer on managed RDS than `synchronize`).
+  synchronize: IS_TEST,
   dropSchema: IS_TEST,
   logging: !IS_TEST,
-  entities: [
-    GitHubInstallation,
-    GitLabGroup,
-    Project,
-    ScreenshotTest,
-    TestResult,
-    User,
-    UserGithubRepoAccess,
-    UserGitlabProjectAccess,
-    WorkTask,
-  ],
+  entities: [GitHubInstallation, Project, ScreenshotTest, TestResult, User, WorkTask],
   subscribers: [],
-  migrations: [],
+  // Compiled migrations live alongside the built sources; run automatically on boot.
+  migrations: IS_TEST ? [] : ["dist/migrations/*.js"],
+  migrationsRun: !IS_TEST,
 })
 
 let databaseInitializationPromise: Promise<DataSource> | undefined

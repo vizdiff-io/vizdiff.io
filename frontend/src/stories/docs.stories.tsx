@@ -10,7 +10,7 @@ type StoryArgs = {
 }
 
 const meta: Meta<typeof GettingStartedComponent> = {
-  title: "stories/pages/docs/GettingStarted",
+  title: "stories/pages/docs/GitLab",
   component: GettingStartedComponent,
   argTypes: {
     mode: {

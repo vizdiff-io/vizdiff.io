@@ -3,15 +3,15 @@ import type { JSX, ComponentType } from "react"
 
 import ThemeWrapper from "./ThemeWrapper"
 import { catchAllHandler } from "./mocks"
-import PrivacyPolicyComponent from "../pages/docs/privacy-policy"
+import GitHubDocsComponent from "../pages/docs/github"
 
 type StoryArgs = {
   mode?: "light" | "dark"
 }
 
-const meta: Meta<typeof PrivacyPolicyComponent> = {
-  title: "stories/pages/docs/PrivacyPolicy",
-  component: PrivacyPolicyComponent,
+const meta: Meta<typeof GitHubDocsComponent> = {
+  title: "stories/pages/docs/GitHub",
+  component: GitHubDocsComponent,
   argTypes: {
     mode: {
       control: "radio",
@@ -32,7 +32,7 @@ const meta: Meta<typeof PrivacyPolicyComponent> = {
 }
 
 export default meta
-type Story = StoryObj<typeof PrivacyPolicyComponent>
+type Story = StoryObj<typeof GitHubDocsComponent>
 
 export const Light: Story = { args: { mode: "light" } }
 

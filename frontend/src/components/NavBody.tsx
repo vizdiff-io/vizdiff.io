@@ -81,9 +81,6 @@ export const MarketingLayout: React.FC<MarketingLayoutProps> = ({ children }) =>
                   display: { xs: "block", sm: "none" },
                 }}
               >
-                <MenuItem onClick={handleCloseNavMenu} component={Link} href="/pricing">
-                  <Typography textAlign="center">Pricing</Typography>
-                </MenuItem>
                 <MenuItem onClick={handleCloseNavMenu} component={Link} href="/docs">
                   <Typography textAlign="center">Documentation</Typography>
                 </MenuItem>
@@ -103,11 +100,6 @@ export const MarketingLayout: React.FC<MarketingLayoutProps> = ({ children }) =>
               VizDiff
             </Typography>
             <Box sx={{ display: { xs: "none", sm: "flex" }, gap: 2 }}>
-              <Link href={isClientAuthenticated ? "/signup" : "/pricing"}>
-                <Button color="primary" variant="text">
-                  Pricing
-                </Button>
-              </Link>
               <Link href="/docs">
                 <Button color="primary" variant="text">
                   Documentation

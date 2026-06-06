@@ -1,6 +1,5 @@
 import DeleteIcon from "@mui/icons-material/Delete"
 import LinkIcon from "@mui/icons-material/Link"
-import RefreshIcon from "@mui/icons-material/Refresh"
 import StarIcon from "@mui/icons-material/Star"
 import {
   Box,
@@ -25,15 +24,14 @@ import {
   IconButton,
 } from "@mui/material"
 import { useRouter } from "next/router"
-import { type JSX, useMemo, useState } from "react"
+import { type JSX, useState } from "react"
 
 import { AppLayout } from "@/components/AppLayout"
 import LeftSidebar from "@/components/LeftSidebar"
 import { Seo } from "@/components/Seo"
 import useApiGet from "@/hooks/useApiGet"
 import useAuth from "@/hooks/useAuth"
-import { trackEvent, AnalyticsEvents } from "@/lib/analytics"
-import { apiDelete, apiPost } from "@/lib/apiMethods"
+import { apiDelete } from "@/lib/apiMethods"
 import type { ProjectResponse } from "@/lib/apiTypes"
 
 export default function Settings(): JSX.Element {
@@ -44,45 +42,14 @@ export default function Settings(): JSX.Element {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
-  const [isSyncing, setIsSyncing] = useState(false)
-  const [syncError, setSyncError] = useState<string | null>(null)
   const [projectToDelete, setProjectToDelete] = useState<ProjectResponse | null>(null)
   const [projectDeleteError, setProjectDeleteError] = useState<string | null>(null)
-
-  const handleSyncRepos = async () => {
-    setIsSyncing(true)
-    setSyncError(null)
-
-    try {
-      const [_response, apiError] = await apiPost<{ message: string; count: number }>(
-        "/api/sync-github-repos",
-        {},
-      )
-
-      if (apiError) {
-        setSyncError(apiError.message || "Failed to sync GitHub repositories")
-      } else {
-        // Refresh projects list
-        window.location.reload()
-      }
-    } catch (err) {
-      console.error("Failed to sync GitHub repositories:", err)
-      setSyncError("An unexpected error occurred during sync")
-    } finally {
-      setIsSyncing(false)
-    }
-  }
 
   const handleDeleteAccount = async () => {
     setIsDeleting(true)
     setDeleteError(null)
 
     try {
-      // Use beacon transport since we redirect immediately after success
-      trackEvent(
-        { action: AnalyticsEvents.DELETE_ACCOUNT, category: "Settings" },
-        { sendBeforeNavigation: true },
-      )
       const [_response, apiError] = await apiDelete<void>("/api/users/me")
 
       if (apiError) {
@@ -126,35 +93,11 @@ export default function Settings(): JSX.Element {
     }
   }
 
-  const name =
-    user?.githubProfile?.name ??
-    user?.gitlabProfile?.name ??
-    user?.githubUsername ??
-    user?.gitlabUsername
-
-  // Describe the user's subscription or trial status
-  const subscriptionInfo = useMemo(() => {
-    if (!user) {
-      return "Loading…"
-    }
-    if (user.subscription) {
-      return `✅ ${sentenceCase(user.subscription.plan)} (${user.subscription.interval})`
-    } else if (user.ownedProjectCount === 0) {
-      return "Free plan"
-    }
-    // Check if the user's trial is over
-    const trialEnd = new Date(user.trialEndStampSec * 1000)
-    const now = new Date()
-    if (trialEnd < now) {
-      return "⚠️ Trial period has ended. Choose a plan to continue screenshot testing."
-    }
-    const daysLeft = Math.ceil((trialEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-    return `Trial ends in ${daysLeft} day${daysLeft === 1 ? "" : "s"}`
-  }, [user])
+  const name = user?.displayName ?? user?.githubUsername ?? user?.email
 
   return (
     <>
-      <Seo title="VizDiff: Settings" canonical="https://vizdiff.io/settings"></Seo>
+      <Seo title="VizDiff: Settings" path="/settings"></Seo>
       <AppLayout>
         <Box
           sx={{
@@ -188,10 +131,12 @@ export default function Settings(): JSX.Element {
                 <Paper sx={{ p: { xs: 2, sm: 3 }, mb: 4 }}>
                   <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
                     <Avatar
-                      src={user.githubProfile?.avatar_url ?? user.gitlabProfile?.avatar_url}
+                      src={user.githubProfile?.avatar_url ?? undefined}
                       alt={name ?? "User"}
                       sx={{ width: 64, height: 64, mr: 3 }}
-                    />
+                    >
+                      {name?.charAt(0).toUpperCase()}
+                    </Avatar>
                     <Box>
                       <Typography variant="h6">{name}</Typography>
                       <Typography variant="body2" color="var(--text-secondary)">
@@ -212,24 +157,6 @@ export default function Settings(): JSX.Element {
                       <Typography variant="body1">{user.githubUsername}</Typography>
                     </Box>
                   )}
-                  {user.gitlabUsername && (
-                    <Box sx={{ mb: 2 }}>
-                      <Typography
-                        variant="subtitle2"
-                        color="var(--text-secondary)"
-                        sx={{ mb: 0.5 }}
-                      >
-                        GitLab Username
-                      </Typography>
-                      <Typography variant="body1">{user.gitlabUsername}</Typography>
-                    </Box>
-                  )}
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="subtitle2" color="var(--text-secondary)" sx={{ mb: 0.5 }}>
-                      Subscription Plan
-                    </Typography>
-                    <Typography variant="body1">{subscriptionInfo}</Typography>
-                  </Box>
                   <Box>
                     <Typography variant="subtitle2" color="var(--text-secondary)" sx={{ mb: 0.5 }}>
                       Account Created
@@ -250,20 +177,7 @@ export default function Settings(): JSX.Element {
                     }}
                   >
                     <Typography variant="h6">Projects</Typography>
-                    {user.githubId && (
-                      <Tooltip title="Sync GitHub repositories">
-                        <IconButton onClick={handleSyncRepos} disabled={isSyncing} color="primary">
-                          {isSyncing ? <CircularProgress size={24} /> : <RefreshIcon />}
-                        </IconButton>
-                      </Tooltip>
-                    )}
                   </Box>
-
-                  {syncError && (
-                    <Alert severity="error" sx={{ mb: 2 }}>
-                      {syncError}
-                    </Alert>
-                  )}
 
                   {projectsLoading ? (
                     <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>
@@ -275,9 +189,8 @@ export default function Settings(): JSX.Element {
                     </Alert>
                   ) : !projectsResponse?.length ? (
                     <Typography variant="body2" color="var(--text-secondary)" sx={{ py: 2 }}>
-                      {user.githubId
-                        ? "No projects found. Add a GitHub repository or upload from CI to start testing."
-                        : "No projects found. Upload your first Storybook build from GitLab CI to create a project."}
+                      No projects found. Upload your first Storybook build from GitLab CI to create
+                      a project.
                     </Typography>
                   ) : (
                     <List>
@@ -457,8 +370,4 @@ export default function Settings(): JSX.Element {
       </AppLayout>
     </>
   )
-}
-
-function sentenceCase(str: string): string {
-  return str.charAt(0).toUpperCase() + str.slice(1)
 }

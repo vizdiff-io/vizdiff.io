@@ -1,13 +1,11 @@
 import { createMarkdownForBuildApproval, ScreenshotTest, TestResult } from "shared"
 
-import { trackEvent } from "../customerio"
 import { Database } from "../database"
-import { APP_URL, ENABLE_VCS_STATUS, GITLAB_HOST } from "../environment"
+import { APP_URL, ENABLE_VCS_STATUS, GITHUB_ENABLED, GITLAB_HOST } from "../environment"
 import { getInstallationForOrg, getOctokitForInstallation } from "../github"
-import { updateGitLabCommitStatus } from "../gitlab"
+import { getGitLabHostConfig, updateGitLabCommitStatus } from "../gitlab"
 import { getParamInt } from "../http"
 import { log } from "../log"
-import { getAccessibleProjectIds } from "../projectAccess"
 import type { RequestHandler } from "../types"
 
 export const approveOrDeny: RequestHandler = async (req, res) => {
@@ -30,28 +28,17 @@ export const approveOrDeny: RequestHandler = async (req, res) => {
 
   const db = await Database()
 
-  // Get project IDs the user has access to
-  const accessibleProjectIds = await getAccessibleProjectIds(db, user.id)
-  if (accessibleProjectIds.length === 0) {
-    log.error({ user, testId, status }, "User does not have access to any projects")
-    res.status(403).json({ error: "User does not have access to any projects" })
-    return
-  }
-
+  // Any authenticated user can approve/deny any project's tests.
   const testTable = db.getRepository(ScreenshotTest)
   const test = await testTable
     .createQueryBuilder("test")
     .innerJoinAndSelect("test.project", "project")
     .innerJoinAndSelect("project.user", "projectOwner")
     .where("test.id = :id", { id: testId })
-    .andWhere("project.id IN (:...projectIds)", { projectIds: accessibleProjectIds })
     .getOne()
 
   if (!test) {
-    log.error(
-      { user, testId, status, accessibleProjectIds },
-      "Test not found in accessible projects",
-    )
+    log.error({ user, testId, status }, "Test not found")
     res.status(404).json({ error: "Test not found" })
     return
   }
@@ -73,7 +60,7 @@ export const approveOrDeny: RequestHandler = async (req, res) => {
         where: { screenshotTest: { id: test.id } },
       })
 
-      if (test.project.vcsProvider === "github") {
+      if (test.project.vcsProvider === "github" && GITHUB_ENABLED) {
         // Extract the GitHub owner and repo from the repository URL
         const [owner, repo] = test.project.repoUrl.split("/").slice(-2)
         if (!owner || !repo) {
@@ -86,8 +73,7 @@ export const approveOrDeny: RequestHandler = async (req, res) => {
           throw new Error(`GitHub App installation not found for ${owner}`)
         }
 
-        // Get username (prefer GitHub for GitHub projects, fall back to GitLab)
-        const username = user.githubUsername ?? user.gitlabUsername ?? "Unknown"
+        const username = user.displayName ?? user.githubUsername ?? "Unknown"
 
         const { title, summary, text } = createMarkdownForBuildApproval(test, testResults, username)
 
@@ -116,20 +102,15 @@ export const approveOrDeny: RequestHandler = async (req, res) => {
           },
           `Created GitHub check run ${result.data.id} for ${test.toString()} with conclusion: ${conclusion}`,
         )
-      } else {
-        // Update GitLab commit status using the project owner's credentials
-        const projectOwner = test.project.user
-        const gitlabHost = projectOwner.gitlabHost ?? GITLAB_HOST
-        const accessToken = projectOwner.gitlabAccessToken
+      } else if (test.project.vcsProvider === "gitlab") {
+        // Update GitLab commit status using the configured per-host service token.
+        const gitlabHost = test.project.gitlabHost ?? GITLAB_HOST
+        const hostConfig = getGitLabHostConfig(gitlabHost)
 
-        if (!accessToken) {
+        if (!hostConfig) {
           log.warn(
-            {
-              projectOwnerId: projectOwner.id,
-              testId: test.id,
-              projectId: test.project.id,
-            },
-            `Project owner ${projectOwner.id} does not have GitLab access token, skipping commit status update`,
+            { testId: test.id, projectId: test.project.id, gitlabHost },
+            `No GitLab service token configured for host ${gitlabHost}, skipping commit status update`,
           )
           // Don't throw - allow approval/denial to succeed even if we can't update GitLab status
         } else {
@@ -143,13 +124,11 @@ export const approveOrDeny: RequestHandler = async (req, res) => {
               status === "approved"
                 ? `${changeCount} visual change${changeCount === 1 ? "" : "s"} approved`
                 : `${changeCount} visual change${changeCount === 1 ? "" : "s"} denied`,
-            accessToken,
             host: gitlabHost,
           })
 
           log.info(
             {
-              projectOwnerId: projectOwner.id,
               approvingUserId: user.id,
               testId: test.id,
               projectId: test.project.repoId,
@@ -166,14 +145,6 @@ export const approveOrDeny: RequestHandler = async (req, res) => {
       // Don't fail the API call if VCS update fails
     }
   }
-
-  // Track the approval event with Customer.io
-  trackEvent(user.id, req, "approval", {
-    projectName: test.project.name,
-    repo: test.project.githubRepoUrl,
-    buildId: test.id,
-    status,
-  })
 
   res.json({ success: true })
 }

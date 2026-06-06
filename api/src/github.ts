@@ -1,7 +1,7 @@
 import { createAppAuth } from "@octokit/auth-app"
 import type { RestEndpointMethodTypes } from "@octokit/rest"
 import { Octokit } from "@octokit/rest"
-import { GitHubInstallation, User, UserGithubRepoAccess } from "shared"
+import { GitHubInstallation, User } from "shared"
 
 import { Database } from "./database"
 import {
@@ -204,107 +204,4 @@ export async function getGithubProject(
   const octokit = new Octokit({ auth: githubAccessToken })
   const repoInfo = await octokit.rest.repos.get({ owner, repo })
   return repoInfo.data
-}
-
-export async function syncUserGithubRepos(user: User): Promise<number> {
-  const db = await Database()
-  const userId = user.id
-
-  try {
-    log.debug({ userId }, "Starting GitHub repo sync")
-    const userOctokit = new Octokit({ auth: user.githubAccessToken })
-
-    // 1. List installations accessible by the user for our app
-    const installationsResponse = await userOctokit.apps.listInstallationsForAuthenticatedUser()
-    const ourInstallations = installationsResponse.data.installations.filter(
-      (inst) => inst.app_id === parseInt(GITHUB_APP_ID, 10) && inst.account != null,
-    )
-
-    if (ourInstallations.length === 0) {
-      log.info(
-        { userId, installationsResponse },
-        "User has no installations of our GitHub App. Clearing access cache.",
-      )
-      // Clear existing access if no installations are found
-      await db.manager.delete(UserGithubRepoAccess, { userId: user.id })
-      return 0
-    }
-
-    const installationIds = ourInstallations.map((i) => i.id)
-    log.debug(
-      { userId, installationsResponse, installationIds },
-      `User has access to ${installationIds.length} installation(s)`,
-    )
-
-    // 2. Collect all unique repo IDs accessible via these installations
-    const accessibleRepoIds = new Set<number>()
-    for (const installation of ourInstallations) {
-      try {
-        log.info({ userId, installation }, `Fetching repos for installation ${installation.id}`)
-        const installationOctokit = await getOctokitForInstallation(installation.id)
-        // Use iteratePaginate for automatic pagination handling
-        const repoIterator = installationOctokit.paginate.iterator(
-          installationOctokit.apps.listReposAccessibleToInstallation,
-        )
-
-        let countForInstallation = 0
-        for await (const { data: repos } of repoIterator) {
-          for (const repo of repos) {
-            accessibleRepoIds.add(repo.id)
-            countForInstallation++
-          }
-        }
-        log.info(
-          { userId, installationId: installation.id, countForInstallation },
-          `Installation ${installation.id}: Found ${countForInstallation} repos. Total unique repos so far: ${accessibleRepoIds.size}`,
-        )
-      } catch (err) {
-        log.error(
-          { user, installation, err },
-          `Failed to list repositories for installation ${installation.id} during sync for user ${user.id} (${user.githubUsername})`,
-        )
-        // Continue with other installations
-      }
-    }
-
-    log.info(
-      { userId, installationIds, accessibleRepoIds },
-      `User sync: Found ${accessibleRepoIds.size} total accessible repositories via GitHub App installations.`,
-    )
-
-    // 3. Atomically update UserGithubRepoAccess table
-    await db.manager.transaction(async (transactionalEntityManager) => {
-      // Delete old records
-      const deleteResult = await transactionalEntityManager.delete(UserGithubRepoAccess, {
-        userId: user.id,
-      })
-      log.debug(
-        { userId, deleteResult },
-        `Deleted ${deleteResult.affected ?? 0} existing UserGithubRepoAccess records`,
-      )
-
-      // Insert new records if any repos were found
-      if (accessibleRepoIds.size > 0) {
-        const newAccessRecords = Array.from(accessibleRepoIds).map((repoId) => ({
-          userId: user.id,
-          githubRepoId: repoId,
-        }))
-
-        // Use save which handles bulk inserts efficiently
-        const res = await transactionalEntityManager.save(UserGithubRepoAccess, newAccessRecords, {
-          chunk: 200, // Process in chunks for large numbers of repos
-        })
-        log.debug(
-          { userId, newAccessRecordCount: res.length },
-          `Inserted ${res.length} UserGithubRepoAccess records`,
-        )
-      }
-    })
-
-    log.info({ userId, accessibleRepoIds }, "Successfully completed GitHub repo sync")
-    return accessibleRepoIds.size
-  } catch (err) {
-    log.error({ user, err }, "GitHub repo sync failed")
-    throw err
-  }
 }

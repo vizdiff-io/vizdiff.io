@@ -26,7 +26,6 @@ import { useBreadcrumbs } from "@/hooks/useBreadcrumbs"
 import type { SidebarItem } from "./LeftSidebar"
 import ProtectedRoute from "./ProtectedRoute"
 import SidebarContent from "./SidebarContent"
-import { AnalyticsEvents, trackEvent } from "../lib/analytics"
 
 const drawerWidth = 240
 
@@ -50,17 +49,9 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   const [mobileOpen, setMobileOpen] = useState(false)
   const router = useRouter()
 
-  // Track initial sign-in events
+  // Clean up the `signed_in` query param appended after a successful login.
   useEffect(() => {
     if (router.isReady && router.query.signed_in === "true") {
-      trackEvent({
-        action: AnalyticsEvents.SIGNED_IN,
-        category: "Auth",
-        label: "github_signin",
-      })
-
-      // Clean the URL by removing the query parameter without reloading the page
-      // Use replace to avoid adding this intermediate state to the browser history
       const { signed_in, ...restQuery } = router.query
       void signed_in
       void router.replace(
@@ -77,11 +68,6 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
       // Try GitHub profile avatar first
       if (typeof user?.githubProfile?.avatar_url === "string") {
         setAvatarUrl(user.githubProfile.avatar_url)
-        return
-      }
-      // Try GitLab profile avatar
-      if (typeof user?.gitlabProfile?.avatar_url === "string") {
-        setAvatarUrl(user.gitlabProfile.avatar_url)
         return
       }
       // Fall back to Gravatar based on email
@@ -157,15 +143,6 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     return crumbs
   }, [breadcrumbData])
 
-  const trialDaysLeft = useMemo(() => {
-    // Don't show the trial banner if the user failed to load, has an active
-    // subscription, or doesn't own any projects
-    if (!user || user.subscription || user.ownedProjectCount === 0) {
-      return undefined
-    }
-    return Math.ceil((user.trialEndStampSec - Date.now() / 1000) / 86400)
-  }, [user])
-
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen)
   }
@@ -177,9 +154,6 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
       router.pathname.startsWith("/build")
     ) {
       return "projects"
-    }
-    if (router.pathname.startsWith("/signup")) {
-      return "billing"
     }
     if (router.pathname.startsWith("/settings")) {
       return "settings"
@@ -255,35 +229,12 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
 
             <Box sx={{ flexGrow: { xs: 0, md: 1 } }} />
             <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
-              {trialDaysLeft != undefined && (
-                <Box
-                  sx={{
-                    display: { xs: "none", md: "flex" },
-                    alignItems: "center",
-                    gap: 2,
-                    px: 2,
-                    py: 1,
-                    borderRadius: 1,
-                    backgroundColor: "var(--bg-paper)",
-                    color: "var(--text-primary)",
-                  }}
-                >
-                  <Box sx={{ fontSize: "0.875rem", whiteSpace: "nowrap" }}>
-                    {trialDaysLeft > 0
-                      ? `${trialDaysLeft} day${trialDaysLeft === 1 ? "" : "s"} left in your free trial`
-                      : "Your free trial has expired."}
-                  </Box>
-                  <Button color="primary" href="/signup" variant="contained" size="small">
-                    {trialDaysLeft > 0 ? "Upgrade Now" : "Subscribe"}
-                  </Button>
-                </Box>
-              )}
               {user && (
                 <>
                   <Link href="/settings">
                     <Avatar
                       src={avatarUrl}
-                      alt={user.githubUsername ?? user.gitlabUsername ?? "User"}
+                      alt={user.displayName ?? user.githubUsername ?? "User"}
                       sx={{ width: 32, height: 32 }}
                     />
                   </Link>

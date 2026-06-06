@@ -1,7 +1,5 @@
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome"
-import CheckCircleOutline from "@mui/icons-material/CheckCircleOutline"
 import CompareArrowsIcon from "@mui/icons-material/CompareArrows"
-import GitHubIcon from "@mui/icons-material/GitHub"
 import GroupsIcon from "@mui/icons-material/Groups"
 import IntegrationInstructionsIcon from "@mui/icons-material/IntegrationInstructions"
 import LinkIcon from "@mui/icons-material/Link"
@@ -9,13 +7,14 @@ import VisibilityIcon from "@mui/icons-material/Visibility"
 import { Box, Button, Container, Grid, Link as MuiLink, Typography } from "@mui/material"
 import type { JSX } from "react"
 
+import { GitLabIcon } from "@/components/GitLabIcon"
 import { MarketingLayout } from "@/components/NavBody"
 import { Seo } from "@/components/Seo"
 
 export default function Home(): JSX.Element {
   return (
     <>
-      <Seo canonical="https://vizdiff.io"></Seo>
+      <Seo path=""></Seo>
       <MarketingLayout>
         <Container maxWidth="lg">
           <Box sx={{ position: "relative" }}>
@@ -55,39 +54,16 @@ export default function Home(): JSX.Element {
                 }}
               >
                 Stop tedious manual UI checks. VizDiff automatically captures screenshots of your
-                Storybook components and integrates with GitHub Checks to prevent visual regressions
-                before they reach production. Ensure UI consistency across changes with minimal
-                effort.
+                Storybook components and integrates with GitLab merge requests to prevent visual
+                regressions before they reach production. Ensure UI consistency across changes with
+                minimal effort.
               </Typography>
               <Box sx={{ display: "flex", gap: 2 }}>
                 <MuiLink href="/projects">
                   <Button variant="contained" color="primary" size="large">
-                    Start your free trial
+                    Go to projects
                   </Button>
                 </MuiLink>
-                {/* <Button variant="outlined" size="large">
-                  Get a demo
-                </Button> */}
-              </Box>
-              <Box sx={{ display: "flex", gap: 2, mt: 2 }}>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                  <CheckCircleOutline sx={{ color: "var(--text-primary)", fontSize: "1rem" }} />
-                  <Typography variant="body2" sx={{ color: "var(--text-primary)" }}>
-                    14-day free trial
-                  </Typography>
-                </Box>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                  <CheckCircleOutline sx={{ color: "var(--text-primary)", fontSize: "1rem" }} />
-                  <Typography variant="body2" sx={{ color: "var(--text-primary)" }}>
-                    No credit card required
-                  </Typography>
-                </Box>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                  <CheckCircleOutline sx={{ color: "var(--text-primary)", fontSize: "1rem" }} />
-                  <Typography variant="body2" sx={{ color: "var(--text-primary)" }}>
-                    Cancel anytime
-                  </Typography>
-                </Box>
               </Box>
             </Box>
             <Box
@@ -131,32 +107,9 @@ export default function Home(): JSX.Element {
                     1. Connect Repository
                   </Typography>
                   <Typography variant="body1">
-                    Link your GitHub repository and upload your first Storybook build. Setup takes
+                    Link your GitLab project and upload your first Storybook build. Setup takes
                     minutes.
                   </Typography>
-                </Box>
-                {/* Screenshot 1: GitHub Authorize */}
-                <Box
-                  sx={{
-                    height: 250,
-                    borderRadius: 1,
-                    overflow: "hidden",
-                    marginTop: "auto",
-                  }}
-                >
-                  <Box
-                    component="img"
-                    src="/docs/github-authorize-900.png"
-                    alt="GitHub authorization screen for VizDiff"
-                    sx={{
-                      width: "100%",
-                      height: "100%",
-                      objectFit: "cover",
-                      display: "block",
-                      borderRadius: 1,
-                      border: "1px solid var(--bg-secondary)",
-                    }}
-                  />
                 </Box>
               </Box>
             </Grid>
@@ -176,38 +129,9 @@ export default function Home(): JSX.Element {
                     2. Automate Screenshots
                   </Typography>
                   <Typography variant="body1">
-                    VizDiff captures screenshots automatically on every commit via a{" "}
-                    <MuiLink
-                      href="https://github.com/marketplace/actions/vizdiff-upload"
-                      target="_blank"
-                    >
-                      GitHub Action
-                    </MuiLink>
-                    .
+                    VizDiff captures screenshots automatically on every commit via your GitLab CI
+                    pipeline.
                   </Typography>
-                </Box>
-                {/* Screenshot 2: GitHub Action */}
-                <Box
-                  sx={{
-                    height: 250,
-                    borderRadius: 1,
-                    overflow: "hidden",
-                    marginTop: "auto",
-                  }}
-                >
-                  <Box
-                    component="img"
-                    src="/docs/upload-action-900.png"
-                    alt="GitHub Action YAML for VizDiff upload"
-                    sx={{
-                      width: "100%",
-                      height: "100%",
-                      objectFit: "cover",
-                      display: "block",
-                      borderRadius: 1,
-                      border: "1px solid var(--bg-secondary)",
-                    }}
-                  />
                 </Box>
               </Box>
             </Grid>
@@ -279,12 +203,12 @@ export default function Home(): JSX.Element {
             </Grid>
             <Grid size={{ xs: 12, sm: 6, md: 3 }}>
               <Box sx={{ textAlign: "center" }}>
-                <GitHubIcon sx={{ fontSize: 40, mb: 2, color: "primary.main" }} />
+                <GitLabIcon sx={{ fontSize: 40, mb: 2, color: "primary.main" }} />
                 <Typography variant="h5" sx={{ mb: 1 }}>
-                  GitHub Checks
+                  GitLab Merge Requests
                 </Typography>
                 <Typography variant="body1">
-                  Review and approve visual changes directly in your Pull Requests.
+                  Review and approve visual changes directly in your Merge Requests.
                 </Typography>
               </Box>
             </Grid>
@@ -317,41 +241,10 @@ export default function Home(): JSX.Element {
       <Box sx={{ py: { xs: 6, sm: 10 }, textAlign: "center", bgcolor: "var(--bg-primary)" }}>
         <Container maxWidth="lg">
           <MuiLink href="/projects" sx={{ textDecoration: "none" }}>
-            <Button variant="contained" color="primary" size="large" sx={{ mb: 4 }}>
-              Start your free trial
+            <Button variant="contained" color="primary" size="large">
+              Go to projects
             </Button>
           </MuiLink>
-          <Box sx={{ display: "flex", justifyContent: "center", gap: 3 }}>
-            <MuiLink
-              href="mailto:ada@vizdiff.io"
-              variant="body2"
-              sx={{ color: "var(--text-secondary)" }}
-            >
-              Contact Us
-            </MuiLink>
-            <MuiLink
-              href="https://discord.gg/ezgd2AER4H"
-              variant="body2"
-              sx={{ color: "var(--text-secondary)" }}
-            >
-              Discord
-            </MuiLink>
-            <MuiLink
-              href="/docs/privacy-policy"
-              variant="body2"
-              sx={{ color: "var(--text-secondary)" }}
-            >
-              Privacy Policy
-            </MuiLink>
-            <MuiLink
-              href="/docs/terms-of-service"
-              variant="body2"
-              sx={{ color: "var(--text-secondary)" }}
-            >
-              Terms of Service
-            </MuiLink>
-            <Typography variant="body2">© 2025 VizDiff</Typography>
-          </Box>
         </Container>
       </Box>
     </>
