@@ -6,7 +6,7 @@ import { Database } from "./database"
  * Returns the IDs of all projects in the deployment.
  *
  * Authorization model: any authenticated user can view and manage all projects (confirmed with the
- * product owner). Per-user VCS-membership scoping has been removed for the self-hosted corporate
+ * product owner). Per-user VCS-membership scoping has been removed for the self-hosted
  * deployment, so this returns every project ID.
  */
 export async function getAccessibleProjectIds(

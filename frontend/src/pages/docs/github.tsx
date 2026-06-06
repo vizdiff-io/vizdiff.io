@@ -62,7 +62,7 @@ Click the "..." button then "Details" on the check to see a summary of the chang
 
 ![Rendering storybook components → 4 changes to review.](/docs/pr-check-queued.gif)
 
-## 7. Screenshot review on vizdiff.io
+## 7. Screenshot review on VizDiff
 
 The VizDiff review page shows a list of all screenshots that were generated for the build. They are sorted by status with "New" screenshots first, followed by "Changed", then "Unchanged". Clicking on a screenshot will open a dialog showing different comparison views for that screenshot.
 
@@ -99,7 +99,7 @@ export default function GitHubDocumentation(): JSX.Element {
       <Seo
         title="VizDiff: GitHub Setup"
         description="Getting started guide for VizDiff with GitHub: automated screenshot testing for Storybook via GitHub Actions and Checks."
-        canonical="https://vizdiff.io/docs/github"
+        path="/docs/github"
       ></Seo>
       <MarketingLayout>
         <Container maxWidth="lg" sx={{ px: { xs: 0, md: 3 } }}>

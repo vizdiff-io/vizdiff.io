@@ -1,7 +1,7 @@
 /**
  * Per-host GitLab service token configuration.
  *
- * In a self-hosted corporate deployment, VizDiff no longer relies on each user's OAuth token to
+ * In a self-hosted deployment, VizDiff no longer relies on each user's OAuth token to
  * call the GitLab API. Instead, the operator configures a service token (PAT or group/project
  * access token with `api` scope and Developer+ role) per GitLab host. The API and worker resolve
  * the correct token for a given host when posting commit statuses or reading projects.

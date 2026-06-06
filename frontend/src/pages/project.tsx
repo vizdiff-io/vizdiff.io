@@ -133,7 +133,7 @@ export default function Project(): JSX.Element {
   if (!router.isReady || !projectId) {
     return (
       <>
-        <Seo title="VizDiff: Project" canonical={`https://vizdiff.io/project`}></Seo>
+        <Seo title="VizDiff: Project" path="/project"></Seo>
         <AppLayout>
           <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
             <CircularProgress />
@@ -146,8 +146,8 @@ export default function Project(): JSX.Element {
   return (
     <>
       <Seo
-        title={project?.name ? `${project.name} - vizdiff.io` : "vizdiff.io"}
-        canonical={`https://vizdiff.io/project?id=${projectId}`}
+        title={project?.name ? `${project.name} - VizDiff` : "VizDiff"}
+        path={`/project?id=${projectId}`}
       ></Seo>
       <AppLayout>
         <Box sx={{ px: { xs: 0, sm: 3 }, py: { xs: 0, sm: 4 } }}>

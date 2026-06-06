@@ -14,7 +14,7 @@ import { Seo } from "@/components/Seo"
 export default function Home(): JSX.Element {
   return (
     <>
-      <Seo canonical="https://vizdiff.io"></Seo>
+      <Seo path=""></Seo>
       <MarketingLayout>
         <Container maxWidth="lg">
           <Box sx={{ position: "relative" }}>

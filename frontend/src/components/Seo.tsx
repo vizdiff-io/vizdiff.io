@@ -1,6 +1,8 @@
 import Head from "next/head"
 import type { JSX } from "react"
 
+import { APP_URL } from "@/lib/environment"
+
 export interface OpenGraphMedia {
   url: string
   width?: number
@@ -18,12 +20,16 @@ export interface OpenGraph {
 export interface SeoProps {
   title?: string
   description?: string
+  /** Absolute canonical URL. Prefer `path` so the URL tracks this deployment's APP_URL. */
   canonical?: string
+  /** Path (e.g. "/projects") resolved against APP_URL into a deployment-relative canonical URL. */
+  path?: string
   openGraph?: OpenGraph
   children?: never
 }
 
 export const Seo = (props: SeoProps): JSX.Element => {
+  const canonical = props.canonical ?? (props.path != null ? `${APP_URL}${props.path}` : undefined)
   return (
     <Head>
       {props.title && (
@@ -38,10 +44,10 @@ export const Seo = (props: SeoProps): JSX.Element => {
           <meta key="og:description" property="og:description" content={props.description} />
         </>
       )}
-      {props.canonical && (
+      {canonical && (
         <>
-          <link key="canonical" rel="canonical" href={props.canonical} />
-          <meta key="og:url" property="og:url" content={props.canonical} />
+          <link key="canonical" rel="canonical" href={canonical} />
+          <meta key="og:url" property="og:url" content={canonical} />
         </>
       )}
       {props.openGraph && (

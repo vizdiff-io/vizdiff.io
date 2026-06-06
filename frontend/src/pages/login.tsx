@@ -32,7 +32,7 @@ export default function Login(): JSX.Element {
   if (isLoading || user) {
     return (
       <>
-        <Seo title="VizDiff: Login" canonical="https://vizdiff.io/login"></Seo>
+        <Seo title="VizDiff: Login" path="/login"></Seo>
         <MarketingLayout>
           <Container maxWidth="lg">
             <Box
@@ -54,8 +54,8 @@ export default function Login(): JSX.Element {
   return (
     <>
       <Head>
-        <title>Login - vizdiff.io</title>
-        <meta name="description" content="Login to vizdiff.io" />
+        <title>Login - VizDiff</title>
+        <meta name="description" content="Login to VizDiff" />
       </Head>
       <MarketingLayout>
         <Container maxWidth="lg">
@@ -81,7 +81,7 @@ export default function Login(): JSX.Element {
             >
               Sign in to{" "}
               <Box component="span" sx={{ color: "primary.main", WebkitTextFillColor: "#5cc5ff" }}>
-                vizdiff.io
+                VizDiff
               </Box>
             </Typography>
             <Typography variant="body1" sx={{ mb: 3, maxWidth: "400px" }}>

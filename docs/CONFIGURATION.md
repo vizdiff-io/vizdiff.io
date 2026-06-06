@@ -9,6 +9,17 @@ VizDiff is a Yarn v4 monorepo with three runtime services:
 - **worker** — renders Storybook builds and posts GitLab commit statuses.
 - **frontend** — Next.js static export. `NEXT_PUBLIC_*` variables are **build-time** only.
 
+## VCS platforms
+
+VizDiff is self-hosted only and integrates with two VCS platforms—enable either or both:
+
+- **GitLab** (default) — projects, merge-request commit statuses, and webhooks via a configured
+  service token per host (see [GitLab service tokens](#gitlab-service-tokens-gitlab_hosts)). On-prem
+  GitLab and gitlab.com are supported simultaneously.
+- **GitHub** (optional; set `GITHUB_ENABLED=true`) — projects and pull-request checks via a GitHub App.
+
+User identity (login) is handled separately by the pluggable AuthProvider described below.
+
 ## Authentication
 
 Identity is provided by a pluggable `AuthProvider`, selected by `AUTH_PROVIDER`:
@@ -19,7 +30,7 @@ Identity is provided by a pluggable `AuthProvider`, selected by `AUTH_PROVIDER`:
   against the discovered JWKS.
 - `dev` — non-production fixed identity (`subject="dev"`, email `DEV_AUTH_EMAIL`). Refuses to run
   in production. Replaces the old `X-Test-User-Id` shortcut.
-- `custom` — reserved slot for a future internal corporate auth service. Implement the
+- `custom` — reserved slot for a future custom auth service. Implement the
   `AuthProvider` interface in `api/src/auth/` and wire it in `api/src/auth/index.ts`.
 
 The existing JWT-cookie session mechanism is retained; only the identity source changed. After a
@@ -136,8 +147,21 @@ WHERE p.vcs_provider = q.vcs_provider AND p.repo_id = q.repo_id
   AND p.gitlab_host IS NOT DISTINCT FROM q.gitlab_host AND p.id > q.id;
 ```
 
-## Follow-up: private S3 (high priority)
+## Private S3 / presigned URLs
 
-The current S3 bucket is public and `build?id=` pages load screenshots from public URLs. A corporate
-deployment should make the bucket **private** and serve images via API presigned URLs / a proxy.
-This is a behavior change tracked as a required follow-up (out of scope for this PR).
+Bring your own S3 (or S3-compatible store). The bucket is **private**; the worker stores each
+screenshot's S3 object key, and URLs are generated as presigned GET URLs at read time:
+
+- **Interactive build viewer** (`GET /api/builds/:id`): presigned with `IMAGE_URL_TTL_SECONDS` (short).
+- **PR/MR comment images** (markdown posted to GitHub/GitLab): presigned with `VCS_IMAGE_URL_TTL_SECONDS`
+  (long). See `api/src/s3.ts` / `worker/src/s3.ts`.
+
+Caveats:
+
+- **7-day cap on comment images.** S3 SigV4 presigned URLs expire after at most 7 days, so screenshots
+  embedded in older PR/MR comments will stop loading. The build still renders fresh URLs in the web UI.
+  For permanent comment images, front the bucket with an authenticated proxy or CloudFront-with-OAC.
+- **MinIO / S3-compatible mode.** Presigned URLs point at `S3_ENDPOINT`; that host must be reachable
+  from the user's browser (not just from inside the cluster) for images to load.
+- **Legacy rows.** Rows that stored a full public S3 URL (pre-migration) are handled transparently—the
+  presigner extracts the object key from the URL path.

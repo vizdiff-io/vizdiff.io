@@ -95,7 +95,7 @@ export default function Documentation(): JSX.Element {
       <Seo
         title="VizDiff: GitLab Setup"
         description="Getting started guide for self-hosted VizDiff with GitLab: automated screenshot testing for Storybook via GitLab CI and merge request commit statuses."
-        canonical="https://vizdiff.io/docs"
+        path="/docs"
       ></Seo>
       <MarketingLayout>
         <Container maxWidth="lg" sx={{ px: { xs: 0, md: 3 } }}>
