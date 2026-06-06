@@ -8,7 +8,8 @@ It integrates with two VCS platforms; enable either or both:
 
 - **GitLab** (default) — merge-request commit statuses via a configured per-host service token
   (gitlab.com and on-prem). Login is handled by a pluggable OIDC/MSAL identity provider.
-- **GitHub** (optional, `GITHUB_ENABLED=true`) — pull-request checks via a GitHub App.
+- **GitHub** (optional, `GITHUB_ENABLED=true`) — pull-request checks via a GitHub App; login via
+  GitHub OAuth (`AUTH_PROVIDER=github`).
 
 It runs as three services (**api**, **worker**, **frontend**) backed by PostgreSQL and a
 (bring-your-own) S3-compatible bucket.
