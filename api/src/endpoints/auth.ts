@@ -3,7 +3,8 @@ import { User } from "shared"
 
 import { getAuthProvider } from "../auth"
 import { Database } from "../database"
-import { APP_URL, IS_PRODUCTION, JWT_SECRET } from "../environment"
+import { APP_URL, GITHUB_ENABLED, IS_PRODUCTION, JWT_SECRET } from "../environment"
+import { syncUserInstallations } from "../github"
 import { isValidRedirectUrl } from "../http"
 import { log } from "../log"
 import type { DefaultRequest, DefaultResponse } from "../types"
@@ -59,7 +60,25 @@ export async function callback(req: DefaultRequest, res: DefaultResponse): Promi
   if (identity.email) {
     user.email = identity.email
   }
+  // Link the user's GitHub account when authenticating via GitHub, so the GitHub App integration
+  // (installations, repo listing, checks) and the account UI work.
+  if (identity.vcs?.provider === "github") {
+    user.githubId = identity.vcs.id
+    user.githubUsername = identity.vcs.username
+    user.githubProfile = identity.vcs.profile
+    user.githubAccessToken = identity.vcs.accessToken
+  }
   user = await userTable.save(user)
+
+  // Best-effort: record the user's GitHub App installations (and any just-installed one). Never
+  // blocks login.
+  if (identity.vcs?.provider === "github" && GITHUB_ENABLED) {
+    const linkedUser = user
+    const installationId = identity.vcs.installationId
+    void syncUserInstallations(linkedUser, installationId).catch((err: unknown) => {
+      log.warn(`Failed to sync GitHub installations for user ${linkedUser.id}: ${String(err)}`)
+    })
+  }
 
   // --- Begin retained JWT-cookie session logic (identity source changed; cookies unchanged) ---
   // Generate a JWT

@@ -27,7 +27,10 @@ Identity is provided by a pluggable `AuthProvider`, selected by `AUTH_PROVIDER`:
 - `oidc` (default in production) — generic OIDC / Microsoft Entra (MSAL) via `openid-client`.
   Uses PKCE and a signed-cookie state (no server-side session store), so the deployment stays
   stateless. The ID token's signature, issuer, audience, expiry, state, and nonce are validated
-  against the discovered JWKS.
+  against the discovered JWKS. Typical for GitLab-mode deployments.
+- `github` — GitHub OAuth login (for GitHub-mode deployments). Authenticates with GitHub and links
+  the user's GitHub account so the GitHub App integration works. Requires `GITHUB_CLIENT_ID` /
+  `GITHUB_CLIENT_SECRET`; pair with `GITHUB_ENABLED=true`.
 - `dev` — non-production fixed identity (`subject="dev"`, email `DEV_AUTH_EMAIL`). Refuses to run
   in production. Replaces the old `X-Test-User-Id` shortcut.
 - `custom` — reserved slot for a future custom auth service. Implement the
@@ -85,7 +88,7 @@ Single-host fallback: when `GITLAB_HOSTS` is unset, a single host is derived fro
 | `S3_FORCE_PATH_STYLE` | api, worker | no | `true` when `S3_ENDPOINT` set | Use path-style addressing (required by MinIO). |
 | `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_REGION` | api, worker | yes* | — | Standard AWS SDK credentials (omit when using IRSA / instance roles; for MinIO use its access/secret keys). |
 | `ENABLE_VCS_STATUS` | api, worker | no | `true` in prod/staging | Whether to post VCS commit statuses. |
-| `AUTH_PROVIDER` | api | no | `oidc` (prod), `dev` (else) | Identity provider: `oidc` or `dev`. |
+| `AUTH_PROVIDER` | api | no | `oidc` (prod), `dev` (else) | Identity provider: `oidc`, `github`, or `dev`. |
 | `OIDC_ISSUER` | api | yes (oidc) | — | OIDC issuer URL (e.g. `https://login.microsoftonline.com/<tenant>/v2.0`). |
 | `OIDC_CLIENT_ID` | api | yes (oidc) | — | OIDC client ID. |
 | `OIDC_CLIENT_SECRET` | api | yes (confidential clients) | — | OIDC client secret. |

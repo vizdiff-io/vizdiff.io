@@ -11,6 +11,20 @@ export interface AuthenticatedIdentity {
   email: string | null
   displayName: string | null
   provider: string
+  /**
+   * Optional VCS account linkage for providers that authenticate *via* a VCS platform (GitHub).
+   * When present, the auth callback stores these fields on the User so the matching VCS integration
+   * (GitHub App installations, repo listing) works, and records the user's installations.
+   */
+  vcs?: {
+    provider: "github"
+    id: string
+    username: string
+    profile: object
+    accessToken: string
+    /** App installation id captured from the GitHub App setup redirect, if any. */
+    installationId?: number
+  }
 }
 
 /**
