@@ -7,96 +7,94 @@ import { MarketingLayout } from "@/components/NavBody"
 import { Seo } from "@/components/Seo"
 
 const markdown = `
-Getting Started with VizDiff 🚀
+Getting Started with VizDiff (GitLab) 🚀
 ===
 
+> Using GitHub instead? See the [GitHub setup guide](/docs/github).
+
 > **Prerequisite**
-> A GitHub repository that already builds a Storybook (e.g. build-storybook job) and write access to that repo.
+> A GitLab project that already builds a Storybook (e.g. a \`build-storybook\` job) and Maintainer access to add CI/CD variables. Your VizDiff administrator must have configured the GitLab host and a service token for this deployment.
 
-## 1. Sign in to VizDiff with GitHub
+## 1. Sign in to VizDiff
 
-Press the "Get Started" button in the top right corner of the VizDiff website. You will be redirected to GitHub to sign in using your GitHub account, and then redirected back to your VizDiff projects dashboard.
+Press the "Sign in" button. You will be redirected to your organization's identity provider (Microsoft Entra / SSO) to authenticate, then returned to your VizDiff projects dashboard.
 
-## 2. Create a Project and Install the GitHub App
+## 2. Create a Project
 
-To start using VizDiff, you need to install the GitHub App and create a project from an existing GitHub repository. Press the "Add project" button on the projects dashboard, and if you are not already a member of a GitHub organization that has installed the VizDiff GitHub App, you will see a button to install the GitHub App. Press the button and follow the instructions to install the app for any organizations you want to use VizDiff with.
+Press the "Add project" button on the projects dashboard. VizDiff lists the GitLab groups and projects visible to the configured service token—select a group, then pick your project.
 
-> **Least-Privilege Tip**
-> Install the app only on the organizations that need visual testing. You can expand access later by pressing "Add project" again then the "Configure GitHub App" button.
+You do not need to authorize VizDiff against your personal GitLab account: the deployment's service token reads project metadata and posts commit statuses on your merge requests on your behalf.
 
-![Add project button → dialog with Install App → GitHub install screen → choose organization(s) → back to dialog, pick the repository.](/docs/new-project-first-time.gif)
+After the project is created you land on its page—copy the **Project Token** shown there.
 
-## 3. Add \`VIZDIFF_PROJECT_TOKEN\` as a GitHub secret
+## 3. Add \`VIZDIFF_PROJECT_TOKEN\` as a GitLab CI/CD variable
 
-After the dialog closes you land on the new project's page—copy the Project Token.
+In GitLab, open your project's **Settings → CI/CD → Variables → Add variable**:
 
-In GitHub, go to Settings → Secrets → Actions → New secret and paste the token. (Repo-level is sufficient.)
+- **Key:** \`VIZDIFF_PROJECT_TOKEN\`
+- **Value:** the token you copied
+- **Flags:** Masked (recommended). Only mark it Protected if you run VizDiff exclusively on protected branches.
 
-Or for power users using the GitHub CLI, in your repo directory run:
+Point the CLI at your self-hosted VizDiff by also setting \`VIZDIFF_API_URL\` (as another CI/CD variable, or inline in the CI file), e.g. \`https://vizdiff.example.com/api\`.
 
-\`\`\`bash
-gh secret set VIZDIFF_PROJECT_TOKEN -b"PASTE-TOKEN-HERE"
-\`\`\`
+## 4. Add the upload step to \`.gitlab-ci.yml\`
 
-## 4. Update your GitHub Actions workflow
-
-The [VizDiff GitHub Action](https://github.com/marketplace/actions/vizdiff-upload) provides an easy way to upload your Storybook build to VizDiff.
-
-Your GitHub Actions workflow must build your Storybook and output the build results to a directory. Most commonly, a \`npm run build-storybook\` command will create a \`storybook-static\` directory with the build results. After this step, insert the upload step:
+Your pipeline must build Storybook to a directory (commonly \`npm run build-storybook\`, which outputs \`storybook-static\`), then upload it with the VizDiff CLI:
 
 \`\`\`yaml
-- name: Upload Storybook to VizDiff
-  uses: vizdiff-io/upload-action@v1
-  with:
-    project-token: \${{ secrets.VIZDIFF_PROJECT_TOKEN }}
-    storybook-dir: ./storybook-static  # optional, defaults to ./storybook-static
+vizdiff:
+  image: node:22
+  variables:
+    VIZDIFF_API_URL: "https://vizdiff.example.com/api"
+  script:
+    - npm ci
+    - npm run build-storybook            # outputs ./storybook-static
+    - npx @vizdiff/cli upload ./storybook-static
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 \`\`\`
 
-## 5. Trigger the workflow & watch the status check
+The CLI auto-detects GitLab's predefined variables (\`CI_COMMIT_SHA\`, \`CI_COMMIT_REF_NAME\`, \`CI_MERGE_REQUEST_IID\`, and the merge-request base branch/commit), so no extra flags are needed. \`VIZDIFF_PROJECT_TOKEN\` is read from the job environment.
 
-Trigger your workflow, for example by opening a pull request. When the upload step completes an additional GitHub status check will appear in the pull request. This check will stay in the "Queued" state while screenshots are generated, and if there are new or changed screenshots the check will stay in the "Queued" state until approved or denied. (If there are no changes, the check will immediately transition to "Success".)
+## 5. Trigger the pipeline & watch the commit status
 
-Click the "..." button then "Details" on the check to see a summary of the changes and a link to the VizDiff review page. Click the link to open the VizDiff review page.
+Open a merge request (or push to your default branch). When the upload step finishes, VizDiff posts a commit status named \`vizdiff/visual-tests\` on the pipeline commit. It stays in the "running" state while screenshots render, and if there are new or changed screenshots it remains pending until the build is approved or denied. (With no changes, it transitions to "success" automatically.)
 
-![Rendering storybook components → 4 changes to review.](/docs/pr-check-queued.gif)
+Open the status's target link to jump to the VizDiff review page.
 
-## 7. Screenshot review on vizdiff.io
+## 6. Review screenshots on VizDiff
 
-The VizDiff review page shows a list of all screenshots that were generated for the build. They are sorted by status with "New" screenshots first, followed by "Changed", then "Unchanged". Clicking on a screenshot will open a dialog showing different comparison views for that screenshot.
+The review page lists every screenshot generated for the build, sorted New → Changed → Unchanged. Click a screenshot to open the comparison dialog.
 
 ![VizDiff review page, Build #42](/docs/build-page.png)
 
-Press left and right on the keyboard or the arrow buttons to navigate between screenshots. Switch between "Old", "New", "Diff", and "2-Up" tabs to see different views of the screenshots. In the "Diff" view, changes are highlighted in green. Only some views are available for "New" screenshots.
+Use the arrow keys or the on-screen buttons to move between screenshots, and switch between the "Old", "New", "Diff", and "2-Up" views. In the "Diff" view, changes are highlighted.
 
 ![Screenshot details dialog, Diff view](/docs/details-diffview.png)
 
-## 8. Approve or Deny the build
+## 7. Approve or Deny the build
 
-Once you've reviewed all screenshots, you can approve or deny the build. Pressing either button will immediately update the GitHub status check to "Success" or "Failure" respectively.
+Once you've reviewed every screenshot, approve or deny the build. Either action immediately updates the GitLab commit status to "success" or "failed".
 
-## 9. Next Steps—Generate Your First Diff
+## 8. Generate your first diff
 
-The first run of any branch establishes a baseline; every screenshot will show "New" status. To see real diffs, push another commit to the same PR or open a new branch that starts from a commit with approved screenshots.
+The first run of any branch establishes a baseline—every screenshot shows "New". To see real diffs, push another commit to the same merge request, or branch from a commit that already has approved screenshots. Only stories that change between the two Storybook builds appear as Changed.
 
-Only files that change between the two Storybook builds will appear as Changed in VizDiff.
+## 9. Troubleshooting
 
-## 10. Troubleshooting FAQ
-
-- I get a "403 Forbidden during upload" error when uploading screenshots.
-
-  This is likely because the \`VIZDIFF_PROJECT_TOKEN\` is not set or incorrect. Check that the secret is set in the repository and that the workflow is using the correct secret name.
-
-* The upload action is failing to find the \`storybook-static\` directory.
-
-  Make sure that your workflow is building your Storybook and outputting the build results to a directory. The default directory is \`storybook-static\` (in the root of the repository), but you can change it by setting the \`storybook-dir\` parameter.
+- **403 Forbidden during upload** — \`VIZDIFF_PROJECT_TOKEN\` is missing or incorrect. Confirm the CI/CD variable exists and matches the project's token.
+- **Cannot find \`storybook-static\`** — make sure your pipeline builds Storybook to that directory, or pass the correct path to \`vizdiff upload\`.
+- **Commit status never appears** — confirm \`VIZDIFF_API_URL\` points at your VizDiff ingress, and that the administrator configured a GitLab service token (with \`api\` scope and Developer or higher role) for your GitLab host.
+- **Self-signed GitLab certificate** — the administrator can disable TLS verification for your host via the \`GITLAB_HOSTS\` configuration.
 `
 
 export default function Documentation(): JSX.Element {
   return (
     <>
       <Seo
-        title="VizDiff: Documentation"
-        description="Documentation and getting started guide for VizDiff, automated screenshot testing for Storybook."
+        title="VizDiff: GitLab Setup"
+        description="Getting started guide for self-hosted VizDiff with GitLab: automated screenshot testing for Storybook via GitLab CI and merge request commit statuses."
         canonical="https://vizdiff.io/docs"
       ></Seo>
       <MarketingLayout>
