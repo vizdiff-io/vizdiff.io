@@ -26,15 +26,6 @@ const mockProject: ProjectResponse = {
   tests: 45,
 }
 
-const mockProjectWithExpiredTrial: ProjectResponse = {
-  ...mockProject,
-}
-
-const mockProjectWithExpiredTrialNotOwner: ProjectResponse = {
-  ...mockProject,
-  ownerId: 456,
-}
-
 const mockBuilds: ScreenshotTestSummaryResponse[] = [
   {
     id: 4,
@@ -169,54 +160,6 @@ export const NoBuilds: Story = {
       handlers: [
         userHandler,
         http.get("/api/projects/:id", () => HttpResponse.json(mockProject)),
-        http.get("/api/projects/:projectId/builds", () => HttpResponse.json([])),
-        catchAllHandler,
-      ],
-    },
-  },
-}
-
-export const ExpiredTrial: Story = {
-  args: {
-    mode: "light",
-  },
-  parameters: {
-    msw: {
-      handlers: [
-        userHandler,
-        http.get("/api/projects/:id", () => HttpResponse.json(mockProjectWithExpiredTrial)),
-        http.get("/api/projects/:projectId/builds", () => HttpResponse.json([])),
-        catchAllHandler,
-      ],
-    },
-  },
-}
-
-export const ExpiredTrialDark: Story = {
-  args: {
-    mode: "dark",
-  },
-  parameters: {
-    msw: {
-      handlers: [
-        userHandler,
-        http.get("/api/projects/:id", () => HttpResponse.json(mockProjectWithExpiredTrial)),
-        http.get("/api/projects/:projectId/builds", () => HttpResponse.json([])),
-        catchAllHandler,
-      ],
-    },
-  },
-}
-
-export const ExpiredTrialNotOwner: Story = {
-  args: {
-    mode: "light",
-  },
-  parameters: {
-    msw: {
-      handlers: [
-        userHandler,
-        http.get("/api/projects/:id", () => HttpResponse.json(mockProjectWithExpiredTrialNotOwner)),
         http.get("/api/projects/:projectId/builds", () => HttpResponse.json([])),
         catchAllHandler,
       ],

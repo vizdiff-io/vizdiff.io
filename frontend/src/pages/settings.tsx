@@ -131,10 +131,12 @@ export default function Settings(): JSX.Element {
                 <Paper sx={{ p: { xs: 2, sm: 3 }, mb: 4 }}>
                   <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
                     <Avatar
-                      src={user.githubProfile?.avatar_url}
+                      src={user.githubProfile?.avatar_url ?? undefined}
                       alt={name ?? "User"}
                       sx={{ width: 64, height: 64, mr: 3 }}
-                    />
+                    >
+                      {name?.charAt(0).toUpperCase()}
+                    </Avatar>
                     <Box>
                       <Typography variant="h6">{name}</Typography>
                       <Typography variant="body2" color="var(--text-secondary)">
