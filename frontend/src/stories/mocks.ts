@@ -7,6 +7,8 @@ import { avatar01 } from "./assets"
 const oneMinuteAgo = Math.floor(Date.now() / 1000) - 60
 const fixedDate = new Date("2025-04-01T08:00:00Z")
 
+// Default user: OIDC / MSAL identity (the GitLab-mode default). No GitHub account linkage, so the
+// account page shows name + email only.
 export const mockUser: UserResponse = {
   id: 123,
   email: "test@example.com",
@@ -15,7 +17,16 @@ export const mockUser: UserResponse = {
   ownedProjectCount: 2,
   createdStampSec: fixedDate.getTime() / 1000,
   updatedStampSec: oneMinuteAgo,
-  // GitHub fields (only populated when GITHUB_ENABLED)
+  githubId: null,
+  githubUsername: null,
+  githubProfile: null,
+  githubInstallations: [],
+}
+
+// GitHub-mode user: authenticated via GitHub (AUTH_PROVIDER=github) with a linked GitHub account.
+export const mockGitHubUser: UserResponse = {
+  ...mockUser,
+  authProvider: "github",
   githubId: "456",
   githubUsername: "testuser",
   githubProfile: {
@@ -26,10 +37,10 @@ export const mockUser: UserResponse = {
     node_id: "",
     email: null,
   },
-  githubInstallations: [],
 }
 
 export const userHandler = http.get("/api/users/me", () => HttpResponse.json(mockUser))
+export const githubUserHandler = http.get("/api/users/me", () => HttpResponse.json(mockGitHubUser))
 
 export const catchAllHandler = http.all("*", ({ request }) => {
   const url = new URL(request.url)
