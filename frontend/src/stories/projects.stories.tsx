@@ -28,7 +28,7 @@ const mockProjects: ProjectResponse[] = [
   },
   {
     id: 2,
-    name: "Expired Trial Project",
+    name: "Design System",
     vcsProvider: "github",
     repoUrl: "https://github.com/example/example-project",
     token: "def456ghi789",
@@ -52,7 +52,7 @@ const mockProjects: ProjectResponse[] = [
   },
   {
     id: 4,
-    name: "Expired Other Project",
+    name: "Marketing Site",
     vcsProvider: "github",
     repoUrl: "https://github.com/example/example-project",
     token: "jkl012mno345",

@@ -1,4 +1,4 @@
-import { Typography, Box, Button, Container, Stack, Link } from "@mui/material"
+import { Typography, Box, Button, Container, Stack } from "@mui/material"
 import Head from "next/head"
 import { useRouter } from "next/router"
 import { type JSX, useEffect } from "react"
@@ -93,12 +93,6 @@ export default function Login(): JSX.Element {
                 Sign in
               </Button>
             </Stack>
-
-            <Typography variant="body2" color="var(--seventy-percent-opacity)" sx={{ mt: 4 }}>
-              By signing in, you agree to our{" "}
-              <Link href="/docs/terms-of-service">Terms of Service</Link> and{" "}
-              <Link href="/docs/privacy-policy">Privacy Policy</Link>.
-            </Typography>
           </Box>
         </Container>
       </MarketingLayout>
