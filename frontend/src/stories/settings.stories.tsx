@@ -5,7 +5,7 @@ import type { JSX, ComponentType } from "react"
 import type { ProjectResponse } from "@/lib/apiTypes"
 
 import ThemeWrapper from "./ThemeWrapper"
-import { catchAllHandler, userHandler } from "./mocks"
+import { catchAllHandler, githubUserHandler, userHandler } from "./mocks"
 import SettingsComponent from "../pages/settings"
 
 type StoryArgs = {
@@ -69,11 +69,7 @@ const meta: Meta<typeof SettingsComponent> = {
         http.get("/api/projects", () => HttpResponse.json(mockProjects)),
         http.delete("/api/users/me", () =>
           HttpResponse.json(
-            {
-              error:
-                "Cannot delete an account with an active subscription. If you want to delete " +
-                "before your subscription has ended, please email contact@vizdiff.io",
-            },
+            { error: "Failed to delete account. Please try again." },
             { status: 400 },
           ),
         ),
@@ -95,6 +91,23 @@ export const Light: Story = {
 export const Dark: Story = {
   args: {
     mode: "dark",
+  },
+}
+
+// GitHub-mode deployment: the user is authenticated via GitHub, so the account shows the linked
+// GitHub username. (Default deployments are OIDC/GitLab and show no GitHub username.)
+export const GitHubUser: Story = {
+  args: {
+    mode: "light",
+  },
+  parameters: {
+    msw: {
+      handlers: [
+        githubUserHandler,
+        http.get("/api/projects", () => HttpResponse.json(mockProjects)),
+        catchAllHandler,
+      ],
+    },
   },
 }
 
