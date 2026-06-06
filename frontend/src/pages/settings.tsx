@@ -97,7 +97,7 @@ export default function Settings(): JSX.Element {
 
   return (
     <>
-      <Seo title="VizDiff: Settings" canonical="https://vizdiff.io/settings"></Seo>
+      <Seo title="VizDiff: Settings" path="/settings"></Seo>
       <AppLayout>
         <Box
           sx={{

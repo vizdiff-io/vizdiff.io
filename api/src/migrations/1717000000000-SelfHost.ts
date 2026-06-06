@@ -3,7 +3,7 @@ import type { MigrationInterface, QueryRunner } from "typeorm"
 /**
  * Self-host migration.
  *
- * Transforms the multi-tenant SaaS schema into the self-hostable corporate schema:
+ * Transforms the multi-tenant SaaS schema into the self-hostable schema:
  *  - Adds AuthProvider identity columns to `users` (`auth_subject`, `auth_provider`, `display_name`).
  *  - Drops Stripe/trial/subscription columns and GitLab OAuth token/identity columns from `users`.
  *  - Drops the now-dead access/membership tables.

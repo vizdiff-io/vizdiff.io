@@ -13,7 +13,7 @@ let provider: AuthProvider | undefined
  * Supported values:
  *  - `oidc` (default): generic OIDC / Microsoft Entra via {@link OidcAuthProvider}.
  *  - `dev`: non-production fixed identity via {@link DevAuthProvider}.
- *  - `custom`: reserved slot for a future internal corporate auth service. To add it, implement the
+ *  - `custom`: reserved slot for a future custom auth service. To add it, implement the
  *    `AuthProvider` interface in `./CustomAuthProvider.ts` and return it from the case below.
  */
 export function getAuthProvider(): AuthProvider {

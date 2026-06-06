@@ -9,6 +9,17 @@ VizDiff is a Yarn v4 monorepo with three runtime services:
 - **worker** — renders Storybook builds and posts GitLab commit statuses.
 - **frontend** — Next.js static export. `NEXT_PUBLIC_*` variables are **build-time** only.
 
+## VCS platforms
+
+VizDiff is self-hosted only and integrates with two VCS platforms—enable either or both:
+
+- **GitLab** (default) — projects, merge-request commit statuses, and webhooks via a configured
+  service token per host (see [GitLab service tokens](#gitlab-service-tokens-gitlab_hosts)). On-prem
+  GitLab and gitlab.com are supported simultaneously.
+- **GitHub** (optional; set `GITHUB_ENABLED=true`) — projects and pull-request checks via a GitHub App.
+
+User identity (login) is handled separately by the pluggable AuthProvider described below.
+
 ## Authentication
 
 Identity is provided by a pluggable `AuthProvider`, selected by `AUTH_PROVIDER`:
@@ -19,7 +30,7 @@ Identity is provided by a pluggable `AuthProvider`, selected by `AUTH_PROVIDER`:
   against the discovered JWKS.
 - `dev` — non-production fixed identity (`subject="dev"`, email `DEV_AUTH_EMAIL`). Refuses to run
   in production. Replaces the old `X-Test-User-Id` shortcut.
-- `custom` — reserved slot for a future internal corporate auth service. Implement the
+- `custom` — reserved slot for a future custom auth service. Implement the
   `AuthProvider` interface in `api/src/auth/` and wire it in `api/src/auth/index.ts`.
 
 The existing JWT-cookie session mechanism is retained; only the identity source changed. After a
@@ -72,8 +83,6 @@ Single-host fallback: when `GITLAB_HOSTS` is unset, a single host is derived fro
 | `S3_BUCKET_NAME` | api, worker | yes | `vizdiffio-testing` | Bucket for uploaded Storybook tarballs and screenshots. |
 | `S3_ENDPOINT` | api, worker | no | — | Custom S3 endpoint for non-AWS object stores (e.g. `http://minio:9000` for the chart's standalone/air-gapped MinIO mode). Unset → real AWS S3. |
 | `S3_FORCE_PATH_STYLE` | api, worker | no | `true` when `S3_ENDPOINT` set | Use path-style addressing (required by MinIO). |
-| `IMAGE_URL_TTL_SECONDS` | api | no | `3600` | Presigned-URL lifetime for screenshots served to the interactive build viewer. |
-| `VCS_IMAGE_URL_TTL_SECONDS` | api, worker | no | `604800` (7d) | Presigned-URL lifetime for screenshots embedded in PR/MR comments. Capped at the S3 SigV4 max of 7 days. |
 | `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_REGION` | api, worker | yes* | — | Standard AWS SDK credentials (omit when using IRSA / instance roles; for MinIO use its access/secret keys). |
 | `ENABLE_VCS_STATUS` | api, worker | no | `true` in prod/staging | Whether to post VCS commit statuses. |
 | `AUTH_PROVIDER` | api | no | `oidc` (prod), `dev` (else) | Identity provider: `oidc` or `dev`. |
@@ -140,9 +149,8 @@ WHERE p.vcs_provider = q.vcs_provider AND p.repo_id = q.repo_id
 
 ## Private S3 / presigned URLs
 
-Screenshots live in a **private** bucket (the Terragrunt `s3` module provisions it with public access
-blocked). The worker stores the S3 **object key** in each `test_results` image column, and URLs are
-generated as presigned GET URLs at read time:
+Bring your own S3 (or S3-compatible store). The bucket is **private**; the worker stores each
+screenshot's S3 object key, and URLs are generated as presigned GET URLs at read time:
 
 - **Interactive build viewer** (`GET /api/builds/:id`): presigned with `IMAGE_URL_TTL_SECONDS` (short).
 - **PR/MR comment images** (markdown posted to GitHub/GitLab): presigned with `VCS_IMAGE_URL_TTL_SECONDS`
@@ -152,9 +160,8 @@ Caveats:
 
 - **7-day cap on comment images.** S3 SigV4 presigned URLs expire after at most 7 days, so screenshots
   embedded in older PR/MR comments will stop loading. The build still renders fresh URLs in the web UI.
-  If permanent comment images are required, replace the presigned URL with an authenticated proxy or
-  CloudFront-with-OAC endpoint.
-- **MinIO/standalone mode.** Presigned URLs point at `S3_ENDPOINT`; that host must be reachable from the
-  user's browser (not just from inside the cluster) for images to load.
-- **Legacy rows.** Rows that stored a full public S3 URL (pre-migration) are handled transparently — the
+  For permanent comment images, front the bucket with an authenticated proxy or CloudFront-with-OAC.
+- **MinIO / S3-compatible mode.** Presigned URLs point at `S3_ENDPOINT`; that host must be reachable
+  from the user's browser (not just from inside the cluster) for images to load.
+- **Legacy rows.** Rows that stored a full public S3 URL (pre-migration) are handled transparently—the
   presigner extracts the object key from the URL path.

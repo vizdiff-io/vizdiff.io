@@ -39,7 +39,7 @@ export default function Projects(): JSX.Element {
   if (loading) {
     return (
       <>
-        <Seo title="VizDiff: Projects" canonical="https://vizdiff.io/projects"></Seo>
+        <Seo title="VizDiff: Projects" path="/projects"></Seo>
         <AppLayout>
           <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
             <CircularProgress />
@@ -51,7 +51,7 @@ export default function Projects(): JSX.Element {
 
   return (
     <>
-      <Seo title="VizDiff: Projects" canonical="https://vizdiff.io/projects"></Seo>
+      <Seo title="VizDiff: Projects" path="/projects"></Seo>
       <AppLayout>
         <Box
           sx={{

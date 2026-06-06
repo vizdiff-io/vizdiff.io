@@ -325,7 +325,7 @@ export default function Build(): JSX.Element {
     <>
       <Seo
         title={data?.buildNumber ? `VizDiff: Build ${data.buildNumber}` : "VizDiff: Build"}
-        canonical={id ? `https://vizdiff.io/build?id=${id}` : `https://vizdiff.io/build`}
+        path={id ? `/build?id=${id}` : "/build"}
       ></Seo>
       <AppLayout>
         <Box sx={{ px: { xs: 0, sm: 3 }, py: { xs: 0, sm: 4 } }}>

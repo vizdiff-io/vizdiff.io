@@ -21,7 +21,7 @@ export interface AuthenticatedIdentity {
  * Implementations:
  *  - {@link OidcAuthProvider} — generic OIDC / Microsoft Entra (MSAL) via `openid-client`.
  *  - {@link DevAuthProvider}  — non-production fixed identity for local development / CI.
- *  - A future `custom` provider can wrap an internal corporate auth service (see auth/index.ts).
+ *  - A future `custom` provider can wrap an custom auth service (see auth/index.ts).
  */
 export interface AuthProvider {
   /** Stable provider name, recorded on the User as `authProvider`. */
