@@ -1,30 +1,44 @@
-# vizdiff.io API Server
+# VizDiff API Server
 
-> The backend server for vizdiff.io
+> The backend HTTP API for VizDiff (auth, projects, uploads, webhooks). It is the sole database
+> schema owner and runs migrations on boot.
 
 # Developing
 
 1. Run `yarn install` in this directory (`api/`) or the workspace root
-2. Create a `api/.env` file containing:
+2. Create an `api/.env` file. For local development, GitLab mode with the `dev` auth provider is the
+   simplest (no external identity provider needed):
 
 ```
+NODE_ENV=development
 APP_URL=http://127.0.0.1:3000
+JWT_SECRET=dev-secret
+AUTH_PROVIDER=dev
 
-# GitHub App credentials
-GITHUB_APP_ID=<gh_app_id>
-GITHUB_CLIENT_ID=<gh_client_id>
-GITHUB_CLIENT_SECRET=<gh_client_secret>
-GITHUB_WEBHOOK_SECRET=<gh_webhook_secret>
-GITHUB_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----
-<gh_private_key>
------END RSA PRIVATE KEY-----"
+# Postgres
+POSTGRES_USER=postgres
+POSTGRES_HOST=localhost
+POSTGRES_DATABASE=vizdiff
+POSTGRES_PASS=postgres
+POSTGRES_PORT=5432
 
-# AWS credentials for S3 access
-AWS_ACCESS_KEY_ID=<aws_access_key_id>
-AWS_SECRET_ACCESS_KEY=<aws_secret_access_key>
-AWS_REGION=<aws_region>
-STRIPE_SECRET_KEY=<sk_test_key>
+# Object storage — a real bucket, or a local MinIO via S3_ENDPOINT
+S3_BUCKET_NAME=vizdiff-local
+# S3_ENDPOINT=http://127.0.0.1:9000
+# S3_FORCE_PATH_STYLE=true
+AWS_ACCESS_KEY_ID=<access_key>
+AWS_SECRET_ACCESS_KEY=<secret_key>
+AWS_REGION=us-east-1
+
+# GitLab service token(s) so the worker can post merge-request commit statuses.
+# Optional if you're only working on the UI.
+GITLAB_HOSTS=[{"host":"https://gitlab.com","token":"glpat-...","rejectUnauthorized":true}]
 ```
+
+To develop **OIDC** login instead of the dev provider, set `AUTH_PROVIDER=oidc` and the `OIDC_*`
+values. To develop **GitHub** mode, set `GITHUB_ENABLED=true`, `AUTH_PROVIDER=github`, and the
+`GITHUB_*` GitHub App credentials. See [../docs/CONFIGURATION.md](../docs/CONFIGURATION.md) for every
+variable.
 
 3. Run `yarn test`
 4. Run `yarn start`
