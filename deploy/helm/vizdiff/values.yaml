@@ -12,8 +12,8 @@ fullnameOverride: ""
 # all three services together. Set image.<svc>.tag to pin a service.
 image:
   # -- Registry + namespace prefix applied to every repository below,
-  # e.g. "registry.gitlab.com/mvi-llc/vizdiff.io". Leave empty to use bare repos.
-  registry: "ghcr.io/mvi-llc"
+  # e.g. "registry.gitlab.com/vizdiff-io/vizdiff.io". Leave empty to use bare repos.
+  registry: "ghcr.io/vizdiff-io"
   # -- Global tag fallback. Empty => use .Chart.AppVersion.
   tag: ""
   pullPolicy: IfNotPresent
