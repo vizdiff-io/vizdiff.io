@@ -1,0 +1,47 @@
+{{/*
+nginx server config for the frontend pod.
+
+The baked-in image config proxies /api to http://api:3001 (the docker-compose
+service name). In k8s the api Service has a release-prefixed name, so we mount
+this override at /etc/nginx/conf.d/default.conf pointing /api at the api
+Service. The ingress also routes /api straight to the api Service, but keeping
+the in-pod proxy makes same-origin requests and direct frontend access work too.
+*/}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "vizdiff.fullname" . }}-nginx
+  labels:
+    {{- include "vizdiff.componentLabels" (dict "ctx" . "component" "frontend") | nindent 4 }}
+data:
+  default.conf: |
+    server {
+      listen 80;
+      server_name _;
+
+      root /usr/share/nginx/html;
+      index index.html;
+
+      gzip on;
+      gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;
+
+      location /api/ {
+        proxy_pass http://{{ include "vizdiff.fullname" . }}-api:{{ .Values.service.api.port }};
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+      }
+
+      location /api {
+        proxy_pass http://{{ include "vizdiff.fullname" . }}-api:{{ .Values.service.api.port }};
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+      }
+
+      location / {
+        try_files $uri $uri/ $uri.html /index.html;
+      }
+    }

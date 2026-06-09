@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "vizdiff.fullname" . }}-worker
+  labels:
+    {{- include "vizdiff.componentLabels" (dict "ctx" . "component" "worker") | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount.worker }}
+  selector:
+    matchLabels:
+      {{- include "vizdiff.componentSelectorLabels" (dict "ctx" . "component" "worker") | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- if .Values.secrets.create }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        {{- end }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "vizdiff.componentSelectorLabels" (dict "ctx" . "component" "worker") | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "vizdiff.serviceAccountName" . }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      initContainers:
+        # Gate the worker on the api being ready. The api owns the schema and
+        # runs migrations on boot; once its /api/health returns 200 the schema
+        # is migrated and the worker can safely start. See NOTES.txt.
+        - name: wait-for-api
+          image: curlimages/curl:8.11.1
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for api at http://{{ include "vizdiff.fullname" . }}-api:{{ .Values.service.api.port }}/api/health ..."
+              until curl -fsS "http://{{ include "vizdiff.fullname" . }}-api:{{ .Values.service.api.port }}/api/health" >/dev/null 2>&1; do
+                echo "api not ready yet; retrying in 5s"
+                sleep 5
+              done
+              echo "api is ready; migrations complete."
+      containers:
+        - name: worker
+          image: {{ include "vizdiff.image" (dict "ctx" . "svc" "worker") | quote }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: health
+              containerPort: 3003
+          envFrom:
+            - configMapRef:
+                name: {{ include "vizdiff.fullname" . }}-env
+            - secretRef:
+                name: {{ include "vizdiff.secretName" . }}
+            {{- if .Values.gitlab.hostsSecret.name }}
+            - secretRef:
+                name: {{ .Values.gitlab.hostsSecret.name }}
+            {{- end }}
+          env:
+            - name: DD_SERVICE
+              value: vizdiff-worker
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: health
+            periodSeconds: 10
+            timeoutSeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: health
+            periodSeconds: 20
+            timeoutSeconds: 3
+          resources:
+            {{- toYaml .Values.resources.worker | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

@@ -1,0 +1,85 @@
+vizdiff.io has been deployed as release "{{ .Release.Name }}" in namespace "{{ .Release.Namespace }}".
+
+Services:
+  - api       : {{ include "vizdiff.fullname" . }}-api        (Express, /api/health)
+  - worker    : {{ include "vizdiff.fullname" . }}-worker     (no inbound Service; health on :3003/health)
+  - frontend  : {{ include "vizdiff.fullname" . }}-frontend   (nginx static export)
+
+{{- if .Values.ingress.enabled }}
+
+Open the app:
+  http{{ if .Values.ingress.tls.enabled }}s{{ end }}://{{ include "vizdiff.ingressHost" . }}/
+  API is routed at {{ .Values.ingress.paths.api }} on the same host.
+{{- else }}
+
+Ingress is disabled. Port-forward to reach the app locally:
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "vizdiff.fullname" . }}-frontend 8080:{{ .Values.service.frontend.port }}
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "vizdiff.fullname" . }}-api 3001:{{ .Values.service.api.port }}
+{{- end }}
+
+------------------------------------------------------------------------------
+SCHEMA MIGRATIONS & STARTUP ORDERING
+------------------------------------------------------------------------------
+The api is the schema owner: it runs TypeORM migrations on boot
+(migrationsRun:true, synchronize:false). No separate migration Job is required.
+
+Ordering guarantees in this chart:
+  1. (optional) A pre-install/pre-upgrade Helm hook Job "{{ include "vizdiff.fullname" . }}-db-wait"
+     blocks the release until Postgres accepts connections (skipped when
+     postgres.embedded=true; disable via dbWaitHook.enabled=false).
+  2. The worker Deployment has an initContainer "wait-for-api" that polls the
+     api's /api/health and only starts the worker once it returns 200 — i.e.
+     after the api has finished migrating. This is the chosen approach for
+     gating the worker behind migrations.
+
+------------------------------------------------------------------------------
+FRONTEND RUNTIME CONFIG  (IMPORTANT — cross-PR follow-up)
+------------------------------------------------------------------------------
+Next.js static export bakes NEXT_PUBLIC_* values at BUILD time. To keep ONE
+frontend image usable across every environment, this chart mounts a runtime
+config at /config.js exposing:
+
+  window.__VIZDIFF_CONFIG__ = { API_URL, APP_URL, GITHUB_ENABLED }
+
+generated from .Values.appUrl and .Values.github.enabled (see the
+"{{ include "vizdiff.fullname" . }}-frontend-config" ConfigMap).
+
+>>> CROSS-PR FOLLOW-UP (app-core repo): the frontend app must be updated to
+    (1) load <script src="/config.js"></script> in its document <head>, and
+    (2) read window.__VIZDIFF_CONFIG__ at runtime (falling back to the baked
+    NEXT_PUBLIC_* for local dev). Until that change ships, /config.js is mounted
+    but unused. Do NOT rebuild a per-environment frontend image as a workaround.
+
+------------------------------------------------------------------------------
+STANDALONE vs AWS
+------------------------------------------------------------------------------
+Standalone / air-gapped trial (no AWS):
+    --set postgres.embedded=true --set s3.minio.enabled=true
+  brings up in-chart Postgres + MinIO. Not for production.
+
+AWS / production:
+    postgres.embedded=false  + external RDS host/credentials
+    s3.minio.enabled=false   + real bucket, region, and IRSA role on the
+    ServiceAccount (serviceAccount.annotations."eks.amazonaws.com/role-arn").
+  The Terragrunt modules under deploy/terragrunt provision RDS, S3, and the
+  IRSA role and wire these values for you.
+
+------------------------------------------------------------------------------
+SECRETS
+------------------------------------------------------------------------------
+{{- if .Values.secrets.create }}
+This release created Secret "{{ include "vizdiff.fullname" . }}-secret".
+{{- else }}
+This release consumes the EXISTING Secret "{{ .Values.secrets.existingSecret }}".
+Ensure it contains: JWT_SECRET, POSTGRES_PASS, GITLAB_HOSTS{{ if eq .Values.auth.provider "oidc" }}, OIDC_CLIENT_SECRET{{ end }}.
+{{- end }}
+
+{{- if and (eq .Values.auth.provider "oidc") (not .Values.auth.oidc.issuer) }}
+
+WARNING: auth.provider=oidc but auth.oidc.issuer is empty. Set OIDC issuer/
+clientId/clientSecret or switch to auth.provider=dev for non-prod testing.
+{{- end }}
+{{- if eq .Values.auth.provider "dev" }}
+
+WARNING: auth.provider=dev grants no-auth access. Use ONLY in non-production.
+{{- end }}

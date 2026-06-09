@@ -1,0 +1,45 @@
+{{- if .Values.ingress.enabled }}
+{{- $host := include "vizdiff.ingressHost" . }}
+{{- $apiSvc := printf "%s-api" (include "vizdiff.fullname" .) }}
+{{- $feSvc := printf "%s-frontend" (include "vizdiff.fullname" .) }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "vizdiff.fullname" . }}
+  labels:
+    {{- include "vizdiff.labels" . | nindent 4 }}
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if .Values.ingress.className }}
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- end }}
+  {{- if .Values.ingress.tls.enabled }}
+  tls:
+    - hosts:
+        - {{ $host | quote }}
+      secretName: {{ .Values.ingress.tls.secretName }}
+  {{- end }}
+  rules:
+    - host: {{ $host | quote }}
+      http:
+        paths:
+          # /api -> api (declared first so it wins over the catch-all "/").
+          - path: {{ .Values.ingress.paths.api }}
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ $apiSvc }}
+                port:
+                  number: {{ .Values.service.api.port }}
+          # / -> frontend (static SPA).
+          - path: {{ .Values.ingress.paths.frontend }}
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ $feSvc }}
+                port:
+                  number: {{ .Values.service.frontend.port }}
+{{- end }}

@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "vizdiff.fullname" . }}-frontend
+  labels:
+    {{- include "vizdiff.componentLabels" (dict "ctx" . "component" "frontend") | nindent 4 }}
+spec:
+  type: {{ .Values.service.frontend.type }}
+  ports:
+    - name: http
+      port: {{ .Values.service.frontend.port }}
+      targetPort: http
+      protocol: TCP
+  selector:
+    {{- include "vizdiff.componentSelectorLabels" (dict "ctx" . "component" "frontend") | nindent 4 }}
