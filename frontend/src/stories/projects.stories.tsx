@@ -1,4 +1,4 @@
-import type { Meta, StoryObj, StoryContext } from "@storybook/react"
+import type { Meta, StoryObj, StoryContext } from "@storybook/nextjs"
 import { http, HttpResponse } from "msw"
 import type { JSX, ComponentType } from "react"
 
