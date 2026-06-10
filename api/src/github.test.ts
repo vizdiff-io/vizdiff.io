@@ -79,25 +79,26 @@ describe("github", () => {
         }) as unknown as DataSource,
     )
 
-    // Setup Octokit mock with app installations
-    vi.mocked(Octokit).mockImplementation(
-      () =>
-        ({
-          apps: {
-            listInstallationsForAuthenticatedUser: vi.fn().mockResolvedValue({
-              data: {
-                installations: [
-                  {
-                    id: 1,
-                    account: { id: 456, login: "test-org", type: "Organization" },
-                    app_id: 123456,
-                  },
-                ],
-              },
-            }),
-          },
-        }) as unknown as Octokit,
-    )
+    // Setup Octokit mock with app installations.
+    // vitest 4 invokes mock implementations with `new`, so the implementation
+    // must be a constructable `function` rather than a (non-constructable) arrow.
+    vi.mocked(Octokit).mockImplementation(function (this: unknown) {
+      return {
+        apps: {
+          listInstallationsForAuthenticatedUser: vi.fn().mockResolvedValue({
+            data: {
+              installations: [
+                {
+                  id: 1,
+                  account: { id: 456, login: "test-org", type: "Organization" },
+                  app_id: 123456,
+                },
+              ],
+            },
+          }),
+        },
+      } as unknown as Octokit
+    } as unknown as typeof Octokit)
 
     // Setup save mock to return the input
     mockSave.mockImplementation(
@@ -199,24 +200,23 @@ describe("github", () => {
 
     it("filters out other app installations", async () => {
       // Override Octokit mock for this test to return a different app_id
-      vi.mocked(Octokit).mockImplementation(
-        () =>
-          ({
-            apps: {
-              listInstallationsForAuthenticatedUser: vi.fn().mockResolvedValue({
-                data: {
-                  installations: [
-                    {
-                      id: 1,
-                      account: { id: 456, login: "test-org", type: "Organization" },
-                      app_id: 999999, // Different app ID
-                    },
-                  ],
-                },
-              }),
-            },
-          }) as unknown as Octokit,
-      )
+      vi.mocked(Octokit).mockImplementation(function (this: unknown) {
+        return {
+          apps: {
+            listInstallationsForAuthenticatedUser: vi.fn().mockResolvedValue({
+              data: {
+                installations: [
+                  {
+                    id: 1,
+                    account: { id: 456, login: "test-org", type: "Organization" },
+                    app_id: 999999, // Different app ID
+                  },
+                ],
+              },
+            }),
+          },
+        } as unknown as Octokit
+      } as unknown as typeof Octokit)
 
       const installations = await syncUserInstallations(testUser)
 
@@ -225,16 +225,15 @@ describe("github", () => {
     })
 
     it("handles GitHub API errors gracefully", async () => {
-      vi.mocked(Octokit).mockImplementation(
-        () =>
-          ({
-            apps: {
-              listInstallationsForAuthenticatedUser: vi
-                .fn()
-                .mockRejectedValue(new Error("GitHub API error")),
-            },
-          }) as unknown as Octokit,
-      )
+      vi.mocked(Octokit).mockImplementation(function (this: unknown) {
+        return {
+          apps: {
+            listInstallationsForAuthenticatedUser: vi
+              .fn()
+              .mockRejectedValue(new Error("GitHub API error")),
+          },
+        } as unknown as Octokit
+      } as unknown as typeof Octokit)
 
       await expect(syncUserInstallations(testUser)).rejects.toThrow("GitHub API error")
     })
