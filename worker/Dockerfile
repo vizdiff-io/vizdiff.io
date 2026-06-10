@@ -1,5 +1,8 @@
+# Node version is configurable via --build-arg NODE_VERSION; keep in sync with .nvmrc / root package.json engines
+ARG NODE_VERSION=26
+
 # Base image with Chromium dependencies
-FROM node:22-alpine AS base
+FROM node:${NODE_VERSION}-alpine AS base
 RUN apk add --no-cache \
     chromium \
     chromium-chromedriver \
@@ -31,7 +34,8 @@ WORKDIR /app
 
 # Install dependencies separately (cached independently)
 FROM base AS deps
-RUN corepack enable
+# corepack is no longer bundled with Node >= 25, so install it explicitly before enabling
+RUN npm install -g corepack && corepack enable
 COPY .yarn/releases/yarn-4.3.0.cjs ./.yarn/releases/
 COPY package.json yarn.lock .yarnrc.yml tsconfig.json tsconfig.options.json ./
 COPY worker/package.json ./worker/

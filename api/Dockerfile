@@ -1,7 +1,11 @@
+# Node version is configurable via --build-arg NODE_VERSION; keep in sync with .nvmrc / root package.json engines
+ARG NODE_VERSION=26
+
 # Dependencies installation stage
-FROM node:22-alpine AS deps
+FROM node:${NODE_VERSION}-alpine AS deps
 WORKDIR /app
-RUN corepack enable
+# corepack is no longer bundled with Node >= 25, so install it explicitly before enabling
+RUN npm install -g corepack && corepack enable
 COPY .yarn/releases/yarn-4.3.0.cjs ./.yarn/releases/
 COPY package.json yarn.lock .yarnrc.yml tsconfig.json tsconfig.options.json ./
 COPY api/package.json ./api/
@@ -18,7 +22,8 @@ RUN yarn workspace api build \
   && rm -rf api/src shared/src
 
 # Final production image
-FROM node:22-alpine
+ARG NODE_VERSION=26
+FROM node:${NODE_VERSION}-alpine
 WORKDIR /app
 ENV NODE_ENV=production \
     PORT=3001

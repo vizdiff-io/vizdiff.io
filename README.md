@@ -20,9 +20,15 @@ It runs as three services (**api**, **worker**, **frontend**) backed by PostgreS
 
 ## Local development
 
-1. `yarn`
-2. Follow the instructions in [api/README.md](api/README.md) to create the `api/.env` file
-3. Create `frontend/.env.local` with the following:
+The Node.js version is pinned in [`.nvmrc`](.nvmrc) (and `engines.node` in the root
+`package.json`), which is the single source of truth used by local dev (`nvm use`), CI
+(`actions/setup-node` reads `.nvmrc`), and the Dockerfiles (`ARG NODE_VERSION`, overridable
+with `--build-arg NODE_VERSION=<version>`).
+
+1. `nvm use` (installs/uses the Node version from `.nvmrc`), then `corepack enable`
+2. `yarn`
+3. Follow the instructions in [api/README.md](api/README.md) to create the `api/.env` file
+4. Create `frontend/.env.local` with the following:
 
 ```
 NEXT_PUBLIC_APP_URL=http://127.0.0.1:3000
@@ -31,7 +37,7 @@ NEXT_PUBLIC_GITHUB_APP_NAME=vizdiff-io
 NEXT_PUBLIC_GITHUB_CLIENT_ID=<github_client_id>
 ```
 
-4. Create `worker/.env` with the following (adjust values to match your PostgreSQL setup):
+5. Create `worker/.env` with the following (adjust values to match your PostgreSQL setup):
 
 ```
 POSTGRES_USER=postgres
@@ -41,8 +47,8 @@ POSTGRES_PASS=postgres
 POSTGRES_PORT=5432
 ```
 
-5. Start Postgres and create an empty vizdiff database and test database with the `start-postgres.sh` script
-6. Start the api: `yarn api dev`
-7. (In another terminal) start the frontend: `yarn frontend dev`
+6. Start Postgres and create an empty vizdiff database and test database with the `start-postgres.sh` script
+7. Start the api: `yarn api dev`
+8. (In another terminal) start the frontend: `yarn frontend dev`
 
 You can also run `yarn test:all` to run all test suites.
