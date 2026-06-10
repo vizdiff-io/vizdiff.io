@@ -38,15 +38,21 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version-file: ".nvmrc"
-          cache: "yarn"
 
-      - name: Cache node_modules
+      # Cache node_modules and the Yarn 4 project cache (.yarn/cache). We do NOT use
+      # setup-node's `cache: "yarn"`: it invokes yarn during the Setup Node.js step, before
+      # corepack is enabled, and Node >=25 no longer ships corepack — so it would rely on a
+      # runner-global yarn shim that may not exist. Enabling corepack ourselves + caching here
+      # is robust regardless of the runner image.
+      - name: Cache dependencies
         uses: actions/cache@v5
         with:
-          path: node_modules
-          key: ${{ runner.os }}-node_modules-${{ hashFiles('**/yarn.lock') }}
+          path: |
+            node_modules
+            .yarn/cache
+          key: ${{ runner.os }}-deps-${{ hashFiles('**/yarn.lock') }}
           restore-keys: |
-            ${{ runner.os }}-node_modules-
+            ${{ runner.os }}-deps-
 
       - name: Install dependencies
         run: npm install -g corepack && corepack enable && yarn install --immutable
@@ -356,15 +362,21 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version-file: ".nvmrc"
-          cache: "yarn"
 
-      - name: Cache node_modules
+      # Cache node_modules and the Yarn 4 project cache (.yarn/cache). We do NOT use
+      # setup-node's `cache: "yarn"`: it invokes yarn during the Setup Node.js step, before
+      # corepack is enabled, and Node >=25 no longer ships corepack — so it would rely on a
+      # runner-global yarn shim that may not exist. Enabling corepack ourselves + caching here
+      # is robust regardless of the runner image.
+      - name: Cache dependencies
         uses: actions/cache@v5
         with:
-          path: node_modules
-          key: ${{ runner.os }}-node_modules-${{ hashFiles('**/yarn.lock') }}
+          path: |
+            node_modules
+            .yarn/cache
+          key: ${{ runner.os }}-deps-${{ hashFiles('**/yarn.lock') }}
           restore-keys: |
-            ${{ runner.os }}-node_modules-
+            ${{ runner.os }}-deps-
 
       - name: Install dependencies
         run: npm install -g corepack && corepack enable && yarn install --immutable
