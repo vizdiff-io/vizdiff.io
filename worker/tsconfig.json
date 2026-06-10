@@ -2,8 +2,7 @@
   "extends": "../tsconfig.options.json",
   "compilerOptions": {
     "outDir": "dist",
-    "types": ["@wdio/globals/types"],
-    "baseUrl": ".",
+    "types": ["node", "@wdio/globals/types"],
     "paths": {
       "shared": ["../shared/src"]
     }
