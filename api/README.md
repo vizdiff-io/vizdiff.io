@@ -30,8 +30,9 @@ AWS_ACCESS_KEY_ID=<access_key>
 AWS_SECRET_ACCESS_KEY=<secret_key>
 AWS_REGION=us-east-1
 
-# GitLab service token(s) so the worker can post merge-request commit statuses.
-# Optional if you're only working on the UI.
+# GitLab service token(s). Used both by the worker to post merge-request commit statuses and
+# by the "Add project" dialog to list GitLab groups/projects. Only omittable if you won't
+# exercise GitLab project creation or status posting locally.
 GITLAB_HOSTS=[{"host":"https://gitlab.com","token":"glpat-...","rejectUnauthorized":true}]
 ```
 
