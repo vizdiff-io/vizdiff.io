@@ -179,13 +179,20 @@ vi.mock("webdriverio", () => ({
   }),
 }))
 
-// Mock tar extraction
-vi.mock("tar", () => ({
-  extract: vi.fn().mockImplementation(async () => {
-    log.debug("tar extract called")
-    return undefined
-  }),
-}))
+// Stub extraction. `safeExtract` now opens its own read stream (`createReadStream(tarballPath)`) so
+// it can drive tar's streaming form and abort on a violation; mocking `tar` alone would leave that
+// real fs read hitting a nonexistent test tarball. The orchestration tests here don't exercise
+// extraction (the only failure-path test fails earlier, at S3 download), so stub it to a no-op.
+// `safeExtract`'s own behavior is covered directly in extract.test.ts.
+vi.mock("./extract", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./extract")>()
+  return {
+    ...actual,
+    safeExtract: vi.fn().mockImplementation(async () => {
+      log.debug("safeExtract called")
+    }),
+  }
+})
 
 // Mock story processing module
 vi.mock("./stories", () => ({

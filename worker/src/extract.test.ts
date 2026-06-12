@@ -52,7 +52,9 @@ describe("safeExtract", () => {
   })
 
   afterEach(async () => {
-    await fsPromises.rm(path.dirname(srcDir), { recursive: true, force: true })
+    // Aborting a hostile archive can leave a few already-dispatched fs writes in flight; retry the
+    // teardown so it does not race them.
+    await fsPromises.rm(path.dirname(srcDir), { recursive: true, force: true, maxRetries: 5 })
   })
 
   async function makeTarball(files: Record<string, string>): Promise<void> {
@@ -62,6 +64,22 @@ describe("safeExtract", () => {
       await fsPromises.writeFile(filePath, content)
     }
     await create({ file: tarballPath, cwd: srcDir, gzip: true }, Object.keys(files))
+  }
+
+  // Builds a tarball that archives the given relative entry paths in order. Paths ending in "/" are
+  // created as directories; everything else is a file. Used to exercise directory-heavy archives
+  // and to control entry ordering (so the first entry can be the violating one).
+  async function makeTarballFrom(entries: string[]): Promise<void> {
+    for (const name of entries) {
+      const full = path.join(srcDir, name)
+      if (name.endsWith("/")) {
+        await fsPromises.mkdir(full, { recursive: true })
+      } else {
+        await fsPromises.mkdir(path.dirname(full), { recursive: true })
+        await fsPromises.writeFile(full, "x")
+      }
+    }
+    await create({ file: tarballPath, cwd: srcDir, gzip: true }, entries)
   }
 
   it("extracts a normal storybook bundle", async () => {
@@ -106,6 +124,38 @@ describe("safeExtract", () => {
     await safeExtract(tarballPath, outDir, LIMITS).catch(() => undefined)
     // The oversized entry must never be written to disk.
     await expect(fsPromises.access(path.join(outDir, "big.bin"))).rejects.toThrow()
+  })
+
+  it("counts directory entries toward the file-count limit", async () => {
+    // A tarball made entirely of directory entries (no regular files) must still be capped: many
+    // directories consume inodes/time even though each reports size 0.
+    const entries: string[] = []
+    for (let i = 0; i < LIMITS.maxFiles + 1; i++) {
+      entries.push(`d${i}/`)
+    }
+    await makeTarballFrom(entries)
+    await expect(safeExtract(tarballPath, outDir, LIMITS)).rejects.toThrow(/too many files/)
+  })
+
+  it("aborts on the first violation without draining the whole archive", async () => {
+    // The first entry is oversized; many more files follow it. The extraction stream must abort the
+    // moment the first violation is seen, so the trailing entries are never written to disk.
+    const oversized = "x".repeat(LIMITS.maxEntryBytes + 1)
+    await fsPromises.writeFile(path.join(srcDir, "first-big.bin"), oversized)
+    const entries = ["first-big.bin"]
+    for (let i = 0; i < 50; i++) {
+      const name = `after${i}.txt`
+      await fsPromises.writeFile(path.join(srcDir, name), "x")
+      entries.push(name)
+    }
+    await create({ file: tarballPath, cwd: srcDir, gzip: true }, entries)
+
+    await expect(safeExtract(tarballPath, outDir, LIMITS)).rejects.toThrow(UnsafeTarballError)
+
+    // Because extraction aborted on the first entry, none of the trailing entries were extracted.
+    for (let i = 0; i < 50; i++) {
+      await expect(fsPromises.access(path.join(outDir, `after${i}.txt`))).rejects.toThrow()
+    }
   })
 
   it("disables a limit when set to 0", async () => {

@@ -1,5 +1,7 @@
+import { createReadStream } from "node:fs"
 import path from "node:path"
-import { extract, type ReadEntry } from "tar"
+import { pipeline } from "node:stream/promises"
+import { extract, type ReadEntry, type Unpack } from "tar"
 
 import {
   MAX_EXTRACTED_BYTES,
@@ -64,9 +66,11 @@ export function isUnsafePath(entryPath: string): boolean {
  * - caps per-entry and total uncompressed size (zip-bomb guard)
  * - caps the entry path length
  *
- * On any violation an {@link UnsafeTarballError} is thrown. Because the `tar` `filter` callback is
- * synchronous and cannot reject the stream directly, the first violation is captured and re-thrown
- * after extraction settles.
+ * On any violation an {@link UnsafeTarballError} is thrown. The `tar` `filter` callback is
+ * synchronous and cannot reject the stream directly, so on the first violation we both record the
+ * error and {@link Unpack#abort abort} the extraction stream. Aborting stops the worker from
+ * draining/decompressing the rest of a hostile archive (e.g. a gzip bomb whose very first entry
+ * declares an enormous size) instead of running it to completion before failing.
  */
 export async function safeExtract(
   tarballPath: string,
@@ -77,9 +81,17 @@ export async function safeExtract(
   let totalBytes = 0
   let violation: UnsafeTarballError | undefined
 
+  // Holder for the Unpack stream, which is constructed below but referenced by the filter (via
+  // `recordViolation`) so it can abort on the first violation. A const holder avoids a forward
+  // `let` while still letting the closure see the stream once it exists.
+  const stream: { unpack?: Unpack } = {}
+
   const recordViolation = (message: string): false => {
     // Keep only the first violation so the attributed error is deterministic.
     violation ??= new UnsafeTarballError(message)
+    // Abort the extraction stream immediately so we stop draining/decompressing a hostile archive
+    // the moment we know it is unsafe, rather than waiting for the whole stream to settle.
+    stream.unpack?.abort(violation)
     return false
   }
 
@@ -107,7 +119,15 @@ export async function safeExtract(
       }
     }
 
-    // Only count and size-check actual file/link entries (directories report size 0).
+    // Count every entry (including directories) toward the file cap: a tarball with arbitrarily
+    // many directory entries would otherwise bypass the limit while still creating dirs and
+    // consuming inodes/time.
+    fileCount++
+    if (limits.maxFiles > 0 && fileCount > limits.maxFiles) {
+      return recordViolation(`Tarball contains too many files (max ${limits.maxFiles})`)
+    }
+
+    // Only size-check actual file/link entries (directories report size 0).
     const isFileLike =
       entry.type === "File" ||
       entry.type === "ContiguousFile" ||
@@ -116,11 +136,6 @@ export async function safeExtract(
       entry.type === "SymbolicLink"
 
     if (isFileLike) {
-      fileCount++
-      if (limits.maxFiles > 0 && fileCount > limits.maxFiles) {
-        return recordViolation(`Tarball contains too many files (max ${limits.maxFiles})`)
-      }
-
       const size = entry.size
       if (limits.maxEntryBytes > 0 && size > limits.maxEntryBytes) {
         return recordViolation(
@@ -139,8 +154,26 @@ export async function safeExtract(
     return true
   }
 
-  await extract({ file: tarballPath, cwd, filter })
+  // Drive the Unpack stream ourselves (instead of the `file`-based form) so we keep a reference and
+  // can abort it from the filter. `abort()` makes the stream emit the violation as an error, which
+  // `pipeline` surfaces as a rejection.
+  const unpack = extract.asyncNoFile({ cwd, filter }, [])
+  stream.unpack = unpack
 
+  try {
+    await pipeline(createReadStream(tarballPath), unpack)
+  } catch (err) {
+    // Aborting surfaces the violation as a stream error; prefer the attributed violation when we
+    // have one so the rejection reason is deterministic regardless of how the abort propagates.
+    if (violation) {
+      log.warn({ tarballPath, fileCount, totalBytes }, violation.message)
+      throw violation
+    }
+    throw err
+  }
+
+  // Defensive: surface a recorded violation even in the unlikely event the abort did not reject the
+  // pipeline (so a violation can never be silently swallowed).
   if (violation) {
     log.warn({ tarballPath, fileCount, totalBytes }, violation.message)
     throw violation
