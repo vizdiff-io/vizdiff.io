@@ -83,3 +83,38 @@ export const WORKER_STORY_CONCURRENCY = Math.max(
   1,
   parseInt(process.env.WORKER_STORY_CONCURRENCY ?? "4", 10) || 4,
 )
+// --- Upload sanity / safety limits -------------------------------------------------------------
+// These guard untrusted storybook uploads against zip-bombs, path traversal, pathological story
+// counts, and oversized identifiers. All are configurable via env with sane defaults. A value of
+// 0 (or a non-positive / non-numeric value) disables the corresponding limit.
+
+function intEnv(name: string, defaultValue: number): number {
+  const raw = process.env[name]
+  if (raw == undefined || raw.trim() === "") {
+    return defaultValue
+  }
+  const parsed = parseInt(raw, 10)
+  if (isNaN(parsed) || parsed < 0) {
+    return defaultValue
+  }
+  return parsed
+}
+
+// Maximum number of stories processed from a single upload. Protects the worker and the database
+// from a runaway number of screenshots. Default 1000.
+export const MAX_STORIES_PER_UPLOAD = intEnv("MAX_STORIES_PER_UPLOAD", 1000)
+
+// Maximum number of files (entries) allowed in an uploaded tarball. Default 50000.
+export const MAX_TARBALL_FILES = intEnv("MAX_TARBALL_FILES", 50_000)
+
+// Maximum total uncompressed size of all extracted files (zip-bomb guard). Default 1 GiB.
+export const MAX_EXTRACTED_BYTES = intEnv("MAX_EXTRACTED_BYTES", 1024 * 1024 * 1024)
+
+// Maximum size of any single extracted file. Default 256 MiB.
+export const MAX_TARBALL_ENTRY_BYTES = intEnv("MAX_TARBALL_ENTRY_BYTES", 256 * 1024 * 1024)
+
+// Maximum length of any single path inside the tarball. Default 4096.
+export const MAX_TARBALL_PATH_LENGTH = intEnv("MAX_TARBALL_PATH_LENGTH", 4096)
+
+// Maximum length of a story id / name / title before it is rejected. Default 2048.
+export const MAX_STORY_IDENTIFIER_LENGTH = intEnv("MAX_STORY_IDENTIFIER_LENGTH", 2048)

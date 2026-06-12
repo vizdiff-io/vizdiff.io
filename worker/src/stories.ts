@@ -7,6 +7,7 @@ import { ScreenshotTest, TestResult, type TestResultStatus } from "shared"
 import type { Repository } from "typeorm"
 import type { Browser } from "webdriverio"
 
+import { MAX_STORY_IDENTIFIER_LENGTH } from "./environment"
 import { diffImages, diffImagesNoMask } from "./images"
 import { log } from "./log"
 import type { SetViewportOptions, Story, StorybookWindow } from "./types"
@@ -118,7 +119,39 @@ export async function getStorybookStories(browser: Browser): Promise<Record<stri
     log.error(err, "Error extracting stories from Storybook")
     throw err
   }
+
+  validateStoryIdentifiers(stories)
   return stories
+}
+
+/**
+ * Rejects stories whose id/name/title/importPath exceed the configured maximum length. These
+ * untrusted strings flow into S3 keys, filesystem paths, database columns, and log lines, so an
+ * absurdly long value is treated as a bad upload rather than silently truncated here.
+ */
+export function validateStoryIdentifiers(
+  stories: Record<string, Story>,
+  maxLength: number = MAX_STORY_IDENTIFIER_LENGTH,
+): void {
+  if (maxLength <= 0) {
+    return
+  }
+  for (const [id, story] of Object.entries(stories)) {
+    const fields: Array<[string, string | undefined]> = [
+      ["id", story.id],
+      ["key", id],
+      ["name", story.name],
+      ["title", story.title],
+      ["importPath", story.importPath],
+    ]
+    for (const [field, value] of fields) {
+      if (value != undefined && value.length > maxLength) {
+        throw new Error(
+          `Story ${field} too long: ${value.length} chars (max ${maxLength}) for story "${id}"`,
+        )
+      }
+    }
+  }
 }
 
 /**
