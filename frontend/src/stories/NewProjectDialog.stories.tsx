@@ -1,7 +1,7 @@
-import type { Meta, StoryContext, StoryObj } from "@storybook/react"
-import { screen, userEvent } from "@storybook/test"
+import type { Meta, StoryContext, StoryObj } from "@storybook/nextjs"
 import { http, HttpResponse } from "msw"
 import type { JSX, ComponentType } from "react"
+import { screen, userEvent } from "storybook/test"
 
 import ThemeWrapper from "./ThemeWrapper"
 import { avatar01 } from "./assets"
