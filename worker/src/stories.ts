@@ -386,7 +386,9 @@ export async function processStory({
       ContentType: "image/png",
     }),
   )
-  const newImageUrl = `https://${bucket}.s3.amazonaws.com/${screenshotKey}`
+  // Store the S3 object key (not a public URL); the bucket is private and images are served via
+  // presigned URLs generated at read time (see api/src/s3.ts, worker/src/s3.ts).
+  const newImageUrl = screenshotKey
   logChild = logChild.child({ newImageUrl, newImageBytes: screenshotBuffer.length })
   logChild.info("Successfully uploaded screenshot to S3")
 
@@ -404,7 +406,7 @@ export async function processStory({
       changeStatus = "new"
     } else {
       const baselineKey = `projects/${projectId}/screenshots/${baseTestResult.screenshotTest.uploadId}/${storyId}.png`
-      baselineImageUrl = `https://${bucket}.s3.amazonaws.com/${baselineKey}`
+      baselineImageUrl = baselineKey
       logChild = logChild.child({ baselineImageUrl })
       try {
         const baselinePath = path.join(tmpDir, `${storyId}-baseline.png`)
@@ -447,7 +449,7 @@ export async function processStory({
               ContentType: "image/png",
             }),
           )
-          diffImageUrl = `https://${bucket}.s3.amazonaws.com/${diffKey}`
+          diffImageUrl = diffKey
           logChild.info(
             { diffImageUrl, diffImageBytes: diffRes.diffMask.data.byteLength },
             "Successfully uploaded diff image to S3",

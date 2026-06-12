@@ -485,6 +485,22 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@aws-sdk/s3-request-presigner@npm:3.991.0":
+  version: 3.991.0
+  resolution: "@aws-sdk/s3-request-presigner@npm:3.991.0"
+  dependencies:
+    "@aws-sdk/signature-v4-multi-region": "npm:3.991.0"
+    "@aws-sdk/types": "npm:^3.973.1"
+    "@aws-sdk/util-format-url": "npm:^3.972.3"
+    "@smithy/middleware-endpoint": "npm:^4.4.14"
+    "@smithy/protocol-http": "npm:^5.3.8"
+    "@smithy/smithy-client": "npm:^4.11.3"
+    "@smithy/types": "npm:^4.12.0"
+    tslib: "npm:^2.6.2"
+  checksum: 10/8d05112a22aa9dd6ffb9ade6b7fc9f5bcd67fcec2d5c5a4b5d4b0c54bd31f44b9fe3358ac2e776f9f02e19ba3cfdbb1df3262ca96bd591f515e6e2b710c776c9
+  languageName: node
+  linkType: hard
+
 "@aws-sdk/signature-v4-multi-region@npm:3.991.0":
   version: 3.991.0
   resolution: "@aws-sdk/signature-v4-multi-region@npm:3.991.0"
@@ -567,6 +583,16 @@ __metadata:
     "@smithy/util-endpoints": "npm:^3.2.8"
     tslib: "npm:^2.6.2"
   checksum: 10/2f8c47d5496a496e379413734860e7dbdfaa96856849209f970403f9a20fff2080e4c1ee9ac1503c42e0ba4295c5369088b9a593c932029e08653305b037aa4e
+  languageName: node
+  linkType: hard
+
+"@aws-sdk/util-format-url@npm:^3.972.3":
+  version: 3.972.22
+  resolution: "@aws-sdk/util-format-url@npm:3.972.22"
+  dependencies:
+    "@aws-sdk/core": "npm:^3.974.20"
+    tslib: "npm:^2.6.2"
+  checksum: 10/49473389261c292d2e1f207c4bcf92843feb112bb02c821c6a12b22be05a41b427224e4603ca38f43db0c3dcabc346a7f87cebb2372e5520d4915f344d62dfc0
   languageName: node
   linkType: hard
 
@@ -6361,6 +6387,7 @@ __metadata:
   dependencies:
     "@aws-sdk/client-s3": "npm:3.991.0"
     "@aws-sdk/lib-storage": "npm:3.991.0"
+    "@aws-sdk/s3-request-presigner": "npm:3.991.0"
     "@gitbeaker/rest": "npm:^43.8.0"
     "@octokit/auth-app": "npm:^8.1.2"
     "@octokit/rest": "npm:^22.0.1"
@@ -17532,6 +17559,7 @@ __metadata:
   resolution: "worker@workspace:worker"
   dependencies:
     "@aws-sdk/client-s3": "npm:3.991.0"
+    "@aws-sdk/s3-request-presigner": "npm:3.991.0"
     "@gitbeaker/rest": "npm:^43.8.0"
     "@octokit/auth-app": "npm:^8.1.2"
     "@octokit/rest": "npm:^22.0.1"

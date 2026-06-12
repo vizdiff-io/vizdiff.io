@@ -85,9 +85,17 @@ export function createSummaryForFailedBuild(build: ScreenshotTest, error: unknow
   return summary
 }
 
+/**
+ * Maps a stored image reference (an S3 object key, since the bucket is private) to a URL the VCS
+ * UI can load — typically a presigned URL. Defaults to identity for callers/tests that pass
+ * ready-to-use URLs. See api/src/s3.ts / worker/src/s3.ts for the presigning implementation.
+ */
+type ImageUrlResolver = (stored: string | null) => string | null
+
 export function createMarkdownForBuildResult(
   build: ScreenshotTest,
   testResults: TestResult[],
+  resolveImageUrl: ImageUrlResolver = (v) => v,
 ): { title: string; summary: string; text: string } {
   const testCount = testResults.length
   const changeCount = getChangeCount(testResults)
@@ -116,14 +124,16 @@ export function createMarkdownForBuildResult(
   // Create the detailed text that appears below the summary on this status check's details page
   let text = "### Visual Tests\n"
   for (const testResult of sortedTestResults) {
+    const baselineUrl = resolveImageUrl(testResult.baselineImageUrl)
+    const newUrl = resolveImageUrl(testResult.newImageUrl)
     text += `> **${testResult.name}**\n`
     // Before image
     if (testResult.changeStatus === "new") {
       text += `> <img src="${EMPTY_IMAGE_URL}" alt="No baseline image" width="250" /> &nbsp;&nbsp;&nbsp; `
     } else {
       text +=
-        `> <a href="${testResult.baselineImageUrl}">` +
-        `<img src="${testResult.baselineImageUrl}" alt="${testResult.screenshotTest.baseCommitSha ?? "Baseline"}" width="250" />` +
+        `> <a href="${baselineUrl}">` +
+        `<img src="${baselineUrl}" alt="${testResult.screenshotTest.baseCommitSha ?? "Baseline"}" width="250" />` +
         `</a> &nbsp;&nbsp;&nbsp; `
     }
     // After image
@@ -131,8 +141,8 @@ export function createMarkdownForBuildResult(
       text += `<img src="${FAILED_IMAGE_URL}" alt="Failed" width="250" />\n`
     } else {
       text +=
-        `<a href="${testResult.newImageUrl}">` +
-        `<img src="${testResult.newImageUrl}" alt="${testResult.screenshotTest.commitSha}" width="250" />` +
+        `<a href="${newUrl}">` +
+        `<img src="${newUrl}" alt="${testResult.screenshotTest.commitSha}" width="250" />` +
         `</a>\n`
     }
     // Status line
@@ -146,6 +156,7 @@ export function createMarkdownForBuildApproval(
   build: ScreenshotTest,
   testResults: TestResult[],
   username: string,
+  resolveImageUrl: ImageUrlResolver = (v) => v,
 ): { title: string; summary: string; text?: string } {
   if (build.status !== "approved" && build.status !== "denied") {
     throw new Error(
@@ -157,7 +168,7 @@ export function createMarkdownForBuildApproval(
   const changeCount = getChangeCount(testResults)
   const title = `${changeCount} change${changeCount === 1 ? "" : "s"} ${build.status} by ${username}.`
 
-  let { summary, text } = createMarkdownForBuildResult(build, testResults)
+  let { summary, text } = createMarkdownForBuildResult(build, testResults, resolveImageUrl)
   summary += `\n\n---\n ${approved ? "✅ Approved" : "❌ Rejected"} by ${username}`
 
   return { title, summary, text }

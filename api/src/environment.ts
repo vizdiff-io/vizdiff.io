@@ -81,4 +81,13 @@ export const S3_CLIENT_CONFIG: { endpoint?: string; forcePathStyle?: boolean } =
   ? { endpoint: S3_ENDPOINT, forcePathStyle: S3_FORCE_PATH_STYLE }
   : {}
 
+// Screenshots live in a private bucket and are served via presigned URLs. Short TTL for the
+// interactive build viewer; long TTL (S3 SigV4 max of 7 days) for URLs embedded in persisted
+// PR/MR comments.
+export const IMAGE_URL_TTL_SECONDS = parseInt(process.env.IMAGE_URL_TTL_SECONDS ?? "3600", 10)
+export const VCS_IMAGE_URL_TTL_SECONDS = parseInt(
+  process.env.VCS_IMAGE_URL_TTL_SECONDS ?? "604800",
+  10,
+)
+
 export const JWT_SECRET = process.env.JWT_SECRET ?? "secret"

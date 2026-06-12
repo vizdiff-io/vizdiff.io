@@ -12,6 +12,7 @@ import {
 import { getOctokitForInstallation } from "../github"
 import { getGitLabHostConfig } from "../gitlab"
 import { log } from "../log"
+import { buildImageUrlResolver } from "../s3"
 import type { CheckRunPayload } from "../schemas/CheckRunPayload"
 import type { CheckSuitePayload } from "../schemas/CheckSuitePayload"
 import type { RequestWithRawBody, DefaultResponse } from "../types"
@@ -339,10 +340,12 @@ async function githubCheckRunRequestedAction(
 
   if (IS_PRODUCTION || IS_STAGING) {
     // Update GitHub check run
+    const resolveImageUrl = await buildImageUrlResolver(testResults)
     const { title, summary, text } = createMarkdownForBuildApproval(
       test,
       testResults,
       payload.sender.login,
+      resolveImageUrl,
     )
 
     // Create a new check run with the success or failure conclusion

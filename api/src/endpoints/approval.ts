@@ -6,6 +6,7 @@ import { getInstallationForOrg, getOctokitForInstallation } from "../github"
 import { getGitLabHostConfig, updateGitLabCommitStatus } from "../gitlab"
 import { getParamInt } from "../http"
 import { log } from "../log"
+import { buildImageUrlResolver } from "../s3"
 import type { RequestHandler } from "../types"
 
 export const approveOrDeny: RequestHandler = async (req, res) => {
@@ -75,7 +76,13 @@ export const approveOrDeny: RequestHandler = async (req, res) => {
 
         const username = user.displayName ?? user.githubUsername ?? "Unknown"
 
-        const { title, summary, text } = createMarkdownForBuildApproval(test, testResults, username)
+        const resolveImageUrl = await buildImageUrlResolver(testResults)
+        const { title, summary, text } = createMarkdownForBuildApproval(
+          test,
+          testResults,
+          username,
+          resolveImageUrl,
+        )
 
         // Create a new check run with the success or failure conclusion
         const conclusion = status === "approved" ? "success" : "failure"
