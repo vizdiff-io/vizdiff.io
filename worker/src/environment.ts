@@ -118,3 +118,14 @@ export const MAX_TARBALL_PATH_LENGTH = intEnv("MAX_TARBALL_PATH_LENGTH", 4096)
 
 // Maximum length of a story id / name / title before it is rejected. Default 2048.
 export const MAX_STORY_IDENTIFIER_LENGTH = intEnv("MAX_STORY_IDENTIFIER_LENGTH", 2048)
+// Maximum wall-clock duration for a single storybook build before it is aborted. A build that
+// exceeds this is almost always stuck or pathologically large, so the task is treated as a
+// non-retryable failure (see worker.ts). Default: 15 minutes.
+export const BUILD_TIMEOUT_MS = parseInt(process.env.BUILD_TIMEOUT_MS ?? `${15 * 60 * 1000}`, 10)
+
+// Resident set size (bytes) past which a build logs a memory-pressure warning. Purely
+// observational; it does not abort the build. Default: 2 GiB.
+export const BUILD_MEMORY_WARN_BYTES = parseInt(
+  process.env.BUILD_MEMORY_WARN_BYTES ?? `${2 * 1024 * 1024 * 1024}`,
+  10,
+)

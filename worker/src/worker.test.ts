@@ -33,7 +33,9 @@ import { expect, describe, it, afterAll, beforeEach, vi, afterEach } from "vites
 import { Database } from "./database"
 import { ingestStorybook } from "./ingest"
 import { log } from "./log"
+import { processStory } from "./stories"
 import { NonRetryableTaskError, isPermanentS3FetchError } from "./tasks"
+import { BuildTimeoutError } from "./timeout"
 import { processTask, shutdown, sweepStuckBuilds } from "./worker"
 
 // Mock function declarations - these track calls to key operations
@@ -192,6 +194,13 @@ vi.mock("./extract", async (importOriginal) => {
       log.debug("safeExtract called")
     }),
   }
+})
+
+// Mock environment so the build timeout is short enough to exercise in tests without slowing
+// the suite. All other exports keep their real values.
+vi.mock("./environment", async (importOriginal) => {
+  const actual: object = await importOriginal()
+  return { ...actual, BUILD_TIMEOUT_MS: 50 }
 })
 
 // Mock story processing module
@@ -563,6 +572,37 @@ describe("worker", () => {
         }),
       )
     })
+
+    it("should abort and fail a build that exceeds the build timeout", async () => {
+      // Silence the expected error/warn logging for this test.
+      const originalError = log.error
+      const originalWarn = log.warn
+      log.error = vi.fn()
+      log.warn = vi.fn()
+
+      // Make story processing hang so the render phase never completes on its own; the
+      // BUILD_TIMEOUT_MS (mocked to 50ms) must win the race.
+      vi.mocked(processStory).mockImplementationOnce(
+        () =>
+          new Promise(() => {
+            /* never resolves */
+          }),
+      )
+
+      const error = await ingestStorybook("test-project", 123, "test-upload").catch(
+        (e: unknown) => e,
+      )
+
+      log.error = originalError
+      log.warn = originalWarn
+
+      expect(error).toBeInstanceOf(BuildTimeoutError)
+
+      // The screenshot test must be marked failed on timeout.
+      expect(mockScreenshotTestSave).toHaveBeenCalledWith(
+        expect.objectContaining({ status: "failed" }),
+      )
+    }, 10000)
 
     it("should handle storybook extraction failures", async () => {
       // Temporarily silence the error logger
