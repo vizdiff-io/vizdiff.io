@@ -32,6 +32,14 @@ export interface RetentionSweepResult {
  * Recency is ranked per project by `created_at DESC, id DESC` (id breaks ties deterministically).
  * The keep-last-N guard is applied *before* the age filter, so a project that builds rarely keeps
  * its N most recent builds even if every one of them is older than the window.
+ *
+ * Builds that a *retained* build references as its baseline are also protected (#338): a retained
+ * build's `TestResult.baseline_image_url` points at the baseline build's S3 objects
+ * (`.../screenshots/<uploadId>/...`, see worker/src/stories.ts), so deleting that baseline build
+ * would leave the retained comparison view / MR comment unable to presign its baseline images. A
+ * candidate is therefore excluded from deletion whenever its `upload_id` is referenced by the
+ * baseline of any build that is not itself a reaping candidate. This is conservative: a baseline
+ * is only reaped once every build that still references it is also eligible to be reaped.
  */
 export async function selectReapableBuilds(
   db: DataSource,
@@ -39,8 +47,10 @@ export async function selectReapableBuilds(
 ): Promise<ReapableBuild[]> {
   const cutoff = new Date(Date.now() - options.retentionDays * 24 * 60 * 60 * 1000)
 
-  // Window function ranks each build within its project; the outer query keeps only builds ranked
-  // beyond keepLastN that are also older than the cutoff. Terminal statuses only.
+  // `ranked` ranks each build within its project; `candidates` are the builds ranked beyond
+  // keepLastN that are also older than the cutoff (terminal statuses only). The final SELECT drops
+  // any candidate whose objects are still referenced as a baseline by a *retained* build — i.e. a
+  // build that is NOT itself a candidate (it survives keep-last-N / the cutoff, or is in-flight).
   const rows: unknown = await db.query(
     `
     WITH ranked AS (
@@ -55,12 +65,28 @@ export async function selectReapableBuilds(
         ) AS rn
       FROM screenshot_tests
       WHERE status NOT IN ('pending', 'running')
+    ),
+    candidates AS (
+      SELECT id, project_id, upload_id, created_at
+      FROM ranked
+      WHERE rn > $1
+        AND created_at < $2
     )
-    SELECT id, project_id, upload_id
-    FROM ranked
-    WHERE rn > $1
-      AND created_at < $2
-    ORDER BY created_at ASC, id ASC
+    SELECT c.id, c.project_id, c.upload_id
+    FROM candidates c
+    WHERE NOT EXISTS (
+      SELECT 1
+      FROM test_results tr
+      JOIN screenshot_tests referrer ON referrer.id = tr.screenshot_test_id
+      WHERE referrer.id <> c.id
+        -- The baseline build whose objects are referenced (upload_id is unique, so the
+        -- screenshots/<upload_id>/ path segment identifies exactly one build).
+        AND tr.baseline_image_url LIKE '%screenshots/' || c.upload_id || '/%'
+        -- Only retained referrers protect the baseline; a referrer that is itself a candidate is
+        -- being reaped too, so it no longer needs the baseline preserved.
+        AND NOT EXISTS (SELECT 1 FROM candidates cc WHERE cc.id = referrer.id)
+    )
+    ORDER BY c.created_at ASC, c.id ASC
     LIMIT $3
     `,
     [options.keepLastN, cutoff, options.limit],
@@ -74,6 +100,10 @@ export async function selectReapableBuilds(
  * (TestResults + WorkTasks cascade via FK). S3 deletion happens first and the row is only removed
  * after, so a crash mid-sweep leaves the row to be retried next sweep rather than orphaning S3
  * objects with no DB pointer. Deletion is idempotent.
+ *
+ * A build whose S3 deletion reports any per-object errors (`errors > 0`) is treated as a failed
+ * reap (#338): its DB row is left in place so a later sweep can retry, rather than orphaning the
+ * objects that survived. This preserves the S3-before-DB safety property even on partial failure.
  */
 export async function runRetentionSweep(options?: {
   retentionDays?: number
@@ -105,6 +135,15 @@ export async function runRetentionSweep(options?: {
       const { deleted, errors } = await deleteObjectsByPrefixes([prefix])
       result.objectsDeleted += deleted
       result.objectErrors += errors
+
+      if (errors > 0) {
+        // Partial S3 failure: leave the DB row so a later sweep retries the surviving objects,
+        // rather than orphaning them with no row to find them by (S3-before-DB safety property).
+        log.warn(
+          `Retention reaper: ${errors} S3 object error(s) deleting build ${build.id} (project ${build.project_id}); keeping its row for retry`,
+        )
+        continue
+      }
 
       // Remove the build row; TestResults and WorkTasks cascade via ON DELETE CASCADE.
       await repo.delete({ id: build.id })

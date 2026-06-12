@@ -55,6 +55,20 @@ describe("selectReapableBuilds", () => {
     expect(sql).toContain("rn > $1")
   })
 
+  it("protects builds whose objects are referenced as a baseline by a retained build", async () => {
+    mockQuery.mockResolvedValue([])
+
+    await selectReapableBuilds(mockDb, { retentionDays: 90, keepLastN: 5, limit: 200 })
+
+    const [sql] = mockQuery.mock.calls[0] as [string, unknown[]]
+    // A candidate is excluded when its upload_id is referenced by a retained build's baseline.
+    expect(sql).toContain("test_results")
+    expect(sql).toContain("baseline_image_url LIKE '%screenshots/' || c.upload_id || '/%'")
+    // Only *retained* referrers protect: a referrer that is itself a candidate does not.
+    expect(sql).toContain("FROM candidates cc WHERE cc.id = referrer.id")
+    expect(sql).toContain("NOT EXISTS")
+  })
+
   it("returns the rows from the query", async () => {
     const rows = [{ id: 3, project_id: 1, upload_id: "u3" }]
     mockQuery.mockResolvedValue(rows)
@@ -101,6 +115,24 @@ describe("runRetentionSweep", () => {
     ])
   })
 
+  it("never deletes a build the selection query withheld as a retained baseline", async () => {
+    // Sequential builds: #11 (retained) uses #10's screenshots as its baseline. The selection
+    // query (P1 fix) excludes #10 from the candidate set, so only the truly-reapable build #9 is
+    // returned — #10's prefix is never deleted and its row is left intact for the retained build.
+    mockQuery.mockResolvedValue([{ id: 9, project_id: 1, upload_id: "old" }])
+    mockDeleteObjectsByPrefixes.mockResolvedValue({ deleted: 2, errors: 0 })
+
+    const result = await runRetentionSweep()
+
+    expect(result.buildsDeleted).toBe(1)
+    expect(mockDeleteObjectsByPrefixes).toHaveBeenCalledTimes(1)
+    expect(mockDeleteObjectsByPrefixes).toHaveBeenCalledWith(["projects/1/screenshots/old/"])
+    // The baseline build #10's prefix is never targeted, and its row is never deleted.
+    expect(mockDeleteObjectsByPrefixes).not.toHaveBeenCalledWith(["projects/1/screenshots/abc/"])
+    expect(mockDelete).toHaveBeenCalledTimes(1)
+    expect(mockDelete).toHaveBeenCalledWith({ id: 9 })
+  })
+
   it("does nothing when no builds are eligible", async () => {
     mockQuery.mockResolvedValue([])
     const result = await runRetentionSweep()
@@ -129,12 +161,33 @@ describe("runRetentionSweep", () => {
     expect(mockDelete).toHaveBeenCalledWith({ id: 11 })
   })
 
-  it("counts S3 object errors without failing the build deletion", async () => {
+  it("keeps the DB row when S3 reports partial delete errors, for retry next sweep", async () => {
     mockQuery.mockResolvedValue([{ id: 10, project_id: 1, upload_id: "abc" }])
     mockDeleteObjectsByPrefixes.mockResolvedValue({ deleted: 3, errors: 2 })
 
     const result = await runRetentionSweep()
-    expect(result).toEqual({ buildsDeleted: 1, objectsDeleted: 3, objectErrors: 2 })
-    expect(mockDelete).toHaveBeenCalledWith({ id: 10 })
+    // Objects/errors are still counted, but the build is not counted as deleted and its row stays.
+    expect(result).toEqual({ buildsDeleted: 0, objectsDeleted: 3, objectErrors: 2 })
+    expect(mockDelete).not.toHaveBeenCalled()
+  })
+
+  it("reaps later builds even when an earlier build has partial S3 errors", async () => {
+    mockQuery.mockResolvedValue([
+      { id: 10, project_id: 1, upload_id: "abc" },
+      { id: 11, project_id: 2, upload_id: "def" },
+    ])
+    mockDeleteObjectsByPrefixes.mockImplementation((prefixes: string[]) => {
+      if (prefixes[0] === "projects/1/screenshots/abc/") {
+        return Promise.resolve({ deleted: 1, errors: 1 })
+      }
+      return Promise.resolve({ deleted: 2, errors: 0 })
+    })
+
+    const result = await runRetentionSweep()
+
+    // The clean build is reaped; the partial-failure build keeps its row.
+    expect(result).toEqual({ buildsDeleted: 1, objectsDeleted: 3, objectErrors: 1 })
+    expect(mockDelete).toHaveBeenCalledTimes(1)
+    expect(mockDelete).toHaveBeenCalledWith({ id: 11 })
   })
 })
