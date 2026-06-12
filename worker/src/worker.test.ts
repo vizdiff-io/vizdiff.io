@@ -29,6 +29,7 @@ import { TestResult, ScreenshotTest } from "shared"
 import { Readable } from "stream"
 import type { DataSourceOptions, Repository, DataSource } from "typeorm"
 import { expect, describe, it, afterAll, beforeEach, vi, afterEach } from "vitest"
+import { remote } from "webdriverio"
 
 import { Database } from "./database"
 import { ingestStorybook } from "./ingest"
@@ -131,54 +132,65 @@ vi.mock("./database", () => ({
   })),
 }))
 
+// Mock browser shape: a bag of vi.fn() stubs plus capabilities. The index signature lets tests
+// override individual methods (e.g. deleteSession) without re-declaring the whole surface.
+type MockBrowser = {
+  capabilities: { browserName: string; browserVersion: string; platformName: string }
+  [method: string]: unknown
+}
+
+// Default mock browser factory, shared so individual tests can build on it (e.g. overriding
+// deleteSession) without re-declaring the whole browser surface.
+async function actualRemoteMock(): Promise<MockBrowser> {
+  log.debug("WebdriverIO remote called")
+  let storyStoreReady = false
+  return {
+    url: vi.fn().mockImplementation(async (url: string) => {
+      log.debug(`WebdriverIO url called with: ${url}`)
+    }),
+    setViewport: vi
+      .fn()
+      .mockImplementation(
+        async (viewport: { width: number; height: number; devicePixelRatio: number }) => {
+          log.debug(`WebdriverIO setViewport called with: ${JSON.stringify(viewport)}`)
+        },
+      ),
+    saveScreenshot: vi.fn().mockImplementation(async () => {
+      log.debug("WebdriverIO saveScreenshot called")
+      return Buffer.from("mock screenshot")
+    }),
+    execute: vi.fn().mockImplementation(async (fn?: () => unknown) => {
+      log.debug(`WebdriverIO execute called, hasFunction: ${String(!!fn)}`)
+      // If a function is passed, this is the storyStore check
+      if (fn) {
+        if (!storyStoreReady) {
+          storyStoreReady = true
+          return true
+        }
+        return mockStories
+      }
+      // Otherwise this is the story extraction
+      return mockStories
+    }),
+    waitUntil: vi.fn().mockImplementation(async (fn: () => Promise<unknown>) => {
+      log.debug("WebdriverIO waitUntil called")
+      await fn()
+      return true
+    }),
+    deleteSession: vi.fn().mockImplementation(async () => {
+      log.debug("WebdriverIO deleteSession called")
+    }),
+    capabilities: {
+      browserName: "chrome",
+      browserVersion: "latest",
+      platformName: "linux",
+    },
+  }
+}
+
 // Mock WebdriverIO browser automation
 vi.mock("webdriverio", () => ({
-  remote: vi.fn().mockImplementation(async () => {
-    log.debug("WebdriverIO remote called")
-    let storyStoreReady = false
-    return {
-      url: vi.fn().mockImplementation(async (url: string) => {
-        log.debug(`WebdriverIO url called with: ${url}`)
-      }),
-      setViewport: vi
-        .fn()
-        .mockImplementation(
-          async (viewport: { width: number; height: number; devicePixelRatio: number }) => {
-            log.debug(`WebdriverIO setViewport called with: ${JSON.stringify(viewport)}`)
-          },
-        ),
-      saveScreenshot: vi.fn().mockImplementation(async () => {
-        log.debug("WebdriverIO saveScreenshot called")
-        return Buffer.from("mock screenshot")
-      }),
-      execute: vi.fn().mockImplementation(async (fn?: () => unknown) => {
-        log.debug(`WebdriverIO execute called, hasFunction: ${String(!!fn)}`)
-        // If a function is passed, this is the storyStore check
-        if (fn) {
-          if (!storyStoreReady) {
-            storyStoreReady = true
-            return true
-          }
-          return mockStories
-        }
-        // Otherwise this is the story extraction
-        return mockStories
-      }),
-      waitUntil: vi.fn().mockImplementation(async (fn: () => Promise<unknown>) => {
-        log.debug("WebdriverIO waitUntil called")
-        await fn()
-        return true
-      }),
-      deleteSession: vi.fn().mockImplementation(async () => {
-        log.debug("WebdriverIO deleteSession called")
-      }),
-      capabilities: {
-        browserName: "chrome",
-        browserVersion: "latest",
-        platformName: "linux",
-      },
-    }
-  }),
+  remote: vi.fn().mockImplementation(actualRemoteMock),
 }))
 
 // Stub extraction. `safeExtract` now opens its own read stream (`createReadStream(tarballPath)`) so
@@ -196,11 +208,11 @@ vi.mock("./extract", async (importOriginal) => {
   }
 })
 
-// Mock environment so the build timeout is short enough to exercise in tests without slowing
-// the suite. All other exports keep their real values.
+// Mock environment so the build timeout (and the post-abort grace period) are short enough to
+// exercise in tests without slowing the suite. All other exports keep their real values.
 vi.mock("./environment", async (importOriginal) => {
   const actual: object = await importOriginal()
-  return { ...actual, BUILD_TIMEOUT_MS: 50 }
+  return { ...actual, BUILD_TIMEOUT_MS: 50, BUILD_ABORT_GRACE_MS: 500 }
 })
 
 // Mock story processing module
@@ -573,21 +585,39 @@ describe("worker", () => {
       )
     })
 
-    it("should abort and fail a build that exceeds the build timeout", async () => {
+    it("should abort, wait for the render to unwind, and fail a build that exceeds the build timeout", async () => {
       // Silence the expected error/warn logging for this test.
       const originalError = log.error
       const originalWarn = log.warn
       log.error = vi.fn()
       log.warn = vi.fn()
 
-      // Make story processing hang so the render phase never completes on its own; the
-      // BUILD_TIMEOUT_MS (mocked to 50ms) must win the race.
+      // Simulate a story stuck in a WebDriver op that only unsticks when the browser session is
+      // force-closed by the timeout abort. processStory hangs until deleteSession() is called,
+      // then rejects — mirroring how force-teardown makes the stuck command reject and the
+      // render's `finally` (browserMutex release) run. This verifies withTimeout waits for that
+      // unwind before surfacing BuildTimeoutError instead of freeing the worker eagerly.
+      let rejectStuckStory: ((err: Error) => void) | undefined
+      let storyRejected = false
       vi.mocked(processStory).mockImplementationOnce(
         () =>
-          new Promise(() => {
-            /* never resolves */
+          new Promise((_resolve, reject) => {
+            rejectStuckStory = (err: Error) => {
+              storyRejected = true
+              reject(err)
+            }
           }),
       )
+
+      // When the abort closes the session, unstick the hung story (as a real WebDriver client
+      // would by rejecting the in-flight command).
+      vi.mocked(remote).mockImplementationOnce(async () => {
+        const browser = await actualRemoteMock()
+        browser.deleteSession = vi.fn().mockImplementation(async () => {
+          rejectStuckStory?.(new Error("session deleted"))
+        })
+        return browser
+      })
 
       const error = await ingestStorybook("test-project", 123, "test-upload").catch(
         (e: unknown) => e,
@@ -597,6 +627,9 @@ describe("worker", () => {
       log.warn = originalWarn
 
       expect(error).toBeInstanceOf(BuildTimeoutError)
+      // The render must have actually unwound (story rejected) before withTimeout surfaced the
+      // BuildTimeoutError — proving the worker is not freed while the render is still running.
+      expect(storyRejected).toBe(true)
 
       // The screenshot test must be marked failed on timeout.
       expect(mockScreenshotTestSave).toHaveBeenCalledWith(
