@@ -16,8 +16,8 @@ stages:
   - deploy
 
 variables:
-  # Match the repo's Node version (Dockerfiles use node:22-alpine).
-  NODE_VERSION: "22"
+  # Match the repo's Node version (see .nvmrc; Dockerfiles default to node:26-alpine).
+  NODE_VERSION: "26"
   # Keep Yarn's global/cache folders inside the project so they can be cached.
   YARN_ENABLE_GLOBAL_CACHE: "false"
 
@@ -26,7 +26,7 @@ variables:
 # ---------------------------------------------------------------------------
 test:
   stage: test
-  image: node:22
+  image: node:$NODE_VERSION
   services:
     - name: postgres:16
       alias: postgres
@@ -56,7 +56,8 @@ test:
       - node_modules/
       - frontend/.next/cache/
   script:
-    - corepack enable
+    # corepack is no longer bundled with Node >= 25, so install it explicitly before enabling.
+    - npm install -g corepack && corepack enable
     - yarn install --immutable
     - yarn build:all
     # Lint must run after build so the compiled `shared` package can be imported.

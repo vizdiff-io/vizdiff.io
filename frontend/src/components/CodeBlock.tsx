@@ -11,7 +11,10 @@ const CodeBlock = ({
   language: string
   value: React.ReactNode
 }): React.JSX.Element => {
-  const codeString = String(value as string).replace(/\n$/, "")
+  // `value` is typed as ReactNode but, for fenced code blocks rendered by
+  // react-markdown, it is always the code text. Narrow to a string before
+  // formatting; fall back to an empty string for the (unreachable) non-string case.
+  const codeString = (typeof value === "string" ? value : "").replace(/\n$/, "")
   return (
     <SyntaxHighlighter language={language} PreTag="pre">
       {codeString}

@@ -667,11 +667,11 @@ async function adjustViewportForStory(
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       const h = document.documentElement as { scrollHeight?: number } | undefined
       // Ensure elements exist before accessing properties
-      const bodyScrollHeight = b?.scrollHeight ? b.scrollHeight : 0
-      const docScrollHeight = h?.scrollHeight ? h.scrollHeight : 0
+      const bodyScrollHeight = b?.scrollHeight ?? 0
+      const docScrollHeight = h?.scrollHeight ?? 0
       return Math.max(bodyScrollHeight, docScrollHeight)
     })
-    log.debug(`Content height for story ${storyId}: ${Number(contentHeight)}`)
+    log.debug(`Content height for story ${storyId}: ${contentHeight}`)
 
     // Calculate desired height, respecting content and initial viewport
     const desiredHeight = Math.max(originalHeight, contentHeight)
@@ -688,7 +688,7 @@ async function adjustViewportForStory(
     if (finalHeight !== originalHeight) {
       log.info(
         `Adjusting viewport height for story ${storyId} from ${originalHeight} to ${finalHeight} ` +
-          `(content: ${Number(contentHeight)})`,
+          `(content: ${contentHeight})`,
       )
       await browser.setViewport({
         width: originalWidth,

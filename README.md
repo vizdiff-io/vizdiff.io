@@ -24,8 +24,14 @@ The simplest local setup runs in **GitLab mode** with the `dev` auth provider (a
 identity, so no external IdP is required). See [docs/CONFIGURATION.md](docs/CONFIGURATION.md) for the
 full list of variables.
 
-1. `yarn`
-2. Create `api/.env` (details in [api/README.md](api/README.md)):
+The Node.js version is pinned in [`.nvmrc`](.nvmrc) (and `engines.node` in the root
+`package.json`), which is the single source of truth used by local dev (`nvm use`), CI
+(`actions/setup-node` reads `.nvmrc`), and the Dockerfiles (`ARG NODE_VERSION`, overridable
+with `--build-arg NODE_VERSION=<version>`).
+
+1. `nvm use` (installs/uses the Node version from `.nvmrc`), then `corepack enable`
+2. `yarn`
+3. Create `api/.env` (details in [api/README.md](api/README.md)):
 
    ```
    NODE_ENV=development
@@ -54,7 +60,7 @@ full list of variables.
    GitHub mode is off by default. To develop it instead, set `GITHUB_ENABLED=true`,
    `AUTH_PROVIDER=github`, and the `GITHUB_*` app credentials (see `docs/CONFIGURATION.md`).
 
-3. Create `frontend/.env.local`:
+4. Create `frontend/.env.local`:
 
    ```
    NEXT_PUBLIC_APP_URL=http://127.0.0.1:3000
@@ -62,7 +68,7 @@ full list of variables.
    # GitHub mode only: NEXT_PUBLIC_GITHUB_ENABLED=true plus the NEXT_PUBLIC_GITHUB_* app values
    ```
 
-4. Create `worker/.env` (Postgres + the same GitLab host config as the api):
+5. Create `worker/.env` (Postgres + the same GitLab host config as the api):
 
    ```
    POSTGRES_USER=postgres
@@ -73,8 +79,8 @@ full list of variables.
    GITLAB_HOSTS=[{"host":"https://gitlab.com","token":"glpat-...","rejectUnauthorized":true}]
    ```
 
-5. Start Postgres and create an empty vizdiff database and test database with the `start-postgres.sh` script
-6. Start the api: `yarn api dev`
-7. (In another terminal) start the frontend: `yarn frontend dev`
+6. Start Postgres and create an empty vizdiff database and test database with the `start-postgres.sh` script
+7. Start the api: `yarn api dev`
+8. (In another terminal) start the frontend: `yarn frontend dev`
 
 You can also run `yarn test:all` to run all test suites.
