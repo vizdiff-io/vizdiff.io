@@ -332,7 +332,7 @@ describe("worker", () => {
               return {
                 findOneBy: vi.fn().mockResolvedValue(mockScreenshotTest),
                 save: mockScreenshotTestSave.mockImplementation(async (test: unknown) => test),
-              } as unknown as Repository<ScreenshotTest>
+              }
             }
             return {
               createQueryBuilder: vi.fn().mockReturnValue({
@@ -342,7 +342,7 @@ describe("worker", () => {
                 getMany: vi.fn().mockResolvedValue([mockBaseTestResult]),
               }),
               save: mockTestResultSave.mockImplementation(async (result: unknown) => result),
-            } as unknown as Repository<TestResult>
+            }
           }),
           "@instanceof": Symbol.for("TypeORM.DataSource"),
           name: "default",
@@ -474,7 +474,7 @@ describe("worker", () => {
                     log.debug(`ScreenshotTest save called with: ${JSON.stringify(test)}`)
                     return test
                   }),
-                } as unknown as Repository<ScreenshotTest>
+                }
               }
               return {
                 createQueryBuilder: vi.fn().mockReturnValue({
@@ -487,7 +487,7 @@ describe("worker", () => {
                   log.debug(`TestResult save called with: ${JSON.stringify(result)}`)
                   return result
                 }),
-              } as unknown as Repository<TestResult>
+              }
             }),
             "@instanceof": Symbol.for("TypeORM.DataSource"),
             name: "default",

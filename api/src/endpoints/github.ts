@@ -1,6 +1,5 @@
 import { createAppAuth } from "@octokit/auth-app"
 import { Octokit } from "@octokit/rest"
-import type { RestEndpointMethodTypes } from "@octokit/rest"
 import { Project } from "shared"
 
 import { Database } from "../database"
@@ -71,11 +70,6 @@ export const orgs: RequestHandler = async (_req, res) => {
   res.json(orgList)
 }
 
-type OrgRepoResponse = RestEndpointMethodTypes["repos"]["listForOrg"]["response"]["data"][number]
-type UserRepoResponse =
-  RestEndpointMethodTypes["repos"]["listForAuthenticatedUser"]["response"]["data"][number]
-type RepoResponse = OrgRepoResponse | UserRepoResponse
-
 export const repos: RequestHandler = async (req, res) => {
   const { user } = res.locals
   const org = req.query.org as string | undefined
@@ -144,5 +138,5 @@ export const repos: RequestHandler = async (req, res) => {
     },
     "Returning GitHub projects",
   )
-  res.json(filteredRepos as RepoResponse[])
+  res.json(filteredRepos)
 }
