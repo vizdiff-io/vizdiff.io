@@ -1,8 +1,8 @@
 import "../src/styles/globals.css"
 import "../src/styles/theme.css"
 import { initialize, mswLoader } from "msw-storybook-addon"
-import type { Preview } from "@storybook/react"
-import { MINIMAL_VIEWPORTS } from "@storybook/addon-viewport"
+import type { Preview } from "@storybook/nextjs"
+import { MINIMAL_VIEWPORTS } from "storybook/viewport"
 
 // Initialize MSW
 initialize()

@@ -34,36 +34,29 @@ const mockBrowserPause = vi.fn()
  * - GetObjectCommand: Downloads baseline images
  * - PutObjectCommand: Uploads new screenshots and diff images
  */
+// vitest 4 constructs these mocks with `new`, so they must be real
+// classes/constructors rather than arrow-function factories (arrows are not
+// constructable). The source code does `new S3Client(...)`,
+// `new GetObjectCommand(...)`, and `new PutObjectCommand(...)`.
 vi.mock("@aws-sdk/client-s3", () => {
+  class MockS3Client {
+    send = mockSend
+  }
+
   class MockGetObjectCommand {
     constructor(public input: { Bucket: string; Key: string }) {}
   }
-  Object.defineProperty(MockGetObjectCommand, Symbol.hasInstance, {
-    value: (instance: unknown) => instance?.constructor === MockGetObjectCommand,
-  })
 
   class MockPutObjectCommand {
     constructor(
       public input: { Bucket: string; Key: string; Body: Buffer | string; ContentType?: string },
     ) {}
   }
-  Object.defineProperty(MockPutObjectCommand, Symbol.hasInstance, {
-    value: (instance: unknown) => instance?.constructor === MockPutObjectCommand,
-  })
 
   return {
-    S3Client: vi.fn(() => ({ send: mockSend })),
-    GetObjectCommand: Object.assign(
-      vi.fn((input: { Bucket: string; Key: string }) => new MockGetObjectCommand(input)),
-      { prototype: MockGetObjectCommand.prototype },
-    ),
-    PutObjectCommand: Object.assign(
-      vi.fn(
-        (input: { Bucket: string; Key: string; Body: Buffer | string; ContentType?: string }) =>
-          new MockPutObjectCommand(input),
-      ),
-      { prototype: MockPutObjectCommand.prototype },
-    ),
+    S3Client: MockS3Client,
+    GetObjectCommand: MockGetObjectCommand,
+    PutObjectCommand: MockPutObjectCommand,
   }
 })
 

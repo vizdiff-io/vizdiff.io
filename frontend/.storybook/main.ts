@@ -15,11 +15,7 @@ function getAbsolutePath(packageName: string): string {
 const config: StorybookConfig = {
   stories: ["../src/**/*.mdx", "../src/**/*.stories.@(js|jsx|mjs|ts|tsx)"],
   staticDirs: ["../public", "../src/stories/assets"],
-  addons: [
-    getAbsolutePath("@storybook/addon-links"),
-    getAbsolutePath("@storybook/addon-essentials"),
-    getAbsolutePath("@storybook/addon-interactions"),
-  ],
+  addons: [getAbsolutePath("@storybook/addon-links"), getAbsolutePath("@storybook/addon-docs")],
   features: {
     backgroundsStoryGlobals: true,
     developmentModeForBuild: true,
@@ -30,9 +26,6 @@ const config: StorybookConfig = {
   framework: {
     name: getAbsolutePath("@storybook/nextjs"),
     options: {},
-  },
-  docs: {
-    autodocs: "tag",
   },
   webpackFinal: async (config) => {
     // Add environment variables via DefinePlugin, using the compiler's own
