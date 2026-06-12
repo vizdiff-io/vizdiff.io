@@ -82,6 +82,7 @@ describe("github", () => {
     // Setup Octokit mock with app installations.
     // vitest 4 invokes mock implementations with `new`, so the implementation
     // must be a constructable `function` rather than a (non-constructable) arrow.
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion -- cast keeps the constructable function form vitest 4 requires
     vi.mocked(Octokit).mockImplementation(function (this: unknown) {
       return {
         apps: {
@@ -200,6 +201,7 @@ describe("github", () => {
 
     it("filters out other app installations", async () => {
       // Override Octokit mock for this test to return a different app_id
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion -- cast keeps the constructable function form vitest 4 requires
       vi.mocked(Octokit).mockImplementation(function (this: unknown) {
         return {
           apps: {
@@ -225,6 +227,7 @@ describe("github", () => {
     })
 
     it("handles GitHub API errors gracefully", async () => {
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion -- cast keeps the constructable function form vitest 4 requires
       vi.mocked(Octokit).mockImplementation(function (this: unknown) {
         return {
           apps: {

@@ -203,7 +203,7 @@ export const get: RequestHandler = async (req, res) => {
     baseBranch: screenshotTest.baseBranch ?? undefined,
     prNumber: screenshotTest.prNumber ?? undefined,
     uploadId: screenshotTest.uploadId,
-    status: screenshotTest.status as ScreenshotTestResponse["status"],
+    status: screenshotTest.status,
     tag: screenshotTest.tag ?? undefined,
     initiatedStampSec: toSeconds(screenshotTest.createdAt),
     buildDurationSec: screenshotTest.buildDurationSec ?? undefined,
