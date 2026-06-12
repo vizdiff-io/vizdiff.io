@@ -1,0 +1,28 @@
+apiVersion: v2
+name: vizdiff
+description: |
+  Self-hosted vizdiff.io — Storybook visual-regression testing.
+  Deploys the api (Express), worker (background screenshot/diff processor),
+  and frontend (Next.js static export served by nginx). Optionally embeds
+  Postgres and MinIO so the chart runs standalone with no external AWS
+  dependencies.
+type: application
+
+# Chart version. Bump on chart changes independent of the app version.
+version: 0.1.0
+
+# The default application version. Image tags default to this value
+# (see values.yaml image.*.tag) unless overridden per-service.
+appVersion: "0.2.0"
+
+home: https://vizdiff.io
+sources:
+  - https://github.com/mvi-llc/vizdiff.io
+maintainers:
+  - name: Metaverse Industries
+    url: https://vizdiff.io
+keywords:
+  - visual-regression
+  - storybook
+  - screenshots
+  - gitlab

@@ -1,8 +1,12 @@
-FROM node:22-alpine AS deps
+# Node version is configurable via --build-arg NODE_VERSION; keep in sync with .nvmrc / root package.json engines
+ARG NODE_VERSION=26
+
+FROM node:${NODE_VERSION}-alpine AS deps
 WORKDIR /app
 RUN apk add --no-cache git
-RUN corepack enable
-COPY .yarn/releases/yarn-4.3.0.cjs ./.yarn/releases/
+# corepack is no longer bundled with Node >= 25, so install it explicitly before enabling
+RUN npm install -g corepack && corepack enable
+COPY .yarn/releases/ ./.yarn/releases/
 COPY package.json yarn.lock .yarnrc.yml tsconfig.json tsconfig.options.json ./
 COPY frontend/package.json ./frontend/
 COPY shared/package.json ./shared/

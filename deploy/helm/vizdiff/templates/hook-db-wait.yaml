@@ -1,0 +1,51 @@
+{{/*
+Optional pre-install / pre-upgrade hook that blocks the release until Postgres
+accepts connections. The api runs migrations on boot (migrationsRun:true), so no
+separate migration Job is needed; this hook simply ensures the database is
+reachable before the api Deployment is applied, avoiding a noisy crash-loop on
+first boot. Disable with dbWaitHook.enabled=false.
+
+When postgres.embedded=true the embedded StatefulSet is created as part of the
+normal (non-hook) release, so this hook would deadlock waiting for it; it is
+therefore skipped in embedded mode.
+*/}}
+{{- if and .Values.dbWaitHook.enabled (not .Values.postgres.embedded) }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "vizdiff.fullname" . }}-db-wait
+  labels:
+    {{- include "vizdiff.componentLabels" (dict "ctx" . "component" "db-wait") | nindent 4 }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 20
+  template:
+    metadata:
+      labels:
+        {{- include "vizdiff.componentSelectorLabels" (dict "ctx" . "component" "db-wait") | nindent 8 }}
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: pg-wait
+          image: {{ .Values.dbWaitHook.image | quote }}
+          env:
+            - name: PGHOST
+              value: {{ include "vizdiff.postgresHost" . | quote }}
+            - name: PGPORT
+              value: {{ .Values.postgres.port | quote }}
+            - name: PGUSER
+              value: {{ .Values.postgres.user | quote }}
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for Postgres at $PGHOST:$PGPORT ..."
+              until pg_isready -h "$PGHOST" -p "$PGPORT" -U "$PGUSER"; do
+                echo "postgres not ready; retrying in 5s"
+                sleep 5
+              done
+              echo "Postgres is accepting connections."
+{{- end }}

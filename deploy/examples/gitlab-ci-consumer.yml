@@ -1,0 +1,63 @@
+# ---------------------------------------------------------------------------
+# vizdiff consumer template (GitLab CI)
+#
+# Drop this into a downstream project's `.gitlab-ci.yml` (or `include:` it) to
+# build a Storybook and upload it to your self-hosted vizdiff for visual
+# regression testing.
+#
+# Prerequisites (see deploy/examples/README.md):
+#   - VIZDIFF_PROJECT_TOKEN : per-project upload token from the vizdiff UI
+#                             (set as a *masked* CI/CD variable).
+#   - VIZDIFF_API_URL       : base URL of your self-hosted vizdiff ingress,
+#                             e.g. https://vizdiff.corp.example.com
+#
+# The vizdiff CLI auto-detects GitLab's predefined variables, so you do NOT
+# need to pass commit SHA / branch / MR info explicitly. It reads:
+#   CI_COMMIT_SHA, CI_COMMIT_REF_NAME, CI_MERGE_REQUEST_IID,
+#   CI_DEFAULT_BRANCH, CI_MERGE_REQUEST_TARGET_BRANCH_NAME
+# ---------------------------------------------------------------------------
+
+stages:
+  - visual-test
+
+.vizdiff_base:
+  stage: visual-test
+  image: node:22
+  variables:
+    NEXT_TELEMETRY_DISABLED: "1"
+  before_script:
+    - corepack enable
+    # Install your project dependencies. Adjust for your package manager.
+    - yarn install --immutable
+    # Install the vizdiff CLI (globally so the `vizdiff` binary is on PATH).
+    - npm install -g @vizdiff/cli
+  script:
+    # 1. Produce a static Storybook build. Adjust the output dir if needed.
+    - yarn build-storybook -o storybook-static
+    # 2. Upload it. The CLI auto-detects GitLab predefined vars for commit,
+    #    branch, MR number and target branch, so only the token + API URL
+    #    are required here.
+    - >
+      vizdiff upload
+      --token "$VIZDIFF_PROJECT_TOKEN"
+      --api-url "$VIZDIFF_API_URL"
+      --storybook-dir storybook-static
+
+# Branch / push pipelines: establishes and updates the baseline on your
+# default branch and reports diffs on feature branches.
+vizdiff:push:
+  extends: .vizdiff_base
+  rules:
+    # Skip when a merge request pipeline exists for the same commit to avoid
+    # uploading twice; the MR pipeline below handles that case.
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
+    - if: '$CI_COMMIT_BRANCH'
+
+# Merge-request pipelines: the CLI picks up CI_MERGE_REQUEST_IID and
+# CI_MERGE_REQUEST_TARGET_BRANCH_NAME so vizdiff can post the diff status back
+# to the merge request.
+vizdiff:merge_request:
+  extends: .vizdiff_base
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'

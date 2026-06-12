@@ -56,7 +56,7 @@ export function gitlabFetchFor(
   return fetch(url, {
     ...init,
     dispatcher: agentFor(cfg),
-  } as Parameters<typeof fetch>[1])
+  })
 }
 
 /**

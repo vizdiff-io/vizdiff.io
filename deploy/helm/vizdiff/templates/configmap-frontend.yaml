@@ -1,0 +1,27 @@
+{{/*
+Frontend runtime config.
+
+Next.js static export bakes NEXT_PUBLIC_* at BUILD time, so a single frontend
+image cannot otherwise vary API_URL / APP_URL / GITHUB_ENABLED per environment.
+To keep ONE image across environments we mount this config.js into nginx's
+docroot at /config.js. The frontend app reads window.__VIZDIFF_CONFIG__ at
+runtime instead of the baked NEXT_PUBLIC_* values.
+
+CROSS-PR FOLLOW-UP (app-core): the frontend must (1) include
+`<script src="/config.js"></script>` in its document head, and (2) read
+window.__VIZDIFF_CONFIG__ (falling back to NEXT_PUBLIC_* for local dev). Until
+that lands this file is mounted but inert. See NOTES.txt.
+*/}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "vizdiff.fullname" . }}-frontend-config
+  labels:
+    {{- include "vizdiff.componentLabels" (dict "ctx" . "component" "frontend") | nindent 4 }}
+data:
+  config.js: |
+    window.__VIZDIFF_CONFIG__ = {
+      API_URL: {{ printf "%s/api" .Values.appUrl | quote }},
+      APP_URL: {{ .Values.appUrl | quote }},
+      GITHUB_ENABLED: {{ .Values.github.enabled }}
+    };

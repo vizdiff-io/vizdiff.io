@@ -1,0 +1,123 @@
+{{/*
+Embedded MinIO (S3-compatible) for standalone / air-gapped trials ONLY.
+For production use AWS S3 via the Terragrunt s3 module and set
+s3.minio.enabled=false with IRSA-based credentials.
+
+The bucket (.Values.s3.bucketName) is auto-created by the init Job below.
+*/}}
+{{- if .Values.s3.minio.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "vizdiff.fullname" . }}-minio
+  labels:
+    {{- include "vizdiff.componentLabels" (dict "ctx" . "component" "minio") | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - name: s3
+      port: 9000
+      targetPort: s3
+  selector:
+    {{- include "vizdiff.componentSelectorLabels" (dict "ctx" . "component" "minio") | nindent 4 }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "vizdiff.fullname" . }}-minio
+  labels:
+    {{- include "vizdiff.componentLabels" (dict "ctx" . "component" "minio") | nindent 4 }}
+spec:
+  serviceName: {{ include "vizdiff.fullname" . }}-minio
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "vizdiff.componentSelectorLabels" (dict "ctx" . "component" "minio") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "vizdiff.componentSelectorLabels" (dict "ctx" . "component" "minio") | nindent 8 }}
+    spec:
+      containers:
+        - name: minio
+          image: {{ .Values.s3.minio.image | quote }}
+          args: ["server", "/data", "--console-address", ":9001"]
+          ports:
+            - name: s3
+              containerPort: 9000
+            - name: console
+              containerPort: 9001
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "vizdiff.secretName" . }}
+                  key: AWS_ACCESS_KEY_ID
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "vizdiff.secretName" . }}
+                  key: AWS_SECRET_ACCESS_KEY
+          readinessProbe:
+            httpGet:
+              path: /minio/health/ready
+              port: s3
+            periodSeconds: 10
+          volumeMounts:
+            - name: data
+              mountPath: /data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- if .Values.s3.minio.storageClassName }}
+        storageClassName: {{ .Values.s3.minio.storageClassName | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.s3.minio.storage | quote }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "vizdiff.fullname" . }}-minio-mb
+  labels:
+    {{- include "vizdiff.componentLabels" (dict "ctx" . "component" "minio") | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 10
+  template:
+    metadata:
+      labels:
+        {{- include "vizdiff.componentSelectorLabels" (dict "ctx" . "component" "minio") | nindent 8 }}
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: mc
+          image: minio/mc:latest
+          env:
+            - name: MC_ACCESS
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "vizdiff.secretName" . }}
+                  key: AWS_ACCESS_KEY_ID
+            - name: MC_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "vizdiff.secretName" . }}
+                  key: AWS_SECRET_ACCESS_KEY
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              until mc alias set local http://{{ include "vizdiff.fullname" . }}-minio:9000 "$MC_ACCESS" "$MC_SECRET"; do
+                echo "waiting for minio..."; sleep 3
+              done
+              mc mb --ignore-existing local/{{ .Values.s3.bucketName }}
+              echo "bucket {{ .Values.s3.bucketName }} ready (private)."
+{{- end }}

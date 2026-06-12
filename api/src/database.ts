@@ -48,17 +48,15 @@ export async function Database(): Promise<DataSource> {
     return database
   }
 
-  if (!databaseInitializationPromise) {
-    databaseInitializationPromise = database.initialize().then((db) => {
-      try {
-        // Define relationships after database is initialized but before any queries
-        defineRelationships()
-      } catch (error) {
-        log.error(error, "Failed to define relationships")
-      }
-      return db
-    })
-  }
+  databaseInitializationPromise ??= database.initialize().then((db) => {
+    try {
+      // Define relationships after database is initialized but before any queries
+      defineRelationships()
+    } catch (error) {
+      log.error(error, "Failed to define relationships")
+    }
+    return db
+  })
 
   await databaseInitializationPromise
   return database

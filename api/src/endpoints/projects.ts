@@ -162,7 +162,7 @@ export const create: RequestHandler = async (req, res) => {
       .json({ error: `Invalid vcsProvider: "${vcsProviderRaw}". Must be "github" or "gitlab"` })
     return
   }
-  const vcsProvider: VCSProvider = vcsProviderRaw as VCSProvider
+  const vcsProvider: VCSProvider = vcsProviderRaw
 
   if (!name) {
     res.status(400).json({ error: "Missing name" })

@@ -1,0 +1,55 @@
+{{/*
+Non-secret environment shared by api + worker via envFrom.
+Secret-bearing values live in secret.yaml.
+*/}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "vizdiff.fullname" . }}-env
+  labels:
+    {{- include "vizdiff.labels" . | nindent 4 }}
+data:
+  NODE_ENV: "production"
+  APP_URL: {{ .Values.appUrl | quote }}
+
+  # --- Auth (identity) ---
+  AUTH_PROVIDER: {{ .Values.auth.provider | quote }}
+  {{- if eq .Values.auth.provider "oidc" }}
+  OIDC_ISSUER: {{ .Values.auth.oidc.issuer | quote }}
+  OIDC_CLIENT_ID: {{ .Values.auth.oidc.clientId | quote }}
+  OIDC_REDIRECT_URI: {{ .Values.auth.oidc.redirectUri | default (printf "%s/api/auth/callback" .Values.appUrl) | quote }}
+  OIDC_SCOPES: {{ .Values.auth.oidc.scopes | quote }}
+  {{- end }}
+
+  # --- VCS ---
+  GITHUB_ENABLED: {{ .Values.github.enabled | quote }}
+  ENABLE_VCS_STATUS: {{ .Values.enableVcsStatus | quote }}
+
+  # --- Postgres (non-secret connection details) ---
+  POSTGRES_HOST: {{ include "vizdiff.postgresHost" . | quote }}
+  POSTGRES_PORT: {{ .Values.postgres.port | quote }}
+  POSTGRES_DATABASE: {{ .Values.postgres.database | quote }}
+  POSTGRES_USER: {{ .Values.postgres.user | quote }}
+
+  # --- Object storage ---
+  S3_BUCKET_NAME: {{ .Values.s3.bucketName | quote }}
+  AWS_REGION: {{ .Values.s3.region | quote }}
+  {{- $endpoint := include "vizdiff.s3Endpoint" . }}
+  {{- if $endpoint }}
+  S3_ENDPOINT: {{ $endpoint | quote }}
+  {{- end }}
+  {{- if or .Values.s3.forcePathStyle .Values.s3.minio.enabled }}
+  S3_FORCE_PATH_STYLE: "true"
+  {{- end }}
+
+  # --- Worker ---
+  WORKER_HEALTH_PORT: "3003"
+
+  {{- if .Values.ddApm.enabled }}
+  # --- Datadog APM ---
+  DD_TRACE_ENABLED: "true"
+  DD_AGENT_HOST: {{ .Values.ddApm.agentHost | quote }}
+  DD_ENV: {{ .Values.ddApm.env | quote }}
+  {{- else }}
+  DD_TRACE_ENABLED: "false"
+  {{- end }}

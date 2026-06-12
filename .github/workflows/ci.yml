@@ -21,9 +21,6 @@ env:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [20.x]
 
     steps:
       - name: Setup Postgres
@@ -40,19 +37,25 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: ${{ matrix.node-version }}
-          cache: "yarn"
+          node-version-file: ".nvmrc"
 
-      - name: Cache node_modules
+      # Cache node_modules and the Yarn 4 project cache (.yarn/cache). We do NOT use
+      # setup-node's `cache: "yarn"`: it invokes yarn during the Setup Node.js step, before
+      # corepack is enabled, and Node >=25 no longer ships corepack — so it would rely on a
+      # runner-global yarn shim that may not exist. Enabling corepack ourselves + caching here
+      # is robust regardless of the runner image.
+      - name: Cache dependencies
         uses: actions/cache@v5
         with:
-          path: node_modules
-          key: ${{ runner.os }}-node_modules-${{ hashFiles('**/yarn.lock') }}
+          path: |
+            node_modules
+            .yarn/cache
+          key: ${{ runner.os }}-deps-${{ hashFiles('**/yarn.lock') }}
           restore-keys: |
-            ${{ runner.os }}-node_modules-
+            ${{ runner.os }}-deps-
 
       - name: Install dependencies
-        run: corepack enable && yarn install --immutable
+        run: npm install -g corepack && corepack enable && yarn install --immutable
 
       - run: yarn dedupe --check
 
@@ -117,20 +120,22 @@ jobs:
           echo "ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}" >> $GITHUB_ENV
           echo "ECR_REPOSITORY_BACKEND=vizdiff.io/backend" >> $GITHUB_ENV
           echo "IMAGE_TAG=${{ github.sha }}" >> $GITHUB_ENV
+          # Single source of truth for the Node version: .nvmrc
+          echo "NODE_VERSION=$(cat .nvmrc | tr -d '[:space:]')" >> $GITHUB_ENV
 
       # Set up QEMU for multi-architecture builds
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
         with:
           platforms: "arm64"
 
       # Set up Docker Buildx
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       # Build and push api Docker image
       - name: Build and push api Docker image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         env:
           ECR_REGISTRY: ${{ env.ECR_REGISTRY }}
           ECR_REPOSITORY_BACKEND: ${{ env.ECR_REPOSITORY_BACKEND }}
@@ -146,6 +151,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=api
           build-args: |
             NODE_ENV=production
+            NODE_VERSION=${{ env.NODE_VERSION }}
 
   docker-build-worker:
     runs-on: ubuntu-latest
@@ -177,20 +183,22 @@ jobs:
           echo "ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}" >> $GITHUB_ENV
           echo "ECR_REPOSITORY_WORKER=vizdiff.io/worker" >> $GITHUB_ENV
           echo "IMAGE_TAG=${{ github.sha }}" >> $GITHUB_ENV
+          # Single source of truth for the Node version: .nvmrc
+          echo "NODE_VERSION=$(cat .nvmrc | tr -d '[:space:]')" >> $GITHUB_ENV
 
       # Set up QEMU for multi-architecture builds
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
         with:
           platforms: "arm64"
 
       # Set up Docker Buildx
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       # Build and push worker Docker image
       - name: Build and push worker Docker image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         env:
           ECR_REGISTRY: ${{ env.ECR_REGISTRY }}
           ECR_REPOSITORY_WORKER: ${{ env.ECR_REPOSITORY_WORKER }}
@@ -206,6 +214,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=worker
           build-args: |
             NODE_ENV=production
+            NODE_VERSION=${{ env.NODE_VERSION }}
 
   deploy:
     needs: [build-and-test, docker-build-api, docker-build-worker]
@@ -352,19 +361,25 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: 20.x
-          cache: "yarn"
+          node-version-file: ".nvmrc"
 
-      - name: Cache node_modules
+      # Cache node_modules and the Yarn 4 project cache (.yarn/cache). We do NOT use
+      # setup-node's `cache: "yarn"`: it invokes yarn during the Setup Node.js step, before
+      # corepack is enabled, and Node >=25 no longer ships corepack — so it would rely on a
+      # runner-global yarn shim that may not exist. Enabling corepack ourselves + caching here
+      # is robust regardless of the runner image.
+      - name: Cache dependencies
         uses: actions/cache@v5
         with:
-          path: node_modules
-          key: ${{ runner.os }}-node_modules-${{ hashFiles('**/yarn.lock') }}
+          path: |
+            node_modules
+            .yarn/cache
+          key: ${{ runner.os }}-deps-${{ hashFiles('**/yarn.lock') }}
           restore-keys: |
-            ${{ runner.os }}-node_modules-
+            ${{ runner.os }}-deps-
 
       - name: Install dependencies
-        run: corepack enable && yarn install --immutable
+        run: npm install -g corepack && corepack enable && yarn install --immutable
 
       - name: Build Storybook
         working-directory: frontend

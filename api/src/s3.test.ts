@@ -9,10 +9,16 @@ vi.mock("@aws-sdk/s3-request-presigner", () => ({
       `signed:${command.input.Key}?exp=${opts.expiresIn}`,
   ),
 }))
-vi.mock("@aws-sdk/client-s3", () => ({
-  S3Client: vi.fn(() => ({})),
-  GetObjectCommand: vi.fn((input: { Bucket: string; Key: string }) => ({ input })),
-}))
+vi.mock("@aws-sdk/client-s3", () => {
+  // vitest 4 invokes these with `new`, so they must be constructable (classes, not arrows).
+  class S3Client {
+    readonly isMock = true
+  }
+  class GetObjectCommand {
+    constructor(public input: { Bucket: string; Key: string }) {}
+  }
+  return { S3Client, GetObjectCommand }
+})
 
 describe("presignImageUrl", () => {
   it("presigns a stored object key", async () => {

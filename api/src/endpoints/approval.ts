@@ -12,7 +12,7 @@ import type { RequestHandler } from "../types"
 export const approveOrDeny: RequestHandler = async (req, res) => {
   const { user } = res.locals
   const testId = getParamInt("id", req)
-  const status = req.params.status as string | undefined
+  const status = req.params.status
 
   if (!testId) {
     res.status(400).json({ error: "Missing id" })

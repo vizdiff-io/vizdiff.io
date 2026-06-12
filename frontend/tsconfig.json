@@ -7,7 +7,6 @@
       "esnext"
     ],
     "jsx": "preserve",
-    "baseUrl": ".",
     "paths": {
       "@/*": [
         "./src/*"

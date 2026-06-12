@@ -1,0 +1,82 @@
+{{/*
+Embedded Postgres for standalone / air-gapped trials ONLY.
+For production use AWS RDS via the Terragrunt rds module and set
+postgres.embedded=false with external host/credentials.
+*/}}
+{{- if .Values.postgres.embedded }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "vizdiff.fullname" . }}-postgres
+  labels:
+    {{- include "vizdiff.componentLabels" (dict "ctx" . "component" "postgres") | nindent 4 }}
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - name: postgres
+      port: {{ .Values.postgres.port }}
+      targetPort: postgres
+  selector:
+    {{- include "vizdiff.componentSelectorLabels" (dict "ctx" . "component" "postgres") | nindent 4 }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "vizdiff.fullname" . }}-postgres
+  labels:
+    {{- include "vizdiff.componentLabels" (dict "ctx" . "component" "postgres") | nindent 4 }}
+spec:
+  serviceName: {{ include "vizdiff.fullname" . }}-postgres
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "vizdiff.componentSelectorLabels" (dict "ctx" . "component" "postgres") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "vizdiff.componentSelectorLabels" (dict "ctx" . "component" "postgres") | nindent 8 }}
+    spec:
+      containers:
+        - name: postgres
+          image: {{ .Values.postgres.embeddedConfig.image | quote }}
+          ports:
+            - name: postgres
+              containerPort: {{ .Values.postgres.port }}
+          env:
+            - name: POSTGRES_USER
+              value: {{ .Values.postgres.user | quote }}
+            - name: POSTGRES_DB
+              value: {{ .Values.postgres.database | quote }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "vizdiff.secretName" . }}
+                  key: POSTGRES_PASS
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", {{ .Values.postgres.user | quote }}]
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", {{ .Values.postgres.user | quote }}]
+            periodSeconds: 20
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          resources:
+            {{- toYaml .Values.postgres.embeddedConfig.resources | nindent 12 }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- if .Values.postgres.embeddedConfig.storageClassName }}
+        storageClassName: {{ .Values.postgres.embeddedConfig.storageClassName | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.postgres.embeddedConfig.storage | quote }}
+{{- end }}
