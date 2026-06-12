@@ -78,6 +78,7 @@ Single-host fallback: when `GITLAB_HOSTS` is unset, a single host is derived fro
 | `JWT_SECRET` | api | yes | `secret` | Signs the session JWT cookie and the transient OIDC state cookie. |
 | `PORT` | api | no | `3001` | API listen port. |
 | `WORKER_HEALTH_PORT` | worker | no | `3003` | Worker health endpoint port. |
+| `WORKER_STORY_CONCURRENCY` | worker | no | `1` | Max stories rendered concurrently within a single ingest task. Defaults to `1` (sequential); higher values overlap only S3 diff/upload work until per-story browser isolation lands (issue #152). |
 | `POSTGRES_HOST` | api, worker | no | `localhost` | Postgres host. |
 | `POSTGRES_PORT` | api, worker | no | `5432` | Postgres port. |
 | `POSTGRES_USER` | api, worker | no | `postgres` | Postgres user. |

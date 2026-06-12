@@ -68,3 +68,15 @@ export const GITLAB_HOST = process.env.GITLAB_HOST ?? "https://gitlab.com"
 export const APP_URL = process.env.APP_URL ?? "https://vizdiff.io"
 
 export const WORKER_HEALTH_PORT = parseInt(process.env.WORKER_HEALTH_PORT ?? "3003", 10)
+
+// Maximum number of stories rendered concurrently within a single ingest task (issue #152,
+// Phase 1). Defaults to 1 (fully sequential), matching the historical effective behavior: even
+// though stories were dispatched through a concurrency pool, `captureStableScreenshot` holds a
+// process-wide browser mutex, so browser navigation/stabilization/screenshot work has always run
+// one story at a time. Raising this only helps once that mutex is replaced with isolated browser
+// contexts/sessions (a later Phase 1 step) — see issue #152 for the phased plan. Values < 1 are
+// clamped to 1.
+export const WORKER_STORY_CONCURRENCY = Math.max(
+  1,
+  parseInt(process.env.WORKER_STORY_CONCURRENCY ?? "1", 10) || 1,
+)
