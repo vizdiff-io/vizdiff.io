@@ -592,7 +592,6 @@ describe("worker", () => {
       expect(deleteTask).not.toHaveBeenCalled()
 
       log.error = originalError
->>>>>>> 2fecde2 (fix(worker): defer render tasks until their baseline build is ready)
     })
   })
 

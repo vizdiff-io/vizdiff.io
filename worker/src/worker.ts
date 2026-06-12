@@ -9,13 +9,19 @@ import {
   POSTGRES_DATABASE,
   POSTGRES_PASS,
   POSTGRES_PORT,
+  IS_TEST,
 } from "./environment"
 import type { GitHubCheckData } from "./github"
 import type { GitLabCheckData } from "./gitlab"
 import { markTaskFinished, markTaskStarted, startHealthServer } from "./health"
 import { ingestStorybook, isBaselineBuildPending } from "./ingest"
 import { log } from "./log"
-import { latestTaskQueueId, fetchTask, NonRetryableTaskError, DependencyNotReadyError } from "./tasks"
+import {
+  latestTaskQueueId,
+  fetchTask,
+  NonRetryableTaskError,
+  DependencyNotReadyError,
+} from "./tasks"
 import { BuildTimeoutError } from "./timeout"
 
 type IngestStorybookPayload = {
@@ -38,8 +44,19 @@ const STUCK_RUNNING_THRESHOLD_MINUTES = 120 // 2 hours
 const STUCK_PENDING_THRESHOLD_MINUTES = 240 // 4 hours
 
 // How long to defer a render task each time its dependent (baseline) build is
-// still pending/in-progress, before re-checking.
+// still pending/in-progress, before re-checking. This is the length of the
+// exclusion window: the deferred task stays excluded from selection until
+// `nextRetryTime = deferStart + DEFER_INTERVAL_MS`.
 const DEFER_INTERVAL_MS = 1000 * 5 // 5 seconds
+// How long to wait before re-polling after a deferral. This MUST be strictly
+// less than DEFER_INTERVAL_MS so that when the worker re-polls, the deferred
+// task is still inside its exclusion window (now < nextRetryTime) and therefore
+// still excluded from selection. That guarantees the older dependency (lower id)
+// is the only eligible candidate at the re-poll and gets picked next — without
+// this gap, the re-poll fires exactly at nextRetryTime, the deferred (newer,
+// higher-id) task is no longer excluded, and descending-id selection re-picks it
+// instead of the dependency.
+const DEFER_REPOLL_MS = 1000 * 2 // 2 seconds
 // Maximum number of times a task may be deferred for an unfinished dependency
 // before we give up waiting and process it anyway. This bounds the wait and
 // guarantees forward progress (avoids livelock) if the dependent never finishes.
@@ -69,6 +86,11 @@ function clearDeferredTaskId(taskId: number): void {
 // Set of task ids that are currently deferred and not yet due for retry. These
 // are excluded from task selection so the worker can pick the dependent build
 // (typically an older, lower-id task) instead of re-selecting the deferred one.
+//
+// The exclusion window is [deferStart, nextRetryTime). Because the post-deferral
+// re-poll is scheduled at DEFER_REPOLL_MS < DEFER_INTERVAL_MS (i.e. strictly
+// before nextRetryTime), the deferred task is guaranteed to still be excluded at
+// that re-poll, leaving the older dependency as the only eligible candidate.
 function activeDeferredTaskIds(now: number): Set<number> {
   const ids = new Set<number>()
   for (const [taskId, info] of deferredTasksMap) {
@@ -198,8 +220,11 @@ export function pollForNewTasks(): void {
             log.info(
               `Deferring task ${taskQueueId} (${deferInfo.deferCount}/${MAX_DEFER_COUNT}) for ${DEFER_INTERVAL_MS / 1000}s: ${err.message}`,
             )
-            // Poll again soon so we can pick up the dependent task immediately.
-            setTimeout(() => pollForNewTasks(), DEFER_INTERVAL_MS)
+            // Re-poll sooner than the exclusion window expires (DEFER_REPOLL_MS <
+            // DEFER_INTERVAL_MS) so the deferred task is still excluded at the
+            // re-poll and the worker picks the older dependency instead of
+            // re-selecting this (newer, higher-id) task.
+            setTimeout(() => pollForNewTasks(), DEFER_REPOLL_MS)
             return
           }
 
@@ -463,7 +488,10 @@ export async function sweepStuckBuilds(): Promise<number> {
   }
 }
 
-// Entry point
-main().catch((err: unknown) => {
-  log.error(err, "Uncaught error in main()")
-})
+// Entry point. Skipped under test so importing this module for unit tests does
+// not start the background poll loop / database subscriber.
+if (!IS_TEST) {
+  main().catch((err: unknown) => {
+    log.error(err, "Uncaught error in main()")
+  })
+}
