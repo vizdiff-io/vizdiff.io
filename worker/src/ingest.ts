@@ -32,6 +32,7 @@ import { updateGitHubCheckRun, type GitHubCheckData } from "./github"
 import { getGitLabHostConfig, updateGitLabCommitStatus, type GitLabCheckData } from "./gitlab"
 import { log } from "./log"
 import { buildImageUrlResolver } from "./s3"
+import { hardenedChromeArgs, installBrowserSafeguards } from "./safeguards"
 import { startStaticServer } from "./server"
 import { getStorybookStories, navigateToStorybook, processStory } from "./stories"
 import { NonRetryableTaskError, isPermanentS3FetchError } from "./tasks"
@@ -248,8 +249,19 @@ export async function ingestStorybook(
       port: IS_PRODUCTION ? 4444 : undefined,
       capabilities: {
         browserName: "chrome",
+        // Enable WebDriver BiDi so we can install page-level rendering
+        // safeguards (issue #69) via `addInitScript`.
+        webSocketUrl: true,
         "goog:chromeOptions": {
-          args: ["--headless", "--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"],
+          // Base flags plus hardening flags that disable risky browser features
+          // (WebRTC, background networking, etc.) when executing untrusted
+          // story bundles. See `safeguards.ts`.
+          args: hardenedChromeArgs([
+            "--headless",
+            "--no-sandbox",
+            "--disable-dev-shm-usage",
+            "--disable-gpu",
+          ]),
         },
       },
       logLevel: "warn",
@@ -258,6 +270,10 @@ export async function ingestStorybook(
       transformRequest: nodeCompatTransformRequest,
     }
     const browser = await remote(config)
+
+    // Install page-level rendering safeguards (block off-origin navigation and
+    // external/real-time network access) before navigating to any story.
+    await installBrowserSafeguards(browser)
     screenshotTest.browserVersion = `${browser.capabilities.browserName}-${browser.capabilities.platformName}-${browser.capabilities.browserVersion}`
     log.info(
       { capabilities: browser.capabilities },
