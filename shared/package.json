@@ -16,6 +16,7 @@
     "typeorm": "^0.3.28"
   },
   "devDependencies": {
-    "typescript": "^5.9.3"
+    "@types/node": "25.9.2",
+    "typescript": "^6.0.3"
   }
 }

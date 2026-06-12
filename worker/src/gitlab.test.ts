@@ -40,9 +40,12 @@ describe("gitlab (worker)", () => {
       },
     }
 
-    vi.mocked(Gitlab).mockImplementation(
-      () => mockGitlabClient as unknown as InstanceType<typeof Gitlab>,
-    )
+    // vitest 4 invokes mock implementations with `new`, so the implementation
+    // must be a constructable `function` rather than a (non-constructable) arrow.
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion -- cast keeps the constructable function form vitest 4 requires
+    vi.mocked(Gitlab).mockImplementation(function (this: unknown) {
+      return mockGitlabClient as unknown as InstanceType<typeof Gitlab>
+    } as unknown as typeof Gitlab)
   })
 
   afterEach(() => {

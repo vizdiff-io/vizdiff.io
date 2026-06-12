@@ -49,22 +49,22 @@ const mockStories = {
   },
 }
 
-// Mock S3 client and commands
+// Mock S3 client and commands.
+// vitest 4 constructs these mocks with `new` and no longer treats arrow
+// functions as constructable. `S3Client` is a `vi.fn()` (so tests can assert
+// `toHaveBeenCalled` / override it via `mockImplementation`) backed by a
+// constructable `function` implementation. `GetObjectCommand` is a real class
+// because tests rely on `instanceof` / `expect.any(GetObjectCommand)`.
 vi.mock("@aws-sdk/client-s3", () => {
+  const MockS3Client = vi.fn(function (this: { send: typeof mockSend }) {
+    this.send = mockSend
+  })
+
   class MockGetObjectCommand {
     constructor(public input: { Bucket: string; Key: string }) {}
   }
-  Object.defineProperty(MockGetObjectCommand, Symbol.hasInstance, {
-    value: (instance: unknown) => instance?.constructor === MockGetObjectCommand,
-  })
 
-  return {
-    S3Client: vi.fn(() => ({ send: mockSend })),
-    GetObjectCommand: Object.assign(
-      vi.fn((input: { Bucket: string; Key: string }) => new MockGetObjectCommand(input)),
-      { prototype: MockGetObjectCommand.prototype },
-    ),
-  }
+  return { S3Client: MockS3Client, GetObjectCommand: MockGetObjectCommand }
 })
 
 // Prevent the worker from starting its polling loop
@@ -332,7 +332,7 @@ describe("worker", () => {
               return {
                 findOneBy: vi.fn().mockResolvedValue(mockScreenshotTest),
                 save: mockScreenshotTestSave.mockImplementation(async (test: unknown) => test),
-              } as unknown as Repository<ScreenshotTest>
+              }
             }
             return {
               createQueryBuilder: vi.fn().mockReturnValue({
@@ -342,7 +342,7 @@ describe("worker", () => {
                 getMany: vi.fn().mockResolvedValue([mockBaseTestResult]),
               }),
               save: mockTestResultSave.mockImplementation(async (result: unknown) => result),
-            } as unknown as Repository<TestResult>
+            }
           }),
           "@instanceof": Symbol.for("TypeORM.DataSource"),
           name: "default",
@@ -474,7 +474,7 @@ describe("worker", () => {
                     log.debug(`ScreenshotTest save called with: ${JSON.stringify(test)}`)
                     return test
                   }),
-                } as unknown as Repository<ScreenshotTest>
+                }
               }
               return {
                 createQueryBuilder: vi.fn().mockReturnValue({
@@ -487,7 +487,7 @@ describe("worker", () => {
                   log.debug(`TestResult save called with: ${JSON.stringify(result)}`)
                   return result
                 }),
-              } as unknown as Repository<TestResult>
+              }
             }),
             "@instanceof": Symbol.for("TypeORM.DataSource"),
             name: "default",
@@ -515,19 +515,24 @@ describe("worker", () => {
       const originalError = log.error
       log.error = vi.fn()
 
-      // Mock S3 to simulate a download failure
-      vi.mocked(S3Client).mockImplementation(() => ({
-        send: vi.fn().mockRejectedValue(new Error("S3 error")),
-        config: {
-          apiVersion: "2006-03-01",
-          region: "us-east-1",
-          credentials: {},
-          logger: {},
-          requestHandler: { handle: () => Promise.resolve({}) },
-        } as unknown as S3ClientResolvedConfig,
-        destroy: vi.fn(),
-        middlewareStack: {} as unknown as MiddlewareStack<any, any>,
-      }))
+      // Mock S3 to simulate a download failure.
+      // vitest 4 invokes mock implementations with `new`, so this must be a
+      // constructable `function` rather than a (non-constructable) arrow.
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion -- cast keeps the constructable function form vitest 4 requires
+      vi.mocked(S3Client).mockImplementation(function (this: unknown) {
+        return {
+          send: vi.fn().mockRejectedValue(new Error("S3 error")),
+          config: {
+            apiVersion: "2006-03-01",
+            region: "us-east-1",
+            credentials: {},
+            logger: {},
+            requestHandler: { handle: () => Promise.resolve({}) },
+          } as unknown as S3ClientResolvedConfig,
+          destroy: vi.fn(),
+          middlewareStack: {} as unknown as MiddlewareStack<any, any>,
+        }
+      } as unknown as typeof S3Client)
 
       await expect(ingestStorybook("test-project", 123, "test-upload")).rejects.toThrow("S3 error")
 
