@@ -70,13 +70,16 @@ export const APP_URL = process.env.APP_URL ?? "https://vizdiff.io"
 export const WORKER_HEALTH_PORT = parseInt(process.env.WORKER_HEALTH_PORT ?? "3003", 10)
 
 // Maximum number of stories rendered concurrently within a single ingest task (issue #152,
-// Phase 1). Defaults to 1 (fully sequential), matching the historical effective behavior: even
-// though stories were dispatched through a concurrency pool, `captureStableScreenshot` holds a
-// process-wide browser mutex, so browser navigation/stabilization/screenshot work has always run
-// one story at a time. Raising this only helps once that mutex is replaced with isolated browser
-// contexts/sessions (a later Phase 1 step) — see issue #152 for the phased plan. Values < 1 are
-// clamped to 1.
+// Phase 1). Defaults to 4, preserving the historical effective behavior. The previous hardcoded
+// pool size was 4: `captureStableScreenshot` holds a process-wide browser mutex, so browser
+// navigation/stabilization/screenshot work has always run one story at a time, but the S3 upload,
+// baseline download/diff, and result save phases run AFTER the mutex is released, so the pool
+// already overlapped those phases with the next story's capture. Lowering this to 1 would make
+// those phases fully serial and materially slow ingests for projects with many stories or slow S3.
+// Raising it above 4 enables more capture overlap only once the browser mutex is replaced with
+// isolated browser contexts/sessions (the Phase 1b isolation step) — see issue #152 for the phased
+// plan. Values < 1 are clamped to 1.
 export const WORKER_STORY_CONCURRENCY = Math.max(
   1,
-  parseInt(process.env.WORKER_STORY_CONCURRENCY ?? "1", 10) || 1,
+  parseInt(process.env.WORKER_STORY_CONCURRENCY ?? "4", 10) || 4,
 )
