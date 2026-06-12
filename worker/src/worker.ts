@@ -10,12 +10,15 @@ import {
   POSTGRES_PASS,
   POSTGRES_PORT,
   IS_TEST,
+  RETENTION_REAPER_ENABLED,
+  RETENTION_SWEEP_INTERVAL_MS,
 } from "./environment"
 import type { GitHubCheckData } from "./github"
 import type { GitLabCheckData } from "./gitlab"
 import { markTaskFinished, markTaskStarted, startHealthServer } from "./health"
 import { ingestStorybook, isBaselineBuildPending } from "./ingest"
 import { log } from "./log"
+import { runRetentionSweep } from "./retention"
 import {
   latestTaskQueueId,
   fetchTask,
@@ -67,6 +70,10 @@ const MAX_DEFER_COUNT = 60
 const subscriber = createPgSubscriber({ connectionString: CONN_STRING })
 // Current task being processed, if any
 let currentTaskId: number | undefined
+// Timestamp of the last retention sweep, to throttle the reaper to RETENTION_SWEEP_INTERVAL_MS.
+let lastRetentionSweepMs = 0
+// Guards against overlapping retention sweeps if one runs longer than the poll interval.
+let retentionSweepInFlight = false
 // Map of task IDs to their failure count and next retry time
 const failedTasksMap = new Map<number, { retryCount: number; nextRetryTime: number }>()
 // Map of task IDs that are deferred waiting on a dependent (baseline) build,
@@ -142,6 +149,28 @@ async function main() {
   pollForNewTasks()
 }
 
+/**
+ * Run the screenshot retention reaper (#79) at most once per RETENTION_SWEEP_INTERVAL_MS, only when
+ * enabled. Fire-and-forget: it runs in the background off the idle worker tick and never blocks task
+ * processing. A guard prevents overlapping sweeps.
+ */
+export function maybeRunRetentionSweep(): void {
+  if (!RETENTION_REAPER_ENABLED || retentionSweepInFlight) {
+    return
+  }
+  const now = Date.now()
+  if (now - lastRetentionSweepMs < RETENTION_SWEEP_INTERVAL_MS) {
+    return
+  }
+  lastRetentionSweepMs = now
+  retentionSweepInFlight = true
+  runRetentionSweep()
+    .catch((err: unknown) => log.error(err, "Error during retention sweep"))
+    .finally(() => {
+      retentionSweepInFlight = false
+    })
+}
+
 export function pollForNewTasks(): void {
   // Early return if we're already processing a task
   if (currentTaskId != undefined) {
@@ -159,6 +188,9 @@ export function pollForNewTasks(): void {
     .then((taskQueueId) => {
       if (taskQueueId == undefined) {
         log.trace(`No new tasks, checking for stuck builds...`)
+        // Idle: opportunistically run the retention reaper (throttled, fire-and-forget) and the
+        // stuck-build sweep.
+        maybeRunRetentionSweep()
         // No tasks, so check for stuck builds
         sweepStuckBuilds()
           .then((stuckBuildsCount) => {

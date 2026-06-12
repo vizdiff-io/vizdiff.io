@@ -1,4 +1,9 @@
-import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3"
+import {
+  DeleteObjectsCommand,
+  GetObjectCommand,
+  ListObjectsV2Command,
+  S3Client,
+} from "@aws-sdk/client-s3"
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner"
 
 import {
@@ -7,12 +12,88 @@ import {
   S3_CLIENT_CONFIG,
   VCS_IMAGE_URL_TTL_SECONDS,
 } from "./environment"
+import { log } from "./log"
 
 // Lazily constructed so importing this module has no side effects (presigning is a local signing
 // operation, so one shared client is fine).
 let s3ClientInstance: S3Client | undefined
 function s3Client(): S3Client {
   return (s3ClientInstance ??= new S3Client(S3_CLIENT_CONFIG))
+}
+
+// S3 DeleteObjects accepts at most 1000 keys per request.
+const DELETE_BATCH_SIZE = 1000
+
+export interface DeletePrefixResult {
+  deleted: number
+  errors: number
+}
+
+/**
+ * Delete every object under one or more key prefixes (e.g. `projects/<id>/`). Used to reclaim
+ * screenshot storage when a project's owning account is deleted (#132).
+ *
+ * Lists with {@link ListObjectsV2Command} and removes in batched {@link DeleteObjectsCommand} calls
+ * (1000 keys max per request). The operation is best-effort and idempotent: re-running over an
+ * already-empty prefix is a no-op, and per-object delete errors are counted and logged rather than
+ * thrown, so a partial S3 failure never blocks the caller (account deletion must still succeed).
+ *
+ * @returns counts of objects successfully deleted and objects that reported a delete error.
+ */
+export async function deleteObjectsByPrefixes(
+  prefixes: readonly string[],
+  client: S3Client = s3Client(),
+  bucket: string = S3_BUCKET_NAME,
+): Promise<DeletePrefixResult> {
+  const result: DeletePrefixResult = { deleted: 0, errors: 0 }
+
+  for (const prefix of prefixes) {
+    if (!prefix) {
+      // Refuse empty prefixes outright: an empty prefix matches the entire bucket.
+      log.warn("deleteObjectsByPrefixes: refusing to delete an empty prefix")
+      continue
+    }
+
+    let continuationToken: string | undefined
+    do {
+      const listed = await client.send(
+        new ListObjectsV2Command({
+          Bucket: bucket,
+          Prefix: prefix,
+          ContinuationToken: continuationToken,
+        }),
+      )
+
+      const keys = (listed.Contents ?? [])
+        .map((obj) => obj.Key)
+        .filter((key): key is string => typeof key === "string")
+
+      for (let i = 0; i < keys.length; i += DELETE_BATCH_SIZE) {
+        const batch = keys.slice(i, i + DELETE_BATCH_SIZE)
+        const deleteResult = await client.send(
+          new DeleteObjectsCommand({
+            Bucket: bucket,
+            Delete: { Objects: batch.map((Key) => ({ Key })), Quiet: true },
+          }),
+        )
+        const batchErrors = deleteResult.Errors ?? []
+        result.deleted += batch.length - batchErrors.length
+        result.errors += batchErrors.length
+        for (const err of batchErrors) {
+          log.warn(`Failed to delete S3 object ${err.Key ?? "?"}: ${err.Message ?? err.Code ?? ""}`)
+        }
+      }
+
+      continuationToken = listed.IsTruncated ? listed.NextContinuationToken : undefined
+    } while (continuationToken)
+  }
+
+  return result
+}
+
+/** Build the canonical S3 key prefix that holds all objects for a project (#132). */
+export function projectKeyPrefix(projectId: number | string): string {
+  return `projects/${projectId}/`
 }
 
 interface ImageRefs {
