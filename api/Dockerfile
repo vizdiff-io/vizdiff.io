@@ -6,7 +6,7 @@ FROM node:${NODE_VERSION}-alpine AS deps
 WORKDIR /app
 # corepack is no longer bundled with Node >= 25, so install it explicitly before enabling
 RUN npm install -g corepack && corepack enable
-COPY .yarn/releases/yarn-4.3.0.cjs ./.yarn/releases/
+COPY .yarn/releases/ ./.yarn/releases/
 COPY package.json yarn.lock .yarnrc.yml tsconfig.json tsconfig.options.json ./
 COPY api/package.json ./api/
 COPY shared/package.json ./shared/

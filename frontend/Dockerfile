@@ -6,7 +6,7 @@ WORKDIR /app
 RUN apk add --no-cache git
 # corepack is no longer bundled with Node >= 25, so install it explicitly before enabling
 RUN npm install -g corepack && corepack enable
-COPY .yarn/releases/yarn-4.3.0.cjs ./.yarn/releases/
+COPY .yarn/releases/ ./.yarn/releases/
 COPY package.json yarn.lock .yarnrc.yml tsconfig.json tsconfig.options.json ./
 COPY frontend/package.json ./frontend/
 COPY shared/package.json ./shared/
