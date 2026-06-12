@@ -32,10 +32,10 @@ import { expect, describe, it, afterAll, beforeEach, vi, afterEach } from "vites
 import { remote } from "webdriverio"
 
 import { Database } from "./database"
-import { ingestStorybook } from "./ingest"
+import { ingestStorybook, isBaselineBuildPending } from "./ingest"
 import { log } from "./log"
 import { processStory } from "./stories"
-import { NonRetryableTaskError, isPermanentS3FetchError } from "./tasks"
+import { DependencyNotReadyError, NonRetryableTaskError, isPermanentS3FetchError } from "./tasks"
 import { BuildTimeoutError } from "./timeout"
 import { processTask, shutdown, sweepStuckBuilds } from "./worker"
 
@@ -82,9 +82,10 @@ vi.mock("./worker", async (importOriginal) => {
   }
 })
 
-// Mock tasks module. Keep the real error-classification helpers
-// (NonRetryableTaskError / isPermanentS3FetchError) so ingest.ts and worker.ts
-// behave as in production; only stub the DB-touching queue functions.
+// Mock tasks module. Keep the real error/control-flow exports
+// (NonRetryableTaskError / isPermanentS3FetchError / DependencyNotReadyError) so
+// ingest.ts and worker.ts behave as in production; only stub the DB-touching
+// queue functions.
 vi.mock("./tasks", async (importOriginal) => {
   const actual: object = await importOriginal()
   return {
@@ -500,6 +501,98 @@ describe("worker", () => {
       expect(isPermanentS3FetchError({ $metadata: { httpStatusCode: 500 } })).toBe(false)
       expect(isPermanentS3FetchError(undefined)).toBe(false)
       expect(isPermanentS3FetchError(null)).toBe(false)
+    })
+  })
+
+  // Issue #125: render tasks must not run before the baseline build they depend
+  // on. isBaselineBuildPending() detects an in-flight baseline; processTask()
+  // throws DependencyNotReadyError so the worker can defer.
+  describe("dependent task ordering (#125)", () => {
+    // Build a Database mock whose ScreenshotTest repo returns `baseTest` from
+    // findOneBy and `inFlightCount` from the dependency query's getCount().
+    function mockDatabaseForDependency(
+      baseTest: { id: number; baseCommitSha: string | null; project: { id: string } } | null,
+      inFlightCount: number,
+    ): void {
+      vi.mocked(Database).mockImplementation(
+        async () =>
+          ({
+            getRepository: vi.fn().mockImplementation((entity) => {
+              if (entity === ScreenshotTest) {
+                return {
+                  findOneBy: vi.fn().mockResolvedValue(baseTest),
+                  save: mockScreenshotTestSave.mockImplementation(async (t: unknown) => t),
+                  createQueryBuilder: vi.fn().mockReturnValue({
+                    where: vi.fn().mockReturnThis(),
+                    andWhere: vi.fn().mockReturnThis(),
+                    getCount: vi.fn().mockResolvedValue(inFlightCount),
+                  }),
+                }
+              }
+              return {
+                createQueryBuilder: vi.fn().mockReturnValue({
+                  leftJoinAndSelect: vi.fn().mockReturnThis(),
+                  where: vi.fn().mockReturnThis(),
+                  getMany: vi.fn().mockResolvedValue([]),
+                }),
+                save: mockTestResultSave.mockImplementation(async (r: unknown) => r),
+              }
+            }),
+            "@instanceof": Symbol.for("TypeORM.DataSource"),
+            name: "default",
+            options: { type: "postgres", database: "test" } as DataSourceOptions,
+            isInitialized: true,
+          }) as unknown as DataSource,
+      )
+    }
+
+    it("isBaselineBuildPending returns true when a baseline build is in flight", async () => {
+      mockDatabaseForDependency(
+        { id: 200, baseCommitSha: "base-sha", project: { id: "test-project" } },
+        1,
+      )
+      await expect(isBaselineBuildPending(200)).resolves.toBe(true)
+    })
+
+    it("isBaselineBuildPending returns false when no baseline build is in flight", async () => {
+      mockDatabaseForDependency(
+        { id: 200, baseCommitSha: "base-sha", project: { id: "test-project" } },
+        0,
+      )
+      await expect(isBaselineBuildPending(200)).resolves.toBe(false)
+    })
+
+    it("isBaselineBuildPending returns false when the test has no base commit", async () => {
+      mockDatabaseForDependency(
+        { id: 200, baseCommitSha: null, project: { id: "test-project" } },
+        5,
+      )
+      await expect(isBaselineBuildPending(200)).resolves.toBe(false)
+    })
+
+    it("processTask throws DependencyNotReadyError (and does not delete the task) when the baseline is pending", async () => {
+      const originalError = log.error
+      log.error = vi.fn()
+      mockDatabaseForDependency(
+        { id: 200, baseCommitSha: "base-sha", project: { id: "test-project" } },
+        1,
+      )
+
+      const { deleteTask } = await import("./tasks")
+
+      await expect(
+        processTask("ingest_storybook", 200, {
+          projectId: "test-project",
+          uploadId: "test-upload",
+        }),
+      ).rejects.toBeInstanceOf(DependencyNotReadyError)
+
+      // The task must remain in the queue so it can be retried after the
+      // dependency finishes.
+      expect(deleteTask).not.toHaveBeenCalled()
+
+      log.error = originalError
+>>>>>>> 2fecde2 (fix(worker): defer render tasks until their baseline build is ready)
     })
   })
 
