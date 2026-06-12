@@ -444,8 +444,26 @@ describe("worker", () => {
       expect(isPermanentS3FetchError({ $metadata: { httpStatusCode: 404 } })).toBe(true)
     })
 
-    it("classifies a 403 status code as permanent", () => {
-      expect(isPermanentS3FetchError({ name: "AccessDenied" })).toBe(true)
+    it("classifies a NotFound name as permanent", () => {
+      expect(isPermanentS3FetchError({ name: "NotFound" })).toBe(true)
+    })
+
+    it("classifies InvalidObjectState (Glacier archive) as permanent", () => {
+      expect(isPermanentS3FetchError({ name: "InvalidObjectState" })).toBe(true)
+    })
+
+    it("keeps a 403/AccessDenied auth error retryable", () => {
+      // A transient IRSA/bucket-policy/KMS rollout or auth blip must not delete
+      // the queue row for an object that actually exists.
+      expect(isPermanentS3FetchError({ name: "AccessDenied" })).toBe(false)
+      expect(isPermanentS3FetchError({ name: "Forbidden" })).toBe(false)
+      expect(isPermanentS3FetchError({ $metadata: { httpStatusCode: 403 } })).toBe(false)
+    })
+
+    it("keeps a missing/misconfigured bucket retryable", () => {
+      // A missing bucket is a recoverable deployment error; it should keep
+      // retrying so it recovers once the bucket exists again.
+      expect(isPermanentS3FetchError({ name: "NoSuchBucket" })).toBe(false)
     })
 
     it("does not classify a transient/network error as permanent", () => {

@@ -30,21 +30,26 @@ export class NonRetryableTaskError extends Error {
 /**
  * S3 / AWS SDK error names (the `name` field on a thrown error) that represent
  * permanent, non-retryable failures when fetching the uploaded build tarball.
- * These indicate the object is simply gone or unreachable in a way that will not
- * recover on retry, so there is no point burning retries with backoff.
+ * These are restricted to genuine "the object is not retrievable" cases: the
+ * object key is missing, or it has been archived to Glacier and a GET will keep
+ * failing until it is restored. Anything else — including auth/permission
+ * failures (403 / AccessDenied / Forbidden), missing buckets, 5xx, timeouts, and
+ * network errors — is treated as transient so a deployment/IRSA/bucket-policy/KMS
+ * blip recovers on retry instead of permanently deleting the queue row for an
+ * object that actually exists.
  */
 const PERMANENT_S3_ERROR_NAMES = new Set<string>([
   "NoSuchKey", // The object key does not exist (tarball was deleted / expired)
-  "NoSuchBucket", // The target bucket does not exist
-  "AccessDenied", // We are not permitted to read the object; retrying won't help
-  "Forbidden", // 403 variant surfaced for HEAD/GET in some SDK paths
   "NotFound", // 404 variant surfaced for HEAD/GET in some SDK paths
+  "InvalidObjectState", // Object archived to Glacier; GET fails until restored
 ])
 
 /**
  * Returns true if the given error represents a permanent S3 fetch failure that
  * should not be retried. Matches on the AWS SDK v3 error `name` as well as a
- * 404/403 `$metadata.httpStatusCode` as a fallback.
+ * 404 `$metadata.httpStatusCode` as a fallback. Only genuine object-missing /
+ * archived errors are permanent; transient failures (including 403 auth blips)
+ * stay retryable.
  */
 export function isPermanentS3FetchError(error: unknown): boolean {
   if (typeof error !== "object" || error == null) {
@@ -58,7 +63,7 @@ export function isPermanentS3FetchError(error: unknown): boolean {
 
   const metadata = (error as { $metadata?: { httpStatusCode?: unknown } }).$metadata
   const statusCode = metadata?.httpStatusCode
-  if (typeof statusCode === "number" && (statusCode === 403 || statusCode === 404)) {
+  if (typeof statusCode === "number" && statusCode === 404) {
     return true
   }
 
