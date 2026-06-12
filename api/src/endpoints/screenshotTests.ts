@@ -1,17 +1,23 @@
 import { Project, ScreenshotTest, TestResult } from "shared"
 
 import type {
+  BuildsListResponse,
   ScreenshotTestResponse,
   ScreenshotTestSummaryResponse,
   TestResponse,
 } from "../apiTypes"
 import { toSeconds } from "../conversions"
 import { Database } from "../database"
-import { getParamInt } from "../http"
+import { getParamInt, getQueryInt } from "../http"
 import { log } from "../log"
 import { getAccessibleProjectIds } from "../projectAccess"
 import { presignImageUrl, presignImageUrlOrNull } from "../s3"
 import type { RequestHandler } from "../types"
+
+/** Default number of builds returned per page by the builds list endpoint. */
+const DEFAULT_BUILDS_LIMIT = 100
+/** Upper bound on the page size a caller can request. */
+const MAX_BUILDS_LIMIT = 100
 
 type ScreenshotTestWithStats = {
   screenshot_test_id: number
@@ -55,6 +61,14 @@ export const list: RequestHandler = async (req, res) => {
     res.status(400).json({ error: "Missing projectId" })
     return
   }
+
+  // Pagination: return a page of builds (default 100) plus a flag indicating whether more exist.
+  // Clamp the limit to a sane range and the offset to non-negative values.
+  const limit = Math.min(
+    Math.max(getQueryInt("limit", req) ?? DEFAULT_BUILDS_LIMIT, 1),
+    MAX_BUILDS_LIMIT,
+  )
+  const offset = Math.max(getQueryInt("offset", req) ?? 0, 0)
 
   const db = await Database()
 
@@ -130,9 +144,18 @@ export const list: RequestHandler = async (req, res) => {
     ])
     .where("screenshot_test.project = :projectId", { projectId })
     .orderBy("screenshot_test.createdAt", "DESC")
+    // Tiebreaker keeps pagination stable when builds share a createdAt timestamp.
+    .addOrderBy("screenshot_test.id", "DESC")
+    .offset(offset)
+    // Fetch one extra row to detect whether more builds exist beyond this page.
+    .limit(limit + 1)
     .getRawMany<ScreenshotTestWithStats>()
 
-  const responses: ScreenshotTestSummaryResponse[] = screenshotTestsWithStats.map((test) => ({
+  // Trim the sentinel row used to compute hasMore.
+  const hasMore = screenshotTestsWithStats.length > limit
+  const pageTests = hasMore ? screenshotTestsWithStats.slice(0, limit) : screenshotTestsWithStats
+
+  const builds: ScreenshotTestSummaryResponse[] = pageTests.map((test) => ({
     id: test.screenshot_test_id,
     projectId,
     projectName: project.name,
@@ -152,7 +175,9 @@ export const list: RequestHandler = async (req, res) => {
     stories: parseInt(test.testcount) || 0,
     changes: parseInt(test.changecount) || 0,
   }))
-  res.json(responses)
+
+  const response: BuildsListResponse = { builds, hasMore }
+  res.json(response)
 }
 
 export const get: RequestHandler = async (req, res) => {

@@ -10,19 +10,25 @@ import {
   Tooltip,
   Link as MuiLink,
   CircularProgress,
+  Button,
 } from "@mui/material"
+import { AxiosError } from "axios"
 import { formatDistanceToNow } from "date-fns"
 import Link from "next/link"
 import { useRouter } from "next/router"
-import { type JSX, useEffect, useState } from "react"
+import { type JSX, useCallback, useEffect, useState } from "react"
 
 import { AppLayout } from "@/components/AppLayout"
 import { Seo } from "@/components/Seo"
 import useApiGet from "@/hooks/useApiGet"
 import useAuth from "@/hooks/useAuth"
 import { useBreadcrumbs } from "@/hooks/useBreadcrumbs"
-import { apiPost } from "@/lib/apiMethods"
-import type { ProjectResponse, ScreenshotTestSummaryResponse } from "@/lib/apiTypes"
+import { apiGet, apiPost } from "@/lib/apiMethods"
+import type {
+  BuildsListResponse,
+  ProjectResponse,
+  ScreenshotTestSummaryResponse,
+} from "@/lib/apiTypes"
 import { getStatusColor } from "@/lib/colors"
 import { getBranchUrl, getCommitUrl, getPullRequestUrl } from "@/lib/links"
 import { plural } from "@/lib/text"
@@ -38,10 +44,14 @@ export default function Project(): JSX.Element {
     projectId ? `/api/projects/${projectId}` : undefined,
   )
   const projectName = project?.name
-  const [buildsResponse, buildsLoading, buildsError] = useApiGet<ScreenshotTestSummaryResponse[]>(
-    projectId ? `/api/projects/${projectId}/builds` : undefined,
-  )
-  const builds = buildsResponse ?? []
+  const {
+    builds,
+    loading: buildsLoading,
+    loadingMore: buildsLoadingMore,
+    hasMore: buildsHasMore,
+    error: buildsError,
+    loadMore: loadMoreBuilds,
+  } = useBuilds(projectId)
   const [copyTooltip, setCopyTooltip] = useState("Copy")
   const [resetTokenLoading, setResetTokenLoading] = useState(false)
   const [resetTokenTooltip, setResetTokenTooltip] = useState("Reset Token")
@@ -360,6 +370,18 @@ export default function Project(): JSX.Element {
                   </Paper>
                 </Link>
               ))}
+              {buildsHasMore && (
+                <Box sx={{ display: "flex", justifyContent: "center", mt: 1 }}>
+                  <Button
+                    variant="outlined"
+                    onClick={() => void loadMoreBuilds()}
+                    disabled={buildsLoadingMore}
+                    startIcon={buildsLoadingMore ? <CircularProgress size={16} /> : undefined}
+                  >
+                    {buildsLoadingMore ? "Loading..." : "Load more"}
+                  </Button>
+                </Box>
+              )}
             </Box>
           )}
         </Box>
@@ -374,4 +396,102 @@ function getProjectId(id: string | string[] | undefined): number | undefined {
     return isNaN(parsedId) ? undefined : parsedId
   }
   return undefined
+}
+
+/** Number of builds fetched per page by the project builds list. */
+const BUILDS_PAGE_SIZE = 100
+
+type UseBuildsResult = {
+  builds: ScreenshotTestSummaryResponse[]
+  loading: boolean
+  loadingMore: boolean
+  hasMore: boolean
+  error: AxiosError | null
+  loadMore: () => Promise<void>
+}
+
+/**
+ * Incrementally loads a project's builds, fetching {@link BUILDS_PAGE_SIZE} at a time. The first
+ * page loads automatically; subsequent pages are appended via {@link UseBuildsResult.loadMore}.
+ */
+function useBuilds(projectId: number | undefined): UseBuildsResult {
+  const [builds, setBuilds] = useState<ScreenshotTestSummaryResponse[]>([])
+  const [loading, setLoading] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(false)
+  const [error, setError] = useState<AxiosError | null>(null)
+
+  const fetchPage = useCallback(
+    async (offset: number): Promise<BuildsListResponse | null> => {
+      if (projectId == undefined) {
+        return null
+      }
+      const [data, err] = await apiGet<BuildsListResponse>(
+        `/api/projects/${projectId}/builds?limit=${BUILDS_PAGE_SIZE}&offset=${offset}`,
+      )
+      if (err) {
+        setError(err)
+        return null
+      }
+      setError(null)
+      return data
+    },
+    [projectId],
+  )
+
+  // Load (or reload) the first page whenever the project changes.
+  useEffect(() => {
+    let cancelled = false
+    if (projectId == undefined) {
+      setBuilds([])
+      setHasMore(false)
+      setLoading(false)
+      setError(null)
+      return
+    }
+
+    setLoading(true)
+    setBuilds([])
+    setHasMore(false)
+    fetchPage(0)
+      .then((data) => {
+        if (cancelled || !data) {
+          return
+        }
+        setBuilds(data.builds)
+        setHasMore(data.hasMore)
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          setError(err instanceof AxiosError ? err : new AxiosError(String(err)))
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setLoading(false)
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [projectId, fetchPage])
+
+  const loadMore = useCallback(async () => {
+    if (loadingMore || !hasMore) {
+      return
+    }
+    setLoadingMore(true)
+    try {
+      const data = await fetchPage(builds.length)
+      if (data) {
+        setBuilds((prev) => [...prev, ...data.builds])
+        setHasMore(data.hasMore)
+      }
+    } finally {
+      setLoadingMore(false)
+    }
+  }, [builds.length, fetchPage, hasMore, loadingMore])
+
+  return { builds, loading, loadingMore, hasMore, error, loadMore }
 }

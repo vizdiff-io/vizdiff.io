@@ -23,6 +23,20 @@ export function getQueryString(key: string, req: DefaultRequest): string | undef
   return typeof maybeValue === "string" ? maybeValue : undefined
 }
 
+export function getQueryInt(key: string, req: DefaultRequest): number | undefined {
+  const value = getQueryString(key, req)
+  if (value == undefined) {
+    return undefined
+  }
+
+  const parsed = parseInt(value, 10)
+  if (isNaN(parsed)) {
+    return undefined
+  }
+
+  return parsed
+}
+
 export function getParamString(name: string, req: Request): string | undefined {
   return req.params[name]
 }
