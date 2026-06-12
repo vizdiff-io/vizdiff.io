@@ -9,6 +9,62 @@ type Task = {
 
 const LOCK_TIMEOUT_MINUTES = 60
 
+/**
+ * Error that signals the task should NOT be retried. When the worker catches one
+ * of these it deletes the task from the queue instead of releasing the lock for
+ * an exponential-backoff retry. Use this for permanent failures where retrying
+ * cannot possibly succeed (e.g. the uploaded build tarball no longer exists in
+ * S3). The associated `ScreenshotTest` should already be marked failed by the
+ * task handler before throwing.
+ */
+export class NonRetryableTaskError extends Error {
+  override readonly cause?: unknown
+
+  constructor(message: string, cause?: unknown) {
+    super(message)
+    this.name = "NonRetryableTaskError"
+    this.cause = cause
+  }
+}
+
+/**
+ * S3 / AWS SDK error names (the `name` field on a thrown error) that represent
+ * permanent, non-retryable failures when fetching the uploaded build tarball.
+ * These indicate the object is simply gone or unreachable in a way that will not
+ * recover on retry, so there is no point burning retries with backoff.
+ */
+const PERMANENT_S3_ERROR_NAMES = new Set<string>([
+  "NoSuchKey", // The object key does not exist (tarball was deleted / expired)
+  "NoSuchBucket", // The target bucket does not exist
+  "AccessDenied", // We are not permitted to read the object; retrying won't help
+  "Forbidden", // 403 variant surfaced for HEAD/GET in some SDK paths
+  "NotFound", // 404 variant surfaced for HEAD/GET in some SDK paths
+])
+
+/**
+ * Returns true if the given error represents a permanent S3 fetch failure that
+ * should not be retried. Matches on the AWS SDK v3 error `name` as well as a
+ * 404/403 `$metadata.httpStatusCode` as a fallback.
+ */
+export function isPermanentS3FetchError(error: unknown): boolean {
+  if (typeof error !== "object" || error == null) {
+    return false
+  }
+
+  const name = (error as { name?: unknown }).name
+  if (typeof name === "string" && PERMANENT_S3_ERROR_NAMES.has(name)) {
+    return true
+  }
+
+  const metadata = (error as { $metadata?: { httpStatusCode?: unknown } }).$metadata
+  const statusCode = metadata?.httpStatusCode
+  if (typeof statusCode === "number" && (statusCode === 403 || statusCode === 404)) {
+    return true
+  }
+
+  return false
+}
+
 export async function latestTaskQueueId(): Promise<number | undefined> {
   const client = await DatabasePool()
   try {

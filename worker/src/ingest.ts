@@ -25,6 +25,7 @@ import { log } from "./log"
 import { buildImageUrlResolver } from "./s3"
 import { startStaticServer } from "./server"
 import { getStorybookStories, navigateToStorybook, processStory } from "./stories"
+import { NonRetryableTaskError, isPermanentS3FetchError } from "./tasks"
 
 export async function ingestStorybook(
   projectId: string,
@@ -136,7 +137,24 @@ export async function ingestStorybook(
     const tarballPath = path.join(tmpDir, "storybook.tar.gz")
     log.info(`Downloading storybook build from S3 ${key} -> ${tarballPath}`)
     const getObjectCommand = new GetObjectCommand({ Bucket: bucket, Key: key })
-    const response = await s3Client.send(getObjectCommand)
+    let response
+    try {
+      response = await s3Client.send(getObjectCommand)
+    } catch (error) {
+      // If the upload tarball is permanently gone (e.g. NoSuchKey) there is no
+      // point retrying. Surface it as a non-retryable error so the worker deletes
+      // the task from the queue instead of releasing the lock for backoff retries.
+      // The outer catch below marks the ScreenshotTest as failed before this
+      // propagates.
+      if (isPermanentS3FetchError(error)) {
+        const name = (error as { name?: string }).name ?? "unknown"
+        throw new NonRetryableTaskError(
+          `Storybook upload tarball is unavailable (${name}) at s3://${bucket}/${key}; not retrying`,
+          error,
+        )
+      }
+      throw error
+    }
     if (!response.Body) {
       throw new Error("Empty response body from S3")
     }
