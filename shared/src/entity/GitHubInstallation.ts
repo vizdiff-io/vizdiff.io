@@ -36,7 +36,7 @@ export class GitHubInstallation {
   @JoinColumn({ name: "creator_id", referencedColumnName: "id" })
   creator?: Promise<User>
 
-  @ManyToMany("User")
+  @ManyToMany("User", "githubInstallations")
   @JoinTable({
     name: "user_github_installations",
     joinColumn: { name: "installation_id", referencedColumnName: "id" },
