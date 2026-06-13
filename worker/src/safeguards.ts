@@ -24,8 +24,7 @@ import { log } from "./log"
  * could attempt to capture references before our script runs. We install it as
  * the very first script and also rely on the Chrome flags + the localhost-only
  * static server as the harder boundaries. Byte-accurate external asset metering
- * (issue #69, last bullet) requires CDP/BiDi network interception and is
- * deferred; see README/PR notes.
+ * (issue #69, last bullet) requires CDP/BiDi network interception.
  */
 
 /**
@@ -44,7 +43,7 @@ export const ALLOWED_HOST = "localhost"
  */
 export const HARDENING_CHROME_ARGS: readonly string[] = [
   // Disable WebRTC entirely (STUN/TURN/data channels are a common exfil/peer
-  // vector and are never needed to render a static story).
+  // vector and are almost never needed to render a static story).
   "--disable-webrtc",
   "--enforce-webrtc-ip-permission-check",
   "--force-webrtc-ip-handling-policy=disable_non_proxied_udp",
