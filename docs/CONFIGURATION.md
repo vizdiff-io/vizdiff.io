@@ -89,6 +89,12 @@ Single-host fallback: when `GITLAB_HOSTS` is unset, a single host is derived fro
 | `S3_FORCE_PATH_STYLE` | api, worker | no | `true` when `S3_ENDPOINT` set | Use path-style addressing (required by MinIO). |
 | `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_REGION` | api, worker | yes* | — | Standard AWS SDK credentials (omit when using IRSA / instance roles; for MinIO use its access/secret keys). |
 | `ENABLE_VCS_STATUS` | api, worker | no | `true` in prod/staging | Whether to post VCS commit statuses. |
+| `MAX_STORIES_PER_UPLOAD` | worker | no | `1000` | Max stories processed per upload; over-limit uploads fail the build. `0` disables. |
+| `MAX_TARBALL_FILES` | worker | no | `50000` | Max number of file entries allowed in an uploaded tarball. `0` disables. |
+| `MAX_EXTRACTED_BYTES` | worker | no | `1073741824` (1 GiB) | Max total uncompressed size of an extracted tarball (zip-bomb guard). `0` disables. |
+| `MAX_TARBALL_ENTRY_BYTES` | worker | no | `268435456` (256 MiB) | Max size of any single extracted file. `0` disables. |
+| `MAX_TARBALL_PATH_LENGTH` | worker | no | `4096` | Max length of any path inside the tarball. `0` disables. |
+| `MAX_STORY_IDENTIFIER_LENGTH` | worker | no | `2048` | Max length of a story id/name/title/importPath. `0` disables. |
 | `AUTH_PROVIDER` | api | no | `oidc` (prod), `dev` (else) | Identity provider: `oidc`, `github`, or `dev`. |
 | `OIDC_ISSUER` | api | yes (oidc) | — | OIDC issuer URL (e.g. `https://login.microsoftonline.com/<tenant>/v2.0`). |
 | `OIDC_CLIENT_ID` | api | yes (oidc) | — | OIDC client ID. |

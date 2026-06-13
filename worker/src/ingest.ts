@@ -12,7 +12,6 @@ import {
   createMarkdownForBuildResult,
   createSummaryForFailedBuild,
 } from "shared"
-import { extract } from "tar"
 import { Not, In } from "typeorm"
 import { remote } from "webdriverio"
 
@@ -20,10 +19,12 @@ import { Database } from "./database"
 import { downloadWithTimeout } from "./download"
 import {
   IS_PRODUCTION,
+  MAX_STORIES_PER_UPLOAD,
   S3_BUCKET_NAME,
   S3_CLIENT_CONFIG,
   WORKER_STORY_CONCURRENCY,
 } from "./environment"
+import { safeExtract } from "./extract"
 import { updateGitHubCheckRun, type GitHubCheckData } from "./github"
 import { getGitLabHostConfig, updateGitLabCommitStatus, type GitLabCheckData } from "./gitlab"
 import { log } from "./log"
@@ -172,7 +173,7 @@ export async function ingestStorybook(
 
     // Extract the tarball
     log.info(`Extracting storybook build to: ${tmpDir}`)
-    await extract({ file: tarballPath, cwd: tmpDir })
+    await safeExtract(tarballPath, tmpDir)
     log.debug(`Successfully extracted storybook build`)
 
     // Initialize WebdriverIO
@@ -207,15 +208,20 @@ export async function ingestStorybook(
         // Navigate to the Storybook iframe and wait for stories to load
         await navigateToStorybook(browser, port)
 
-        // Get the loaded stories
+        // Get the loaded stories (validated: identifier length caps applied per story)
         const stories = await getStorybookStories(browser)
-        if (Object.keys(stories).length === 0) {
-          throw new Error("Storybook loaded but contains no stories")
-        }
 
         const storyCount = Object.keys(stories).length
         if (storyCount === 0) {
           throw new Error("Storybook loaded but contains no stories")
+        }
+
+        // Guard against pathological uploads with a runaway number of stories.
+        if (MAX_STORIES_PER_UPLOAD > 0 && storyCount > MAX_STORIES_PER_UPLOAD) {
+          throw new Error(
+            `Storybook contains too many stories: ${storyCount} (max ${MAX_STORIES_PER_UPLOAD}). ` +
+              `Set MAX_STORIES_PER_UPLOAD to raise this limit.`,
+          )
         }
 
         log.info(`Found ${storyCount} stories to process`)
