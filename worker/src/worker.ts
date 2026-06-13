@@ -16,6 +16,7 @@ import { markTaskFinished, markTaskStarted, startHealthServer } from "./health"
 import { ingestStorybook } from "./ingest"
 import { log } from "./log"
 import { latestTaskQueueId, fetchTask, NonRetryableTaskError } from "./tasks"
+import { BuildTimeoutError } from "./timeout"
 
 type IngestStorybookPayload = {
   projectId: string
@@ -266,6 +267,12 @@ export async function processTask(
         // lock for backoff retries. The task handler has already marked the
         // ScreenshotTest as failed.
         log.warn(error, `Task ${currentTaskId} failed permanently, deleting from queue`)
+        await deleteTask(currentTaskId)
+      } else if (error instanceof BuildTimeoutError) {
+        // A timed-out build is almost always stuck or pathologically large. Retrying would just
+        // burn another full timeout window, so treat it as terminal: delete the task instead of
+        // releasing the lock. The ScreenshotTest has already been marked "failed" by ingest.
+        log.warn(`Task ${currentTaskId} exceeded the build timeout; deleting (non-retryable)`)
         await deleteTask(currentTaskId)
       } else {
         // On a transient error, release the lock so it can be retried with backoff

@@ -18,6 +18,9 @@ import { remote } from "webdriverio"
 import { Database } from "./database"
 import { downloadWithTimeout } from "./download"
 import {
+  BUILD_ABORT_GRACE_MS,
+  BUILD_MEMORY_WARN_BYTES,
+  BUILD_TIMEOUT_MS,
   IS_PRODUCTION,
   MAX_STORIES_PER_UPLOAD,
   S3_BUCKET_NAME,
@@ -32,6 +35,18 @@ import { buildImageUrlResolver } from "./s3"
 import { startStaticServer } from "./server"
 import { getStorybookStories, navigateToStorybook, processStory } from "./stories"
 import { NonRetryableTaskError, isPermanentS3FetchError } from "./tasks"
+import { withTimeout } from "./timeout"
+
+/** Log resident set size, warning when it crosses the configured threshold. */
+function logBuildMemoryUsage(phase: string, screenshotTestId: number): void {
+  const { rss, heapUsed } = process.memoryUsage()
+  const ctx = { phase, screenshotTestId, rssBytes: rss, heapUsedBytes: heapUsed }
+  if (rss >= BUILD_MEMORY_WARN_BYTES) {
+    log.warn(ctx, `High memory usage during build (RSS ${(rss / 1024 / 1024).toFixed(0)} MiB)`)
+  } else {
+    log.debug(ctx, `Build memory usage (RSS ${(rss / 1024 / 1024).toFixed(0)} MiB)`)
+  }
+}
 
 export async function ingestStorybook(
   projectId: string,
@@ -197,7 +212,9 @@ export async function ingestStorybook(
       `Successfully initialized WebdriverIO ${screenshotTest.browserVersion}`,
     )
 
-    try {
+    logBuildMemoryUsage("render-start", screenshotTest.id)
+
+    const renderStorybook = async (): Promise<void> => {
       // Start a local server to serve the Storybook files
       const { server, port } = await startStaticServer(tmpDir)
 
@@ -317,9 +334,52 @@ export async function ingestStorybook(
         log.debug("Shutting down local server")
         await new Promise<void>((resolve) => server.close(() => resolve()))
       }
+    }
+
+    try {
+      // Wrap the entire render phase in a max-duration guard. A build that exceeds this is
+      // almost always stuck or pathologically large; on timeout we force-close the browser
+      // session so the in-flight WebDriver commands reject and the stack unwinds. Crucially,
+      // withTimeout then waits for renderStorybook() to actually settle before surfacing the
+      // BuildTimeoutError — its `finally` blocks (and the per-story `finally` that releases the
+      // module-level browserMutex in stories.ts) must run before the worker is freed to accept a
+      // new build, otherwise the next build would block on a poisoned mutex and time out too.
+      // If the render fails to unwind within the grace period, the session is wedged beyond
+      // in-process recovery, so withTimeout exits the worker (default onUnrecoverable) and the
+      // orchestrator restarts a clean process. BuildTimeoutError is treated as a non-retryable
+      // failure by the task scheduler.
+      await withTimeout(
+        renderStorybook(),
+        BUILD_TIMEOUT_MS,
+        () => {
+          log.warn(
+            `Build ${screenshotTest.id} (#${screenshotTest.buildNumber}) exceeded ${BUILD_TIMEOUT_MS}ms; aborting and closing browser session`,
+          )
+          return browser.deleteSession().catch((err: unknown) => {
+            log.warn(err, "Failed to close browser session during build-timeout abort")
+          })
+        },
+        {
+          abortGraceMs: BUILD_ABORT_GRACE_MS,
+          onUnrecoverable: (err) => {
+            log.fatal(
+              err,
+              `Build ${screenshotTest.id} (#${screenshotTest.buildNumber}) did not unwind within ` +
+                `${BUILD_ABORT_GRACE_MS}ms after abort; the render is wedged (likely holding ` +
+                `browserMutex). Exiting worker so the orchestrator restarts a clean process.`,
+            )
+            process.exit(1)
+          },
+        },
+      )
     } finally {
       log.debug("Closing WebdriverIO browser session")
-      await browser.deleteSession()
+      // The session may already be gone if a timeout abort closed it; tolerate that so we
+      // never mask the original error with a teardown failure.
+      await browser.deleteSession().catch((err: unknown) => {
+        log.debug(err, "browser.deleteSession() during cleanup (may already be closed)")
+      })
+      logBuildMemoryUsage("render-end", screenshotTest.id)
     }
   } catch (error) {
     log.error(
