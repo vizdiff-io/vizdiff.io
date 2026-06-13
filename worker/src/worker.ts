@@ -9,13 +9,19 @@ import {
   POSTGRES_DATABASE,
   POSTGRES_PASS,
   POSTGRES_PORT,
+  IS_TEST,
 } from "./environment"
 import type { GitHubCheckData } from "./github"
 import type { GitLabCheckData } from "./gitlab"
 import { markTaskFinished, markTaskStarted, startHealthServer } from "./health"
-import { ingestStorybook } from "./ingest"
+import { ingestStorybook, isBaselineBuildPending } from "./ingest"
 import { log } from "./log"
-import { latestTaskQueueId, fetchTask, NonRetryableTaskError } from "./tasks"
+import {
+  latestTaskQueueId,
+  fetchTask,
+  NonRetryableTaskError,
+  DependencyNotReadyError,
+} from "./tasks"
 import { BuildTimeoutError } from "./timeout"
 
 type IngestStorybookPayload = {
@@ -37,16 +43,62 @@ const STUCK_RUNNING_THRESHOLD_MINUTES = 120 // 2 hours
 // Consider a build stuck if it's been pending for more than this amount of time
 const STUCK_PENDING_THRESHOLD_MINUTES = 240 // 4 hours
 
+// How long to defer a render task each time its dependent (baseline) build is
+// still pending/in-progress, before re-checking. This is the length of the
+// exclusion window: the deferred task stays excluded from selection until
+// `nextRetryTime = deferStart + DEFER_INTERVAL_MS`.
+const DEFER_INTERVAL_MS = 1000 * 5 // 5 seconds
+// How long to wait before re-polling after a deferral. This MUST be strictly
+// less than DEFER_INTERVAL_MS so that when the worker re-polls, the deferred
+// task is still inside its exclusion window (now < nextRetryTime) and therefore
+// still excluded from selection. That guarantees the older dependency (lower id)
+// is the only eligible candidate at the re-poll and gets picked next — without
+// this gap, the re-poll fires exactly at nextRetryTime, the deferred (newer,
+// higher-id) task is no longer excluded, and descending-id selection re-picks it
+// instead of the dependency.
+const DEFER_REPOLL_MS = 1000 * 2 // 2 seconds
+// Maximum number of times a task may be deferred for an unfinished dependency
+// before we give up waiting and process it anyway. This bounds the wait and
+// guarantees forward progress (avoids livelock) if the dependent never finishes.
+// 60 defers * 5s ≈ 5 minutes of waiting.
+const MAX_DEFER_COUNT = 60
+
 // Postgres notification listener
 const subscriber = createPgSubscriber({ connectionString: CONN_STRING })
 // Current task being processed, if any
 let currentTaskId: number | undefined
 // Map of task IDs to their failure count and next retry time
 const failedTasksMap = new Map<number, { retryCount: number; nextRetryTime: number }>()
+// Map of task IDs that are deferred waiting on a dependent (baseline) build,
+// to their defer count and the time at which they may be retried.
+const deferredTasksMap = new Map<number, { deferCount: number; nextRetryTime: number }>()
 
 // Clear failed task ID after it's been retried the maximum number of times or after successful processing
 function clearFailedTaskId(taskId: number): void {
   failedTasksMap.delete(taskId)
+}
+
+// Clear a task's deferral state once it has been processed (or given up on).
+function clearDeferredTaskId(taskId: number): void {
+  deferredTasksMap.delete(taskId)
+}
+
+// Set of task ids that are currently deferred and not yet due for retry. These
+// are excluded from task selection so the worker can pick the dependent build
+// (typically an older, lower-id task) instead of re-selecting the deferred one.
+//
+// The exclusion window is [deferStart, nextRetryTime). Because the post-deferral
+// re-poll is scheduled at DEFER_REPOLL_MS < DEFER_INTERVAL_MS (i.e. strictly
+// before nextRetryTime), the deferred task is guaranteed to still be excluded at
+// that re-poll, leaving the older dependency as the only eligible candidate.
+function activeDeferredTaskIds(now: number): Set<number> {
+  const ids = new Set<number>()
+  for (const [taskId, info] of deferredTasksMap) {
+    if (now < info.nextRetryTime) {
+      ids.add(taskId)
+    }
+  }
+  return ids
 }
 
 async function main() {
@@ -98,7 +150,12 @@ export function pollForNewTasks(): void {
     return
   }
 
-  latestTaskQueueId()
+  // Exclude tasks that are deferred waiting on a dependent build so the worker
+  // can pick the dependent (typically older) task instead of looping on the
+  // deferred one.
+  const excludeIds = activeDeferredTaskIds(Date.now())
+
+  latestTaskQueueId(excludeIds)
     .then((taskQueueId) => {
       if (taskQueueId == undefined) {
         log.trace(`No new tasks, checking for stuck builds...`)
@@ -145,9 +202,32 @@ export function pollForNewTasks(): void {
           // Task was processed successfully, immediately check for more tasks
           // Use process.nextTick to avoid growing the stack too much with synchronous tasks
           log.debug("Task completed successfully, immediately checking for more tasks")
+          clearDeferredTaskId(taskQueueId)
           process.nextTick(() => pollForNewTasks())
         })
         .catch((err: unknown) => {
+          // A dependent (baseline) build is still pending/in-progress. Defer this
+          // task for a short delay and let the worker pick the dependent first.
+          // This is NOT a failure, so don't touch the backoff/retry budget.
+          if (err instanceof DependencyNotReadyError) {
+            const deferInfo = deferredTasksMap.get(taskQueueId) ?? {
+              deferCount: 0,
+              nextRetryTime: 0,
+            }
+            deferInfo.deferCount += 1
+            deferInfo.nextRetryTime = now + DEFER_INTERVAL_MS
+            deferredTasksMap.set(taskQueueId, deferInfo)
+            log.info(
+              `Deferring task ${taskQueueId} (${deferInfo.deferCount}/${MAX_DEFER_COUNT}) for ${DEFER_INTERVAL_MS / 1000}s: ${err.message}`,
+            )
+            // Re-poll sooner than the exclusion window expires (DEFER_REPOLL_MS <
+            // DEFER_INTERVAL_MS) so the deferred task is still excluded at the
+            // re-poll and the worker picks the older dependency instead of
+            // re-selecting this (newer, higher-id) task.
+            setTimeout(() => pollForNewTasks(), DEFER_REPOLL_MS)
+            return
+          }
+
           log.error(err, `Error processing task ${taskQueueId}`)
 
           // Non-retryable failures have already been deleted from the queue in
@@ -218,7 +298,12 @@ export async function startTask(taskQueueId: number): Promise<void> {
     // If we got here, the task was successful, so clear it from the failed tasks map
     clearFailedTaskId(taskQueueId)
   } catch (error) {
-    log.error(error, `Error processing task ${taskQueueId}`)
+    if (error instanceof DependencyNotReadyError) {
+      // Expected control-flow signal (waiting on a dependent build), not a failure.
+      log.debug(`Task ${taskQueueId} deferred: ${error.message}`)
+    } else {
+      log.error(error, `Error processing task ${taskQueueId}`)
+    }
     throw error
   } finally {
     markTaskFinished()
@@ -242,6 +327,25 @@ export async function processTask(
             `Missing required ingest_storybook fields: projectId=${projectId}, uploadId=${uploadId}`,
           )
         }
+
+        // If this render task depends on a baseline build that is still
+        // pending/in-progress, defer it so the dependent is processed first and
+        // this task gets a populated baseline (issue #125). Give up waiting after
+        // MAX_DEFER_COUNT deferrals so a never-finishing dependency can't block
+        // this task forever (livelock guard); in that case we process anyway.
+        const deferCount =
+          currentTaskId != undefined ? (deferredTasksMap.get(currentTaskId)?.deferCount ?? 0) : 0
+        if (deferCount < MAX_DEFER_COUNT && (await isBaselineBuildPending(screenshotTestId))) {
+          throw new DependencyNotReadyError(
+            `Baseline build for screenshot test ${screenshotTestId} is still pending; deferring`,
+          )
+        }
+        if (deferCount >= MAX_DEFER_COUNT) {
+          log.warn(
+            `Baseline for screenshot test ${screenshotTestId} did not finish after ${deferCount} deferrals; processing anyway`,
+          )
+        }
+
         await ingestStorybook(
           projectId,
           screenshotTestId,
@@ -384,7 +488,10 @@ export async function sweepStuckBuilds(): Promise<number> {
   }
 }
 
-// Entry point
-main().catch((err: unknown) => {
-  log.error(err, "Uncaught error in main()")
-})
+// Entry point. Skipped under test so importing this module for unit tests does
+// not start the background poll loop / database subscriber.
+if (!IS_TEST) {
+  main().catch((err: unknown) => {
+    log.error(err, "Uncaught error in main()")
+  })
+}

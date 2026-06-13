@@ -28,6 +28,19 @@ export class NonRetryableTaskError extends Error {
 }
 
 /**
+ * Error thrown when a render task depends on another (baseline) build that is
+ * still pending/in-progress. The worker handles this by releasing the lock and
+ * deferring the task for a short delay so the dependent build is processed
+ * first, instead of treating it as a failure and burning retry/backoff budget.
+ */
+export class DependencyNotReadyError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = "DependencyNotReadyError"
+  }
+}
+
+/**
  * S3 / AWS SDK error names (the `name` field on a thrown error) that represent
  * permanent, non-retryable failures when fetching the uploaded build tarball.
  * These are restricted to genuine "the object is not retrievable" cases: the
@@ -70,15 +83,33 @@ export function isPermanentS3FetchError(error: unknown): boolean {
   return false
 }
 
-export async function latestTaskQueueId(): Promise<number | undefined> {
+/**
+ * Returns the id of the newest unlocked task in the queue, optionally excluding
+ * a set of task ids that the caller is temporarily deferring (e.g. tasks waiting
+ * on a dependent build). Excluding them here lets the worker pick the next-best
+ * task (typically the older dependency) instead of repeatedly re-selecting the
+ * deferred one.
+ */
+export async function latestTaskQueueId(
+  excludeIds: ReadonlySet<number> = new Set(),
+): Promise<number | undefined> {
   const client = await DatabasePool()
   try {
+    const params: unknown[] = []
+    let excludeClause = ""
+    if (excludeIds.size > 0) {
+      const placeholders = [...excludeIds].map((_, i) => `$${i + 1}`).join(", ")
+      excludeClause = `AND id NOT IN (${placeholders})`
+      params.push(...excludeIds)
+    }
     const res = await client.query(
-      `SELECT id FROM task_queue 
-       WHERE locked_at IS NULL 
-          OR locked_at < NOW() - INTERVAL '${LOCK_TIMEOUT_MINUTES} minutes'
-       ORDER BY id DESC 
+      `SELECT id FROM task_queue
+       WHERE (locked_at IS NULL
+          OR locked_at < NOW() - INTERVAL '${LOCK_TIMEOUT_MINUTES} minutes')
+         ${excludeClause}
+       ORDER BY id DESC
        LIMIT 1`,
+      params,
     )
     if (res.rowCount === 0) {
       return undefined

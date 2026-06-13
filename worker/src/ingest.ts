@@ -48,6 +48,54 @@ function logBuildMemoryUsage(phase: string, screenshotTestId: number): void {
   }
 }
 
+/**
+ * Determine whether the baseline build that a render task depends on is still
+ * being processed (or waiting to be processed).
+ *
+ * When two commits A then B land on the same branch, B's `baseCommitSha` points
+ * at A. If B's render task runs before A's has finished writing `TestResult`s, B
+ * would fetch an empty baseline and flag every story as "new". This helper lets
+ * the worker detect that situation and defer B until A is done.
+ *
+ * Returns true if a `ScreenshotTest` exists for `(projectId, commitSha=baseCommitSha)`
+ * whose status is still `pending` or `running` (i.e. its render task hasn't
+ * produced final results yet). Returns false if the test has no base commit,
+ * if there is no such build, or if every matching build has reached a terminal
+ * status (results are ready, the baseline genuinely has no build, or it
+ * failed) — in which case we should proceed rather than wait forever.
+ */
+export async function isBaselineBuildPending(screenshotTestId: number): Promise<boolean> {
+  const db = await Database()
+  const screenshotTestRepo = db.getRepository(ScreenshotTest)
+
+  const screenshotTest = await screenshotTestRepo.findOneBy({ id: screenshotTestId })
+  if (!screenshotTest) {
+    throw new Error(`Screenshot test not found: ${screenshotTestId}`)
+  }
+
+  const baseCommitSha = screenshotTest.baseCommitSha
+  if (!baseCommitSha) {
+    return false
+  }
+  const projectId = screenshotTest.project.id
+
+  // A build is "in flight" while it is queued (pending) or rendering (running).
+  // Any other status is terminal for our purposes: no_changes / unapproved /
+  // approved / denied all mean results exist; failed means it will never produce
+  // results, so we must not block on it.
+  const inFlightCount = await screenshotTestRepo
+    .createQueryBuilder("test")
+    .where("test.project_id = :projectId", { projectId })
+    .andWhere("test.commit_sha = :baseCommitSha", { baseCommitSha })
+    .andWhere("test.status IN (:...statuses)", { statuses: ["pending", "running"] })
+    // Exclude the current test itself defensively (it should never share the
+    // base commit sha, but guard against self-blocking just in case).
+    .andWhere("test.id != :screenshotTestId", { screenshotTestId })
+    .getCount()
+
+  return inFlightCount > 0
+}
+
 export async function ingestStorybook(
   projectId: string,
   screenshotTestId: number,
