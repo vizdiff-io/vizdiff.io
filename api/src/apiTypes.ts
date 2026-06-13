@@ -70,6 +70,13 @@ export type ScreenshotTestSummaryResponse = ScreenshotTestResponse & {
   changes?: number
 }
 
+/** Paginated list of build summaries for a project. */
+export type BuildsListResponse = {
+  builds: ScreenshotTestSummaryResponse[]
+  /** True if more builds exist beyond the returned page (use offset + limit to fetch them). */
+  hasMore: boolean
+}
+
 export type TestResultResponse = {
   id: number
   name: string

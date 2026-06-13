@@ -2,7 +2,11 @@ import type { Meta, StoryObj, StoryContext } from "@storybook/nextjs"
 import { http, HttpResponse } from "msw"
 import type { JSX, ComponentType } from "react"
 
-import type { ProjectResponse, ScreenshotTestSummaryResponse } from "@/lib/apiTypes"
+import type {
+  BuildsListResponse,
+  ProjectResponse,
+  ScreenshotTestSummaryResponse,
+} from "@/lib/apiTypes"
 
 import ThemeWrapper from "./ThemeWrapper"
 import { catchAllHandler, userHandler } from "./mocks"
@@ -129,7 +133,9 @@ const meta: Meta<typeof ProjectComponent> = {
       handlers: [
         userHandler,
         http.get("/api/projects/:id", () => HttpResponse.json(mockProject)),
-        http.get("/api/projects/:projectId/builds", () => HttpResponse.json(mockBuilds)),
+        http.get("/api/projects/:projectId/builds", () =>
+          HttpResponse.json<BuildsListResponse>({ builds: mockBuilds, hasMore: false }),
+        ),
         catchAllHandler,
       ],
     },
@@ -160,7 +166,32 @@ export const NoBuilds: Story = {
       handlers: [
         userHandler,
         http.get("/api/projects/:id", () => HttpResponse.json(mockProject)),
-        http.get("/api/projects/:projectId/builds", () => HttpResponse.json([])),
+        http.get("/api/projects/:projectId/builds", () =>
+          HttpResponse.json<BuildsListResponse>({ builds: [], hasMore: false }),
+        ),
+        catchAllHandler,
+      ],
+    },
+  },
+}
+
+export const HasMore: Story = {
+  args: {
+    mode: "light",
+  },
+  parameters: {
+    msw: {
+      handlers: [
+        userHandler,
+        http.get("/api/projects/:id", () => HttpResponse.json(mockProject)),
+        // First page reports more available; subsequent pages return the same builds for the demo.
+        http.get("/api/projects/:projectId/builds", ({ request }) => {
+          const offset = Number(new URL(request.url).searchParams.get("offset") ?? "0")
+          return HttpResponse.json<BuildsListResponse>({
+            builds: mockBuilds,
+            hasMore: offset === 0,
+          })
+        }),
         catchAllHandler,
       ],
     },
