@@ -136,3 +136,26 @@ export const BUILD_MEMORY_WARN_BYTES = parseInt(
   process.env.BUILD_MEMORY_WARN_BYTES ?? `${2 * 1024 * 1024 * 1024}`,
   10,
 )
+// --- Screenshot retention reaper (#79) ---
+// The reaper deletes screenshot builds (and their S3 objects) older than the retention window,
+// while always keeping the most recent N builds per project so a rarely-built project is never
+// left without history. Disabled by default because it is destructive: an operator must opt in.
+export const RETENTION_REAPER_ENABLED = process.env.RETENTION_REAPER_ENABLED === "true"
+// Builds whose newest activity is older than this many days are eligible for deletion.
+export const RETENTION_DAYS = Math.max(1, parseInt(process.env.RETENTION_DAYS ?? "90", 10) || 90)
+// Always retain at least this many most-recent builds per project, regardless of age.
+export const RETENTION_KEEP_LAST_N = Math.max(
+  0,
+  parseInt(process.env.RETENTION_KEEP_LAST_N ?? "10", 10) || 0,
+)
+// Upper bound on builds reaped per sweep, to keep each tick bounded.
+export const RETENTION_MAX_BUILDS_PER_SWEEP = Math.max(
+  1,
+  parseInt(process.env.RETENTION_MAX_BUILDS_PER_SWEEP ?? "200", 10) || 200,
+)
+// Minimum interval between retention sweeps (ms). The worker tick is frequent; the reaper only
+// needs to run periodically. Defaults to once per hour.
+export const RETENTION_SWEEP_INTERVAL_MS = Math.max(
+  60_000,
+  parseInt(process.env.RETENTION_SWEEP_INTERVAL_MS ?? "3600000", 10) || 3_600_000,
+)

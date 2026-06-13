@@ -1,9 +1,12 @@
+import { Project } from "shared"
+
 import type { GitHubInstallationResponse, UserResponse } from "../apiTypes"
 import { toSeconds } from "../conversions"
 import { Database } from "../database"
 import { GITHUB_ENABLED } from "../environment"
 import { getInstallationsForUserId } from "../github"
 import { log } from "../log"
+import { deleteObjectsByPrefixes, projectKeyPrefix } from "../s3"
 import type { GithubUser } from "../schemas/GithubUser"
 import type { RequestHandler } from "../types"
 
@@ -46,8 +49,17 @@ export const deleteAccount: RequestHandler = async (_req, res) => {
 
   log.warn({ user }, `Deleting account for user ${user.id} (${user.email})`)
 
+  let projectIds: number[] = []
   try {
     const db = await Database()
+
+    // Capture the owned project IDs *before* the delete: the DB cascade removes the project rows,
+    // so we must enumerate the S3 prefixes (`projects/<id>/`) to reap while they still exist (#132).
+    const projects = await db
+      .getRepository(Project)
+      .find({ select: { id: true }, where: { user: { id: user.id } } })
+    projectIds = projects.map((p) => p.id)
+
     await db.transaction(async (manager) => {
       await manager.remove(user)
     })
@@ -56,6 +68,25 @@ export const deleteAccount: RequestHandler = async (_req, res) => {
     log.error(error, `Failed to delete account for user ${user.id} (${user.email})`)
     res.status(500).json({ error: "Failed to delete account", message })
     return
+  }
+
+  // Best-effort S3 cleanup of the owned screenshots (#132). The DB rows are already gone, so an S3
+  // failure here must NOT fail the request; it is logged and left for the retention reaper (#79) to
+  // sweep later. Deletion is idempotent, so a retry is always safe.
+  if (projectIds.length > 0) {
+    const prefixes = projectIds.map((id) => projectKeyPrefix(id))
+    deleteObjectsByPrefixes(prefixes)
+      .then(({ deleted, errors }) => {
+        log.info(
+          `Deleted screenshots for ${projectIds.length} project(s) of user ${user.id}: ${deleted} objects removed, ${errors} errors`,
+        )
+      })
+      .catch((err: unknown) => {
+        log.error(
+          err,
+          `Failed to delete S3 screenshots for user ${user.id} projects [${projectIds.join(", ")}]`,
+        )
+      })
   }
 
   res.clearCookie("token")

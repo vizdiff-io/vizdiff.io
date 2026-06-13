@@ -119,9 +119,26 @@ Single-host fallback: when `GITLAB_HOSTS` is unset, a single host is derived fro
 | `NEXT_PUBLIC_GITHUB_APP_NAME` | frontend | no | — | GitHub App slug for the "Install App" link (build-time). |
 | `NEXT_PUBLIC_GITHUB_CLIENT_ID` | frontend | no | — | GitHub OAuth client ID (build-time, GitHub only). |
 | `DD_*` | api, worker | no | — | Optional Datadog APM (active only in prod/staging). |
+| `RETENTION_REAPER_ENABLED` | worker | no | `false` | Enables the screenshot retention reaper (see below). Destructive — opt-in. |
+| `RETENTION_DAYS` | worker | no | `90` | Builds older than this many days are eligible for deletion. |
+| `RETENTION_KEEP_LAST_N` | worker | no | `10` | Always retain at least this many most-recent builds per project, regardless of age. |
+| `RETENTION_MAX_BUILDS_PER_SWEEP` | worker | no | `200` | Upper bound on builds reaped per sweep. |
+| `RETENTION_SWEEP_INTERVAL_MS` | worker | no | `3600000` | Minimum interval between sweeps (min 60000). |
 
 \* Credentials may be supplied via IRSA, instance profiles, or the standard AWS credential chain
 instead of static keys.
+
+## Screenshot retention reaper
+
+When `RETENTION_REAPER_ENABLED=true`, the worker periodically deletes screenshot builds whose newest
+activity is older than `RETENTION_DAYS`, **while always keeping the most recent
+`RETENTION_KEEP_LAST_N` builds per project** so a rarely-built project never loses its history. The
+keep-last-N guard is applied before the age filter. Deletion removes the build's S3 objects
+(`projects/<id>/screenshots/<uploadId>/`) first, then the `screenshot_tests` row (its `test_results`
+and `task_queue` rows cascade via foreign keys). In-flight builds (`pending`/`running`) are never
+reaped. The reaper runs on the worker's idle tick (throttled to `RETENTION_SWEEP_INTERVAL_MS`) and is
+idempotent, so partial failures are safely retried. It is disabled by default because it permanently
+deletes data.
 
 ## Database migrations
 
