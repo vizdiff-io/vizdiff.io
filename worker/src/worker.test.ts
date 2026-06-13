@@ -33,6 +33,7 @@ import { expect, describe, it, afterAll, beforeEach, vi, afterEach } from "vites
 import { Database } from "./database"
 import { ingestStorybook } from "./ingest"
 import { log } from "./log"
+import { NonRetryableTaskError, isPermanentS3FetchError } from "./tasks"
 import { processTask, shutdown, sweepStuckBuilds } from "./worker"
 
 // Mock function declarations - these track calls to key operations
@@ -78,20 +79,26 @@ vi.mock("./worker", async (importOriginal) => {
   }
 })
 
-// Mock tasks module
-vi.mock("./tasks", () => ({
-  latestTaskQueueId: vi.fn().mockResolvedValue(undefined),
-  fetchTask: vi.fn().mockResolvedValue({
-    task_type: "ingest_storybook",
-    screenshot_test_id: 123,
-    data: {
-      projectId: "test-project",
-      uploadId: "test-upload",
-    },
-  }),
-  deleteTask: vi.fn().mockResolvedValue(undefined),
-  releaseLock: vi.fn().mockResolvedValue(undefined),
-}))
+// Mock tasks module. Keep the real error-classification helpers
+// (NonRetryableTaskError / isPermanentS3FetchError) so ingest.ts and worker.ts
+// behave as in production; only stub the DB-touching queue functions.
+vi.mock("./tasks", async (importOriginal) => {
+  const actual: object = await importOriginal()
+  return {
+    ...actual,
+    latestTaskQueueId: vi.fn().mockResolvedValue(undefined),
+    fetchTask: vi.fn().mockResolvedValue({
+      task_type: "ingest_storybook",
+      screenshot_test_id: 123,
+      data: {
+        projectId: "test-project",
+        uploadId: "test-upload",
+      },
+    }),
+    deleteTask: vi.fn().mockResolvedValue(undefined),
+    releaseLock: vi.fn().mockResolvedValue(undefined),
+  }
+})
 
 // Mock database connection
 vi.mock("./database", () => ({
@@ -428,6 +435,46 @@ describe("worker", () => {
     })
   })
 
+  describe("isPermanentS3FetchError", () => {
+    it("classifies NoSuchKey as permanent", () => {
+      expect(isPermanentS3FetchError({ name: "NoSuchKey" })).toBe(true)
+    })
+
+    it("classifies a 404 status code as permanent", () => {
+      expect(isPermanentS3FetchError({ $metadata: { httpStatusCode: 404 } })).toBe(true)
+    })
+
+    it("classifies a NotFound name as permanent", () => {
+      expect(isPermanentS3FetchError({ name: "NotFound" })).toBe(true)
+    })
+
+    it("classifies InvalidObjectState (Glacier archive) as permanent", () => {
+      expect(isPermanentS3FetchError({ name: "InvalidObjectState" })).toBe(true)
+    })
+
+    it("keeps a 403/AccessDenied auth error retryable", () => {
+      // A transient IRSA/bucket-policy/KMS rollout or auth blip must not delete
+      // the queue row for an object that actually exists.
+      expect(isPermanentS3FetchError({ name: "AccessDenied" })).toBe(false)
+      expect(isPermanentS3FetchError({ name: "Forbidden" })).toBe(false)
+      expect(isPermanentS3FetchError({ $metadata: { httpStatusCode: 403 } })).toBe(false)
+    })
+
+    it("keeps a missing/misconfigured bucket retryable", () => {
+      // A missing bucket is a recoverable deployment error; it should keep
+      // retrying so it recovers once the bucket exists again.
+      expect(isPermanentS3FetchError({ name: "NoSuchBucket" })).toBe(false)
+    })
+
+    it("does not classify a transient/network error as permanent", () => {
+      expect(isPermanentS3FetchError(new Error("socket hang up"))).toBe(false)
+      expect(isPermanentS3FetchError({ name: "TimeoutError" })).toBe(false)
+      expect(isPermanentS3FetchError({ $metadata: { httpStatusCode: 500 } })).toBe(false)
+      expect(isPermanentS3FetchError(undefined)).toBe(false)
+      expect(isPermanentS3FetchError(null)).toBe(false)
+    })
+  })
+
   describe("ingestStorybook", () => {
     it("should process a storybook build and generate test results", async () => {
       const projectId = "test-project"
@@ -547,6 +594,44 @@ describe("worker", () => {
       )
 
       // Verify no test results were created since we couldn't get the stories list
+      expect(mockTestResultSave).not.toHaveBeenCalled()
+    })
+
+    it("should throw NonRetryableTaskError when the upload tarball is gone (NoSuchKey)", async () => {
+      const originalError = log.error
+      log.error = vi.fn()
+
+      // Simulate the AWS SDK v3 NoSuchKey error shape (name + $metadata).
+      const noSuchKey = Object.assign(new Error("The specified key does not exist."), {
+        name: "NoSuchKey",
+        $metadata: { httpStatusCode: 404 },
+      })
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion -- constructable function form vitest 4 requires
+      vi.mocked(S3Client).mockImplementation(function (this: unknown) {
+        return {
+          send: vi.fn().mockRejectedValue(noSuchKey),
+          config: {
+            apiVersion: "2006-03-01",
+            region: "us-east-1",
+            credentials: {},
+            logger: {},
+            requestHandler: { handle: () => Promise.resolve({}) },
+          } as unknown as S3ClientResolvedConfig,
+          destroy: vi.fn(),
+          middlewareStack: {} as unknown as MiddlewareStack<any, any>,
+        }
+      } as unknown as typeof S3Client)
+
+      await expect(ingestStorybook("test-project", 123, "test-upload")).rejects.toThrow(
+        NonRetryableTaskError,
+      )
+
+      log.error = originalError
+
+      // The screenshot test should still be marked failed.
+      expect(mockScreenshotTestSave).toHaveBeenCalledWith(
+        expect.objectContaining({ status: "failed" }),
+      )
       expect(mockTestResultSave).not.toHaveBeenCalled()
     })
   })

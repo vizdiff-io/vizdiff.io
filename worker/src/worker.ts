@@ -15,7 +15,7 @@ import type { GitLabCheckData } from "./gitlab"
 import { markTaskFinished, markTaskStarted, startHealthServer } from "./health"
 import { ingestStorybook } from "./ingest"
 import { log } from "./log"
-import { latestTaskQueueId, fetchTask } from "./tasks"
+import { latestTaskQueueId, fetchTask, NonRetryableTaskError } from "./tasks"
 
 type IngestStorybookPayload = {
   projectId: string
@@ -149,6 +149,14 @@ export function pollForNewTasks(): void {
         .catch((err: unknown) => {
           log.error(err, `Error processing task ${taskQueueId}`)
 
+          // Non-retryable failures have already been deleted from the queue in
+          // processTask(); don't record a backoff entry, just poll for more work.
+          if (err instanceof NonRetryableTaskError) {
+            clearFailedTaskId(taskQueueId)
+            setTimeout(() => pollForNewTasks(), POLL_INTERVAL_MS)
+            return
+          }
+
           // Update retry count and calculate next retry with exponential backoff
           const taskFailureInfo = failedTasksMap.get(taskQueueId) ?? {
             retryCount: 0,
@@ -251,9 +259,18 @@ export async function processTask(
         throw new Error(`Unknown task type: ${taskType}`)
     }
   } catch (error) {
-    // On error, release the lock so it can be retried with backoff
     if (currentTaskId) {
-      await releaseLock(currentTaskId)
+      if (error instanceof NonRetryableTaskError) {
+        // Permanent failure (e.g. the upload tarball is gone). Retrying cannot
+        // succeed, so delete the task from the queue instead of releasing the
+        // lock for backoff retries. The task handler has already marked the
+        // ScreenshotTest as failed.
+        log.warn(error, `Task ${currentTaskId} failed permanently, deleting from queue`)
+        await deleteTask(currentTaskId)
+      } else {
+        // On a transient error, release the lock so it can be retried with backoff
+        await releaseLock(currentTaskId)
+      }
     }
     throw error
   }

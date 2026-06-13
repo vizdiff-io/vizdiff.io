@@ -9,6 +9,67 @@ type Task = {
 
 const LOCK_TIMEOUT_MINUTES = 60
 
+/**
+ * Error that signals the task should NOT be retried. When the worker catches one
+ * of these it deletes the task from the queue instead of releasing the lock for
+ * an exponential-backoff retry. Use this for permanent failures where retrying
+ * cannot possibly succeed (e.g. the uploaded build tarball no longer exists in
+ * S3). The associated `ScreenshotTest` should already be marked failed by the
+ * task handler before throwing.
+ */
+export class NonRetryableTaskError extends Error {
+  override readonly cause?: unknown
+
+  constructor(message: string, cause?: unknown) {
+    super(message)
+    this.name = "NonRetryableTaskError"
+    this.cause = cause
+  }
+}
+
+/**
+ * S3 / AWS SDK error names (the `name` field on a thrown error) that represent
+ * permanent, non-retryable failures when fetching the uploaded build tarball.
+ * These are restricted to genuine "the object is not retrievable" cases: the
+ * object key is missing, or it has been archived to Glacier and a GET will keep
+ * failing until it is restored. Anything else — including auth/permission
+ * failures (403 / AccessDenied / Forbidden), missing buckets, 5xx, timeouts, and
+ * network errors — is treated as transient so a deployment/IRSA/bucket-policy/KMS
+ * blip recovers on retry instead of permanently deleting the queue row for an
+ * object that actually exists.
+ */
+const PERMANENT_S3_ERROR_NAMES = new Set<string>([
+  "NoSuchKey", // The object key does not exist (tarball was deleted / expired)
+  "NotFound", // 404 variant surfaced for HEAD/GET in some SDK paths
+  "InvalidObjectState", // Object archived to Glacier; GET fails until restored
+])
+
+/**
+ * Returns true if the given error represents a permanent S3 fetch failure that
+ * should not be retried. Matches on the AWS SDK v3 error `name` as well as a
+ * 404 `$metadata.httpStatusCode` as a fallback. Only genuine object-missing /
+ * archived errors are permanent; transient failures (including 403 auth blips)
+ * stay retryable.
+ */
+export function isPermanentS3FetchError(error: unknown): boolean {
+  if (typeof error !== "object" || error == null) {
+    return false
+  }
+
+  const name = (error as { name?: unknown }).name
+  if (typeof name === "string" && PERMANENT_S3_ERROR_NAMES.has(name)) {
+    return true
+  }
+
+  const metadata = (error as { $metadata?: { httpStatusCode?: unknown } }).$metadata
+  const statusCode = metadata?.httpStatusCode
+  if (typeof statusCode === "number" && statusCode === 404) {
+    return true
+  }
+
+  return false
+}
+
 export async function latestTaskQueueId(): Promise<number | undefined> {
   const client = await DatabasePool()
   try {
