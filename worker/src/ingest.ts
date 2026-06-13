@@ -18,7 +18,12 @@ import { remote } from "webdriverio"
 
 import { Database } from "./database"
 import { downloadWithTimeout } from "./download"
-import { IS_PRODUCTION, S3_BUCKET_NAME, S3_CLIENT_CONFIG } from "./environment"
+import {
+  IS_PRODUCTION,
+  S3_BUCKET_NAME,
+  S3_CLIENT_CONFIG,
+  WORKER_STORY_CONCURRENCY,
+} from "./environment"
 import { updateGitHubCheckRun, type GitHubCheckData } from "./github"
 import { getGitLabHostConfig, updateGitLabCommitStatus, type GitLabCheckData } from "./gitlab"
 import { log } from "./log"
@@ -233,9 +238,12 @@ export async function ingestStorybook(
           log.info(`Found ${baseTestResults.size} base test results`)
         }
 
-        // Process stories with a concurrency limit
-        const MAX_CONCURRENCY = 4
-        const limit = pLimit(MAX_CONCURRENCY)
+        // Process stories with a configurable concurrency limit (issue #152, Phase 1).
+        // Defaults to 1 (sequential). Browser navigation/stabilization is currently serialized by
+        // the process-wide mutex in captureStableScreenshot, so values > 1 only overlap the S3
+        // diff/upload portions until that mutex is removed in a later increment.
+        const limit = pLimit(WORKER_STORY_CONCURRENCY)
+        log.info(`Rendering stories with concurrency limit ${WORKER_STORY_CONCURRENCY}`)
         const testResults = await Promise.all(
           Object.values(stories).map((story) =>
             limit(() =>
