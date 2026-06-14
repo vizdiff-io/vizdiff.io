@@ -14,17 +14,26 @@ import { log } from "./log"
  *     level. These are applied via `goog:chromeOptions.args` and cannot be
  *     undone by page script.
  *
- *  2. A page-level init script ({@link SAFEGUARD_INIT_SCRIPT}) installed before
- *     any story code runs. It neutralizes off-origin navigation and real-time
- *     transports, and blocks (or, in the future, meters) off-origin
- *     sub-resource requests.
+ *  2. A page-level init script ({@link safeguardInitScript}) installed before
+ *     any story code runs. It neutralizes real-time transports and off-origin
+ *     `fetch`/`XMLHttpRequest`/`sendBeacon` and `window.open` at the JS layer.
+ *     Transport globals are redefined non-configurably so page scripts cannot
+ *     restore them.
  *
- * Defense-in-depth note: the init script runs inside the page and is therefore
- * not a hard security boundary on its own — a sufficiently adversarial bundle
- * could attempt to capture references before our script runs. We install it as
- * the very first script and also rely on the Chrome flags + the localhost-only
- * static server as the harder boundaries. Byte-accurate external asset metering
- * (issue #69, last bullet) requires CDP/BiDi network interception.
+ *  3. A WebDriver BiDi network interceptor ({@link installNetworkEgressBlock})
+ *     that fails every off-origin request (sub-resource, navigation, fetch,
+ *     XHR, WebSocket, beacon) at the network layer. This is the hard boundary:
+ *     page script cannot undo it, so no data can leave the same-origin static
+ *     server regardless of how the bundle tries.
+ *
+ * Defense-in-depth note: the init script (layer 2) runs inside the page and is
+ * not a hard boundary on its own — a sufficiently adversarial bundle could
+ * capture references before our script runs, and some native methods (notably
+ * `location.assign`/`replace`, which are non-configurable own properties in
+ * Chrome) cannot be reliably overridden from page JS at all. Layer 3 (the BiDi
+ * network interceptor) is therefore the authoritative egress control; the init
+ * script is a fast-failing convenience layer that gives clean errors to the
+ * page. Both depend on WebDriver BiDi (`webSocketUrl: true`).
  */
 
 /**
@@ -83,12 +92,18 @@ export function hardenedChromeArgs(baseArgs: readonly string[]): string[] {
  * external references so it can be serialized via `addInitScript`.
  *
  * Behavior:
- *  - Blocks off-origin top-level navigation and `window.open` to non-same-origin
- *    URLs (same-origin == the local static server).
+ *  - Blocks `window.open` to non-same-origin URLs (same-origin == the local
+ *    static server).
  *  - Disables real-time transports entirely: WebSocket, WebTransport, RTCPeer-
- *    Connection, EventSource.
+ *    Connection, EventSource. These globals are redefined non-configurably so a
+ *    later page script (e.g. MSW's WebSocket interceptor) cannot restore them.
  *  - Blocks off-origin `fetch` and `XMLHttpRequest`; same-origin requests pass
  *    through unchanged so legitimate Storybook assets still load.
+ *
+ * Note: off-origin top-level navigation via `location.assign`/`replace` is NOT
+ * handled here. Those are non-configurable own properties of `Location` in
+ * Chrome and cannot be overridden from page JS; off-origin navigation egress is
+ * instead blocked by {@link installNetworkEgressBlock} at the network layer.
  */
 export function safeguardInitScript(): void {
   // Runs in the browser. `window`, `document`, `location` are page globals.
@@ -114,21 +129,12 @@ export function safeguardInitScript(): void {
 
     const noop = function () {}
 
-    // --- Block off-origin top-level navigation ---
-    try {
-      const assign = loc.assign.bind(loc)
-      const replace = loc.replace.bind(loc)
-      // @ts-ignore
-      w.location.assign = (url: any) => {
-        if (sameOrigin(url)) assign(url)
-      }
-      // @ts-ignore
-      w.location.replace = (url: any) => {
-        if (sameOrigin(url)) replace(url)
-      }
-    } catch {
-      /* location may be non-configurable; ignore */
-    }
+    // Note: off-origin `location.assign`/`replace` cannot be overridden here —
+    // they are non-configurable own properties of the Location instance in
+    // Chrome, so assignment silently no-ops and `Object.defineProperty` throws.
+    // Off-origin navigation egress is blocked at the network layer instead (see
+    // installNetworkEgressBlock). We still guard `window.open`, which IS
+    // writable.
 
     const origOpen = w.open ? w.open.bind(w) : null
     // @ts-ignore
@@ -140,27 +146,40 @@ export function safeguardInitScript(): void {
     }
 
     // --- Disable real-time transports ---
-    const Blocked = function () {
-      throw new w.DOMException(
-        "Blocked by vizdiff rendering safeguards",
-        "SecurityError",
-      )
-    }
-    for (const name of ["WebSocket", "WebTransport", "RTCPeerConnection", "EventSource"]) {
-      try {
-        // @ts-ignore
-        w[name] = Blocked
-      } catch {
-        /* ignore non-writable globals */
+    // `Blocked` is a class so that `new WebSocket(...)` (construct call) throws;
+    // a plain function does not reliably throw from a `new` expression in all
+    // engines. We redefine each global non-configurably so a later page script
+    // (e.g. MSW's WebSocketOverride, shipped by some story bundles) cannot
+    // reassign the global and defeat the guard.
+    class Blocked {
+      constructor() {
+        throw new w.DOMException("Blocked by vizdiff rendering safeguards", "SecurityError")
       }
     }
-    try {
-      // Some engines expose the webkit-prefixed variant.
-      // @ts-ignore
-      w.webkitRTCPeerConnection = Blocked
-    } catch {
-      /* ignore */
+    const lockGlobal = (name: any): void => {
+      try {
+        Object.defineProperty(w, name, {
+          value: Blocked,
+          writable: false,
+          configurable: false,
+          enumerable: false,
+        })
+      } catch {
+        // Fall back to a plain assignment if the property is already
+        // non-configurable for some reason.
+        try {
+          // @ts-ignore
+          w[name] = Blocked
+        } catch {
+          /* ignore non-writable globals */
+        }
+      }
     }
+    for (const name of ["WebSocket", "WebTransport", "RTCPeerConnection", "EventSource"]) {
+      lockGlobal(name)
+    }
+    // Some engines expose the webkit-prefixed variant.
+    lockGlobal("webkitRTCPeerConnection")
 
     // --- Block off-origin fetch ---
     if (typeof w.fetch === "function") {
@@ -226,5 +245,92 @@ export async function installBrowserSafeguards(browser: Browser): Promise<void> 
     // not fail rendering — the Chrome hardening flags and localhost-only server
     // remain in effect.
     log.warn(err, "Failed to install page-level rendering safeguards via init script")
+  }
+}
+
+/**
+ * URL schemes that never reach the network and are therefore always safe to
+ * allow regardless of origin.
+ */
+const NON_NETWORK_SCHEMES = new Set(["data:", "blob:", "about:", "javascript:"])
+
+/**
+ * Returns true if the given request URL is allowed to proceed: same-origin as
+ * the static server, or a non-network scheme (data:/blob:/about:/javascript:).
+ * Unparseable URLs are allowed (they are rare and cannot carry an off-origin
+ * egress target).
+ */
+function isAllowedRequestUrl(url: string, allowedOrigin: string): boolean {
+  try {
+    const u = new URL(url)
+    return u.origin === allowedOrigin || NON_NETWORK_SCHEMES.has(u.protocol)
+  } catch {
+    return true
+  }
+}
+
+/**
+ * Installs a WebDriver BiDi network interceptor that fails every off-origin
+ * request — sub-resources, top-level navigations, `fetch`, `XMLHttpRequest`,
+ * WebSocket handshakes and beacons alike. Only requests whose origin matches
+ * `allowedOrigin` (the local static server) or use a non-network scheme are
+ * allowed through.
+ *
+ * Unlike the page init script, this is a hard boundary: it lives in the driver,
+ * so untrusted page script cannot disable it. This is what actually prevents
+ * data exfiltration from an untrusted story bundle.
+ *
+ * Must be called after the static server is up (so its origin is known) and
+ * before navigating to any story. Swallows errors if BiDi is unavailable so
+ * that rendering still works (the Chrome hardening flags and localhost-only
+ * server remain in effect).
+ *
+ * @param browser The WebDriverIO BiDi-enabled browser session.
+ * @param allowedOrigin The same-origin to allow, e.g. `http://localhost:6230`.
+ */
+export async function installNetworkEgressBlock(
+  browser: Browser,
+  allowedOrigin: string,
+): Promise<void> {
+  try {
+    // Intercept all requests at the "before request sent" phase so we can fail
+    // off-origin ones before any bytes leave the machine.
+    await browser.networkAddIntercept({ phases: ["beforeRequestSent"] })
+    await browser.sessionSubscribe({ events: ["network.beforeRequestSent"] })
+
+    browser.on("network.beforeRequestSent", (event: NetworkBeforeRequestSentEvent) => {
+      const requestId = event.request?.request
+      const url = event.request?.url ?? ""
+      if (requestId == undefined) {
+        return
+      }
+      const allowed = isAllowedRequestUrl(url, allowedOrigin)
+      // Fire-and-forget: resolve/fail the paused request. We must not await here
+      // (the event handler is sync) but we log failures for diagnosis.
+      const settle = allowed
+        ? browser.networkContinueRequest({ request: requestId })
+        : browser.networkFailRequest({ request: requestId })
+      void settle.catch((err: unknown) => {
+        log.debug({ err, url, allowed }, "Failed to settle intercepted request")
+      })
+      if (!allowed) {
+        log.debug({ url }, "Blocked off-origin request (network egress safeguard)")
+      }
+    })
+
+    log.info({ allowedOrigin }, "Installed network egress safeguard (off-origin requests blocked)")
+  } catch (err) {
+    log.warn(err, "Failed to install network egress safeguard via BiDi")
+  }
+}
+
+/**
+ * Minimal shape of the BiDi `network.beforeRequestSent` event payload we use.
+ * (WebdriverIO emits the raw BiDi event object.)
+ */
+interface NetworkBeforeRequestSentEvent {
+  request?: {
+    request?: string
+    url?: string
   }
 }
