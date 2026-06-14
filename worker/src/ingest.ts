@@ -32,6 +32,11 @@ import { updateGitHubCheckRun, type GitHubCheckData } from "./github"
 import { getGitLabHostConfig, updateGitLabCommitStatus, type GitLabCheckData } from "./gitlab"
 import { log } from "./log"
 import { buildImageUrlResolver } from "./s3"
+import {
+  hardenedChromeArgs,
+  installBrowserSafeguards,
+  installNetworkEgressBlock,
+} from "./safeguards"
 import { startStaticServer } from "./server"
 import { getStorybookStories, navigateToStorybook, processStory } from "./stories"
 import { NonRetryableTaskError, isPermanentS3FetchError } from "./tasks"
@@ -248,8 +253,19 @@ export async function ingestStorybook(
       port: IS_PRODUCTION ? 4444 : undefined,
       capabilities: {
         browserName: "chrome",
+        // Enable WebDriver BiDi so we can install page-level rendering
+        // safeguards (issue #69) via `addInitScript`.
+        webSocketUrl: true,
         "goog:chromeOptions": {
-          args: ["--headless", "--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"],
+          // Base flags plus hardening flags that disable risky browser features
+          // (WebRTC, background networking, etc.) when executing untrusted
+          // story bundles. See `safeguards.ts`.
+          args: hardenedChromeArgs([
+            "--headless",
+            "--no-sandbox",
+            "--disable-dev-shm-usage",
+            "--disable-gpu",
+          ]),
         },
       },
       logLevel: "warn",
@@ -258,6 +274,12 @@ export async function ingestStorybook(
       transformRequest: nodeCompatTransformRequest,
     }
     const browser = await remote(config)
+
+    // Install page-level rendering safeguards (disable real-time transports and
+    // off-origin fetch/XHR/window.open at the JS layer) before navigating to any
+    // story. The hard egress boundary is installed below once the static server
+    // origin is known (installNetworkEgressBlock).
+    await installBrowserSafeguards(browser)
     screenshotTest.browserVersion = `${browser.capabilities.browserName}-${browser.capabilities.platformName}-${browser.capabilities.browserVersion}`
     log.info(
       { capabilities: browser.capabilities },
@@ -269,6 +291,12 @@ export async function ingestStorybook(
     const renderStorybook = async (): Promise<void> => {
       // Start a local server to serve the Storybook files
       const { server, port } = await startStaticServer(tmpDir)
+
+      // Install the hard network egress boundary: fail every off-origin request
+      // (sub-resource, navigation, fetch, XHR, WebSocket, beacon) so an
+      // untrusted story bundle cannot exfiltrate data. Must run before
+      // navigating to any story.
+      await installNetworkEgressBlock(browser, `http://localhost:${port}`)
 
       try {
         // Set the initial viewport
