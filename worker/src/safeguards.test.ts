@@ -5,6 +5,7 @@ import {
   HARDENING_CHROME_ARGS,
   hardenedChromeArgs,
   installBrowserSafeguards,
+  installNetworkEgressBlock,
   safeguardInitScript,
 } from "./safeguards"
 
@@ -57,7 +58,7 @@ describe("safeguardInitScript (page behavior)", () => {
   class FakeDOMException extends Error {
     constructor(
       message: string,
-      public name: string,
+      public override name: string,
     ) {
       super(message)
     }
@@ -128,15 +129,19 @@ describe("safeguardInitScript (page behavior)", () => {
 
   const ORIGIN = "http://localhost:5000"
 
-  it("allows same-origin navigation and blocks off-origin", () => {
+  it("does not attempt to override location.assign/replace", () => {
+    // location.assign/replace are non-configurable own properties in Chrome and
+    // cannot be overridden from page JS; off-origin navigation is blocked at the
+    // network layer (installNetworkEgressBlock) instead. The init script must
+    // leave them untouched (no crash, original references preserved).
     const ctx = run(ORIGIN)
     const loc = ctx.win.location as { assign: (u: string) => void; replace: (u: string) => void }
-    loc.assign(`${ORIGIN}/foo`)
     loc.assign("https://evil.example.com/x")
     loc.replace("https://evil.example.com/y")
-    loc.replace("/relative")
-    expect(ctx.calls.assign).toEqual([`${ORIGIN}/foo`])
-    expect(ctx.calls.replace).toEqual(["/relative"])
+    // The init script left the originals in place, so these calls pass through
+    // unchanged (they are recorded, NOT filtered by the init script).
+    expect(ctx.calls.assign).toEqual(["https://evil.example.com/x"])
+    expect(ctx.calls.replace).toEqual(["https://evil.example.com/y"])
   })
 
   it("blocks window.open to off-origin URLs", () => {
@@ -146,9 +151,27 @@ describe("safeguardInitScript (page behavior)", () => {
     expect(ctx.calls.open).toEqual([`${ORIGIN}/ok`])
   })
 
-  it("disables real-time transports", () => {
+  it("disables real-time transports (throws on construct)", () => {
     const ctx = run(ORIGIN)
     for (const name of ["WebSocket", "WebTransport", "RTCPeerConnection", "EventSource"]) {
+      const Ctor = ctx.win[name] as new () => unknown
+      expect(() => new Ctor()).toThrow(/safeguards/)
+    }
+  })
+
+  it("makes the transport globals non-configurable so page scripts cannot restore them", () => {
+    const ctx = run(ORIGIN)
+    for (const name of ["WebSocket", "WebTransport", "RTCPeerConnection", "EventSource"]) {
+      const descriptor = Object.getOwnPropertyDescriptor(ctx.win, name)
+      expect(descriptor?.configurable).toBe(false)
+      expect(descriptor?.writable).toBe(false)
+      // A later page script trying to reassign must not defeat the guard.
+      expect(() => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ;(ctx.win as any)[name] = function Evil() {
+          return undefined
+        }
+      }).toThrow()
       const Ctor = ctx.win[name] as new () => unknown
       expect(() => new Ctor()).toThrow(/safeguards/)
     }
@@ -176,5 +199,82 @@ describe("safeguardInitScript (page behavior)", () => {
     const ctx = run(ORIGIN)
     const nav = ctx.win.navigator as { sendBeacon: (url: string) => boolean }
     expect(nav.sendBeacon("https://evil.example.com")).toBe(false)
+  })
+})
+
+describe("installNetworkEgressBlock", () => {
+  const ALLOWED = "http://localhost:6230"
+
+  type Handler = (event: unknown) => void
+
+  function makeBrowser() {
+    const continued: string[] = []
+    const failed: string[] = []
+    let handler: Handler | undefined
+    const browser = {
+      networkAddIntercept: vi.fn().mockResolvedValue({ intercept: "id" }),
+      sessionSubscribe: vi.fn().mockResolvedValue(undefined),
+      on: vi.fn((event: string, fn: Handler) => {
+        if (event === "network.beforeRequestSent") {
+          handler = fn
+        }
+      }),
+      networkContinueRequest: vi.fn((p: { request: string }) => {
+        continued.push(p.request)
+        return Promise.resolve()
+      }),
+      networkFailRequest: vi.fn((p: { request: string }) => {
+        failed.push(p.request)
+        return Promise.resolve()
+      }),
+    }
+    const emit = (requestId: string, url: string) =>
+      handler?.({ request: { request: requestId, url } })
+    return { browser, continued, failed, emit }
+  }
+
+  it("subscribes to beforeRequestSent and adds an intercept", async () => {
+    const { browser } = makeBrowser()
+    await installNetworkEgressBlock(browser as unknown as Browser, ALLOWED)
+    expect(browser.networkAddIntercept).toHaveBeenCalledWith({ phases: ["beforeRequestSent"] })
+    expect(browser.sessionSubscribe).toHaveBeenCalledWith({
+      events: ["network.beforeRequestSent"],
+    })
+    expect(browser.on).toHaveBeenCalledWith("network.beforeRequestSent", expect.any(Function))
+  })
+
+  it("continues same-origin requests and fails off-origin ones", async () => {
+    const { browser, continued, failed, emit } = makeBrowser()
+    await installNetworkEgressBlock(browser as unknown as Browser, ALLOWED)
+
+    emit("r1", `${ALLOWED}/iframe.html`) // same-origin -> allow
+    emit("r2", `${ALLOWED}/static/main.js`) // same-origin -> allow
+    emit("r3", "https://evil.example.com/steal?x=1") // off-origin -> fail
+    emit("r4", "wss://evil.example.com/socket") // off-origin -> fail
+    emit("r5", "data:text/plain,hi") // non-network scheme -> allow
+    emit("r6", "blob:http://localhost:6230/abc") // blob -> allow
+
+    expect(continued).toEqual(["r1", "r2", "r5", "r6"])
+    expect(failed).toEqual(["r3", "r4"])
+  })
+
+  it("ignores events without a request id", async () => {
+    const { browser, continued, failed, emit } = makeBrowser()
+    await installNetworkEgressBlock(browser as unknown as Browser, ALLOWED)
+    // @ts-expect-error intentionally malformed event
+    emit(undefined, "https://evil.example.com")
+    expect(continued).toEqual([])
+    expect(failed).toEqual([])
+  })
+
+  it("does not throw if BiDi is unavailable", async () => {
+    const browser = {
+      networkAddIntercept: vi.fn().mockRejectedValue(new Error("no BiDi")),
+      sessionSubscribe: vi.fn(),
+      on: vi.fn(),
+    }
+    await expect(
+      installNetworkEgressBlock(browser as unknown as Browser, ALLOWED),
+    ).resolves.toBeUndefined()
   })
 })
