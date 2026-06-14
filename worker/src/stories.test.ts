@@ -508,7 +508,47 @@ describe("processStory", () => {
   })
 
   /**
-   * Test case 5: Missing baseline handling
+   * Test case 5: Tall content grows the viewport (issue #146)
+   * Verifies that:
+   * - When the page's measured content height exceeds the viewport, the viewport is grown so the
+   *   full content is captured (the "Getting Started" vertical-cutoff fix)
+   * - The grow happens with the full content height, not the initial 900px default
+   */
+  it("should grow the viewport to fit tall content", async () => {
+    const TALL_CONTENT_HEIGHT = 4000
+    // browser.execute is called for: (1) CSS injection (result ignored), (2) the initial
+    // pre-stabilization content-height measurement, which here under-reports because the layout
+    // has not settled, and (3) the post-stabilization measurement, which reports the true tall
+    // height. This mirrors the issue #146 scenario where the content height is computed too early.
+    mockBrowserExecute
+      .mockResolvedValueOnce(undefined) // (1) CSS injection
+      .mockResolvedValueOnce(800) // (2) initial measurement: under the 900px viewport, no grow
+      .mockResolvedValue(TALL_CONTENT_HEIGHT) // (3+) post-stabilization measurement: tall content
+
+    await processStory({
+      story: mockStory,
+      screenshotTest: mockScreenshotTest,
+      bucket: "test-bucket",
+      tmpDir: "/tmp/test",
+      projectId: "test-project",
+      uploadId: "123",
+      port: 9009,
+      s3Client: new S3Client({}),
+      testResultTable: {
+        save: mockTestResultSave.mockImplementation(async (data: TestResult) => data),
+      } as unknown as Repository<TestResult>,
+      browser: mockBrowser,
+    })
+
+    // The viewport should have been set to the full content height (>= 4000), proving the
+    // screenshot is no longer clipped to the initial 900px viewport.
+    expect(mockBrowserSetViewport).toHaveBeenCalledWith(
+      expect.objectContaining({ width: 1200, height: TALL_CONTENT_HEIGHT }),
+    )
+  })
+
+  /**
+   * Test case 6: Missing baseline handling
    * Verifies that:
    * - When S3 fails to provide baseline image
    * - Process continues gracefully

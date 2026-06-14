@@ -249,9 +249,13 @@ export async function captureStableScreenshot(
       document.head.appendChild(style)
     })
 
-    // Adjust the viewport for the story
+    // Adjust the viewport for the story. This is a best-effort first pass; the layout may not be
+    // settled yet, so the post-stabilization adjustment below is authoritative for tall content.
     log.debug(`Adjusting viewport for story ${storyId}`)
-    await adjustViewportForStory(browser, storyId, viewport)
+    let currentViewport: SetViewportOptions = {
+      ...viewport,
+      height: await adjustViewportForStory(browser, storyId, viewport),
+    }
 
     // --- Screenshot Stabilization Logic ---
     log.debug("Taking initial screenshot for stabilization...")
@@ -335,6 +339,40 @@ export async function captureStableScreenshot(
         `Screenshot for story ${storyId} did not stabilize within ` +
           `${SCREENSHOTS_UNCHANGED_TIMEOUT_MS}ms (${attempts} attempts). Using last captured screenshot.`,
       )
+    }
+
+    // --- Post-Stabilization Viewport Fit ---
+    // Now that rendering has settled, re-measure the full content height. The initial adjustment
+    // (above) can run before the layout finishes (the root cause of tall "Getting Started" docs
+    // pages being vertically cut off), so this authoritative pass grows the viewport to fit the
+    // full content if needed. We resize at most once and only when the content has grown *beyond*
+    // the current viewport, then re-capture after a short settle. Bounding the resize to a single
+    // post-stabilization pass avoids a feedback loop where each resize triggers a relayout that
+    // changes the height again.
+    const settledContentHeight = await measureContentHeight(browser)
+    if (settledContentHeight != undefined) {
+      const fittedHeight = computeFittedHeight(settledContentHeight, currentViewport)
+      // Only grow the viewport; never shrink (shrinking could clip content that was visible in the
+      // captured screenshot, and would not fix the cutoff bug).
+      if (fittedHeight > currentViewport.height) {
+        log.info(
+          `Post-stabilization viewport fit for story ${storyId}: growing height from ` +
+            `${currentViewport.height} to ${fittedHeight} (content: ${settledContentHeight})`,
+        )
+        currentViewport = { ...currentViewport, height: fittedHeight }
+        await browser.setViewport(currentViewport)
+        // Let the relayout settle, then capture the full-height screenshot.
+        await browser.pause(SCREENSHOT_INTERVAL_MS)
+        try {
+          finalScreenshotBuffer = await takeScreenshotWithRetry(browser, previousScreenshotPath)
+        } catch (err) {
+          log.error(
+            err,
+            `Failed to capture full-height screenshot for story ${storyId} after resize. ` +
+              `Using last captured screenshot.`,
+          )
+        }
+      }
     }
 
     // Rename the final selected screenshot file to the official path
@@ -681,18 +719,12 @@ async function takeScreenshotWithRetry(
   })
 }
 
-async function adjustViewportForStory(
-  browser: Browser,
-  storyId: string,
-  viewport: SetViewportOptions,
-): Promise<void> {
-  const MAX_HEIGHT = 32767
-  const MAX_PIXELS = 25_000_000
-
-  const originalWidth = viewport.width
-  const originalHeight = viewport.height
-  let finalHeight = originalHeight
-
+/**
+ * Measures the full rendered content height of the current page via the browser. Returns the
+ * larger of `document.body.scrollHeight` and `document.documentElement.scrollHeight`, or
+ * `undefined` if the measurement fails.
+ */
+async function measureContentHeight(browser: Browser): Promise<number | undefined> {
   try {
     const contentHeight = await browser.execute(() => {
       // @ts-expect-error: document is not defined
@@ -706,47 +738,76 @@ async function adjustViewportForStory(
       const docScrollHeight = h?.scrollHeight ?? 0
       return Math.max(bodyScrollHeight, docScrollHeight)
     })
-    log.debug(`Content height for story ${storyId}: ${contentHeight}`)
-
-    // Calculate desired height, respecting content and initial viewport
-    const desiredHeight = Math.max(originalHeight, contentHeight)
-
-    // Apply maximum height limit
-    const limitedHeight = Math.min(desiredHeight, MAX_HEIGHT)
-
-    // Apply maximum pixel limit
-    const pixelLimitedHeight = Math.floor(MAX_PIXELS / originalWidth)
-
-    // Determine the final height, constrained by both limits
-    finalHeight = Math.min(limitedHeight, pixelLimitedHeight)
-
-    if (finalHeight !== originalHeight) {
-      log.info(
-        `Adjusting viewport height for story ${storyId} from ${originalHeight} to ${finalHeight} ` +
-          `(content: ${contentHeight})`,
-      )
-      await browser.setViewport({
-        width: originalWidth,
-        height: finalHeight,
-        devicePixelRatio: viewport.devicePixelRatio,
-      })
-      // Add a small pause after resize to allow layout shifts
-      await browser.pause(100)
-    } else {
-      log.debug(`Keeping original viewport height ${originalHeight} for story ${storyId}`)
-    }
+    return contentHeight
   } catch (err) {
-    log.error(
-      err,
-      `Failed to get content height or adjust viewport for story ${storyId}. ` +
-        `Using original height: ${originalHeight}`,
-    )
-    // Ensure finalHeight is the original if adjustment fails
-    finalHeight = originalHeight
-    // If we couldn't set the size initially, try again with original dimensions
-    // This might happen if the execute script failed early.
-    await browser.setViewport(viewport)
+    log.error(err, "Failed to measure content height")
+    return undefined
   }
+}
+
+/**
+ * Computes the viewport height needed to capture the full content, respecting the original
+ * viewport height as a floor and applying browser/pixel limits as a ceiling.
+ */
+function computeFittedHeight(contentHeight: number, viewport: SetViewportOptions): number {
+  const MAX_HEIGHT = 32767
+  const MAX_PIXELS = 25_000_000
+
+  // Calculate desired height, respecting content and initial viewport
+  const desiredHeight = Math.max(viewport.height, contentHeight)
+  // Apply maximum height limit
+  const limitedHeight = Math.min(desiredHeight, MAX_HEIGHT)
+  // Apply maximum pixel limit
+  const pixelLimitedHeight = Math.floor(MAX_PIXELS / viewport.width)
+  // Determine the final height, constrained by both limits
+  return Math.min(limitedHeight, pixelLimitedHeight)
+}
+
+/**
+ * Measures the content height of the loaded story and, if it exceeds the current viewport height,
+ * grows the viewport so the full content is captured. Returns the height the viewport was set to
+ * (or the original height if no adjustment was made or measurement failed).
+ *
+ * Note: immediately after a story loads the layout may not have settled, so the content height
+ * measured here can be too small (this is the root cause of tall pages being cut off). The
+ * stabilization loop performs a second, authoritative adjustment once rendering has settled.
+ */
+async function adjustViewportForStory(
+  browser: Browser,
+  storyId: string,
+  viewport: SetViewportOptions,
+): Promise<number> {
+  const originalHeight = viewport.height
+
+  const contentHeight = await measureContentHeight(browser)
+  if (contentHeight == undefined) {
+    log.error(
+      `Failed to get content height for story ${storyId}. Using original height: ${originalHeight}`,
+    )
+    // If measurement failed, ensure the viewport is at its original dimensions.
+    await browser.setViewport(viewport)
+    return originalHeight
+  }
+  log.debug(`Content height for story ${storyId}: ${contentHeight}`)
+
+  const finalHeight = computeFittedHeight(contentHeight, viewport)
+
+  if (finalHeight !== originalHeight) {
+    log.info(
+      `Adjusting viewport height for story ${storyId} from ${originalHeight} to ${finalHeight} ` +
+        `(content: ${contentHeight})`,
+    )
+    await browser.setViewport({
+      width: viewport.width,
+      height: finalHeight,
+      devicePixelRatio: viewport.devicePixelRatio,
+    })
+    // Add a small pause after resize to allow layout shifts
+    await browser.pause(100)
+  } else {
+    log.debug(`Keeping original viewport height ${originalHeight} for story ${storyId}`)
+  }
+  return finalHeight
 }
 
 function getStoryName(story: Story): string {
