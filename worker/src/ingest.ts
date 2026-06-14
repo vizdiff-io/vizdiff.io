@@ -36,6 +36,7 @@ import { startStaticServer } from "./server"
 import { getStorybookStories, navigateToStorybook, processStory } from "./stories"
 import { NonRetryableTaskError, isPermanentS3FetchError } from "./tasks"
 import { withTimeout } from "./timeout"
+import { nodeCompatTransformRequest } from "./wdio"
 
 /** Log resident set size, warning when it crosses the configured threshold. */
 function logBuildMemoryUsage(phase: string, screenshotTestId: number): void {
@@ -252,6 +253,9 @@ export async function ingestStorybook(
         },
       },
       logLevel: "warn",
+      // Strip forbidden headers WebdriverIO injects so sessions work under
+      // Node 26's undici 7 (see wdio.ts).
+      transformRequest: nodeCompatTransformRequest,
     }
     const browser = await remote(config)
     screenshotTest.browserVersion = `${browser.capabilities.browserName}-${browser.capabilities.platformName}-${browser.capabilities.browserVersion}`

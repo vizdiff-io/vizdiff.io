@@ -13,6 +13,7 @@ import {
   navigateToStorybook,
 } from "../stories"
 import type { Story } from "../types"
+import { nodeCompatTransformRequest } from "../wdio"
 
 interface CliOptions {
   storybookDir: string
@@ -59,6 +60,7 @@ async function main(options: CliOptions) {
         },
       },
       logLevel: "warn",
+      transformRequest: nodeCompatTransformRequest,
     })
     log.info("WebDriverIO initialized.")
 

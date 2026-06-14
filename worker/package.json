@@ -4,12 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "yarn node --no-warnings --loader ts-node/esm/transpile-only --experimental-specifier-resolution=node src/worker.ts",
+    "dev": "node dev.js src/worker.ts",
     "start": "yarn dev",
     "build": "node build.js",
     "test": "yarn run vitest --run",
     "lint": "eslint src",
-    "screenshot": "yarn node --no-warnings --loader ts-node/esm/transpile-only --experimental-specifier-resolution=node src/dev/screenshot-local.ts"
+    "screenshot": "node dev.js src/dev/screenshot-local.ts --"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.991.0",
@@ -44,7 +44,6 @@
     "esbuild": "^0.27.3",
     "eslint": "9.26.0",
     "supertest": "7.2.2",
-    "ts-node": "10.9.2",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.61.0",
     "vitest": "4.0.18"
