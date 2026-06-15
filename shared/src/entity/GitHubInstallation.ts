@@ -29,6 +29,10 @@ export class GitHubInstallation {
   @Column({ name: "account_type", type: "text", nullable: false })
   accountType!: string // 'Organization' or 'User'
 
+  // `creatorId` is the authoritative, writable scalar for the `creator_id` FK column (it is what
+  // application code reads/writes). The `creator` relation is the owning side of the bidirectional
+  // relation whose inverse is `User.createdInstallations`; it exists to declare the FK and its
+  // ON DELETE CASCADE. See `relationships.ts` for why its prototype default must be left unset.
   @Column({ name: "creator_id", type: "integer", nullable: false })
   creatorId!: number
 
