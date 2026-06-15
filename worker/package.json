@@ -37,7 +37,7 @@
     "@types/dotenv-flow": "3.3.3",
     "@types/node": "^25.9.3",
     "@types/pg": "^8.16.0",
-    "@types/supertest": "6.0.3",
+    "@types/supertest": "7.2.0",
     "@types/tar": "^7.0.87",
     "@wdio/globals": "^9.23.0",
     "@wdio/types": "^9.23.3",
