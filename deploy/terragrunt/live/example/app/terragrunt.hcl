@@ -50,7 +50,7 @@ inputs = {
 
   # REPLACE_ME: public URL + image settings.
   app_url        = "https://vizdiff.corp.example.com"
-  image_registry = "ghcr.io/mvi-llc"
+  image_registry = "ghcr.io/vizdiff-io"
   image_tag      = "" # empty => chart appVersion; CI sets this to the commit SHA
 
   service_account_name = "vizdiff"

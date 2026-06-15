@@ -19,7 +19,7 @@ const mockProjects: ProjectResponse[] = [
     id: 1,
     name: "vizdiff.io",
     vcsProvider: "gitlab",
-    repoUrl: "https://gitlab.com/mvi-llc/vizdiff.io",
+    repoUrl: "https://gitlab.com/vizdiff-io/vizdiff.io",
     token: "abc123def456",
     ownerId: 123,
     createdStampSec: oneMinuteAgo - 3600 * 24 * 30, // 1 month ago

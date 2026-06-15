@@ -17,7 +17,7 @@ appVersion: "0.2.0"
 
 home: https://vizdiff.io
 sources:
-  - https://github.com/mvi-llc/vizdiff.io
+  - https://github.com/vizdiff-io/vizdiff.io
 maintainers:
   - name: Metaverse Industries
     url: https://vizdiff.io

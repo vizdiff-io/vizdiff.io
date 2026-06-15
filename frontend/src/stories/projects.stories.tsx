@@ -18,7 +18,7 @@ const mockProjects: ProjectResponse[] = [
     id: 1,
     name: "vizdiff.io",
     vcsProvider: "github",
-    repoUrl: "https://github.com/mvi-llc/vizdiff.io",
+    repoUrl: "https://github.com/vizdiff-io/vizdiff.io",
     token: "abc123def456",
     ownerId: 123,
     createdStampSec: oneMinuteAgo - 3600 * 24 * 30, // 1 month ago
@@ -70,7 +70,7 @@ const mockActivity: ScreenshotTestResponse[] = [
     projectName: "vizdiff.io",
     buildNumber: 6,
     vcsProvider: "github",
-    repoUrl: "https://github.com/mvi-llc/vizdiff.io",
+    repoUrl: "https://github.com/vizdiff-io/vizdiff.io",
     commitSha: "86f7e437faa5a7fce15d1ddcb9eaeaea377667b8",
     branch: "main",
     baseCommitSha: "e9d71f5ee7c92d6dc9e92ffdad17b8bd49418f98",

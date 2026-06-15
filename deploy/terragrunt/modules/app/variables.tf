@@ -20,7 +20,7 @@ variable "chart_path" {
 
 variable "image_registry" {
   type    = string
-  default = "ghcr.io/mvi-llc"
+  default = "ghcr.io/vizdiff-io"
 }
 
 variable "image_tag" {
