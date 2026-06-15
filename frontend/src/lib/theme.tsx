@@ -127,39 +127,58 @@ export function createAppTheme(mode: "dark" | "light"): Theme {
               cursor: "not-allowed",
             },
           },
-          containedPrimary: {
-            backgroundColor: "#5cc5ff",
-            color: "var(--text-on-primary)",
-            "&:hover": {
-              backgroundColor: "#45d3ff",
-            },
-          },
-          containedSuccess: {
-            "&.Mui-disabled": {
-              backgroundColor: "#679436",
-              color: "white",
-            },
-          },
-          containedError: {
-            "&.Mui-disabled": {
-              backgroundColor: "#a5243d",
-              color: "white",
-            },
-          },
-          outlinedPrimary: {
-            borderColor: "var(--twelve-percent-opacity)",
-            "&:hover": {
-              borderColor: "var(--twenty-percent-opacity)",
-              backgroundColor: "var(--five-percent-opacity)",
-            },
-          },
-          textPrimary: {
-            color: "var(--seventy-percent-opacity)",
-            "&:hover": {
-              backgroundColor: "var(--five-percent-opacity)",
-            },
-          },
         },
+        // MUI v9 removed the variant+color style-override slots (e.g. `containedPrimary`);
+        // these moved to the component-level `variants` API.
+        variants: [
+          {
+            props: { variant: "contained", color: "primary" },
+            style: {
+              backgroundColor: "#5cc5ff",
+              color: "var(--text-on-primary)",
+              "&:hover": {
+                backgroundColor: "#45d3ff",
+              },
+            },
+          },
+          {
+            props: { variant: "contained", color: "success" },
+            style: {
+              "&.Mui-disabled": {
+                backgroundColor: "#679436",
+                color: "white",
+              },
+            },
+          },
+          {
+            props: { variant: "contained", color: "error" },
+            style: {
+              "&.Mui-disabled": {
+                backgroundColor: "#a5243d",
+                color: "white",
+              },
+            },
+          },
+          {
+            props: { variant: "outlined", color: "primary" },
+            style: {
+              borderColor: "var(--twelve-percent-opacity)",
+              "&:hover": {
+                borderColor: "var(--twenty-percent-opacity)",
+                backgroundColor: "var(--five-percent-opacity)",
+              },
+            },
+          },
+          {
+            props: { variant: "text", color: "primary" },
+            style: {
+              color: "var(--seventy-percent-opacity)",
+              "&:hover": {
+                backgroundColor: "var(--five-percent-opacity)",
+              },
+            },
+          },
+        ],
       },
       MuiIconButton: {
         styleOverrides: {
