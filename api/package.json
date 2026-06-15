@@ -48,7 +48,7 @@
     "@types/node": "25.9.3",
     "@types/pg": "8.16.0",
     "@types/pino-pretty": "^5.0.0",
-    "@types/supertest": "6.0.3",
+    "@types/supertest": "7.2.0",
     "esbuild": "^0.27.3",
     "eslint": "9.26.0",
     "supertest": "7.2.2",
