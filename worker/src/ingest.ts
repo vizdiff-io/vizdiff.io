@@ -15,6 +15,7 @@ import {
 import { Not, In } from "typeorm"
 import { remote } from "webdriverio"
 
+import { createBrowserPool } from "./browserPool"
 import { Database } from "./database"
 import { downloadWithTimeout } from "./download"
 import {
@@ -273,17 +274,21 @@ export async function ingestStorybook(
       // Node 26's undici 7 (see wdio.ts).
       transformRequest: nodeCompatTransformRequest,
     }
-    const browser = await remote(config)
-
-    // Install page-level rendering safeguards (disable real-time transports and
-    // off-origin fetch/XHR/window.open at the JS layer) before navigating to any
-    // story. The hard egress boundary is installed below once the static server
-    // origin is known (installNetworkEgressBlock).
-    await installBrowserSafeguards(browser)
-    screenshotTest.browserVersion = `${browser.capabilities.browserName}-${browser.capabilities.platformName}-${browser.capabilities.browserVersion}`
+    // Build a pool of independent headless-Chrome sessions so stories render concurrently
+    // (issue #152, Phase 1b). Pool size == WORKER_STORY_CONCURRENCY (default 1). Each session gets
+    // the page-level safeguards installed up front (disable real-time transports + off-origin
+    // fetch/XHR/window.open at the JS layer) before it navigates to any untrusted story; the hard
+    // network egress boundary is installed per session below, once the static-server origin is known.
+    const pool = await createBrowserPool(WORKER_STORY_CONCURRENCY, async () => {
+      const session = await remote(config)
+      await installBrowserSafeguards(session)
+      return session
+    })
+    const primaryBrowser = pool.browsers[0]
+    screenshotTest.browserVersion = `${primaryBrowser.capabilities.browserName}-${primaryBrowser.capabilities.platformName}-${primaryBrowser.capabilities.browserVersion}`
     log.info(
-      { capabilities: browser.capabilities },
-      `Successfully initialized WebdriverIO ${screenshotTest.browserVersion}`,
+      { capabilities: primaryBrowser.capabilities, poolSize: pool.size },
+      `Successfully initialized ${pool.size} WebdriverIO session(s) ${screenshotTest.browserVersion}`,
     )
 
     logBuildMemoryUsage("render-start", screenshotTest.id)
@@ -292,21 +297,25 @@ export async function ingestStorybook(
       // Start a local server to serve the Storybook files
       const { server, port } = await startStaticServer(tmpDir)
 
-      // Install the hard network egress boundary: fail every off-origin request
-      // (sub-resource, navigation, fetch, XHR, WebSocket, beacon) so an
-      // untrusted story bundle cannot exfiltrate data. Must run before
-      // navigating to any story.
-      await installNetworkEgressBlock(browser, `http://localhost:${port}`)
+      // Install the hard network egress boundary on EVERY pooled session: fail every off-origin
+      // request (sub-resource, navigation, fetch, XHR, WebSocket, beacon) so an untrusted story
+      // bundle cannot exfiltrate data. Must run before navigating to any story.
+      await Promise.all(
+        pool.browsers.map((session) =>
+          installNetworkEgressBlock(session, `http://localhost:${port}`),
+        ),
+      )
 
       try {
-        // Set the initial viewport
-        await browser.setViewport({ width: 1200, height: 900, devicePixelRatio: 1 })
+        // Discover the stories with the primary session (single-threaded, before the concurrent
+        // render phase begins, so it doesn't contend with the pool).
+        await primaryBrowser.setViewport({ width: 1200, height: 900, devicePixelRatio: 1 })
 
         // Navigate to the Storybook iframe and wait for stories to load
-        await navigateToStorybook(browser, port)
+        await navigateToStorybook(primaryBrowser, port)
 
         // Get the loaded stories (validated: identifier length caps applied per story)
-        const stories = await getStorybookStories(browser)
+        const stories = await getStorybookStories(primaryBrowser)
 
         const storyCount = Object.keys(stories).length
         if (storyCount === 0) {
@@ -341,29 +350,35 @@ export async function ingestStorybook(
           log.info(`Found ${baseTestResults.size} base test results`)
         }
 
-        // Process stories with a configurable concurrency limit (issue #152, Phase 1).
-        // Defaults to 1 (sequential). Browser navigation/stabilization is currently serialized by
-        // the process-wide mutex in captureStableScreenshot, so values > 1 only overlap the S3
-        // diff/upload portions until that mutex is removed in a later increment.
-        const limit = pLimit(WORKER_STORY_CONCURRENCY)
-        log.info(`Rendering stories with concurrency limit ${WORKER_STORY_CONCURRENCY}`)
+        // Render stories concurrently across the session pool (issue #152, Phase 1b): each slot
+        // checks out one session for the full render of one story and returns it when done. The
+        // limit equals the pool size, so a slot never waits on acquire(). A single story's render
+        // failure is isolated inside processStory (it records a `failed` TestResult and returns),
+        // so one bad story cannot abort the build.
+        const limit = pLimit(pool.size)
+        log.info(`Rendering ${Object.keys(stories).length} stories across ${pool.size} session(s)`)
         const testResults = await Promise.all(
           Object.values(stories).map((story) =>
-            limit(() =>
-              processStory({
-                story,
-                screenshotTest,
-                baseTestResult: baseTestResults.get(story.id),
-                bucket,
-                tmpDir,
-                projectId,
-                uploadId,
-                port,
-                s3Client,
-                testResultTable,
-                browser,
-              }),
-            ),
+            limit(async () => {
+              const session = await pool.acquire()
+              try {
+                return await processStory({
+                  story,
+                  screenshotTest,
+                  baseTestResult: baseTestResults.get(story.id),
+                  bucket,
+                  tmpDir,
+                  projectId,
+                  uploadId,
+                  port,
+                  s3Client,
+                  testResultTable,
+                  browser: session,
+                })
+              } finally {
+                pool.release(session)
+              }
+            }),
           ),
         )
         log.info(
@@ -418,26 +433,24 @@ export async function ingestStorybook(
 
     try {
       // Wrap the entire render phase in a max-duration guard. A build that exceeds this is
-      // almost always stuck or pathologically large; on timeout we force-close the browser
+      // almost always stuck or pathologically large; on timeout we force-close every pooled
       // session so the in-flight WebDriver commands reject and the stack unwinds. Crucially,
       // withTimeout then waits for renderStorybook() to actually settle before surfacing the
-      // BuildTimeoutError — its `finally` blocks (and the per-story `finally` that releases the
-      // module-level browserMutex in stories.ts) must run before the worker is freed to accept a
-      // new build, otherwise the next build would block on a poisoned mutex and time out too.
-      // If the render fails to unwind within the grace period, the session is wedged beyond
-      // in-process recovery, so withTimeout exits the worker (default onUnrecoverable) and the
-      // orchestrator restarts a clean process. BuildTimeoutError is treated as a non-retryable
-      // failure by the task scheduler.
+      // BuildTimeoutError — its `finally` blocks (and the per-story `finally` that returns each
+      // session to the pool) must run before the worker is freed to accept a new build. If the
+      // render fails to unwind within the grace period, a session is wedged beyond in-process
+      // recovery, so withTimeout exits the worker (default onUnrecoverable) and the orchestrator
+      // restarts a clean process. BuildTimeoutError is treated as a non-retryable failure by the
+      // task scheduler.
       await withTimeout(
         renderStorybook(),
         BUILD_TIMEOUT_MS,
         () => {
           log.warn(
-            `Build ${screenshotTest.id} (#${screenshotTest.buildNumber}) exceeded ${BUILD_TIMEOUT_MS}ms; aborting and closing browser session`,
+            `Build ${screenshotTest.id} (#${screenshotTest.buildNumber}) exceeded ${BUILD_TIMEOUT_MS}ms; aborting and closing browser session(s)`,
           )
-          return browser.deleteSession().catch((err: unknown) => {
-            log.warn(err, "Failed to close browser session during build-timeout abort")
-          })
+          // Force-close every pooled session so in-flight WebDriver commands reject.
+          return pool.destroyAll()
         },
         {
           abortGraceMs: BUILD_ABORT_GRACE_MS,
@@ -445,20 +458,18 @@ export async function ingestStorybook(
             log.fatal(
               err,
               `Build ${screenshotTest.id} (#${screenshotTest.buildNumber}) did not unwind within ` +
-                `${BUILD_ABORT_GRACE_MS}ms after abort; the render is wedged (likely holding ` +
-                `browserMutex). Exiting worker so the orchestrator restarts a clean process.`,
+                `${BUILD_ABORT_GRACE_MS}ms after abort; a render is wedged. Exiting worker so the ` +
+                `orchestrator restarts a clean process.`,
             )
             process.exit(1)
           },
         },
       )
     } finally {
-      log.debug("Closing WebdriverIO browser session")
-      // The session may already be gone if a timeout abort closed it; tolerate that so we
-      // never mask the original error with a teardown failure.
-      await browser.deleteSession().catch((err: unknown) => {
-        log.debug(err, "browser.deleteSession() during cleanup (may already be closed)")
-      })
+      log.debug("Closing WebdriverIO browser session pool")
+      // Sessions may already be gone if a timeout abort closed them; destroyAll tolerates that so
+      // we never mask the original error with a teardown failure.
+      await pool.destroyAll()
       logBuildMemoryUsage("render-end", screenshotTest.id)
     }
   } catch (error) {
