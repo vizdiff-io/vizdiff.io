@@ -82,7 +82,7 @@ export const MarketingLayout: React.FC<MarketingLayoutProps> = ({ children }) =>
                 }}
               >
                 <MenuItem onClick={handleCloseNavMenu} component={Link} href="/docs">
-                  <Typography textAlign="center">Documentation</Typography>
+                  <Typography sx={{ textAlign: "center" }}>Documentation</Typography>
                 </MenuItem>
               </Menu>
             </Box>

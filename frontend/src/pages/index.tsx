@@ -90,7 +90,7 @@ export default function Home(): JSX.Element {
           <Typography variant="h2" align="center" sx={{ mb: { xs: 4, sm: 6 } }}>
             How VizDiff Works
           </Typography>
-          <Grid container spacing={{ xs: 4, md: 6 }} justifyContent="center">
+          <Grid container spacing={{ xs: 4, md: 6 }} sx={{ justifyContent: "center" }}>
             {/* Step 1: Connect */}
             <Grid size={{ xs: 12, sm: 6, md: 4 }}>
               <Box
@@ -189,7 +189,7 @@ export default function Home(): JSX.Element {
           <Typography variant="h2" align="center" sx={{ mb: { xs: 4, sm: 6 } }}>
             Key Features
           </Typography>
-          <Grid container spacing={4} justifyContent="center">
+          <Grid container spacing={4} sx={{ justifyContent: "center" }}>
             <Grid size={{ xs: 12, sm: 6, md: 3 }}>
               <Box sx={{ textAlign: "center" }}>
                 <IntegrationInstructionsIcon sx={{ fontSize: 40, mb: 2, color: "primary.main" }} />
