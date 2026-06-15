@@ -508,6 +508,44 @@ describe("processStory", () => {
   })
 
   /**
+   * Failure isolation (issue #152): a story that fails to render must NOT abort the whole build.
+   * processStory records a `failed` TestResult and resolves with it instead of throwing.
+   */
+  it("isolates a render failure: returns a failed TestResult instead of throwing", async () => {
+    // Make navigation to the story fail, so captureStableScreenshot throws.
+    mockBrowserUrl.mockRejectedValueOnce(new Error("navigation blew up"))
+
+    const saved: TestResult[] = []
+    const testResult = await processStory({
+      story: mockStory,
+      screenshotTest: mockScreenshotTest,
+      bucket: "test-bucket",
+      tmpDir: "/tmp/test",
+      projectId: "test-project",
+      uploadId: "123",
+      port: 9009,
+      s3Client: new S3Client({}),
+      testResultTable: {
+        save: mockTestResultSave.mockImplementation(async (data: TestResult) => {
+          saved.push(data)
+          return data
+        }),
+      } as unknown as Repository<TestResult>,
+      browser: mockBrowser,
+    })
+
+    // Resolves (does not throw) with a failed result so the build can continue.
+    expect(testResult.changeStatus).toBe("failed")
+    expect(testResult.storyId).toBe(mockStory.id)
+    // `new_image_url` is NOT NULL; a failed story has no screenshot, stored as empty string.
+    expect(testResult.newImageUrl).toBe("")
+    // The failed TestResult was persisted.
+    expect(saved.some((r) => r.changeStatus === "failed")).toBe(true)
+    // No screenshot was uploaded for the failed story.
+    expect(mockSend).not.toHaveBeenCalledWith(expect.any(PutObjectCommand))
+  })
+
+  /**
    * Test case 5: Tall content grows the viewport (issue #146)
    * Verifies that:
    * - When the page's measured content height exceeds the viewport, the viewport is grown so the

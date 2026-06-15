@@ -30,31 +30,6 @@ export type StoryInfo = {
   browser: Browser
 }
 
-// Create a mutex for browser access
-const browserMutex = {
-  locked: false,
-  queue: [] as Array<() => void>,
-
-  async acquire(): Promise<void> {
-    if (!this.locked) {
-      this.locked = true
-      return
-    }
-    await new Promise<void>((resolve) => this.queue.push(resolve))
-  },
-
-  release(): void {
-    if (this.queue.length > 0) {
-      const next = this.queue.shift()
-      if (next) {
-        next()
-      }
-    } else {
-      this.locked = false
-    }
-  },
-}
-
 export async function navigateToStorybook(
   browser: Browser,
   localServerPort: number,
@@ -216,181 +191,175 @@ export async function captureStableScreenshot(
   let currentScreenshotPath = tempPath2
   let finalScreenshotBuffer: Buffer | undefined
 
-  await browserMutex.acquire()
-  try {
-    // Set the initial viewport
-    log.debug(`Setting initial viewport for ${storyId}: ${viewport.width}x${viewport.height}`)
-    await browser.setViewport(viewport)
+  // Set the initial viewport
+  log.debug(`Setting initial viewport for ${storyId}: ${viewport.width}x${viewport.height}`)
+  await browser.setViewport(viewport)
 
-    // Navigate to the story
-    const storyUrl = `http://localhost:${port}/iframe.html?id=${storyId}` // Ensure port is used
-    log.debug(`Navigating to story URL: ${storyUrl}`)
-    await browser.url(storyUrl)
+  // Navigate to the story
+  const storyUrl = `http://localhost:${port}/iframe.html?id=${storyId}` // Ensure port is used
+  log.debug(`Navigating to story URL: ${storyUrl}`)
+  await browser.url(storyUrl)
 
-    // Wait for the story to load
-    log.debug(`Waiting for story ${storyId} to load...`)
-    await waitForStorybookToLoad(browser)
+  // Wait for the story to load
+  log.debug(`Waiting for story ${storyId} to load...`)
+  await waitForStorybookToLoad(browser)
 
-    // Inject CSS to remove Storybook's body padding
-    log.debug(`Injecting CSS to remove body padding for story ${storyId}`)
-    await browser.execute(() => {
-      // @ts-expect-error: document is not defined
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-      const style = document.createElement("style")
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      style.textContent = `
-        body.sb-main-padded.sb-show-main {
-          padding: 0 !important;
-          margin: 0 !important;
-        }
-      `
-      // @ts-expect-error: document is not defined
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-      document.head.appendChild(style)
-    })
+  // Inject CSS to remove Storybook's body padding
+  log.debug(`Injecting CSS to remove body padding for story ${storyId}`)
+  await browser.execute(() => {
+    // @ts-expect-error: document is not defined
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    const style = document.createElement("style")
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    style.textContent = `
+      body.sb-main-padded.sb-show-main {
+        padding: 0 !important;
+        margin: 0 !important;
+      }
+    `
+    // @ts-expect-error: document is not defined
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
+    document.head.appendChild(style)
+  })
 
-    // Adjust the viewport for the story. This is a best-effort first pass; the layout may not be
-    // settled yet, so the post-stabilization adjustment below is authoritative for tall content.
-    log.debug(`Adjusting viewport for story ${storyId}`)
-    let currentViewport: SetViewportOptions = {
-      ...viewport,
-      height: await adjustViewportForStory(browser, storyId, viewport),
+  // Adjust the viewport for the story. This is a best-effort first pass; the layout may not be
+  // settled yet, so the post-stabilization adjustment below is authoritative for tall content.
+  log.debug(`Adjusting viewport for story ${storyId}`)
+  let currentViewport: SetViewportOptions = {
+    ...viewport,
+    height: await adjustViewportForStory(browser, storyId, viewport),
+  }
+
+  // --- Screenshot Stabilization Logic ---
+  log.debug("Taking initial screenshot for stabilization...")
+  let previousScreenshotBuffer = await takeScreenshotWithRetry(browser, previousScreenshotPath)
+  finalScreenshotBuffer = previousScreenshotBuffer // Initialize screenshot with the first capture
+
+  const startTime = Date.now()
+  let stabilized = false
+  const MAX_ATTEMPTS = Math.ceil(SCREENSHOTS_UNCHANGED_TIMEOUT_MS / SCREENSHOT_INTERVAL_MS)
+  let attempts = 0
+
+  while (attempts < MAX_ATTEMPTS && Date.now() - startTime < SCREENSHOTS_UNCHANGED_TIMEOUT_MS) {
+    attempts++
+    await browser.pause(SCREENSHOT_INTERVAL_MS)
+    log.debug(`Taking stabilization screenshot attempt ${attempts}/${MAX_ATTEMPTS}...`)
+
+    let currentScreenshotBuffer: Buffer<ArrayBuffer>
+    try {
+      currentScreenshotBuffer = await takeScreenshotWithRetry(browser, currentScreenshotPath)
+    } catch (err) {
+      log.error(
+        err,
+        `Failed to take screenshot during stabilization attempt ${attempts}. Using previous screenshot.`,
+      )
+      break // Exit while loop, use the previously captured screenshot
     }
 
-    // --- Screenshot Stabilization Logic ---
-    log.debug("Taking initial screenshot for stabilization...")
-    let previousScreenshotBuffer = await takeScreenshotWithRetry(browser, previousScreenshotPath)
-    finalScreenshotBuffer = previousScreenshotBuffer // Initialize screenshot with the first capture
+    // Compare the previous and current screenshots
+    const previousPng = PNG.sync.read(previousScreenshotBuffer)
+    const currentPng = PNG.sync.read(currentScreenshotBuffer)
 
-    const startTime = Date.now()
-    let stabilized = false
-    const MAX_ATTEMPTS = Math.ceil(SCREENSHOTS_UNCHANGED_TIMEOUT_MS / SCREENSHOT_INTERVAL_MS)
-    let attempts = 0
-
-    while (attempts < MAX_ATTEMPTS && Date.now() - startTime < SCREENSHOTS_UNCHANGED_TIMEOUT_MS) {
-      attempts++
-      await browser.pause(SCREENSHOT_INTERVAL_MS)
-      log.debug(`Taking stabilization screenshot attempt ${attempts}/${MAX_ATTEMPTS}...`)
-
-      let currentScreenshotBuffer: Buffer<ArrayBuffer>
-      try {
-        currentScreenshotBuffer = await takeScreenshotWithRetry(browser, currentScreenshotPath)
-      } catch (err) {
-        log.error(
-          err,
-          `Failed to take screenshot during stabilization attempt ${attempts}. Using previous screenshot.`,
-        )
-        break // Exit while loop, use the previously captured screenshot
-      }
-
-      // Compare the previous and current screenshots
-      const previousPng = PNG.sync.read(previousScreenshotBuffer)
-      const currentPng = PNG.sync.read(currentScreenshotBuffer)
-
-      if (previousPng.width !== currentPng.width || previousPng.height !== currentPng.height) {
-        log.error(
-          `Screenshot dimensions changed from ${previousPng.width}x${previousPng.height} to ` +
-            `${currentPng.width}x${currentPng.height} for story ${storyId}. Continuing stabilization check.`,
-        )
-        // Update the baseline for the next comparison
-        previousScreenshotBuffer = currentScreenshotBuffer
-        finalScreenshotBuffer = currentScreenshotBuffer // Update final screenshot candidate
-        // Swap paths for next iteration
-        ;[previousScreenshotPath, currentScreenshotPath] = [
-          currentScreenshotPath,
-          previousScreenshotPath,
-        ]
-        continue // Skip stability check for this iteration
-      }
-
-      const diffRatio = diffImagesNoMask(previousPng, currentPng)
-      log.debug(
-        `Stability check for story ${storyId}: diffRatio=${diffRatio} (attempt ${attempts}/${MAX_ATTEMPTS})`,
+    if (previousPng.width !== currentPng.width || previousPng.height !== currentPng.height) {
+      log.error(
+        `Screenshot dimensions changed from ${previousPng.width}x${previousPng.height} to ` +
+          `${currentPng.width}x${currentPng.height} for story ${storyId}. Continuing stabilization check.`,
       )
-
-      // Always update the baseline and final screenshot candidate to the latest capture
+      // Update the baseline for the next comparison
       previousScreenshotBuffer = currentScreenshotBuffer
-      finalScreenshotBuffer = currentScreenshotBuffer
-      // Swap paths for the next potential iteration
+      finalScreenshotBuffer = currentScreenshotBuffer // Update final screenshot candidate
+      // Swap paths for next iteration
       ;[previousScreenshotPath, currentScreenshotPath] = [
         currentScreenshotPath,
         previousScreenshotPath,
       ]
-
-      if (diffRatio < IMAGE_UNCHANGED_THRESHOLD) {
-        log.info(
-          `Screenshot for story ${storyId} stabilized after ${Date.now() - startTime}ms with diffRatio=${diffRatio} (attempt ${attempts})`,
-        )
-        stabilized = true
-        break // Stable state reached, exit loop
-      }
-
-      // Not stable yet, check if we're approaching the timeout
-      const timeRemaining = SCREENSHOTS_UNCHANGED_TIMEOUT_MS - (Date.now() - startTime)
-      if (timeRemaining < SCREENSHOT_INTERVAL_MS) {
-        log.warn(`Approaching timeout for story ${storyId} stabilization, using last screenshot`)
-        break
-      }
-    } // End while loop
-
-    // --- Post-Loop Handling ---
-    if (!stabilized) {
-      log.warn(
-        `Screenshot for story ${storyId} did not stabilize within ` +
-          `${SCREENSHOTS_UNCHANGED_TIMEOUT_MS}ms (${attempts} attempts). Using last captured screenshot.`,
-      )
+      continue // Skip stability check for this iteration
     }
 
-    // --- Post-Stabilization Viewport Fit ---
-    // Now that rendering has settled, re-measure the full content height. The initial adjustment
-    // (above) can run before the layout finishes (the root cause of tall "Getting Started" docs
-    // pages being vertically cut off), so this authoritative pass grows the viewport to fit the
-    // full content if needed. We resize at most once and only when the content has grown *beyond*
-    // the current viewport, then re-capture after a short settle. Bounding the resize to a single
-    // post-stabilization pass avoids a feedback loop where each resize triggers a relayout that
-    // changes the height again.
-    const settledContentHeight = await measureContentHeight(browser)
-    if (settledContentHeight != undefined) {
-      const fittedHeight = computeFittedHeight(settledContentHeight, currentViewport)
-      // Only grow the viewport; never shrink (shrinking could clip content that was visible in the
-      // captured screenshot, and would not fix the cutoff bug).
-      if (fittedHeight > currentViewport.height) {
-        log.info(
-          `Post-stabilization viewport fit for story ${storyId}: growing height from ` +
-            `${currentViewport.height} to ${fittedHeight} (content: ${settledContentHeight})`,
-        )
-        currentViewport = { ...currentViewport, height: fittedHeight }
-        await browser.setViewport(currentViewport)
-        // Let the relayout settle, then capture the full-height screenshot.
-        await browser.pause(SCREENSHOT_INTERVAL_MS)
-        try {
-          finalScreenshotBuffer = await takeScreenshotWithRetry(browser, previousScreenshotPath)
-        } catch (err) {
-          log.error(
-            err,
-            `Failed to capture full-height screenshot for story ${storyId} after resize. ` +
-              `Using last captured screenshot.`,
-          )
-        }
-      }
-    }
-
-    // Rename the final selected screenshot file to the official path
+    const diffRatio = diffImagesNoMask(previousPng, currentPng)
     log.debug(
-      `Using final screenshot buffer (${finalScreenshotBuffer.byteLength} bytes) saved to ${outputFilePath}`,
+      `Stability check for story ${storyId}: diffRatio=${diffRatio} (attempt ${attempts}/${MAX_ATTEMPTS})`,
     )
-    // Write the final buffer to the output path
-    await fsPromises.writeFile(outputFilePath, finalScreenshotBuffer)
 
-    // Clean up the other temp file
-    await fsPromises.unlink(currentScreenshotPath).catch((err: unknown) => {
-      log.warn(err, `Failed to delete unused temp screenshot ${currentScreenshotPath}`)
-    })
-    // --- End Screenshot Logic ---
-  } finally {
-    // Release browser mutex
-    browserMutex.release()
+    // Always update the baseline and final screenshot candidate to the latest capture
+    previousScreenshotBuffer = currentScreenshotBuffer
+    finalScreenshotBuffer = currentScreenshotBuffer
+    // Swap paths for the next potential iteration
+    ;[previousScreenshotPath, currentScreenshotPath] = [
+      currentScreenshotPath,
+      previousScreenshotPath,
+    ]
+
+    if (diffRatio < IMAGE_UNCHANGED_THRESHOLD) {
+      log.info(
+        `Screenshot for story ${storyId} stabilized after ${Date.now() - startTime}ms with diffRatio=${diffRatio} (attempt ${attempts})`,
+      )
+      stabilized = true
+      break // Stable state reached, exit loop
+    }
+
+    // Not stable yet, check if we're approaching the timeout
+    const timeRemaining = SCREENSHOTS_UNCHANGED_TIMEOUT_MS - (Date.now() - startTime)
+    if (timeRemaining < SCREENSHOT_INTERVAL_MS) {
+      log.warn(`Approaching timeout for story ${storyId} stabilization, using last screenshot`)
+      break
+    }
+  } // End while loop
+
+  // --- Post-Loop Handling ---
+  if (!stabilized) {
+    log.warn(
+      `Screenshot for story ${storyId} did not stabilize within ` +
+        `${SCREENSHOTS_UNCHANGED_TIMEOUT_MS}ms (${attempts} attempts). Using last captured screenshot.`,
+    )
   }
+
+  // --- Post-Stabilization Viewport Fit ---
+  // Now that rendering has settled, re-measure the full content height. The initial adjustment
+  // (above) can run before the layout finishes (the root cause of tall "Getting Started" docs
+  // pages being vertically cut off), so this authoritative pass grows the viewport to fit the
+  // full content if needed. We resize at most once and only when the content has grown *beyond*
+  // the current viewport, then re-capture after a short settle. Bounding the resize to a single
+  // post-stabilization pass avoids a feedback loop where each resize triggers a relayout that
+  // changes the height again.
+  const settledContentHeight = await measureContentHeight(browser)
+  if (settledContentHeight != undefined) {
+    const fittedHeight = computeFittedHeight(settledContentHeight, currentViewport)
+    // Only grow the viewport; never shrink (shrinking could clip content that was visible in the
+    // captured screenshot, and would not fix the cutoff bug).
+    if (fittedHeight > currentViewport.height) {
+      log.info(
+        `Post-stabilization viewport fit for story ${storyId}: growing height from ` +
+          `${currentViewport.height} to ${fittedHeight} (content: ${settledContentHeight})`,
+      )
+      currentViewport = { ...currentViewport, height: fittedHeight }
+      await browser.setViewport(currentViewport)
+      // Let the relayout settle, then capture the full-height screenshot.
+      await browser.pause(SCREENSHOT_INTERVAL_MS)
+      try {
+        finalScreenshotBuffer = await takeScreenshotWithRetry(browser, previousScreenshotPath)
+      } catch (err) {
+        log.error(
+          err,
+          `Failed to capture full-height screenshot for story ${storyId} after resize. ` +
+            `Using last captured screenshot.`,
+        )
+      }
+    }
+  }
+
+  // Rename the final selected screenshot file to the official path
+  log.debug(
+    `Using final screenshot buffer (${finalScreenshotBuffer.byteLength} bytes) saved to ${outputFilePath}`,
+  )
+  // Write the final buffer to the output path
+  await fsPromises.writeFile(outputFilePath, finalScreenshotBuffer)
+
+  // Clean up the other temp file
+  await fsPromises.unlink(currentScreenshotPath).catch((err: unknown) => {
+    log.warn(err, `Failed to delete unused temp screenshot ${currentScreenshotPath}`)
+  })
+  // --- End Screenshot Logic ---
   log.info(`Stable screenshot saved to ${outputFilePath}`)
   return outputFilePath
 }
@@ -431,16 +400,24 @@ export async function processStory({
       { err, buildNumber: screenshotTest.buildNumber },
       `Failed to capture stable screenshot for story ${storyId}`,
     )
-    // Create a minimal failed TestResult record
+    // Record a minimal failed TestResult and KEEP GOING (issue #152 failure isolation): one story
+    // that fails to render must not abort the whole build. The build still completes and reports;
+    // build-level failure is reserved for setup errors (download/extract/session init) raised in
+    // ingest.ts, outside this per-story path. `newImageUrl` is NOT NULL with no screenshot for a
+    // failed story, so it is stored as an empty string.
     const name = getStoryName(story)
     const testResult = new TestResult()
     testResult.name = name
     testResult.screenshotTest = screenshotTest
     testResult.storyId = storyId
     testResult.story = story
+    testResult.newImageUrl = ""
+    testResult.baselineImageUrl = null
+    testResult.diffImageUrl = null
+    testResult.diffRatio = null
     testResult.changeStatus = "failed"
     await testResultTable.save(testResult)
-    throw err // Re-throw to potentially fail the whole build
+    return testResult
   }
 
   // Read the saved screenshot buffer for upload and comparison
