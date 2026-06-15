@@ -37,7 +37,7 @@
     "reflect-metadata": "0.2.2",
     "typeorm": "0.3.28",
     "undici": "7.22.0",
-    "uuidv7": "1.1.0"
+    "uuidv7": "1.2.1"
   },
   "devDependencies": {
     "@types/cookie-parser": "1.4.10",
