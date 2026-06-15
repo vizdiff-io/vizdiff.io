@@ -37,5 +37,11 @@ export function defineRelationships(): void {
 
   // User <-> GitHubInstallation (OneToMany for creator)
   UserEntity.prototype.createdInstallations = Promise.resolve([] as GitHubInstallation[])
-  GitHubInstallationEntity.prototype.creator = Promise.resolve({} as User)
+  // Do NOT seed a phantom `creator` default here. `creator` shares the `creator_id` column with the
+  // writable scalar `creatorId`; if the prototype default is a resolved `{}` User, TypeORM reads it
+  // during INSERT, resolves its (undefined) id, and writes `creator_id` as NULL/DEFAULT — clobbering
+  // the `creatorId` value the caller set. (vitest 4.1+'s transform made TypeORM consult this default
+  // on insert where 4.0 did not.) Leaving it unset means an unset creator falls through to the
+  // scalar; nothing reads `installation.creator`, so there is no default to crash on.
+  GitHubInstallationEntity.prototype.creator = undefined
 }
