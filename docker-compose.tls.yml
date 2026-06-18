@@ -1,0 +1,38 @@
+# Optional TLS overlay for docker-compose.yml.
+#
+# Puts a Caddy reverse proxy (automatic Let's Encrypt HTTPS) in front of the frontend instead of
+# exposing the frontend's plain-HTTP port. Caddy owns 80/443; the frontend stays internal.
+#
+# Requires Docker Compose v2.24+ (for the `!reset` merge tag) and a public DNS name that resolves
+# to this host.
+#
+# Usage:
+#   1. In .env set:  APP_URL=https://vizdiff.example.com   (and NEXT_PUBLIC_APP_URL to match)
+#   2. Run:
+#        VIZDIFF_DOMAIN=vizdiff.example.com \
+#        docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d
+#
+# Plain HTTP (no TLS) remains the default — just use docker-compose.yml on its own.
+services:
+  frontend:
+    # Caddy now owns the public ports; drop the frontend's direct host binding to avoid a clash on 80.
+    ports: !reset []
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      VIZDIFF_DOMAIN: ${VIZDIFF_DOMAIN:?set VIZDIFF_DOMAIN to your public hostname, e.g. vizdiff.example.com}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+
+volumes:
+  caddy_data:
+  caddy_config:

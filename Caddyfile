@@ -1,0 +1,12 @@
+# Automatic HTTPS (Let's Encrypt) for a self-hosted VizDiff frontend.
+#
+# Used only by the optional TLS overlay (docker-compose.tls.yml). Set VIZDIFF_DOMAIN to your public
+# hostname (e.g. vizdiff.example.com); it must already resolve to this host's public IP, and ports
+# 80 + 443 must be reachable so Caddy can complete the ACME challenge and auto-renew the cert.
+#
+# Caddy terminates TLS and forwards to the frontend nginx, which serves the static UI and proxies
+# /api to the api container. Because Caddy sets X-Forwarded-Proto: https and nginx now passes it
+# through (frontend/nginx.conf), the api sees https and issues a Secure session cookie.
+{$VIZDIFF_DOMAIN} {
+	reverse_proxy frontend:80
+}

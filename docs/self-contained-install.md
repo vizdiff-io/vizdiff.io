@@ -58,6 +58,28 @@ External integrations still required:
 5. Optional: Stripe webhooks (if using Stripe billing)
    - Webhook URL: `https://your-domain/api/stripe/webhook`
 
+## TLS / HTTPS
+
+The frontend container serves plain HTTP on port 80. You have two options for HTTPS:
+
+**Option A — built-in Caddy overlay (easiest).** An optional `docker-compose.tls.yml` overlay adds a
+Caddy reverse proxy that obtains and auto-renews a Let's Encrypt certificate. Point a DNS record at
+this host, open ports 80 and 443, then:
+
+```sh
+# In .env: APP_URL=https://vizdiff.example.com   (and NEXT_PUBLIC_APP_URL to match)
+VIZDIFF_DOMAIN=vizdiff.example.com \
+  docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d
+```
+
+Caddy terminates TLS and forwards to the frontend; nothing else changes. (Requires Docker Compose
+v2.24+.)
+
+**Option B — your own terminator (ALB, CloudFront, external nginx, etc.).** Terminate TLS upstream
+and forward to the frontend's port 80. Make sure your proxy sets `X-Forwarded-Proto: https` — the
+frontend passes it through to the api, which uses it to set the `Secure` flag on the session cookie.
+Set `APP_URL` to your `https://` URL.
+
 ## Setup Validation UI
 
 After the stack is running, visit:
