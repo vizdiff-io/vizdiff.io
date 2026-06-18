@@ -4,6 +4,10 @@ VizDiff is a **self-hosted** visual regression tool for Storybook. It captures S
 in CI, highlights pixel diffs, and posts status checks on your changes before you merge. Self-hosting
 is the only deployment model—you run it on your own infrastructure.
 
+<p align="center">
+  <img src="docs/details-diffview-900.png" alt="VizDiff diff view comparing a baseline and a changed Storybook screenshot" width="900">
+</p>
+
 It integrates with two VCS platforms; enable either or both:
 
 - **GitLab** (default) — merge-request commit statuses via a configured per-host service token

@@ -111,6 +111,29 @@ export default function Home(): JSX.Element {
                     minutes.
                   </Typography>
                 </Box>
+                {/* Screenshot 1: Build page */}
+                <Box
+                  sx={{
+                    height: 250,
+                    borderRadius: 1,
+                    overflow: "hidden",
+                    marginTop: "auto",
+                  }}
+                >
+                  <Box
+                    component="img"
+                    src="/docs/build-page.png"
+                    alt="VizDiff build page showing an uploaded Storybook build"
+                    sx={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                      display: "block",
+                      borderRadius: 1,
+                      border: "1px solid var(--bg-secondary)",
+                    }}
+                  />
+                </Box>
               </Box>
             </Grid>
             {/* Step 2: Automate */}
@@ -132,6 +155,29 @@ export default function Home(): JSX.Element {
                     VizDiff captures screenshots automatically on every commit via your GitLab CI
                     pipeline.
                   </Typography>
+                </Box>
+                {/* Screenshot 2: CI upload step */}
+                <Box
+                  sx={{
+                    height: 250,
+                    borderRadius: 1,
+                    overflow: "hidden",
+                    marginTop: "auto",
+                  }}
+                >
+                  <Box
+                    component="img"
+                    src="/docs/upload-action-900.png"
+                    alt="VizDiff upload step in a CI pipeline configuration"
+                    sx={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                      display: "block",
+                      borderRadius: 1,
+                      border: "1px solid var(--bg-secondary)",
+                    }}
+                  />
                 </Box>
               </Box>
             </Grid>
