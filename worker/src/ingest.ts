@@ -22,7 +22,7 @@ import {
   BUILD_ABORT_GRACE_MS,
   BUILD_MEMORY_WARN_BYTES,
   BUILD_TIMEOUT_MS,
-  IS_PRODUCTION,
+  CHROMEDRIVER_PORT,
   MAX_STORIES_PER_UPLOAD,
   S3_BUCKET_NAME,
   S3_CLIENT_CONFIG,
@@ -251,7 +251,9 @@ export async function ingestStorybook(
     const config: Capabilities.WebdriverIOConfig = {
       outputDir: path.join(tmpDir, "wdio-logs"),
       hostname: "localhost",
-      port: IS_PRODUCTION ? 4444 : undefined,
+      // Connect to the chromedriver started by the container's start.sh (CHROMEDRIVER_PORT=4444 in
+      // the image); undefined when unset so local dev lets WebdriverIO manage its own driver.
+      port: CHROMEDRIVER_PORT,
       capabilities: {
         browserName: "chrome",
         // Enable WebDriver BiDi so we can install page-level rendering
