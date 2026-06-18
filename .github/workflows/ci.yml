@@ -88,11 +88,29 @@ jobs:
           path: frontend/out
           retention-days: 1
 
-  # Builds the api and worker images multi-arch (amd64 + arm64) and publishes them to the public
-  # GHCR for self-hosters. Image names match what deploy/helm + deploy/terragrunt expect:
-  # ghcr.io/vizdiff-io/vizdiff-{api,worker,frontend}.
-  docker-build-api:
-    runs-on: ubuntu-latest
+  # Build each image for every architecture on a NATIVE runner (no QEMU), push each by digest, then
+  # docker-manifest assembles the multi-arch manifest list. amd64 runs on ubuntu-latest, arm64 on the
+  # free public-repo ubuntu-24.04-arm runner. Replaces the old single-job QEMU multi-arch build whose
+  # emulated arm64 `next build` for the frontend took ~17 min. Image names match deploy/helm +
+  # deploy/terragrunt: ghcr.io/vizdiff-io/vizdiff-{api,worker,frontend}.
+  docker-build:
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [api, worker, frontend]
+        platform: [amd64, arm64]
+        include:
+          - platform: amd64
+            runner: ubuntu-latest
+          - platform: arm64
+            runner: ubuntu-24.04-arm
+          - image: api
+            dockerfile: ./api/Dockerfile
+          - image: worker
+            dockerfile: ./worker/Dockerfile
+          - image: frontend
+            dockerfile: ./frontend/Dockerfile
+    runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
       packages: write
@@ -104,7 +122,9 @@ jobs:
           fetch-depth: 0
           lfs: true
 
-      # Login to GHCR (public; self-host images). Only needed when we push (main).
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
       - name: Login to GitHub Container Registry
         if: github.ref == 'refs/heads/main'
         uses: docker/login-action@v3
@@ -113,145 +133,82 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set up environment variables
-        run: |
-          echo "GHCR_IMAGE=ghcr.io/vizdiff-io/vizdiff-api" >> $GITHUB_ENV
-          echo "IMAGE_TAG=${{ github.sha }}" >> $GITHUB_ENV
-          # Single source of truth for the Node version: .nvmrc
-          echo "NODE_VERSION=$(cat .nvmrc | tr -d '[:space:]')" >> $GITHUB_ENV
+      - name: Resolve Node version
+        id: node
+        run: echo "version=$(cat .nvmrc | tr -d '[:space:]')" >> "$GITHUB_OUTPUT"
 
-      # Set up QEMU for multi-architecture builds (amd64 + arm64)
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v4
-        with:
-          platforms: "arm64,amd64"
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      # On main: multi-arch (amd64+arm64), pushed to GHCR. On PRs: single-arch amd64 build for
-      # validation only (a multi-arch image can't be `load`ed into the local docker for testing).
-      - name: Build and push api Docker image
+      # On main: push by digest only (untagged) so docker-manifest can assemble the tag. On PRs:
+      # build for validation without pushing (type=cacheonly also warms the per-arch cache).
+      - name: Build ${{ matrix.image }} (${{ matrix.platform }})
+        id: build
         uses: docker/build-push-action@v7
         with:
           context: .
-          file: ./api/Dockerfile
-          push: ${{ github.ref == 'refs/heads/main' }}
-          load: ${{ github.ref != 'refs/heads/main' }}
-          platforms: ${{ github.ref == 'refs/heads/main' && 'linux/amd64,linux/arm64' || 'linux/amd64' }}
-          tags: |
-            ${{ env.GHCR_IMAGE }}:${{ env.IMAGE_TAG }}
-            ${{ env.GHCR_IMAGE }}:latest
-          cache-from: type=gha,scope=api
-          cache-to: type=gha,mode=max,scope=api
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/${{ matrix.platform }}
+          outputs: ${{ github.ref == 'refs/heads/main' && format('type=image,name=ghcr.io/vizdiff-io/vizdiff-{0},push-by-digest=true,name-canonical=true,push=true', matrix.image) || 'type=cacheonly' }}
+          cache-from: type=gha,scope=${{ matrix.image }}-${{ matrix.platform }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}-${{ matrix.platform }}
           build-args: |
             NODE_ENV=production
-            NODE_VERSION=${{ env.NODE_VERSION }}
-
-  docker-build-worker:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-          lfs: true
-
-      - name: Login to GitHub Container Registry
-        if: github.ref == 'refs/heads/main'
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Set up environment variables
-        run: |
-          echo "GHCR_IMAGE=ghcr.io/vizdiff-io/vizdiff-worker" >> $GITHUB_ENV
-          echo "IMAGE_TAG=${{ github.sha }}" >> $GITHUB_ENV
-          echo "NODE_VERSION=$(cat .nvmrc | tr -d '[:space:]')" >> $GITHUB_ENV
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v4
-        with:
-          platforms: "arm64,amd64"
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Build and push worker Docker image
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          file: ./worker/Dockerfile
-          push: ${{ github.ref == 'refs/heads/main' }}
-          load: ${{ github.ref != 'refs/heads/main' }}
-          platforms: ${{ github.ref == 'refs/heads/main' && 'linux/amd64,linux/arm64' || 'linux/amd64' }}
-          tags: |
-            ${{ env.GHCR_IMAGE }}:${{ env.IMAGE_TAG }}
-            ${{ env.GHCR_IMAGE }}:latest
-          cache-from: type=gha,scope=worker
-          cache-to: type=gha,mode=max,scope=worker
-          build-args: |
-            NODE_ENV=production
-            NODE_VERSION=${{ env.NODE_VERSION }}
-
-  # Same as the api/worker image jobs above; the frontend image is published to the public GHCR.
-  docker-build-frontend:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-          lfs: true
-
-      - name: Login to GitHub Container Registry
-        if: github.ref == 'refs/heads/main'
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Set up environment variables
-        run: |
-          echo "GHCR_IMAGE=ghcr.io/vizdiff-io/vizdiff-frontend" >> $GITHUB_ENV
-          echo "IMAGE_TAG=${{ github.sha }}" >> $GITHUB_ENV
-          echo "NODE_VERSION=$(cat .nvmrc | tr -d '[:space:]')" >> $GITHUB_ENV
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v4
-        with:
-          platforms: "arm64,amd64"
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Build and push frontend Docker image
-        uses: docker/build-push-action@v7
-        with:
-          context: .
-          file: ./frontend/Dockerfile
-          push: ${{ github.ref == 'refs/heads/main' }}
-          load: ${{ github.ref != 'refs/heads/main' }}
-          platforms: ${{ github.ref == 'refs/heads/main' && 'linux/amd64,linux/arm64' || 'linux/amd64' }}
-          tags: |
-            ${{ env.GHCR_IMAGE }}:${{ env.IMAGE_TAG }}
-            ${{ env.GHCR_IMAGE }}:latest
-          cache-from: type=gha,scope=frontend
-          cache-to: type=gha,mode=max,scope=frontend
-          build-args: |
-            NODE_VERSION=${{ env.NODE_VERSION }}
+            NODE_VERSION=${{ steps.node.outputs.version }}
             GIT_HASH=${{ github.sha }}
+
+      - name: Export digest
+        if: github.ref == 'refs/heads/main'
+        run: |
+          mkdir -p /tmp/digests
+          echo "${{ steps.build.outputs.digest }}" > "/tmp/digests/${{ matrix.image }}-${{ matrix.platform }}"
+
+      - name: Upload digest
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v7
+        with:
+          name: digest-${{ matrix.image }}-${{ matrix.platform }}
+          path: /tmp/digests/*
+          retention-days: 1
+          if-no-files-found: error
+
+  # Assemble the per-arch digests into one multi-arch manifest list per image (no rebuild).
+  docker-manifest:
+    if: github.ref == 'refs/heads/main'
+    needs: docker-build
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [api, worker, frontend]
+    steps:
+      - name: Download ${{ matrix.image }} digests
+        uses: actions/download-artifact@v8
+        with:
+          pattern: digest-${{ matrix.image }}-*
+          path: /tmp/digests
+          merge-multiple: true
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Create + push manifest list
+        run: |
+          IMAGE=ghcr.io/vizdiff-io/vizdiff-${{ matrix.image }}
+          REFS=""
+          for f in /tmp/digests/*; do REFS="$REFS ${IMAGE}@$(cat "$f")"; done
+          docker buildx imagetools create \
+            -t "${IMAGE}:latest" -t "${IMAGE}:${{ github.sha }}" \
+            $REFS
+
+      - name: Inspect manifest
+        run: docker buildx imagetools inspect ghcr.io/vizdiff-io/vizdiff-${{ matrix.image }}:latest
 
   # Publish the static frontend to GitHub Pages (served at the vizdiff.io apex via the CNAME below).
   # Replaces the former S3 + CloudFront hosting.
