@@ -1,4 +1,5 @@
 import "reflect-metadata" // For TypeORM
+import * as path from "path"
 import {
   Project,
   ScreenshotTest,
@@ -9,6 +10,7 @@ import {
   GitHubInstallation,
 } from "shared"
 import { DataSource } from "typeorm"
+import { fileURLToPath } from "url"
 
 import {
   IS_PRODUCTION,
@@ -20,6 +22,16 @@ import {
   POSTGRES_USER,
 } from "./environment"
 import { log } from "./log"
+
+// Absolute path to the compiled migrations, anchored to the api workspace root rather than the
+// process CWD. esbuild emits the bundle at dist/index.mjs and the migrations at dist/migrations/*.js
+// (see build.js), and this module always sits one level below the workspace root (dist/ in the
+// shipped image, src/ under ts-node), so "<root>/dist/migrations/*.js" resolves correctly in both.
+// The previous relative "dist/migrations/*.js" was resolved against process.cwd() — which is /app in
+// the container, not /app/api — so it matched nothing and every migration was silently skipped on
+// boot, leaving a fresh self-host database with no schema.
+const apiWorkspaceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")
+const migrationsGlob = path.join(apiWorkspaceRoot, "dist", "migrations", "*.js")
 
 const database = new DataSource({
   type: "postgres",
@@ -37,7 +49,7 @@ const database = new DataSource({
   entities: [GitHubInstallation, Project, ScreenshotTest, TestResult, User, WorkTask],
   subscribers: [],
   // Compiled migrations live alongside the built sources; run automatically on boot.
-  migrations: IS_TEST ? [] : ["dist/migrations/*.js"],
+  migrations: IS_TEST ? [] : [migrationsGlob],
   migrationsRun: !IS_TEST,
 })
 
