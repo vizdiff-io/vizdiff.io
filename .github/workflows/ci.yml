@@ -90,11 +90,16 @@ jobs:
           path: frontend/out
           retention-days: 1
 
+  # Builds the api and worker images multi-arch (amd64 + arm64) and publishes them to BOTH the
+  # private ECR (SaaS production) and the public GHCR (self-host). The frontend image is published
+  # to GHCR only (the SaaS serves the frontend as a static artifact via the deploy job). Image names
+  # on GHCR match what deploy/helm + deploy/terragrunt expect: ghcr.io/vizdiff-io/vizdiff-{api,worker,frontend}.
   docker-build-api:
     runs-on: ubuntu-latest
     permissions:
       id-token: write
       contents: read
+      packages: write
 
     steps:
       - name: Checkout repository
@@ -103,7 +108,7 @@ jobs:
           fetch-depth: 0
           lfs: true
 
-      # Login to ECR
+      # Login to ECR (private; SaaS production images)
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v6
         with:
@@ -114,39 +119,50 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      # Set up environment variables for ECR and image tags
+      # Login to GHCR (public; self-host images). Only needed when we push (main).
+      - name: Login to GitHub Container Registry
+        if: github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Set up environment variables for image tags
       - name: Set up environment variables
         run: |
           echo "ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}" >> $GITHUB_ENV
           echo "ECR_REPOSITORY_BACKEND=vizdiff.io/backend" >> $GITHUB_ENV
+          echo "GHCR_IMAGE=ghcr.io/vizdiff-io/vizdiff-api" >> $GITHUB_ENV
           echo "IMAGE_TAG=${{ github.sha }}" >> $GITHUB_ENV
           # Single source of truth for the Node version: .nvmrc
           echo "NODE_VERSION=$(cat .nvmrc | tr -d '[:space:]')" >> $GITHUB_ENV
 
-      # Set up QEMU for multi-architecture builds
+      # Set up QEMU for multi-architecture builds (amd64 + arm64)
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
         with:
-          platforms: "arm64"
+          platforms: "arm64,amd64"
 
       # Set up Docker Buildx
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
-      # Build and push api Docker image
+      # On main: multi-arch (amd64+arm64), pushed to ECR + GHCR. On PRs: single-arch amd64 build for
+      # validation only (a multi-arch image can't be `load`ed into the local docker for testing).
       - name: Build and push api Docker image
         uses: docker/build-push-action@v7
-        env:
-          ECR_REGISTRY: ${{ env.ECR_REGISTRY }}
-          ECR_REPOSITORY_BACKEND: ${{ env.ECR_REPOSITORY_BACKEND }}
-          IMAGE_TAG: ${{ env.IMAGE_TAG }}
         with:
           context: .
           file: ./api/Dockerfile
           push: ${{ github.ref == 'refs/heads/main' }}
           load: ${{ github.ref != 'refs/heads/main' }}
-          platforms: linux/arm64
-          tags: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY_BACKEND }}:${{ env.IMAGE_TAG }},${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY_BACKEND }}:latest
+          platforms: ${{ github.ref == 'refs/heads/main' && 'linux/amd64,linux/arm64' || 'linux/amd64' }}
+          tags: |
+            ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY_BACKEND }}:${{ env.IMAGE_TAG }}
+            ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY_BACKEND }}:latest
+            ${{ env.GHCR_IMAGE }}:${{ env.IMAGE_TAG }}
+            ${{ env.GHCR_IMAGE }}:latest
           cache-from: type=gha,scope=api
           cache-to: type=gha,mode=max,scope=api
           build-args: |
@@ -158,6 +174,7 @@ jobs:
     permissions:
       id-token: write
       contents: read
+      packages: write
 
     steps:
       - name: Checkout repository
@@ -166,8 +183,8 @@ jobs:
           fetch-depth: 0
           lfs: true
 
-      # Login to ECR
-      - name: Login to Amazon ECR
+      # Login to ECR (private; SaaS production images)
+      - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
@@ -177,44 +194,107 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      # Set up environment variables for ECR and image tags
+      # Login to GHCR (public; self-host images). Only needed when we push (main).
+      - name: Login to GitHub Container Registry
+        if: github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Set up environment variables for image tags
       - name: Set up environment variables
         run: |
           echo "ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}" >> $GITHUB_ENV
           echo "ECR_REPOSITORY_WORKER=vizdiff.io/worker" >> $GITHUB_ENV
+          echo "GHCR_IMAGE=ghcr.io/vizdiff-io/vizdiff-worker" >> $GITHUB_ENV
           echo "IMAGE_TAG=${{ github.sha }}" >> $GITHUB_ENV
           # Single source of truth for the Node version: .nvmrc
           echo "NODE_VERSION=$(cat .nvmrc | tr -d '[:space:]')" >> $GITHUB_ENV
 
-      # Set up QEMU for multi-architecture builds
+      # Set up QEMU for multi-architecture builds (amd64 + arm64)
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
         with:
-          platforms: "arm64"
+          platforms: "arm64,amd64"
 
       # Set up Docker Buildx
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
-      # Build and push worker Docker image
       - name: Build and push worker Docker image
         uses: docker/build-push-action@v7
-        env:
-          ECR_REGISTRY: ${{ env.ECR_REGISTRY }}
-          ECR_REPOSITORY_WORKER: ${{ env.ECR_REPOSITORY_WORKER }}
-          IMAGE_TAG: ${{ env.IMAGE_TAG }}
         with:
           context: .
           file: ./worker/Dockerfile
           push: ${{ github.ref == 'refs/heads/main' }}
           load: ${{ github.ref != 'refs/heads/main' }}
-          platforms: linux/arm64
-          tags: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY_WORKER }}:${{ env.IMAGE_TAG }},${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY_WORKER }}:latest
+          platforms: ${{ github.ref == 'refs/heads/main' && 'linux/amd64,linux/arm64' || 'linux/amd64' }}
+          tags: |
+            ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY_WORKER }}:${{ env.IMAGE_TAG }}
+            ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY_WORKER }}:latest
+            ${{ env.GHCR_IMAGE }}:${{ env.IMAGE_TAG }}
+            ${{ env.GHCR_IMAGE }}:latest
           cache-from: type=gha,scope=worker
           cache-to: type=gha,mode=max,scope=worker
           build-args: |
             NODE_ENV=production
             NODE_VERSION=${{ env.NODE_VERSION }}
+
+  # Frontend image is for self-hosters only (the SaaS serves the static export via the deploy job),
+  # so it is published to the public GHCR exclusively — no ECR.
+  docker-build-frontend:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          lfs: true
+
+      - name: Login to GitHub Container Registry
+        if: github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up environment variables
+        run: |
+          echo "GHCR_IMAGE=ghcr.io/vizdiff-io/vizdiff-frontend" >> $GITHUB_ENV
+          echo "IMAGE_TAG=${{ github.sha }}" >> $GITHUB_ENV
+          echo "NODE_VERSION=$(cat .nvmrc | tr -d '[:space:]')" >> $GITHUB_ENV
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+        with:
+          platforms: "arm64,amd64"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build and push frontend Docker image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./frontend/Dockerfile
+          push: ${{ github.ref == 'refs/heads/main' }}
+          load: ${{ github.ref != 'refs/heads/main' }}
+          platforms: ${{ github.ref == 'refs/heads/main' && 'linux/amd64,linux/arm64' || 'linux/amd64' }}
+          tags: |
+            ${{ env.GHCR_IMAGE }}:${{ env.IMAGE_TAG }}
+            ${{ env.GHCR_IMAGE }}:latest
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
+          build-args: |
+            NODE_VERSION=${{ env.NODE_VERSION }}
+            GIT_HASH=${{ github.sha }}
 
   deploy:
     needs: [build-and-test, docker-build-api, docker-build-worker]
