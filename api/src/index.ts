@@ -1,6 +1,4 @@
 // eslint-disable-next-line filenames/match-exported
-import "./datadog"
-
 import "reflect-metadata" // For TypeORM
 import bodyParser from "body-parser"
 import cookieParser from "cookie-parser"
