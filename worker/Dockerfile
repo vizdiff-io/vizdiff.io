@@ -74,5 +74,10 @@ WORKDIR /home/webuser
 # Create startup script in the home directory (after all other operations)
 RUN printf '#!/bin/sh\nchromedriver --port=4444 --whitelisted-ips="127.0.0.1" &\nsleep 2\nexec node --enable-source-maps /app/worker/dist/worker.mjs\n' > start.sh && chmod +x start.sh
 
+# Product version, injected by the release workflow (release.yml). Last layer so a release rebuild
+# only invalidates this step. Defaults to "dev" for main/edge builds.
+ARG VIZDIFF_VERSION=dev
+ENV VIZDIFF_VERSION=${VIZDIFF_VERSION}
+
 # Run the application
 CMD ["./start.sh"]

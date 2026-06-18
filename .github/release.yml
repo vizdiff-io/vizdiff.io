@@ -1,0 +1,11 @@
+# Categorizes GitHub's auto-generated release notes (used by release.yml's generate_release_notes).
+changelog:
+  categories:
+    - title: Features
+      labels: ["enhancement", "feature", "feat"]
+    - title: Fixes
+      labels: ["bug", "fix", "bugfix"]
+    - title: Dependencies
+      labels: ["dependencies"]
+    - title: Other Changes
+      labels: ["*"]

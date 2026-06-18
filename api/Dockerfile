@@ -38,4 +38,9 @@ COPY --from=builder /app/shared ./shared
 
 EXPOSE 3001
 
+# Product version, injected by the release workflow (release.yml). Kept as the last layer so a
+# release rebuild only invalidates this step. Defaults to "dev" for main/edge builds.
+ARG VIZDIFF_VERSION=dev
+ENV VIZDIFF_VERSION=${VIZDIFF_VERSION}
+
 CMD ["node", "--enable-source-maps", "api/dist/index.mjs"]

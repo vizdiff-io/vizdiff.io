@@ -17,6 +17,11 @@ export const IS_PRODUCTION = process.env.NODE_ENV === "production"
 export const IS_STAGING = process.env.NODE_ENV === "staging"
 export const IS_TEST = process.env.NODE_ENV === "test"
 
+// Product version, baked into the image by the release workflow (release.yml) via the
+// VIZDIFF_VERSION build-arg. "dev" for local/main/edge builds. Reported to Postgres (worker_status)
+// so the api can surface it via GET /api/version.
+export const VIZDIFF_VERSION = process.env.VIZDIFF_VERSION ?? "dev"
+
 // Port of an already-running chromedriver to connect to. The worker container's start.sh launches
 // chromedriver on 4444 and the image sets CHROMEDRIVER_PORT=4444, so a containerized worker connects
 // to it regardless of NODE_ENV. When unset (e.g. local `yarn dev`/`yarn screenshot` without a

@@ -161,6 +161,7 @@ Set `SES_REGION` and `SES_FROM_EMAIL`. If unset, VizDiff will not attempt to sen
 ## Health Checks
 
 - API: `GET /api/health`
+- API version: `GET /api/version` → `{ api, worker, workerOnline }` (the running api + worker versions)
 - Worker: `http://localhost:3003/health` (container‑internal)
 
 ## Backups & Restore
@@ -170,6 +171,25 @@ Set `SES_REGION` and `SES_FROM_EMAIL`. If unset, VizDiff will not attempt to sen
 
 ## Upgrades
 
-1. `docker compose pull`
-2. `docker compose up -d --build`
-3. Verify `/api/health`
+How you upgrade depends on whether you run **published release images** or **build from source**.
+
+**Published images** (`docker-compose.images.yml`, recommended) — pin a version from the
+[Releases page](https://github.com/vizdiff-io/vizdiff.io/releases):
+
+```sh
+VIZDIFF_VERSION=X.Y.Z docker compose -f docker-compose.images.yml pull
+VIZDIFF_VERSION=X.Y.Z docker compose -f docker-compose.images.yml up -d
+```
+
+Omit `VIZDIFF_VERSION` to track `:latest` (newest stable release). Images are
+`ghcr.io/vizdiff-io/vizdiff-{api,worker,frontend}` (multi-arch amd64 + arm64).
+
+**Build from source** (`docker-compose.yml`):
+
+```sh
+git pull
+docker compose up -d --build
+```
+
+Then verify `GET /api/health` and confirm the new version at `GET /api/version` (also shown in the
+app's footer). The api applies any pending database migrations automatically on boot.

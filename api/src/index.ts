@@ -18,6 +18,7 @@ import * as Projects from "./endpoints/projects"
 import * as ScreenshotTests from "./endpoints/screenshotTests"
 import * as Upload from "./endpoints/upload"
 import * as User from "./endpoints/user"
+import * as Version from "./endpoints/version"
 import * as Webhooks from "./endpoints/webhooks"
 import { GITHUB_ENABLED, IS_PRODUCTION, IS_TEST, PORT } from "./environment"
 import { log } from "./log"
@@ -86,6 +87,8 @@ router.get("/", (_req: DefaultRequest, res: DefaultResponse) => {
   res.json({ uptime: (new Date().getTime() - startTime) / 1000 })
 })
 router.get("/health", Health.health)
+// Public: running api + worker version, for the UI footer. No auth (not sensitive).
+router.get("/version", Version.version)
 
 // Auth routes (pluggable AuthProvider: OIDC/MSAL or dev)
 router.get("/auth/login", Auth.login)

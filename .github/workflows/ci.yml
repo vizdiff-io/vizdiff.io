@@ -203,12 +203,13 @@ jobs:
           IMAGE=ghcr.io/vizdiff-io/vizdiff-${{ matrix.image }}
           REFS=""
           for f in /tmp/digests/*; do REFS="$REFS ${IMAGE}@$(cat "$f")"; done
+          # `:edge` = newest main build. `:latest` is owned by release.yml (newest stable release).
           docker buildx imagetools create \
-            -t "${IMAGE}:latest" -t "${IMAGE}:${{ github.sha }}" \
+            -t "${IMAGE}:edge" -t "${IMAGE}:${{ github.sha }}" \
             $REFS
 
       - name: Inspect manifest
-        run: docker buildx imagetools inspect ghcr.io/vizdiff-io/vizdiff-${{ matrix.image }}:latest
+        run: docker buildx imagetools inspect ghcr.io/vizdiff-io/vizdiff-${{ matrix.image }}:edge
 
   # Publish the static frontend to GitHub Pages (served at the vizdiff.io apex via the CNAME below).
   # Replaces the former S3 + CloudFront hosting.

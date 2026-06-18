@@ -22,6 +22,16 @@ It runs as three services (**api**, **worker**, **frontend**) backed by PostgreS
 - Deployment (Helm chart + Terragrunt modules): [`deploy/`](deploy/)
 - In-app setup guides: GitLab at `/docs`, GitHub at `/docs/github`
 
+## Releases
+
+Versioned, multi-arch images are published to GHCR for each release:
+`ghcr.io/vizdiff-io/vizdiff-{api,worker,frontend}` tagged `:X.Y.Z` / `:X.Y` / `:X` / `:latest`
+(the `main` branch publishes `:edge`). Pin a release with
+[`docker-compose.images.yml`](docker-compose.images.yml) (`VIZDIFF_VERSION=X.Y.Z`) or Helm
+(`--set image.tag=X.Y.Z`). The [GitHub Releases page](https://github.com/vizdiff-io/vizdiff.io/releases)
+is the canonical changelog; the running version is shown in the app footer and at `GET /api/version`.
+Maintainers: see [RELEASING.md](RELEASING.md).
+
 ## Local development
 
 The simplest local setup runs in **GitLab mode** with the `dev` auth provider (a fixed local

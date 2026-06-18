@@ -1,0 +1,183 @@
+name: Release
+
+# Cut a release by pushing a semver tag (e.g. `git tag v1.0.0 && git push origin v1.0.0`).
+# This builds the images with VIZDIFF_VERSION baked in, publishes the version-tagged multi-arch
+# manifests (:X.Y.Z, :X.Y, :X, :latest), and creates the GitHub Release with auto-generated notes.
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      semver: ${{ steps.v.outputs.semver }}
+      minor: ${{ steps.v.outputs.minor }}
+      major: ${{ steps.v.outputs.major }}
+    steps:
+      - name: Derive version from tag
+        id: v
+        run: |
+          TAG="${{ github.ref_name }}"
+          SEMVER="${TAG#v}"
+          if ! printf '%s' "$SEMVER" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::Tag '$TAG' is not vMAJOR.MINOR.PATCH"; exit 1
+          fi
+          {
+            echo "semver=$SEMVER"
+            echo "minor=${SEMVER%.*}"
+            echo "major=${SEMVER%%.*}"
+          } >> "$GITHUB_OUTPUT"
+
+  # Rebuild each image per-arch on native runners with VIZDIFF_VERSION baked in (cache-from the main
+  # build means only the final ENV layer rebuilds), pushing by digest. Mirrors ci.yml's docker-build.
+  release-images:
+    needs: version
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [api, worker, frontend]
+        platform: [amd64, arm64]
+        include:
+          - platform: amd64
+            runner: ubuntu-latest
+          - platform: arm64
+            runner: ubuntu-24.04-arm
+          - image: api
+            dockerfile: ./api/Dockerfile
+          - image: worker
+            dockerfile: ./worker/Dockerfile
+          - image: frontend
+            dockerfile: ./frontend/Dockerfile
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          lfs: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve Node version
+        id: node
+        run: echo "version=$(cat .nvmrc | tr -d '[:space:]')" >> "$GITHUB_OUTPUT"
+
+      - name: Build ${{ matrix.image }} (${{ matrix.platform }})
+        id: build
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/${{ matrix.platform }}
+          outputs: type=image,name=ghcr.io/vizdiff-io/vizdiff-${{ matrix.image }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=${{ matrix.image }}-${{ matrix.platform }}
+          build-args: |
+            NODE_ENV=production
+            NODE_VERSION=${{ steps.node.outputs.version }}
+            GIT_HASH=${{ github.sha }}
+            VIZDIFF_VERSION=${{ needs.version.outputs.semver }}
+
+      - name: Export digest
+        run: |
+          mkdir -p /tmp/digests
+          echo "${{ steps.build.outputs.digest }}" > "/tmp/digests/${{ matrix.image }}-${{ matrix.platform }}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v7
+        with:
+          name: digest-${{ matrix.image }}-${{ matrix.platform }}
+          path: /tmp/digests/*
+          retention-days: 1
+          if-no-files-found: error
+
+  # Assemble per-arch digests into the version-tagged multi-arch manifests.
+  release-manifest:
+    needs: [version, release-images]
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [api, worker, frontend]
+    steps:
+      - name: Download ${{ matrix.image }} digests
+        uses: actions/download-artifact@v8
+        with:
+          pattern: digest-${{ matrix.image }}-*
+          path: /tmp/digests
+          merge-multiple: true
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Create + push version manifests
+        run: |
+          IMAGE=ghcr.io/vizdiff-io/vizdiff-${{ matrix.image }}
+          REFS=""
+          for f in /tmp/digests/*; do REFS="$REFS ${IMAGE}@$(cat "$f")"; done
+          docker buildx imagetools create \
+            -t "${IMAGE}:${{ needs.version.outputs.semver }}" \
+            -t "${IMAGE}:${{ needs.version.outputs.minor }}" \
+            -t "${IMAGE}:${{ needs.version.outputs.major }}" \
+            -t "${IMAGE}:latest" \
+            $REFS
+
+      - name: Inspect manifest
+        run: docker buildx imagetools inspect ghcr.io/vizdiff-io/vizdiff-${{ matrix.image }}:${{ needs.version.outputs.semver }}
+
+  github-release:
+    needs: [version, release-manifest]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          append_body: true
+          body: |
+            ## Run this release (v${{ needs.version.outputs.semver }})
+
+            Self-hosted — pull the published images, don't download this archive.
+
+            ### Docker Compose
+            ```sh
+            VIZDIFF_VERSION=${{ needs.version.outputs.semver }} docker compose -f docker-compose.images.yml pull
+            VIZDIFF_VERSION=${{ needs.version.outputs.semver }} docker compose -f docker-compose.images.yml up -d
+            ```
+
+            ### Helm
+            ```sh
+            helm upgrade --install vizdiff ./deploy/helm/vizdiff \
+              --set image.tag=${{ needs.version.outputs.semver }}
+            ```
+
+            ### Images (`ghcr.io/vizdiff-io/`)
+            - `vizdiff-api:${{ needs.version.outputs.semver }}`
+            - `vizdiff-worker:${{ needs.version.outputs.semver }}`
+            - `vizdiff-frontend:${{ needs.version.outputs.semver }}`
+
+            Verify after upgrade: `GET /api/health` and `GET /api/version`.
+            See [docs/self-contained-install.md](https://github.com/vizdiff-io/vizdiff.io/blob/main/docs/self-contained-install.md).
