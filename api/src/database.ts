@@ -6,6 +6,7 @@ import {
   TestResult,
   User,
   WorkTask,
+  WorkerStatus,
   defineRelationships,
   GitHubInstallation,
 } from "shared"
@@ -46,7 +47,7 @@ const database = new DataSource({
   synchronize: IS_TEST,
   dropSchema: IS_TEST,
   logging: !IS_TEST,
-  entities: [GitHubInstallation, Project, ScreenshotTest, TestResult, User, WorkTask],
+  entities: [GitHubInstallation, Project, ScreenshotTest, TestResult, User, WorkTask, WorkerStatus],
   subscribers: [],
   // Compiled migrations live alongside the built sources; run automatically on boot.
   migrations: IS_TEST ? [] : [migrationsGlob],

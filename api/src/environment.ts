@@ -16,6 +16,10 @@ configEnv({
 export const IS_PRODUCTION = process.env.NODE_ENV === "production"
 export const IS_STAGING = process.env.NODE_ENV === "staging"
 export const IS_TEST = process.env.NODE_ENV === "test"
+
+// Product version, baked into the image by the release workflow (release.yml) via the
+// VIZDIFF_VERSION build-arg. "dev" for local/main/edge builds. Surfaced via GET /api/version.
+export const VIZDIFF_VERSION = process.env.VIZDIFF_VERSION ?? "dev"
 // Allow VCS status posting in dev mode for testing
 export const ENABLE_VCS_STATUS =
   process.env.ENABLE_VCS_STATUS != undefined

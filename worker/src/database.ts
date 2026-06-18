@@ -5,6 +5,7 @@ import {
   TestResult,
   User,
   WorkTask,
+  WorkerStatus,
   defineRelationships,
   GitHubInstallation,
 } from "shared"
@@ -46,7 +47,15 @@ export async function Database(): Promise<DataSource> {
     password: POSTGRES_PASS,
     database: POSTGRES_DATABASE,
     logger: IS_PRODUCTION ? undefined : "formatted-console",
-    entities: [GitHubInstallation, Project, ScreenshotTest, TestResult, User, WorkTask],
+    entities: [
+      GitHubInstallation,
+      Project,
+      ScreenshotTest,
+      TestResult,
+      User,
+      WorkTask,
+      WorkerStatus,
+    ],
     synchronize: false,
   })
 

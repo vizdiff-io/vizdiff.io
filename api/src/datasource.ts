@@ -1,6 +1,14 @@
 // eslint-disable-next-line filenames/match-exported
 import "reflect-metadata"
-import { GitHubInstallation, Project, ScreenshotTest, TestResult, User, WorkTask } from "shared"
+import {
+  GitHubInstallation,
+  Project,
+  ScreenshotTest,
+  TestResult,
+  User,
+  WorkTask,
+  WorkerStatus,
+} from "shared"
 import { DataSource } from "typeorm"
 
 import {
@@ -25,7 +33,7 @@ export const AppDataSource = new DataSource({
   database: POSTGRES_DATABASE,
   synchronize: false,
   logging: true,
-  entities: [GitHubInstallation, Project, ScreenshotTest, TestResult, User, WorkTask],
+  entities: [GitHubInstallation, Project, ScreenshotTest, TestResult, User, WorkTask, WorkerStatus],
   migrations: ["src/migrations/*.ts"],
 })
 

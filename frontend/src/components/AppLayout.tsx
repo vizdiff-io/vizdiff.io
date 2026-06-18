@@ -26,6 +26,7 @@ import { useBreadcrumbs } from "@/hooks/useBreadcrumbs"
 import type { SidebarItem } from "./LeftSidebar"
 import ProtectedRoute from "./ProtectedRoute"
 import SidebarContent from "./SidebarContent"
+import { VersionFooter } from "./VersionFooter"
 
 const drawerWidth = 240
 
@@ -308,6 +309,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
             {children}
           </Container>
         </Box>
+        <VersionFooter />
       </Box>
     </ProtectedRoute>
   )

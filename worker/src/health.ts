@@ -1,12 +1,40 @@
 import http from "node:http"
+import os from "node:os"
 
-import { WORKER_HEALTH_PORT } from "./environment"
+import { DatabasePool } from "./database"
+import { VIZDIFF_VERSION, WORKER_HEALTH_PORT } from "./environment"
 import { log } from "./log"
 
 let lastHeartbeatAt = Date.now()
 let lastTaskStartedAt: number | null = null
 let lastTaskFinishedAt: number | null = null
 let activeTaskId: number | null = null
+
+// Stable per-process identity so multiple workers each keep their own `worker_status` row.
+const WORKER_ID = os.hostname()
+
+/**
+ * Upsert this worker's row in `worker_status` so the api can surface the running version + liveness
+ * via GET /api/version. Best-effort: a brand-new database may not have the table until the api has
+ * run migrations, so failures are logged and retried on the next heartbeat. `started_at` is only set
+ * on first insert (ON CONFLICT leaves it untouched).
+ */
+async function reportWorkerStatus(): Promise<void> {
+  let client
+  try {
+    client = await DatabasePool()
+    await client.query(
+      `INSERT INTO worker_status (id, version, last_heartbeat_at, started_at)
+       VALUES ($1, $2, now(), now())
+       ON CONFLICT (id) DO UPDATE SET last_heartbeat_at = now(), version = EXCLUDED.version`,
+      [WORKER_ID, VIZDIFF_VERSION],
+    )
+  } catch (err) {
+    log.warn(`Failed to report worker status: ${String(err)}`)
+  } finally {
+    client?.release()
+  }
+}
 
 export function markTaskStarted(taskId: number): void {
   activeTaskId = taskId
@@ -28,6 +56,7 @@ export function startHealthServer(): void {
 
     const payload = {
       status: "ok",
+      version: VIZDIFF_VERSION,
       lastHeartbeatAt,
       lastTaskStartedAt,
       lastTaskFinishedAt,
@@ -42,7 +71,10 @@ export function startHealthServer(): void {
     log.info(`Worker health endpoint listening on http://127.0.0.1:${WORKER_HEALTH_PORT}/health`)
   })
 
+  // Record our version + liveness immediately, then refresh on every heartbeat.
+  void reportWorkerStatus()
   setInterval(() => {
     lastHeartbeatAt = Date.now()
+    void reportWorkerStatus()
   }, 10_000).unref()
 }
