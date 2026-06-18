@@ -234,10 +234,8 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
   task.updatedAt = task.createdAt
 
   const tasks = db.getRepository(WorkTask)
-  const savedTask = await tasks.save(task)
-
-  // Use Postgres NOTIFY to wake up the worker
-  await db.query(`NOTIFY task_queue, '${savedTask.id}'`)
+  await tasks.save(task)
+  // The worker is woken by the `task_queue` insert trigger (pg_notify), so no explicit NOTIFY here.
 
   res.json({ success: true, uploadId, testId: screenshotTest.id })
 }
