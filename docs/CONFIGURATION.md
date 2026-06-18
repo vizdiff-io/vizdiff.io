@@ -175,6 +175,13 @@ WHERE p.vcs_provider = q.vcs_provider AND p.repo_id = q.repo_id
   AND p.gitlab_host IS NOT DISTINCT FROM q.gitlab_host AND p.id > q.id;
 ```
 
+### Schema naming conventions
+
+Columns are `snake_case` with one **legacy exception**: `test_results."diffRatio"` is camelCase. The
+application accesses it through the TypeORM entity so app code is unaffected, but raw SQL must quote
+it exactly — `SELECT "diffRatio" FROM test_results` (an unquoted `diff_ratio` does not exist and
+will error). See `shared/src/entity/TestResult.ts`.
+
 ## Private S3 / presigned URLs
 
 Bring your own S3 (or S3-compatible store). The bucket is **private**; the worker stores each
@@ -193,3 +200,11 @@ Caveats:
   from the user's browser (not just from inside the cluster) for images to load.
 - **Legacy rows.** Rows that stored a full public S3 URL (pre-migration) are handled transparently—the
   presigner extracts the object key from the URL path.
+- **EC2 instance role (no static keys).** If you omit `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` and
+  rely on the instance's IAM role, the SDK fetches credentials from IMDSv2. A container is one extra
+  network hop from the instance, so the instance metadata **hop limit must be ≥ 2** (the default is 1)
+  or every S3 call fails with a credentials error. Set it once per instance:
+  ```bash
+  aws ec2 modify-instance-metadata-options --instance-id <id> \
+    --http-put-response-hop-limit 2 --http-tokens required
+  ```
