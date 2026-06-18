@@ -38,4 +38,4 @@ COPY --from=builder /app/shared ./shared
 
 EXPOSE 3001
 
-CMD ["node", "--enable-source-maps", "--import", "dd-trace/register.js", "api/dist/index.mjs"]
+CMD ["node", "--enable-source-maps", "api/dist/index.mjs"]

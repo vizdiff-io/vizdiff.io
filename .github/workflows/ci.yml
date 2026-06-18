@@ -13,8 +13,6 @@ env:
   NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL }}
   NEXT_PUBLIC_GITHUB_APP_NAME: vizdiff-io
   NEXT_PUBLIC_GITHUB_CLIENT_ID: ${{ vars.NEXT_PUBLIC_GITHUB_CLIENT_ID }}
-  NEXT_PUBLIC_DD_APPLICATION_ID: ${{ vars.NEXT_PUBLIC_DD_APPLICATION_ID }}
-  NEXT_PUBLIC_DD_CLIENT_TOKEN: ${{ vars.NEXT_PUBLIC_DD_CLIENT_TOKEN }}
   NEXT_PUBLIC_GA_ID: ${{ vars.NEXT_PUBLIC_GA_ID }}
   NEXT_TELEMETRY_DISABLED: 1
 
@@ -90,14 +88,12 @@ jobs:
           path: frontend/out
           retention-days: 1
 
-  # Builds the api and worker images multi-arch (amd64 + arm64) and publishes them to BOTH the
-  # private ECR (SaaS production) and the public GHCR (self-host). The frontend image is published
-  # to GHCR only (the SaaS serves the frontend as a static artifact via the deploy job). Image names
-  # on GHCR match what deploy/helm + deploy/terragrunt expect: ghcr.io/vizdiff-io/vizdiff-{api,worker,frontend}.
+  # Builds the api and worker images multi-arch (amd64 + arm64) and publishes them to the public
+  # GHCR for self-hosters. Image names match what deploy/helm + deploy/terragrunt expect:
+  # ghcr.io/vizdiff-io/vizdiff-{api,worker,frontend}.
   docker-build-api:
     runs-on: ubuntu-latest
     permissions:
-      id-token: write
       contents: read
       packages: write
 
@@ -108,17 +104,6 @@ jobs:
           fetch-depth: 0
           lfs: true
 
-      # Login to ECR (private; SaaS production images)
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v6
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: us-west-1
-
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
-
       # Login to GHCR (public; self-host images). Only needed when we push (main).
       - name: Login to GitHub Container Registry
         if: github.ref == 'refs/heads/main'
@@ -128,11 +113,8 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Set up environment variables for image tags
       - name: Set up environment variables
         run: |
-          echo "ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}" >> $GITHUB_ENV
-          echo "ECR_REPOSITORY_BACKEND=vizdiff.io/backend" >> $GITHUB_ENV
           echo "GHCR_IMAGE=ghcr.io/vizdiff-io/vizdiff-api" >> $GITHUB_ENV
           echo "IMAGE_TAG=${{ github.sha }}" >> $GITHUB_ENV
           # Single source of truth for the Node version: .nvmrc
@@ -144,11 +126,10 @@ jobs:
         with:
           platforms: "arm64,amd64"
 
-      # Set up Docker Buildx
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
-      # On main: multi-arch (amd64+arm64), pushed to ECR + GHCR. On PRs: single-arch amd64 build for
+      # On main: multi-arch (amd64+arm64), pushed to GHCR. On PRs: single-arch amd64 build for
       # validation only (a multi-arch image can't be `load`ed into the local docker for testing).
       - name: Build and push api Docker image
         uses: docker/build-push-action@v7
@@ -159,8 +140,6 @@ jobs:
           load: ${{ github.ref != 'refs/heads/main' }}
           platforms: ${{ github.ref == 'refs/heads/main' && 'linux/amd64,linux/arm64' || 'linux/amd64' }}
           tags: |
-            ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY_BACKEND }}:${{ env.IMAGE_TAG }}
-            ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY_BACKEND }}:latest
             ${{ env.GHCR_IMAGE }}:${{ env.IMAGE_TAG }}
             ${{ env.GHCR_IMAGE }}:latest
           cache-from: type=gha,scope=api
@@ -172,7 +151,6 @@ jobs:
   docker-build-worker:
     runs-on: ubuntu-latest
     permissions:
-      id-token: write
       contents: read
       packages: write
 
@@ -183,18 +161,6 @@ jobs:
           fetch-depth: 0
           lfs: true
 
-      # Login to ECR (private; SaaS production images)
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v6
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: us-west-1
-
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
-
-      # Login to GHCR (public; self-host images). Only needed when we push (main).
       - name: Login to GitHub Container Registry
         if: github.ref == 'refs/heads/main'
         uses: docker/login-action@v3
@@ -203,23 +169,17 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Set up environment variables for image tags
       - name: Set up environment variables
         run: |
-          echo "ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}" >> $GITHUB_ENV
-          echo "ECR_REPOSITORY_WORKER=vizdiff.io/worker" >> $GITHUB_ENV
           echo "GHCR_IMAGE=ghcr.io/vizdiff-io/vizdiff-worker" >> $GITHUB_ENV
           echo "IMAGE_TAG=${{ github.sha }}" >> $GITHUB_ENV
-          # Single source of truth for the Node version: .nvmrc
           echo "NODE_VERSION=$(cat .nvmrc | tr -d '[:space:]')" >> $GITHUB_ENV
 
-      # Set up QEMU for multi-architecture builds (amd64 + arm64)
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
         with:
           platforms: "arm64,amd64"
 
-      # Set up Docker Buildx
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
@@ -232,8 +192,6 @@ jobs:
           load: ${{ github.ref != 'refs/heads/main' }}
           platforms: ${{ github.ref == 'refs/heads/main' && 'linux/amd64,linux/arm64' || 'linux/amd64' }}
           tags: |
-            ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY_WORKER }}:${{ env.IMAGE_TAG }}
-            ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY_WORKER }}:latest
             ${{ env.GHCR_IMAGE }}:${{ env.IMAGE_TAG }}
             ${{ env.GHCR_IMAGE }}:latest
           cache-from: type=gha,scope=worker
@@ -242,8 +200,7 @@ jobs:
             NODE_ENV=production
             NODE_VERSION=${{ env.NODE_VERSION }}
 
-  # Frontend image is for self-hosters only (the SaaS serves the static export via the deploy job),
-  # so it is published to the public GHCR exclusively — no ECR.
+  # Same as the api/worker image jobs above; the frontend image is published to the public GHCR.
   docker-build-frontend:
     runs-on: ubuntu-latest
     permissions:

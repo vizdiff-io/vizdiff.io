@@ -19,7 +19,6 @@
     "@octokit/rest": "^22.0.1",
     "@wdio/cli": "^9.23.3",
     "commander": "15.0.0",
-    "dd-trace": "^5.85.0",
     "dotenv-flow": "4.1.0",
     "p-limit": "^7.3.0",
     "pg": "^8.18.0",

@@ -4,7 +4,6 @@ import jwt from "jsonwebtoken"
 import { Project, User } from "shared"
 
 import { Database } from "./database"
-import { setUser } from "./datadog"
 import { JWT_SECRET, IS_PRODUCTION, S3_BUCKET_NAME } from "./environment"
 import { log } from "./log"
 import type { RequestLocals } from "./types"
@@ -110,16 +109,6 @@ export async function requireUser(_req: Request, res: Response, next: NextFuncti
 
   // Count the number of projects owned by this user
   const ownedProjectCount = await db.manager.count(Project, { where: { user: { id: user.id } } })
-
-  // Associate this request with the user in observability tooling
-  const displayName = user.displayName ?? user.githubUsername
-  setUser({
-    id: user.id.toString(),
-    name: displayName ?? undefined,
-    email: user.email ?? undefined,
-    githubUsername: user.githubUsername ?? undefined,
-    ownedProjectCount: ownedProjectCount.toString(),
-  })
 
   locals.user = user
   locals.ownedProjectCount = ownedProjectCount

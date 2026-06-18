@@ -24,7 +24,6 @@
     "body-parser": "2.2.2",
     "cookie-parser": "1.4.7",
     "cors": "2.8.6",
-    "dd-trace": "^5.85.0",
     "dotenv-flow": "4.1.0",
     "express": "5.2.1",
     "express-promise-router": "4.1.1",
