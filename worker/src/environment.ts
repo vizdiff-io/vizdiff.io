@@ -16,6 +16,15 @@ configEnv({
 export const IS_PRODUCTION = process.env.NODE_ENV === "production"
 export const IS_STAGING = process.env.NODE_ENV === "staging"
 export const IS_TEST = process.env.NODE_ENV === "test"
+
+// Port of an already-running chromedriver to connect to. The worker container's start.sh launches
+// chromedriver on 4444 and the image sets CHROMEDRIVER_PORT=4444, so a containerized worker connects
+// to it regardless of NODE_ENV. When unset (e.g. local `yarn dev`/`yarn screenshot` without a
+// separate chromedriver), it is left undefined so WebdriverIO manages its own driver. Decoupled
+// from NODE_ENV so self-hosted workers aren't forced to NODE_ENV=production just to render.
+export const CHROMEDRIVER_PORT = process.env.CHROMEDRIVER_PORT
+  ? parseInt(process.env.CHROMEDRIVER_PORT, 10)
+  : undefined
 // Allow VCS status posting in dev mode for testing (defaults to true in prod/staging)
 export const ENABLE_VCS_STATUS =
   process.env.ENABLE_VCS_STATUS != undefined

@@ -78,6 +78,7 @@ Single-host fallback: when `GITLAB_HOSTS` is unset, a single host is derived fro
 | `JWT_SECRET` | api | yes | `secret` | Signs the session JWT cookie and the transient OIDC state cookie. |
 | `PORT` | api | no | `3001` | API listen port. |
 | `WORKER_HEALTH_PORT` | worker | no | `3003` | Worker health endpoint port. |
+| `CHROMEDRIVER_PORT` | worker | no | `4444` (in the image) | Port of an already-running chromedriver to connect to. The worker image's `start.sh` launches chromedriver on `4444` and sets this, so a containerized worker connects to it regardless of `NODE_ENV`. Leave unset for local `yarn dev`/`yarn screenshot` (WebdriverIO then manages its own driver). |
 | `WORKER_STORY_CONCURRENCY` | worker | no | `1` | Number of stories rendered concurrently within a single ingest task (issue #152). Each unit is one independent headless-Chrome session in the per-ingest pool, so it is also the peak number of Chrome processes per in-flight build. Rendering runs in genuine parallel (no shared browser mutex), so raising this scales render throughput at a roughly linear cost in browser RAM. Defaults to `1` (one session) — the same browser-memory footprint as before. Raise it once the host has headroom for N× Chrome RSS. |
 | `POSTGRES_HOST` | api, worker | no | `localhost` | Postgres host. |
 | `POSTGRES_PORT` | api, worker | no | `5432` | Postgres port. |

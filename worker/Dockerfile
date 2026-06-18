@@ -53,7 +53,10 @@ RUN yarn workspace worker build \
 
 # Final production image
 FROM base
+# start.sh launches chromedriver on 4444; point the worker at it regardless of NODE_ENV so
+# self-hosted workers render without being forced to NODE_ENV=production (see environment.ts).
 ENV NODE_ENV=production \
+    CHROMEDRIVER_PORT=4444 \
     HOME=/home/webuser
 
 # Copy built files and dependencies from builder stage
