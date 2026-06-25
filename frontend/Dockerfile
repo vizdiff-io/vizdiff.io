@@ -17,6 +17,10 @@ FROM deps AS builder
 ARG GIT_HASH=0000000000000000000000000000000000000000
 ENV GIT_HASH=${GIT_HASH}
 ENV NEXT_SKIP_ESLINT=1
+# The self-hosted image is the product only — `/` redirects to /projects (see frontend index.tsx).
+# Override with --build-arg NEXT_PUBLIC_APP_ONLY=false to build a marketing-style image.
+ARG NEXT_PUBLIC_APP_ONLY=true
+ENV NEXT_PUBLIC_APP_ONLY=${NEXT_PUBLIC_APP_ONLY}
 COPY shared ./shared
 COPY frontend ./frontend
 RUN yarn workspace frontend build

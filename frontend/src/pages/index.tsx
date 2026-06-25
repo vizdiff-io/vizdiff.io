@@ -5,13 +5,30 @@ import IntegrationInstructionsIcon from "@mui/icons-material/IntegrationInstruct
 import LinkIcon from "@mui/icons-material/Link"
 import VisibilityIcon from "@mui/icons-material/Visibility"
 import { Box, Button, Container, Grid, Link as MuiLink, Typography } from "@mui/material"
-import type { JSX } from "react"
+import { useRouter } from "next/router"
+import { type JSX, useEffect } from "react"
 
 import { GitLabIcon } from "@/components/GitLabIcon"
 import { MarketingLayout } from "@/components/NavBody"
 import { Seo } from "@/components/Seo"
+import { APP_ONLY } from "@/lib/environment"
 
-export default function Home(): JSX.Element {
+// In the self-hosted frontend image (APP_ONLY) there is no marketing landing — `/` sends the user
+// straight into the app, which then redirects to login if they aren't authenticated.
+function AppHomeRedirect(): null {
+  const router = useRouter()
+  useEffect(() => {
+    void router.replace("/projects")
+  }, [router])
+  return null
+}
+
+export default function Home(): JSX.Element | null {
+  // `APP_ONLY` is baked at build time: the self-hosted image pre-renders this redirect at `/`, while
+  // the vizdiff.io marketing build pre-renders the landing page below.
+  if (APP_ONLY) {
+    return <AppHomeRedirect />
+  }
   return (
     <>
       <Seo path=""></Seo>

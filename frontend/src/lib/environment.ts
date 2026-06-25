@@ -23,6 +23,12 @@ const runtimeConfig: RuntimeConfig =
 export const APP_URL =
   runtimeConfig.APP_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "https://vizdiff.io"
 
+// When true, the root path (`/`) redirects to the app (`/projects`) instead of rendering the
+// marketing landing. Set at build time for the self-hosted frontend image (which is purely the
+// product); the vizdiff.io marketing build leaves it false to keep the landing page. Build-time
+// only — the index page is statically pre-rendered, so this isn't a runtime config.js toggle.
+export const APP_ONLY = process.env.NEXT_PUBLIC_APP_ONLY === "true"
+
 // GitHub is disabled by default in self-hosted deployments.
 export const GITHUB_ENABLED =
   runtimeConfig.GITHUB_ENABLED ?? process.env.NEXT_PUBLIC_GITHUB_ENABLED === "true"
