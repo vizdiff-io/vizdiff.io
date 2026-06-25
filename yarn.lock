@@ -3485,13 +3485,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@octokit/openapi-types@npm:^25.0.0":
-  version: 25.0.0
-  resolution: "@octokit/openapi-types@npm:25.0.0"
-  checksum: 10/d412a7ee77d7e3767aff1df012023b8c4d4c0d58a52c110e78557ac368b20fd01205c3f0c14e0fc2d6c0e2163b8e9931bd8d1bb59986477af49d04e6e5bbf827
-  languageName: node
-  linkType: hard
-
 "@octokit/openapi-types@npm:^27.0.0":
   version: 27.0.0
   resolution: "@octokit/openapi-types@npm:27.0.0"
@@ -3564,16 +3557,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@octokit/types@npm:14.0.0":
-  version: 14.0.0
-  resolution: "@octokit/types@npm:14.0.0"
-  dependencies:
-    "@octokit/openapi-types": "npm:^25.0.0"
-  checksum: 10/bff427e7f4ff32ccf62536b87e2f7b7d4f6baa543de27006dc55b0356df0274267f3a782372efda5921412b15d2b37e92f30bbacf8b09d7134699fe79a6907a1
-  languageName: node
-  linkType: hard
-
-"@octokit/types@npm:^16.0.0":
+"@octokit/types@npm:16.0.0, @octokit/types@npm:^16.0.0":
   version: 16.0.0
   resolution: "@octokit/types@npm:16.0.0"
   dependencies:
@@ -5957,7 +5941,7 @@ __metadata:
     typeorm: "npm:0.3.28"
     typescript: "npm:6.0.3"
     typescript-eslint: "npm:^8.61.0"
-    undici: "npm:7.22.0"
+    undici: "npm:8.5.0"
     uuidv7: "npm:1.2.1"
     vitest: "npm:4.1.9"
   languageName: unknown
@@ -6951,22 +6935,27 @@ __metadata:
   languageName: node
   linkType: hard
 
-"chromatic@npm:^15.0.0":
-  version: 15.1.0
-  resolution: "chromatic@npm:15.1.0"
+"chromatic@npm:17.5.0":
+  version: 17.5.0
+  resolution: "chromatic@npm:17.5.0"
+  dependencies:
+    semver: "npm:^7.3.5"
   peerDependencies:
     "@chromatic-com/cypress": ^0.*.* || ^1.0.0
     "@chromatic-com/playwright": ^0.*.* || ^1.0.0
+    "@chromatic-com/vitest": ^0.*.* || ^1.0.0
   peerDependenciesMeta:
     "@chromatic-com/cypress":
       optional: true
     "@chromatic-com/playwright":
       optional: true
+    "@chromatic-com/vitest":
+      optional: true
   bin:
-    chroma: dist/bin.js
-    chromatic: dist/bin.js
-    chromatic-cli: dist/bin.js
-  checksum: 10/a82d4a3458f99560cf003e2d5d3a5c652026d3bc55e00766a3d47df4fc8ad5a4279bce467d09c3adb0c44621318b8237fa53ad0d966cd2b63d178b47bfa7c8fd
+    chroma: dist/bin.cjs
+    chromatic: dist/bin.cjs
+    chromatic-cli: dist/bin.cjs
+  checksum: 10/5f9567a8604ff41f0bb168544623657e13840e782ce9980b50a41bc057902c0cc1532f450aef18be6ad7a9603d7812835af416a13ca6b23d5fe87d7dca0e9815
   languageName: node
   linkType: hard
 
@@ -9635,7 +9624,7 @@ __metadata:
     "@mui/material": "npm:9.1.1"
     "@next/third-parties": "npm:16.2.9"
     "@octokit/rest": "npm:^22.0.1"
-    "@octokit/types": "npm:14.0.0"
+    "@octokit/types": "npm:16.0.0"
     "@storybook/addon-docs": "npm:10.2.8"
     "@storybook/addon-links": "npm:10.2.8"
     "@storybook/nextjs": "npm:10.4.6"
@@ -9645,7 +9634,7 @@ __metadata:
     "@types/react-syntax-highlighter": "npm:^15.5.13"
     "@types/uuid": "npm:^10.0.0"
     axios: "npm:1.18.0"
-    chromatic: "npm:^15.0.0"
+    chromatic: "npm:17.5.0"
     date-fns: "npm:^4.1.0"
     eslint: "npm:9.26.0"
     eslint-config-next: "npm:15.3.2"
@@ -9662,7 +9651,7 @@ __metadata:
     terser: "npm:^5.46.0"
     typescript: "npm:6.0.3"
     typescript-eslint: "npm:^8.61.0"
-    uuid: "npm:^11.1.0"
+    uuid: "npm:14.0.0"
     vitest: "npm:4.1.9"
   languageName: unknown
   linkType: soft
@@ -16500,10 +16489,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"undici@npm:7.22.0":
-  version: 7.22.0
-  resolution: "undici@npm:7.22.0"
-  checksum: 10/a7a1813ba4b74c0d46cc8dd160386202c05699ffc487c5d882cf40e6d2435c8d6faff3b8f8675d09bd1ef0386e370675c26b59b9a8c8b3f17b9f82a42236a927
+"undici@npm:8.5.0":
+  version: 8.5.0
+  resolution: "undici@npm:8.5.0"
+  checksum: 10/e95913777afd47d76babfe62547bb4e9a94b93f44b50c84b4e0b6fa41c00364e31ff4f433a955b1592c3162f43e8757e2e0feae6eea195187730594523393568
   languageName: node
   linkType: hard
 
@@ -16760,6 +16749,15 @@ __metadata:
   version: 0.4.0
   resolution: "utila@npm:0.4.0"
   checksum: 10/b068d8cb140588da0d0c80ee3c14c6b75d3f68760d8a1c6c3908d0270e9e4056454ff16189586481b7382926c44674f6929d08e06eaf9ec8f62736cd900169c5
+  languageName: node
+  linkType: hard
+
+"uuid@npm:14.0.0":
+  version: 14.0.0
+  resolution: "uuid@npm:14.0.0"
+  bin:
+    uuid: dist-node/bin/uuid
+  checksum: 10/8ee9b98f9650e25555515f7a28d3c3ae9364e72f7bb19b9e08b681bc135338beba5509b2830f6ae1cfaba4d45401da0d16d4d109b977097bc3d6ba0c5583341b
   languageName: node
   linkType: hard
 
