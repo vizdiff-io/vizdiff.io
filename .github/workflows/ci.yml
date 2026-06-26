@@ -43,7 +43,7 @@ jobs:
       # runner-global yarn shim that may not exist. Enabling corepack ourselves + caching here
       # is robust regardless of the runner image.
       - name: Cache dependencies
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             node_modules
@@ -58,7 +58,7 @@ jobs:
       - run: yarn dedupe --check
 
       - name: Cache next.js build
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ${{ github.workspace }}/frontend/.next/cache
           key: ${{ runner.os }}-nextjs-${{ hashFiles('yarn.lock') }}-${{ hashFiles('frontend/**/*.ts', 'frontend/**/*.tsx') }}
@@ -270,7 +270,7 @@ jobs:
       # runner-global yarn shim that may not exist. Enabling corepack ourselves + caching here
       # is robust regardless of the runner image.
       - name: Cache dependencies
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             node_modules
