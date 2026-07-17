@@ -39,7 +39,7 @@
     "@wdio/globals": "^9.23.0",
     "@wdio/types": "^9.23.3",
     "esbuild": "^0.28.1",
-    "eslint": "9.26.0",
+    "eslint": "9.39.5",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.61.0",
     "vitest": "4.1.9"
