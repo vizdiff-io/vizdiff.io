@@ -1,3 +1,4 @@
+import GitHubIcon from "@mui/icons-material/GitHub"
 import MenuIcon from "@mui/icons-material/Menu"
 import {
   AppBar,
@@ -12,6 +13,8 @@ import {
   Typography,
 } from "@mui/material"
 import { useState, useEffect } from "react"
+
+import { MARKETING } from "@/lib/environment"
 
 interface MarketingLayoutProps {
   children: React.ReactNode
@@ -112,39 +115,62 @@ export const MarketingLayout: React.FC<MarketingLayoutProps> = ({ children }) =>
           <Box sx={{ flexGrow: 1 }} />
           <Box sx={{ display: "flex", gap: 2 }}>
             <Box sx={{ display: "flex", gap: 2 }} />
-            <Box
-              sx={{
-                display: "flex",
-                gap: 2,
-                opacity: isClient ? 1 : 0,
-                transition: "opacity 0.3s ease-in-out",
-              }}
-            >
-              {isClient && (
-                <>
-                  <Button
-                    href="/projects"
-                    variant={isClientAuthenticated ? "contained" : "outlined"}
-                    color="primary"
-                    sx={{ whiteSpace: "nowrap" }}
-                  >
-                    {isClientAuthenticated ? "Go to projects" : "Sign in"}
-                  </Button>
-                  {!isClientAuthenticated && (
+            {MARKETING ? (
+              // The marketing site (GitHub Pages) has no backend to sign in to, so link to
+              // the self-hosting docs and the GitHub repository instead
+              <Box sx={{ display: "flex", gap: 2 }}>
+                <Button
+                  href="/docs"
+                  variant="outlined"
+                  color="primary"
+                  sx={{ whiteSpace: "nowrap" }}
+                >
+                  Docs
+                </Button>
+                <Button
+                  href="https://github.com/vizdiff-io/vizdiff.io"
+                  variant="contained"
+                  startIcon={<GitHubIcon />}
+                  sx={{ whiteSpace: "nowrap" }}
+                >
+                  GitHub
+                </Button>
+              </Box>
+            ) : (
+              <Box
+                sx={{
+                  display: "flex",
+                  gap: 2,
+                  opacity: isClient ? 1 : 0,
+                  transition: "opacity 0.3s ease-in-out",
+                }}
+              >
+                {isClient && (
+                  <>
                     <Button
                       href="/projects"
-                      variant="contained"
-                      sx={{
-                        whiteSpace: "nowrap",
-                        display: { xs: "none", sm: "inline-flex" },
-                      }}
+                      variant={isClientAuthenticated ? "contained" : "outlined"}
+                      color="primary"
+                      sx={{ whiteSpace: "nowrap" }}
                     >
-                      Get started
+                      {isClientAuthenticated ? "Go to projects" : "Sign in"}
                     </Button>
-                  )}
-                </>
-              )}
-            </Box>
+                    {!isClientAuthenticated && (
+                      <Button
+                        href="/projects"
+                        variant="contained"
+                        sx={{
+                          whiteSpace: "nowrap",
+                          display: { xs: "none", sm: "inline-flex" },
+                        }}
+                      >
+                        Get started
+                      </Button>
+                    )}
+                  </>
+                )}
+              </Box>
+            )}
           </Box>
         </Toolbar>
       </AppBar>

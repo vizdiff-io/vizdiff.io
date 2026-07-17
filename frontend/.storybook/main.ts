@@ -34,9 +34,6 @@ const config: StorybookConfig = {
       "process.env.NEXT_PUBLIC_GITHUB_APP_NAME": JSON.stringify(
         process.env.NEXT_PUBLIC_GITHUB_APP_NAME,
       ),
-      "process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID": JSON.stringify(
-        process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID,
-      ),
       "process.env.NEXT_PUBLIC_APP_URL": JSON.stringify(process.env.NEXT_PUBLIC_APP_URL),
       "process.env.NEXT_PUBLIC_API_URL": JSON.stringify(process.env.NEXT_PUBLIC_API_URL),
     }

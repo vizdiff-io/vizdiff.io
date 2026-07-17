@@ -1,8 +1,17 @@
 import React from "react"
-import { Prism, type SyntaxHighlighterProps } from "react-syntax-highlighter"
+import { PrismLight, type SyntaxHighlighterProps } from "react-syntax-highlighter"
+import bash from "react-syntax-highlighter/dist/esm/languages/prism/bash"
+import yaml from "react-syntax-highlighter/dist/esm/languages/prism/yaml"
+import prismStyle from "react-syntax-highlighter/dist/esm/styles/prism/prism"
+
+// Use the light build and register only the languages the docs actually use, instead of the
+// full Prism build which bundles every grammar. The `prism` style is the default theme the
+// full build applies, so rendering is unchanged.
+PrismLight.registerLanguage("bash", bash)
+PrismLight.registerLanguage("yaml", yaml)
 
 // `react-syntax-highlighter` is not typed for React 18
-const SyntaxHighlighter = Prism as unknown as typeof React.Component<SyntaxHighlighterProps>
+const SyntaxHighlighter = PrismLight as unknown as typeof React.Component<SyntaxHighlighterProps>
 
 const CodeBlock = ({
   language,
@@ -16,7 +25,7 @@ const CodeBlock = ({
   // formatting; fall back to an empty string for the (unreachable) non-string case.
   const codeString = (typeof value === "string" ? value : "").replace(/\n$/, "")
   return (
-    <SyntaxHighlighter language={language} PreTag="pre">
+    <SyntaxHighlighter language={language} style={prismStyle} PreTag="pre">
       {codeString}
     </SyntaxHighlighter>
   )

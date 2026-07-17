@@ -29,8 +29,13 @@ export const APP_URL =
 // only — the index page is statically pre-rendered, so this isn't a runtime config.js toggle.
 export const APP_ONLY = process.env.NEXT_PUBLIC_APP_ONLY === "true"
 
+// When true, this is the marketing-only build (vizdiff.io on GitHub Pages, which has no backend):
+// the landing page CTAs point at the self-hosting docs and the nav links to GitHub instead of
+// offering sign-in (which would dead-end without an API). Build-time only, same as APP_ONLY —
+// these pages are statically pre-rendered, so this isn't a runtime config.js toggle.
+export const MARKETING = process.env.NEXT_PUBLIC_MARKETING === "true"
+
 // GitHub is disabled by default in self-hosted deployments.
 export const GITHUB_ENABLED =
   runtimeConfig.GITHUB_ENABLED ?? process.env.NEXT_PUBLIC_GITHUB_ENABLED === "true"
 export const GITHUB_APP_NAME = process.env.NEXT_PUBLIC_GITHUB_APP_NAME
-export const GITHUB_CLIENT_ID = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID

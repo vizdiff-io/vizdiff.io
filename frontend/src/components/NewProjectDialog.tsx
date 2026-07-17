@@ -2,6 +2,7 @@ import CloseIcon from "@mui/icons-material/Close"
 import GitHubIcon from "@mui/icons-material/GitHub"
 import RefreshIcon from "@mui/icons-material/Refresh"
 import {
+  Alert,
   Box,
   Button,
   CircularProgress,
@@ -72,12 +73,13 @@ export default function NewProjectDialog({
   mode,
 }: NewProjectDialogProps): JSX.Element {
   void mode
-  // GitLab is the default provider; GitHub is only available when enabled in this deployment.
+  // GitHub is the default provider when enabled in this deployment; otherwise GitLab (the
+  // only provider available in self-hosted deployments without the GitHub integration).
   const [provider, setProvider] = useState<VCSProvider>(GITHUB_ENABLED ? "github" : "gitlab")
   const [githubRepos, setGithubRepos] = useState<GithubRepo[]>([])
   const [gitlabProjects, setGitlabProjects] = useState<GitLabProject[]>([])
   const [loading, setLoading] = useState(true)
-  const [_error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const [_selectedOrg, setSelectedOrg] = useState<string | undefined>(initialSelectedOrg)
   const [reposLoading, setReposLoading] = useState(false)
   const [refreshCounter, setRefreshCounter] = useState(0)
@@ -156,6 +158,7 @@ export default function NewProjectDialog({
 
   const handleRefresh = useCallback(() => {
     setLoading(true)
+    setError(null)
     setReposLoading(false)
     setGithubRepos([])
     setGitlabProjects([])
@@ -166,6 +169,7 @@ export default function NewProjectDialog({
 
   const handleProviderChange = (_event: React.SyntheticEvent, newProvider: VCSProvider) => {
     setProvider(newProvider)
+    setError(null)
     setGithubRepos([])
     setGitlabProjects([])
     setSelectedOrg(undefined)
@@ -176,6 +180,7 @@ export default function NewProjectDialog({
 
   const handleRepoClick = async (repo: GithubRepo | GitLabProject) => {
     setLoading(true)
+    setError(null)
     setLoadingStartTime(Date.now())
 
     let projectData
@@ -208,10 +213,14 @@ export default function NewProjectDialog({
     const [_project, projectError] = await apiPost("/api/projects", projectData)
     void label
     void isPrivate
-    updateLoading()
     if (projectError) {
+      // Keep the dialog open and surface the error so the user can retry
       setError(projectError.message)
+      setLoading(false)
+      setLoadingStartTime(null)
+      return
     }
+    updateLoading()
     onClose()
   }
 
@@ -321,6 +330,11 @@ export default function NewProjectDialog({
         )}
       </DialogTitle>
       <DialogContent sx={{ px: { xs: 1.5, sm: 3 } }}>
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}
         <Box
           sx={{
             display: "flex",

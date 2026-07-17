@@ -218,6 +218,7 @@ jobs:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
+      contents: read # for checkout (the marketing frontend is built in this job)
       pages: write
       id-token: write
     environment:
@@ -228,11 +229,38 @@ jobs:
       cancel-in-progress: false
 
     steps:
-      - name: Download frontend build
-        uses: actions/download-artifact@v8
+      # Build the frontend here (instead of reusing the frontend-build artifact) so the Pages
+      # deployment gets the marketing variant: vizdiff.io has no backend, so
+      # NEXT_PUBLIC_MARKETING swaps the sign-in CTAs for docs/GitHub links.
+      - name: Checkout repository
+        uses: actions/checkout@v7
         with:
-          name: frontend-build
-          path: frontend/out
+          fetch-depth: 0
+          lfs: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: ".nvmrc"
+
+      - name: Cache dependencies
+        uses: actions/cache@v6
+        with:
+          path: |
+            node_modules
+            .yarn/cache
+          key: ${{ runner.os }}-deps-${{ hashFiles('**/yarn.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-deps-
+
+      - name: Install dependencies
+        run: npm install -g corepack && corepack enable && yarn install --immutable
+
+      - name: Build marketing frontend
+        env:
+          NEXT_PUBLIC_MARKETING: "true"
+          GIT_HASH: ${{ github.sha }}
+        run: yarn workspace frontend build
 
       # Custom domain for this project Pages site (serves at the apex root, no basePath). `.nojekyll`
       # stops GitHub running Jekyll over Next's `_next/` directory.

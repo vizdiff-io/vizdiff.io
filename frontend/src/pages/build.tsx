@@ -20,6 +20,7 @@ import TestResultDialog from "@/components/TestResultDialog"
 import useApiGet from "@/hooks/useApiGet"
 import useAppTheme from "@/hooks/useAppTheme"
 import { useBreadcrumbs } from "@/hooks/useBreadcrumbs"
+import { apiPost } from "@/lib/apiMethods"
 import type { ScreenshotTestResponse, TestResponse, TestResultResponse } from "@/lib/apiTypes"
 import { getStatusColor } from "@/lib/colors"
 import { getBranchUrl, getCommitUrl, getPullRequestUrl } from "@/lib/links"
@@ -57,6 +58,7 @@ export default function Build(): JSX.Element {
   )
   const { projectId, projectName, buildNumber } = data ?? {}
   const [selectedResult, setSelectedResult] = useState<TestResultResponse | null>(null)
+  const [statusError, setStatusError] = useState<string | null>(null)
   const theme = useAppTheme()
 
   // Handle invalid ID with useEffect for client-side navigation
@@ -109,44 +111,25 @@ export default function Build(): JSX.Element {
     )
   }
 
-  const handleApprove = async () => {
-    try {
-      const response = await fetch(`/api/tests/${id}/status/approved`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      })
-
-      if (!response.ok) {
-        throw new Error("Failed to approve build")
-      }
-
-      // Refresh the data
-      window.location.reload()
-    } catch (err) {
-      console.error("Error approving build:", err)
+  const setBuildStatus = async (newStatus: "approved" | "denied") => {
+    setStatusError(null)
+    // apiPost handles the 401 login redirect and extracts server error messages
+    const [, statusErr] = await apiPost(`/api/tests/${buildId}/status/${newStatus}`, {})
+    if (statusErr) {
+      setStatusError(statusErr.message)
+      return
     }
+
+    // Refresh the data
+    window.location.reload()
+  }
+
+  const handleApprove = async () => {
+    await setBuildStatus("approved")
   }
 
   const handleDeny = async () => {
-    try {
-      const response = await fetch(`/api/tests/${id}/status/denied`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      })
-
-      if (!response.ok) {
-        throw new Error("Failed to deny build")
-      }
-
-      // Refresh the data
-      window.location.reload()
-    } catch (err) {
-      console.error("Error denying build:", err)
-    }
+    await setBuildStatus("denied")
   }
 
   let content: JSX.Element
@@ -332,6 +315,11 @@ export default function Build(): JSX.Element {
           {error && (
             <Paper sx={{ p: 2, mb: 3, bgcolor: "error.light", color: "error.contrastText" }}>
               {error.message}
+            </Paper>
+          )}
+          {statusError && (
+            <Paper sx={{ p: 2, mb: 3, bgcolor: "error.light", color: "error.contrastText" }}>
+              {statusError}
             </Paper>
           )}
           {content}

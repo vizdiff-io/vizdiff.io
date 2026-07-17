@@ -62,7 +62,7 @@ Click the "..." button then "Details" on the check to see a summary of the chang
 
 ![Rendering storybook components → 4 changes to review.](/docs/pr-check-queued.gif)
 
-## 7. Screenshot review on VizDiff
+## 6. Screenshot review on VizDiff
 
 The VizDiff review page shows a list of all screenshots that were generated for the build. They are sorted by status with "New" screenshots first, followed by "Changed", then "Unchanged". Clicking on a screenshot will open a dialog showing different comparison views for that screenshot.
 
@@ -72,17 +72,17 @@ Press left and right on the keyboard or the arrow buttons to navigate between sc
 
 ![Screenshot details dialog, Diff view](/docs/details-diffview.png)
 
-## 8. Approve or Deny the build
+## 7. Approve or Deny the build
 
 Once you've reviewed all screenshots, you can approve or deny the build. Pressing either button will immediately update the GitHub status check to "Success" or "Failure" respectively.
 
-## 9. Next Steps—Generate Your First Diff
+## 8. Next Steps—Generate Your First Diff
 
 The first run of any branch establishes a baseline; every screenshot will show "New" status. To see real diffs, push another commit to the same PR or open a new branch that starts from a commit with approved screenshots.
 
 Only files that change between the two Storybook builds will appear as Changed in VizDiff.
 
-## 10. Troubleshooting FAQ
+## 9. Troubleshooting FAQ
 
 - I get a "403 Forbidden during upload" error when uploading screenshots.
 

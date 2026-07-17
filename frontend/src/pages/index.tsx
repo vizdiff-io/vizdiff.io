@@ -11,7 +11,7 @@ import { type JSX, useEffect } from "react"
 import { GitLabIcon } from "@/components/GitLabIcon"
 import { MarketingLayout } from "@/components/NavBody"
 import { Seo } from "@/components/Seo"
-import { APP_ONLY } from "@/lib/environment"
+import { APP_ONLY, MARKETING } from "@/lib/environment"
 
 // In the self-hosted frontend image (APP_ONLY) there is no marketing landing — `/` sends the user
 // straight into the app, which then redirects to login if they aren't authenticated.
@@ -76,9 +76,11 @@ export default function Home(): JSX.Element | null {
                 minimal effort.
               </Typography>
               <Box sx={{ display: "flex", gap: 2 }}>
-                <MuiLink href="/projects">
+                {/* The marketing site (GitHub Pages) has no backend, so its CTA points at the
+                    self-hosting docs instead of the app */}
+                <MuiLink href={MARKETING ? "/docs" : "/projects"}>
                   <Button variant="contained" color="primary" size="large">
-                    Go to projects
+                    {MARKETING ? "Get started" : "Go to projects"}
                   </Button>
                 </MuiLink>
               </Box>
@@ -303,9 +305,9 @@ export default function Home(): JSX.Element | null {
       {/* Final CTA and Footer Links */}
       <Box sx={{ py: { xs: 6, sm: 10 }, textAlign: "center", bgcolor: "var(--bg-primary)" }}>
         <Container maxWidth="lg">
-          <MuiLink href="/projects" sx={{ textDecoration: "none" }}>
+          <MuiLink href={MARKETING ? "/docs" : "/projects"} sx={{ textDecoration: "none" }}>
             <Button variant="contained" color="primary" size="large">
-              Go to projects
+              {MARKETING ? "Get started" : "Go to projects"}
             </Button>
           </MuiLink>
         </Container>
