@@ -28,6 +28,8 @@ type QueuedTask = { task_type: string; screenshot_test_id: number; data: any }
 const queue = new Map<number, QueuedTask>()
 const processedOrder: number[] = []
 const isBaselineBuildPending = vi.fn(async (_screenshotTestId: number) => false)
+// Screenshot-test ids whose ingest should fail (to exercise the retry/backoff/give-up paths).
+const failingTestIds = new Set<number>()
 
 // Mock the queue *selection* layer (these helpers are imported by worker.ts from
 // ./tasks). `latestTaskQueueId` returns the newest (highest id) task NOT in the
@@ -49,6 +51,9 @@ vi.mock("./tasks", async (importOriginal) => {
 vi.mock("./ingest", () => ({
   isBaselineBuildPending: (id: number) => isBaselineBuildPending(id),
   ingestStorybook: vi.fn(async (_projectId: string, screenshotTestId: number) => {
+    if (failingTestIds.has(screenshotTestId)) {
+      throw new Error(`Simulated ingest failure for test ${screenshotTestId}`)
+    }
     processedOrder.push(screenshotTestId)
   }),
 }))
@@ -139,6 +144,7 @@ describe("dependent task ordering — worker processes A before B (#125)", () =>
     vi.useFakeTimers()
     queue.clear()
     processedOrder.length = 0
+    failingTestIds.clear()
     isBaselineBuildPending.mockReset()
     isBaselineBuildPending.mockResolvedValue(false)
   })
@@ -212,5 +218,77 @@ describe("dependent task ordering — worker processes A before B (#125)", () =>
 
     expect(processedOrder).toContain(TEST_B_ID)
     expect(queue.has(TASK_B_ID)).toBe(false)
+  })
+})
+
+describe("failure backoff and give-up", () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    queue.clear()
+    processedOrder.length = 0
+    failingTestIds.clear()
+    isBaselineBuildPending.mockReset()
+    isBaselineBuildPending.mockResolvedValue(false)
+  })
+
+  afterEach(() => {
+    vi.clearAllTimers()
+    vi.useRealTimers()
+  })
+
+  it("does not let a failing newest task starve older runnable tasks", async () => {
+    // The newest task (higher id) always fails; the older task must still run
+    // while the failing one sits in its backoff window. Before the fix,
+    // latestTaskQueueId() only ever returned the newest id, so the poll just
+    // slept and the older task was never considered.
+    const OLD_TASK_ID = 300
+    const OLD_TEST_ID = 3000
+    const FAILING_TASK_ID = 400
+    const FAILING_TEST_ID = 4000
+
+    queue.set(OLD_TASK_ID, {
+      task_type: "ingest_storybook",
+      screenshot_test_id: OLD_TEST_ID,
+      data: { projectId: "p", uploadId: "upload-old" },
+    })
+    queue.set(FAILING_TASK_ID, {
+      task_type: "ingest_storybook",
+      screenshot_test_id: FAILING_TEST_ID,
+      data: { projectId: "p", uploadId: "upload-failing" },
+    })
+    failingTestIds.add(FAILING_TEST_ID)
+
+    pollForNewTasks()
+    // First poll picks the failing (newest) task; the next poll (10s later) must
+    // exclude it (its first backoff window is 30s) and pick the older task.
+    await pump(() => processedOrder.includes(OLD_TEST_ID), 10_000)
+
+    expect(processedOrder).toContain(OLD_TEST_ID)
+    expect(queue.has(OLD_TASK_ID)).toBe(false)
+    // The failing task is still queued (it is in backoff, not given up yet).
+    expect(queue.has(FAILING_TASK_ID)).toBe(true)
+  })
+
+  it("deletes a task from the queue after exhausting its retry budget", async () => {
+    // A task that fails MAX_RETRY_COUNT+1 times must be removed from the queue,
+    // not left in place to restart the retry cycle forever.
+    const DOOMED_TASK_ID = 500
+    const DOOMED_TEST_ID = 5000
+
+    queue.set(DOOMED_TASK_ID, {
+      task_type: "ingest_storybook",
+      screenshot_test_id: DOOMED_TEST_ID,
+      data: { projectId: "p", uploadId: "upload-doomed" },
+    })
+    failingTestIds.add(DOOMED_TEST_ID)
+
+    pollForNewTasks()
+    // Exponential backoff between attempts sums to ~15.5 minutes before the
+    // sixth failure exhausts the budget (MAX_RETRY_COUNT = 5); advance in poll
+    // interval (10s) steps with a cap comfortably above that.
+    await pump(() => !queue.has(DOOMED_TASK_ID), 10_000, 150)
+
+    expect(queue.has(DOOMED_TASK_ID)).toBe(false)
+    expect(processedOrder).not.toContain(DOOMED_TEST_ID)
   })
 })

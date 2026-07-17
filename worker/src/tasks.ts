@@ -141,7 +141,11 @@ export async function fetchTask(taskQueueId: number): Promise<Task | undefined> 
         [taskQueueId],
       )
       if (checkRes.rowCount === 0) {
-        throw new Error(`Task not found: ${taskQueueId}`)
+        // The task row is gone (e.g. deleted by another worker after finishing
+        // it). This is not a failure of ours to retry; the caller clears any
+        // in-memory retry/deferral state for the id.
+        log.warn(`Task not found: ${taskQueueId} (likely completed by another worker)`)
+        return undefined
       }
       const task = checkRes.rows[0] as { locked_by: string; locked_at: Date }
       const lockAge = Math.floor((Date.now() - task.locked_at.getTime()) / (1000 * 60))

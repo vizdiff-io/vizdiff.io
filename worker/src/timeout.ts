@@ -13,9 +13,9 @@ export class BuildTimeoutError extends Error {
 
 /**
  * How long, after the abort (`onTimeout`) has run, to wait for the original `work` promise to
- * actually settle before declaring the abort failed. Force-closing the browser session should
- * cause the in-flight WebDriver command to reject almost immediately and unwind the stack
- * (running the render's `finally` blocks, which release the module-level `browserMutex`). If it
+ * actually settle before declaring the abort failed. Force-closing the browser sessions should
+ * cause the in-flight WebDriver commands to reject almost immediately and unwind the stack
+ * (running the render's `finally` blocks, which return each session to the browser pool). If it
  * doesn't settle within this grace period the work is genuinely wedged and we treat it as
  * unrecoverable in-process.
  */
@@ -29,11 +29,11 @@ export interface WithTimeoutOptions {
   abortGraceMs?: number
   /**
    * Invoked when the abort fails to make `work` settle within the grace period — i.e. the render
-   * is wedged in a way that force-teardown could not unstick (a hung WebDriver op still holding
-   * `browserMutex`). Letting the worker continue would let it accept a new build that blocks on
-   * the poisoned mutex and times out too, poisoning the worker until restart. The default
-   * therefore exits the process non-zero so the orchestrator restarts a clean worker. Overridable
-   * for testing.
+   * is wedged in a way that force-teardown could not unstick (a hung WebDriver op that never
+   * rejects, leaving its browser-pool session checked out). Letting the worker continue would
+   * let it accept a new build while the wedged render still holds process resources (Chrome
+   * sessions, memory), poisoning the worker until restart. The default therefore exits the
+   * process non-zero so the orchestrator restarts a clean worker. Overridable for testing.
    */
   onUnrecoverable?: (error: Error) => void
 }
@@ -55,10 +55,11 @@ function defaultOnUnrecoverable(error: Error): void {
  * Why wait? The underlying `work` promise is not cancellable on its own; `onTimeout` is only the
  * mechanism that interrupts it. If we rejected immediately (as a naive timeout race would), the
  * caller would be free to start the next build while the previous render is still unwinding — and
- * in the scenario this guards against (a `processStory`/WebDriver op stuck while holding the
- * module-level `browserMutex` in stories.ts), the render's `finally` would not yet have released
- * that mutex. The next build would then block on the poisoned mutex and time out too. Awaiting the
- * render's settlement guarantees its cleanup (mutex release) has run before we hand control back.
+ * in the scenario this guards against (a `processStory`/WebDriver op stuck mid-render), the
+ * render's `finally` blocks would not yet have run, so its browser-pool sessions and other
+ * resources would still be in use while a new build spins up more. Awaiting the render's
+ * settlement guarantees its cleanup (returning sessions to the pool, tearing the pool down) has
+ * run before we hand control back.
  *
  * If the work does not settle within `abortGraceMs` after the abort, the render is wedged beyond
  * in-process recovery; `onUnrecoverable` is invoked (by default, exit the process non-zero) so a
@@ -97,7 +98,7 @@ export async function withTimeout<T>(
     }
 
     // Timeout won. Fire the abort, then wait for the original work to settle so its cleanup
-    // (releasing browserMutex) runs before we hand control back to the caller.
+    // (returning sessions to the browser pool) runs before we hand control back to the caller.
     try {
       await onTimeout()
     } catch {
@@ -118,7 +119,7 @@ export async function withTimeout<T>(
       // If onUnrecoverable did not terminate the process (e.g. in tests), still wait for the
       // work to settle so we never resolve while it may hold shared state, then surface the
       // timeout. This await may hang if the work truly never settles, which is the correct
-      // behavior: we must not free the worker while the mutex is held.
+      // behavior: we must not free the worker while the render still holds its resources.
       await workSettled
     }
 

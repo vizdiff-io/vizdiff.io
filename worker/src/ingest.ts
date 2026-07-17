@@ -343,7 +343,11 @@ export async function ingestStorybook(
           const baseTests = await testResultTable
             .createQueryBuilder("result")
             .leftJoinAndSelect("result.screenshotTest", "test")
-            .where("test.commitSha = :commitSha", { commitSha: screenshotTest.baseCommitSha })
+            // Filter by project as well as commit sha: two projects can share a commit sha
+            // (forks, monorepos), and the pair lets Postgres use the
+            // (project_id, commit_sha) index.
+            .where("test.project_id = :projectId", { projectId: screenshotTest.project.id })
+            .andWhere("test.commit_sha = :commitSha", { commitSha: screenshotTest.baseCommitSha })
             .getMany()
 
           for (const test of baseTests) {

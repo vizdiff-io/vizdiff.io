@@ -1,7 +1,7 @@
 import createPgSubscriber from "pg-listen"
 import { ScreenshotTest } from "shared"
 
-import { Database, DatabasePool } from "./database"
+import { closeDatabasePool, Database, DatabasePool } from "./database"
 import {
   POSTGRES_USER,
   POSTGRES_HOST,
@@ -44,6 +44,9 @@ const MAX_BACKOFF_MS = 1000 * 60 * 30 // 30 minutes max backoff
 const STUCK_RUNNING_THRESHOLD_MINUTES = 120 // 2 hours
 // Consider a build stuck if it's been pending for more than this amount of time
 const STUCK_PENDING_THRESHOLD_MINUTES = 240 // 4 hours
+// Minimum interval between stuck-build sweeps. The idle poll tick is frequent (POLL_INTERVAL_MS);
+// the sweep only needs to run periodically since its thresholds are measured in hours.
+const STUCK_BUILD_SWEEP_INTERVAL_MS = 1000 * 60 * 5 // 5 minutes
 
 // How long to defer a render task each time its dependent (baseline) build is
 // still pending/in-progress, before re-checking. This is the length of the
@@ -69,10 +72,17 @@ const MAX_DEFER_COUNT = 60
 const subscriber = createPgSubscriber({ connectionString: CONN_STRING })
 // Current task being processed, if any
 let currentTaskId: number | undefined
+// Set once a shutdown signal (SIGTERM/SIGINT) has been received; stops the worker from
+// accepting any new tasks while the graceful shutdown runs.
+let shuttingDown = false
 // Timestamp of the last retention sweep, to throttle the reaper to RETENTION_SWEEP_INTERVAL_MS.
 let lastRetentionSweepMs = 0
 // Guards against overlapping retention sweeps if one runs longer than the poll interval.
 let retentionSweepInFlight = false
+// Timestamp of the last stuck-build sweep, to throttle it to STUCK_BUILD_SWEEP_INTERVAL_MS.
+let lastStuckBuildSweepMs = 0
+// Guards against overlapping stuck-build sweeps if one runs longer than the poll interval.
+let stuckBuildSweepInFlight = false
 // Map of task IDs to their failure count and next retry time
 const failedTasksMap = new Map<number, { retryCount: number; nextRetryTime: number }>()
 // Map of task IDs that are deferred waiting on a dependent (baseline) build,
@@ -107,6 +117,21 @@ function activeDeferredTaskIds(now: number): Set<number> {
   return ids
 }
 
+// Set of task ids that are inside a failure-backoff window and not yet due for
+// retry. These are excluded from task selection the same way deferred tasks are,
+// so a single failing task (with up to 30 minutes of backoff) cannot starve the
+// queue: latestTaskQueueId() returns the next eligible task instead of
+// repeatedly returning the backing-off one and stalling.
+function activeBackoffTaskIds(now: number): Set<number> {
+  const ids = new Set<number>()
+  for (const [taskId, info] of failedTasksMap) {
+    if (now < info.nextRetryTime) {
+      ids.add(taskId)
+    }
+  }
+  return ids
+}
+
 async function main() {
   startHealthServer()
 
@@ -121,6 +146,11 @@ async function main() {
     const taskQueueId = typeof payload === "string" ? parseInt(payload, 10) : payload
     if (isNaN(taskQueueId)) {
       log.error(`Invalid task queue ID: ${payload}`)
+      return
+    }
+
+    if (shuttingDown) {
+      log.info(`Ignoring task ${taskQueueId} notification: worker is shutting down`)
       return
     }
 
@@ -140,6 +170,11 @@ async function main() {
   })
 
   process.on("exit", shutdown)
+  // Graceful shutdown on `docker stop` / Ctrl-C: stop accepting new tasks, release the
+  // current task's lock so another worker can pick it up immediately (instead of waiting out
+  // LOCK_TIMEOUT_MINUTES), close the subscriber and pool, then exit.
+  process.on("SIGTERM", handleShutdownSignal)
+  process.on("SIGINT", handleShutdownSignal)
 
   await subscriber.connect()
   await subscriber.listenTo(TASKS_CHANNEL)
@@ -170,7 +205,42 @@ export function maybeRunRetentionSweep(): void {
     })
 }
 
+/**
+ * Run the stuck-build sweep at most once per STUCK_BUILD_SWEEP_INTERVAL_MS. Fire-and-forget,
+ * mirroring maybeRunRetentionSweep(): it runs in the background off the idle worker tick and
+ * never blocks task processing. A guard prevents overlapping sweeps.
+ */
+export function maybeSweepStuckBuilds(): void {
+  if (stuckBuildSweepInFlight) {
+    return
+  }
+  const now = Date.now()
+  if (now - lastStuckBuildSweepMs < STUCK_BUILD_SWEEP_INTERVAL_MS) {
+    return
+  }
+  lastStuckBuildSweepMs = now
+  stuckBuildSweepInFlight = true
+  sweepStuckBuilds()
+    .then((stuckBuildsCount) => {
+      if (stuckBuildsCount > 0) {
+        log.info(`Found and updated ${stuckBuildsCount} stuck builds`)
+      } else {
+        log.trace(`No stuck builds found`)
+      }
+    })
+    .catch((err: unknown) => log.error(err, "Error sweeping for stuck builds"))
+    .finally(() => {
+      stuckBuildSweepInFlight = false
+    })
+}
+
 export function pollForNewTasks(): void {
+  // Stop polling once a shutdown signal has been received
+  if (shuttingDown) {
+    log.debug("Worker is shutting down, stopping poll")
+    return
+  }
+
   // Early return if we're already processing a task
   if (currentTaskId != undefined) {
     log.debug("Worker is busy, skipping poll")
@@ -178,51 +248,23 @@ export function pollForNewTasks(): void {
     return
   }
 
-  // Exclude tasks that are deferred waiting on a dependent build so the worker
-  // can pick the dependent (typically older) task instead of looping on the
-  // deferred one.
-  const excludeIds = activeDeferredTaskIds(Date.now())
+  // Exclude tasks that are deferred waiting on a dependent build, and tasks that
+  // are inside a failure-backoff window, so the worker picks the next eligible
+  // task instead of looping on (or stalling behind) an ineligible one.
+  const now = Date.now()
+  const excludeIds = activeDeferredTaskIds(now)
+  for (const taskId of activeBackoffTaskIds(now)) {
+    excludeIds.add(taskId)
+  }
 
   latestTaskQueueId(excludeIds)
     .then((taskQueueId) => {
       if (taskQueueId == undefined) {
         log.trace(`No new tasks, checking for stuck builds...`)
-        // Idle: opportunistically run the retention reaper (throttled, fire-and-forget) and the
-        // stuck-build sweep.
+        // Idle: opportunistically run the retention reaper and the stuck-build sweep (both
+        // throttled and fire-and-forget).
         maybeRunRetentionSweep()
-        // No tasks, so check for stuck builds
-        sweepStuckBuilds()
-          .then((stuckBuildsCount) => {
-            if (stuckBuildsCount > 0) {
-              log.info(`Found and updated ${stuckBuildsCount} stuck builds`)
-            } else {
-              log.trace(`No stuck builds found`)
-            }
-            setTimeout(() => pollForNewTasks(), POLL_INTERVAL_MS)
-          })
-          .catch((err: unknown) => {
-            log.error(err, "Error sweeping for stuck builds")
-            setTimeout(() => pollForNewTasks(), POLL_INTERVAL_MS)
-          })
-        return
-      }
-
-      // Check if this task has a backoff period
-      const now = Date.now()
-      const failedTask = failedTasksMap.get(taskQueueId)
-
-      // Skip if this task's next retry time hasn't been reached
-      if (failedTask && now < failedTask.nextRetryTime) {
-        const waitTimeSec = Math.round((failedTask.nextRetryTime - now) / 1000)
-        log.debug(`Skipping recently failed task ${taskQueueId}, will retry in ${waitTimeSec}s`)
-
-        // If a task has failed many times but is still in the queue, it might be stuck
-        if (failedTask.retryCount >= 3) {
-          log.warn(
-            `Task ${taskQueueId} has failed ${failedTask.retryCount} times but is still in the queue. Consider manually deleting it.`,
-          )
-        }
-
+        maybeSweepStuckBuilds()
         setTimeout(() => pollForNewTasks(), POLL_INTERVAL_MS)
         return
       }
@@ -237,6 +279,11 @@ export function pollForNewTasks(): void {
           process.nextTick(() => pollForNewTasks())
         })
         .catch((err: unknown) => {
+          // Recompute the current time: `now` above was captured before the task
+          // ran, so using it here would make the defer/backoff windows for a
+          // long-running task already (partially) elapsed.
+          const failedAt = Date.now()
+
           // A dependent (baseline) build is still pending/in-progress. Defer this
           // task for a short delay and let the worker pick the dependent first.
           // This is NOT a failure, so don't touch the backoff/retry budget.
@@ -246,7 +293,7 @@ export function pollForNewTasks(): void {
               nextRetryTime: 0,
             }
             deferInfo.deferCount += 1
-            deferInfo.nextRetryTime = now + DEFER_INTERVAL_MS
+            deferInfo.nextRetryTime = failedAt + DEFER_INTERVAL_MS
             deferredTasksMap.set(taskQueueId, deferInfo)
             log.info(
               `Deferring task ${taskQueueId} (${deferInfo.deferCount}/${MAX_DEFER_COUNT}) for ${DEFER_INTERVAL_MS / 1000}s: ${err.message}`,
@@ -281,20 +328,31 @@ export function pollForNewTasks(): void {
               `Task ${taskQueueId} has failed ${taskFailureInfo.retryCount} times, giving up`,
             )
             clearFailedTaskId(taskQueueId)
-          } else {
-            // Calculate exponential backoff: 2^retryCount * base interval, with a maximum cap
-            const backoffMs = Math.min(
-              Math.pow(2, taskFailureInfo.retryCount) * RETRY_INTERVAL_MS,
-              MAX_BACKOFF_MS,
-            )
-            taskFailureInfo.nextRetryTime = now + backoffMs
-            failedTasksMap.set(taskQueueId, taskFailureInfo)
-
-            const backoffSec = Math.round(backoffMs / 1000)
-            log.info(
-              `Task ${taskQueueId} failed ${taskFailureInfo.retryCount} times, will retry in ${backoffSec}s`,
-            )
+            clearDeferredTaskId(taskQueueId)
+            // Actually give up: delete the task row (otherwise it would be
+            // re-selected and the whole retry cycle would restart forever) and
+            // mark its build failed so it doesn't sit in pending/running until
+            // the stuck-build sweep finds it.
+            giveUpOnTask(taskQueueId)
+              .catch((giveUpErr: unknown) => {
+                log.error(giveUpErr, `Failed to delete given-up task ${taskQueueId}`)
+              })
+              .finally(() => setTimeout(() => pollForNewTasks(), POLL_INTERVAL_MS))
+            return
           }
+
+          // Calculate exponential backoff: 2^retryCount * base interval, with a maximum cap
+          const backoffMs = Math.min(
+            Math.pow(2, taskFailureInfo.retryCount) * RETRY_INTERVAL_MS,
+            MAX_BACKOFF_MS,
+          )
+          taskFailureInfo.nextRetryTime = failedAt + backoffMs
+          failedTasksMap.set(taskQueueId, taskFailureInfo)
+
+          const backoffSec = Math.round(backoffMs / 1000)
+          log.info(
+            `Task ${taskQueueId} failed ${taskFailureInfo.retryCount} times, will retry in ${backoffSec}s`,
+          )
 
           // For failures, use the normal poll interval
           setTimeout(() => pollForNewTasks(), POLL_INTERVAL_MS)
@@ -307,6 +365,11 @@ export function pollForNewTasks(): void {
 }
 
 export async function startTask(taskQueueId: number): Promise<void> {
+  // Don't accept new tasks while shutting down
+  if (shuttingDown) {
+    log.info(`Cannot start task ${taskQueueId}: worker is shutting down`)
+    return
+  }
   // Check if we're already processing a task
   if (currentTaskId != undefined) {
     log.info(`Cannot start task ${taskQueueId}: worker is already processing task ${currentTaskId}`)
@@ -319,6 +382,10 @@ export async function startTask(taskQueueId: number): Promise<void> {
     const task = await fetchTask(taskQueueId)
     if (!task) {
       log.warn(`Not starting task ${taskQueueId}: fetchTask() failed`)
+      // The row may be gone entirely (completed/deleted by another worker), in
+      // which case any in-memory retry/deferral state for it must not linger.
+      clearFailedTaskId(taskQueueId)
+      clearDeferredTaskId(taskQueueId)
       currentTaskId = undefined
       return
     }
@@ -425,6 +492,49 @@ export function shutdown(): void {
   })
 }
 
+/**
+ * Graceful shutdown on SIGTERM/SIGINT (e.g. `docker stop`): stop accepting new tasks, release
+ * the current task's lock so another worker can pick it up immediately instead of waiting out
+ * LOCK_TIMEOUT_MINUTES, close the notification subscriber and connection pool, then exit. A
+ * second signal during shutdown exits immediately.
+ */
+export function handleShutdownSignal(signal: NodeJS.Signals): void {
+  if (shuttingDown) {
+    log.warn(`Received ${signal} while already shutting down, exiting immediately`)
+    process.exit(1)
+  }
+  shuttingDown = true
+  log.info(`Received ${signal}, shutting down gracefully...`)
+
+  void (async () => {
+    // Stop receiving NOTIFY-triggered tasks
+    try {
+      await subscriber.close()
+    } catch (err) {
+      log.error(err, "Error closing database subscriber during shutdown")
+    }
+
+    // Release the in-flight task's lock (the process is exiting, so the task will not
+    // finish here; releasing lets another worker pick it up right away)
+    if (currentTaskId != undefined) {
+      try {
+        await releaseLock(currentTaskId)
+      } catch (err) {
+        log.error(err, `Error releasing lock for task ${currentTaskId} during shutdown`)
+      }
+    }
+
+    try {
+      await closeDatabasePool()
+    } catch (err) {
+      log.error(err, "Error closing database pool during shutdown")
+    }
+
+    log.info("Graceful shutdown complete")
+    process.exit(0)
+  })()
+}
+
 export async function releaseLock(taskQueueId: number): Promise<void> {
   const client = await DatabasePool()
   try {
@@ -445,6 +555,39 @@ export async function deleteTask(taskQueueId: number): Promise<void> {
   try {
     log.debug(`Deleting task ${taskQueueId} from queue`)
     await client.query("DELETE FROM task_queue WHERE id = $1", [taskQueueId])
+  } finally {
+    client.release()
+  }
+}
+
+/**
+ * Permanently give up on a task that has exhausted its retry budget: delete the task row from
+ * the queue (so it is never re-selected and the retry cycle cannot restart) and mark its build
+ * failed if it is still pending/running — mirroring what sweepStuckBuilds() sets for builds
+ * that will never produce results.
+ */
+export async function giveUpOnTask(taskQueueId: number): Promise<void> {
+  const client = await DatabasePool()
+  try {
+    log.warn(`Giving up on task ${taskQueueId}: deleting it from the queue`)
+    const res = await client.query(
+      "DELETE FROM task_queue WHERE id = $1 RETURNING screenshot_test_id",
+      [taskQueueId],
+    )
+    if (res.rowCount === 0) {
+      return
+    }
+    const { screenshot_test_id: screenshotTestId } = res.rows[0] as {
+      screenshot_test_id: number | null
+    }
+    if (screenshotTestId != undefined) {
+      await client.query(
+        `UPDATE screenshot_tests
+         SET status = 'failed', updated_at = NOW()
+         WHERE id = $1 AND status IN ('pending', 'running')`,
+        [screenshotTestId],
+      )
+    }
   } finally {
     client.release()
   }
@@ -523,6 +666,9 @@ export async function sweepStuckBuilds(): Promise<number> {
 // not start the background poll loop / database subscriber.
 if (!IS_TEST) {
   main().catch((err: unknown) => {
-    log.error(err, "Uncaught error in main()")
+    // Exit non-zero instead of lingering: the health server would otherwise keep a zombie
+    // process alive with nothing polling. Exiting lets the orchestrator restart the worker.
+    log.fatal(err, "Uncaught error in main(), exiting")
+    process.exit(1)
   })
 }
