@@ -8,6 +8,14 @@ import { JWT_SECRET, IS_PRODUCTION } from "./environment"
 import { log } from "./log"
 import type { RequestLocals } from "./types"
 
+/** Lifetime of an issued session JWT (the short-lived credential). */
+export const JWT_TTL = "8h"
+/**
+ * Lifetime of the session: how long the `token` cookie persists and how far back an expired JWT's
+ * issue time (`iat`) may be while still qualifying for a transparent refresh.
+ */
+export const SESSION_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000 // 30 days in milliseconds
+
 /**
  * Re-issue a JWT cookie for a still-valid user whose token has expired. Identity is now owned by
  * the configured AuthProvider, so there are no VCS tokens to validate here — we simply reload the
@@ -22,14 +30,14 @@ async function refreshJWT(userId: number, req: Request, res: Response): Promise<
     }
 
     // Generate a new JWT token with 8 hour expiration
-    const token = jwt.sign({ sub: user.id }, JWT_SECRET, { expiresIn: "8h" })
+    const token = jwt.sign({ sub: user.id }, JWT_SECRET, { expiresIn: JWT_TTL })
 
-    // Set the new token in a cookie with 8 hour expiration
+    // Set the new token in a cookie that outlives the JWT so it can be refreshed again
     res.cookie("token", token, {
       httpOnly: true,
       secure: IS_PRODUCTION || req.secure ? true : undefined,
       sameSite: "lax",
-      maxAge: 8 * 60 * 60 * 1000, // 8 hours in milliseconds
+      maxAge: SESSION_MAX_AGE_MS,
       path: "/",
     })
 
@@ -38,6 +46,42 @@ async function refreshJWT(userId: number, req: Request, res: Response): Promise<
     log.error(err, "Failed to refresh JWT")
     return false
   }
+}
+
+/**
+ * Attempt a transparent refresh for an expired JWT. jsonwebtoken does not pass the payload to the
+ * `verify` callback on error, so we re-verify the signature ourselves (skipping only the
+ * expiration check — NOT a bare decode) to recover the claims, then refresh if the token was
+ * issued within the session window. Returns the user id on success, undefined otherwise.
+ */
+async function tryRefreshExpiredJWT(
+  token: string,
+  req: Request,
+  res: Response,
+): Promise<number | undefined> {
+  let payload: JwtPayload | string
+  try {
+    payload = jwt.verify(token, JWT_SECRET, { ignoreExpiration: true })
+  } catch {
+    return undefined
+  }
+
+  if (typeof payload !== "object" || !payload.sub || typeof payload.iat !== "number") {
+    return undefined
+  }
+
+  // Only refresh tokens issued within the session window; older sessions must sign in again
+  if (payload.iat * 1000 + SESSION_MAX_AGE_MS <= Date.now()) {
+    return undefined
+  }
+
+  const userId = parseInt(payload.sub, 10)
+  if (isNaN(userId)) {
+    return undefined
+  }
+
+  const refreshed = await refreshJWT(userId, req, res)
+  return refreshed ? userId : undefined
 }
 
 export function authenticateJWT(req: Request, res: Response, next: NextFunction): void {
@@ -59,11 +103,10 @@ export function authenticateJWT(req: Request, res: Response, next: NextFunction)
     { complete: false },
     async (err: VerifyErrors | null, decoded: JwtPayload | string | undefined) => {
       if (err) {
-        // If the token is expired, try to refresh it
-        if (err.name === "TokenExpiredError" && typeof decoded === "object" && decoded.sub) {
-          const userId = parseInt(decoded.sub, 10)
-          const refreshed = await refreshJWT(userId, req, res)
-          if (refreshed) {
+        // If the token is expired (but otherwise valid), try to refresh it
+        if (err.name === "TokenExpiredError") {
+          const userId = await tryRefreshExpiredJWT(token, req, res)
+          if (userId != undefined) {
             // Set user in res.locals from the verified JWT payload and continue
             ;(res.locals as RequestLocals).user = { id: userId } as User
             log.debug(`Request authenticated as user ${userId} via refreshed JWT`)
@@ -72,7 +115,7 @@ export function authenticateJWT(req: Request, res: Response, next: NextFunction)
           }
         }
 
-        log.warn(`JWT verification failed for [${token}]: ${err.message}`)
+        log.warn(`JWT verification failed: ${err.message}`)
         res.status(401).json({ error: "Unauthorized" })
         return
       }

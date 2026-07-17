@@ -2,6 +2,7 @@ import jwt from "jsonwebtoken"
 import { User } from "shared"
 
 import { getAuthProvider } from "../auth"
+import { JWT_TTL, SESSION_MAX_AGE_MS } from "../authenticate"
 import { Database } from "../database"
 import { APP_URL, GITHUB_ENABLED, IS_PRODUCTION, JWT_SECRET } from "../environment"
 import { syncUserInstallations } from "../github"
@@ -82,18 +83,18 @@ export async function callback(req: DefaultRequest, res: DefaultResponse): Promi
 
   // --- Begin retained JWT-cookie session logic (identity source changed; cookies unchanged) ---
   // Generate a JWT
-  const token = jwt.sign({ sub: user.id }, JWT_SECRET, { expiresIn: "8h" })
+  const token = jwt.sign({ sub: user.id }, JWT_SECRET, { expiresIn: JWT_TTL })
 
   // Set a secure cookie for the JWT and a JS-accessible cookie to indicate that
-  // the user is authenticated. The JWT lives for 8 hours and authenticated for
-  // 30 days to allow for refreshing the JWT during that period.
+  // the user is authenticated. The JWT lives for 8 hours, while both cookies persist for the full
+  // 30-day session so the expired JWT can be transparently refreshed during that period.
   const domain = new URL(APP_URL).hostname
   res.cookie("token", token, {
     domain,
     httpOnly: true,
     secure: IS_PRODUCTION || req.secure ? true : undefined,
     sameSite: "lax",
-    maxAge: 8 * 60 * 60 * 1000, // 8 hours in milliseconds
+    maxAge: SESSION_MAX_AGE_MS,
     path: "/",
   })
   res.cookie("authenticated", "true", {
@@ -101,7 +102,7 @@ export async function callback(req: DefaultRequest, res: DefaultResponse): Promi
     httpOnly: false,
     secure: false,
     sameSite: "lax",
-    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days in milliseconds
+    maxAge: SESSION_MAX_AGE_MS,
     path: "/",
   })
   // --- End retained JWT-cookie session logic ---

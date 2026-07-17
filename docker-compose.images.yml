@@ -38,6 +38,8 @@ services:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
       PORT: 3001
+      # Required session-signing secret; set it in .env (generate with `openssl rand -hex 32`).
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required; generate one with `openssl rand -hex 32` and set it in .env}
     depends_on:
       postgres:
         condition: service_healthy

@@ -128,13 +128,12 @@ export const repos: RequestHandler = async (req, res) => {
 
   log.info(
     {
-      user,
+      userId: user.id,
       org,
       filteredReposLength: filteredRepos.length,
       totalReposLength: ghRes.data.length,
-      githubResponse: ghRes.data,
-      accessibleRepoIds,
-      accessibleProjectIds,
+      accessibleRepoIdCount: accessibleRepoIds.size,
+      accessibleProjectIdCount: accessibleProjectIds.length,
     },
     "Returning GitHub projects",
   )

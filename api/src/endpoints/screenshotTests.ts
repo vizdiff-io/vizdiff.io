@@ -75,7 +75,10 @@ export const list: RequestHandler = async (req, res) => {
   // Permissions check
   const projectIds = await getAccessibleProjectIds(db, user.id)
   if (!projectIds.includes(projectId)) {
-    log.error({ user, projectId, projectIds }, "Project not found in accessible projects")
+    log.error(
+      { userId: user.id, projectId, projectIds },
+      "Project not found in accessible projects",
+    )
     res.status(404).json({ error: "Project not found" })
     return
   }

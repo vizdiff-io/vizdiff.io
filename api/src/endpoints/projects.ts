@@ -299,7 +299,10 @@ export const resetToken: RequestHandler = async (req, res) => {
   const projectWithStats = await getProjectWithStats(db, id)
   if (!projectWithStats) {
     // Failed to fetch the project with stats immediately after writing it. Should never happen
-    log.error({ user, project }, "Failed to fetch project with stats after saving")
+    log.error(
+      { userId: user.id, projectId: project.id },
+      "Failed to fetch project with stats after saving",
+    )
     res.status(500).json({ error: "Token reset failed" })
     return
   }

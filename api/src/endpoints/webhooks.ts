@@ -17,6 +17,19 @@ import type { CheckSuitePayload } from "../schemas/CheckSuitePayload"
 import type { RequestWithRawBody, DefaultResponse } from "../types"
 
 /**
+ * Timing-safe string comparison that treats a length mismatch (which makes
+ * `crypto.timingSafeEqual` throw) as a failed match instead of an error.
+ */
+function timingSafeStringEqual(a: string, b: string): boolean {
+  try {
+    return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b))
+  } catch {
+    // Lengths don't match
+    return false
+  }
+}
+
+/**
  * Verify the GitHub webhook signature
  */
 export function verifyWebhookSignature(
@@ -39,12 +52,12 @@ export function verifyWebhookSignature(
     // Prefer SHA-256 if available
     const hmac = crypto.createHmac("sha256", signingSecret)
     const digest = hmac.update(payload).digest("hex")
-    return crypto.timingSafeEqual(Buffer.from(sha256Sig), Buffer.from(digest))
+    return timingSafeStringEqual(sha256Sig, digest)
   } else if (sha1Sig) {
     // Fallback to SHA-1
     const hmac = crypto.createHmac("sha1", signingSecret)
     const digest = hmac.update(payload).digest("hex")
-    return crypto.timingSafeEqual(Buffer.from(sha1Sig), Buffer.from(digest))
+    return timingSafeStringEqual(sha1Sig, digest)
   }
 
   return false
@@ -70,12 +83,7 @@ export function verifyGitLabWebhookToken(
   }
 
   // Use timing-safe comparison to prevent timing attacks
-  try {
-    return crypto.timingSafeEqual(Buffer.from(token), Buffer.from(expectedToken))
-  } catch {
-    // Lengths don't match
-    return false
-  }
+  return timingSafeStringEqual(token, expectedToken)
 }
 
 /**
