@@ -2,6 +2,7 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
+  Index,
   ManyToOne,
   JoinColumn,
   CreateDateColumn,
@@ -12,6 +13,7 @@ import type { ScreenshotTest } from "./ScreenshotTest"
 import type { TestResultStatus } from "./types"
 
 @Entity("test_results")
+@Index("IDX_test_results_screenshot_test_id", ["screenshotTest.id"])
 export class TestResult {
   @PrimaryGeneratedColumn()
   id!: number

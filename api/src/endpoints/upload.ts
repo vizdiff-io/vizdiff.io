@@ -1,22 +1,22 @@
-import { S3Client } from "@aws-sdk/client-s3"
 import { Upload as S3Upload } from "@aws-sdk/lib-storage"
 import type { Logger } from "pino"
 import { createSummaryForBuild, ScreenshotTest, WorkTask } from "shared"
 import { uuidv7 } from "uuidv7"
 
-import { getProjectByToken, getS3BucketForProject } from "../authenticate"
+import { getProjectByToken } from "../authenticate"
 import { Database } from "../database"
 import {
   APP_URL,
   ENABLE_VCS_STATUS,
   GITHUB_ENABLED,
   GITLAB_HOST,
-  S3_CLIENT_CONFIG,
+  S3_BUCKET_NAME,
 } from "../environment"
-import { getInstallationForOrg, getOctokitForInstallation } from "../github"
+import { getInstallationForOrg, getOctokitForInstallation, type GitHubCheckData } from "../github"
 import { getGitLabHostConfig, type GitLabCheckData, updateGitLabCommitStatus } from "../gitlab"
 import { getQueryString } from "../http"
 import { log } from "../log"
+import { deleteObjectsByPrefixes, s3Client } from "../s3"
 import { createScreenshotTest } from "../screenshotTests"
 import type { DefaultRequest, DefaultResponse } from "../types"
 
@@ -26,49 +26,59 @@ const MAX_BRANCH_LENGTH = 1024
 export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse): Promise<void> {
   const length = parseInt(req.header("content-length") ?? "")
   if (!length || isNaN(length)) {
-    throw new Error("Missing Content-Length header")
+    res.status(400).json({ error: "Missing Content-Length header" })
+    return
   }
   if (length > MAX_UPLOAD_BYTES) {
-    throw new Error(`Upload too large: ${length} bytes (max ${MAX_UPLOAD_BYTES})`)
+    res.status(400).json({ error: `Upload too large: ${length} bytes (max ${MAX_UPLOAD_BYTES})` })
+    return
   }
 
   const token = getQueryString("token", req)
   if (!token) {
-    throw new Error("Missing token")
+    res.status(400).json({ error: "Missing token" })
+    return
   }
 
   const commitSha = req.header("x-vizdiff-commit-sha") ?? ""
   if (!isValidGitCommitHash(commitSha)) {
-    throw new Error(`Invalid commit SHA: "${commitSha}"`)
+    res.status(400).json({ error: `Invalid commit SHA: "${commitSha}"` })
+    return
   }
 
   const branch = req.header("x-vizdiff-branch") ?? ""
   if (!branch || branch.length > MAX_BRANCH_LENGTH) {
-    throw new Error(`Invalid branch name: "${branch}"`)
+    res.status(400).json({ error: `Invalid branch name: "${branch}"` })
+    return
   }
 
   const baseCommitSha = req.header("x-vizdiff-base-commit-sha")
   const baseBranch = req.header("x-vizdiff-base-branch")
   if (baseCommitSha || baseBranch) {
     if (!baseCommitSha) {
-      throw new Error("Missing base commit SHA")
+      res.status(400).json({ error: "Missing base commit SHA" })
+      return
     }
     if (!baseBranch) {
-      throw new Error("Missing base branch name")
+      res.status(400).json({ error: "Missing base branch name" })
+      return
     }
 
     if (!isValidGitCommitHash(baseCommitSha)) {
-      throw new Error(`Invalid base commit SHA: "${baseCommitSha}"`)
+      res.status(400).json({ error: `Invalid base commit SHA: "${baseCommitSha}"` })
+      return
     }
     if (baseBranch.length > MAX_BRANCH_LENGTH) {
-      throw new Error(`Invalid base branch name: "${baseBranch}"`)
+      res.status(400).json({ error: `Invalid base branch name: "${baseBranch}"` })
+      return
     }
   }
 
   const pr = req.header("x-vizdiff-pr-number")
   const prNumber = pr ? parseInt(pr) : undefined
   if (prNumber != undefined && (isNaN(prNumber) || prNumber < 1)) {
-    throw new Error(`Invalid pull request number: "${pr}"`)
+    res.status(400).json({ error: `Invalid pull request number: "${pr}"` })
+    return
   }
 
   const uploadId = uuidv7()
@@ -101,14 +111,13 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
     return
   }
 
-  const Bucket = await getS3BucketForProject(project)
+  const Bucket = S3_BUCKET_NAME
   const Key = `projects/${project.id}/${uploadId}.tar.gz`
   logChild.debug(`Uploading ${length} bytes to ${Bucket}/${Key}`)
 
-  // Proxy the .tar.gz upload to S3
-  const s3Client = new S3Client(S3_CLIENT_CONFIG)
+  // Proxy the .tar.gz upload to S3 (reusing the shared lazy S3 client)
   const upload = new S3Upload({
-    client: s3Client,
+    client: s3Client(),
     params: {
       Bucket,
       Key,
@@ -146,96 +155,120 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
     prNumber,
   })
 
-  // Create VCS status update based on provider
-  let vcsStatusId: number | null = null
-  let githubCheckData:
-    | { owner: string; repo: string; checkRunId: number; installationId: number }
-    | undefined
-  let gitlabCheckData: GitLabCheckData | undefined
+  // Everything after row creation must either complete through the WorkTask enqueue or clean up
+  // after itself: a failure here (e.g. GitHub check_run creation) would otherwise leave a
+  // forever-pending screenshot_tests row and a leaked S3 tarball with no task to process them.
+  try {
+    // Create VCS status update based on provider
+    let vcsStatusId: number | null = null
+    let githubCheckData: GitHubCheckData | undefined
+    let gitlabCheckData: GitLabCheckData | undefined
 
-  if (project.vcsProvider === "github") {
-    // Get the installation ID for this project
-    const installation = await getInstallationForOrg(project.user.id, owner)
-    if (!installation) {
-      throw new Error(`GitHub App installation not found for ${owner}`)
-    }
+    if (project.vcsProvider === "github") {
+      // Get the installation ID for this project
+      const installation = await getInstallationForOrg(project.user.id, owner)
+      if (!installation) {
+        throw new Error(`GitHub App installation not found for ${owner}`)
+      }
 
-    // Create a GitHub check_run for this upload
-    vcsStatusId = await createGitHubCheckRun({
-      logChild,
-      installationId: installation.installationId,
-      owner,
-      repo,
-      commitSha,
-      screenshotTest,
-    })
-
-    if (vcsStatusId) {
-      githubCheckData = {
+      // Create a GitHub check_run for this upload
+      vcsStatusId = await createGitHubCheckRun({
+        logChild,
+        installationId: installation.installationId,
         owner,
         repo,
-        checkRunId: vcsStatusId,
-        installationId: installation.installationId,
-      }
-    }
-  } else {
-    // Create GitLab commit status for this upload using the configured per-host service token.
-    const gitlabHost = project.gitlabHost ?? GITLAB_HOST
-    const hostConfig = getGitLabHostConfig(gitlabHost)
+        commitSha,
+        screenshotTest,
+      })
 
-    if (hostConfig && ENABLE_VCS_STATUS) {
-      try {
-        await updateGitLabCommitStatus(project.repoId, commitSha, "pending", {
-          name: "vizdiff/visual-tests",
-          targetUrl: `${APP_URL}/build?id=${screenshotTest.id}`,
-          description: "Queued storybook upload for rendering",
-          host: gitlabHost,
-        })
-        // GitLab doesn't return an ID for commit statuses, use 1 as a flag
-        vcsStatusId = 1
-        // Store only non-sensitive data; the worker resolves the service token by host at processing time
-        gitlabCheckData = {
-          projectId: project.repoId,
-          commitSha,
-          gitlabHost,
+      if (vcsStatusId) {
+        githubCheckData = {
+          owner,
+          repo,
+          checkRunId: vcsStatusId,
+          installationId: installation.installationId,
         }
-        logChild.info(`Created GitLab commit status for ${project.repoUrl}#${commitSha}`)
-      } catch (error) {
-        logChild.error(error, `Failed to create GitLab commit status`)
-        // Don't fail the upload if we can't create the commit status
       }
-    } else if (!ENABLE_VCS_STATUS) {
-      logChild.info(`Skipping GitLab commit status creation (ENABLE_VCS_STATUS not set)`)
     } else {
-      logChild.warn(
-        `No GitLab service token configured for host ${gitlabHost}, skipping commit status`,
-      )
+      // Create GitLab commit status for this upload using the configured per-host service token.
+      const gitlabHost = project.gitlabHost ?? GITLAB_HOST
+      const hostConfig = getGitLabHostConfig(gitlabHost)
+
+      if (hostConfig && ENABLE_VCS_STATUS) {
+        try {
+          await updateGitLabCommitStatus(project.repoId, commitSha, "pending", {
+            name: "vizdiff/visual-tests",
+            targetUrl: `${APP_URL}/build?id=${screenshotTest.id}`,
+            description: "Queued storybook upload for rendering",
+            host: gitlabHost,
+          })
+          // GitLab doesn't return an ID for commit statuses, use 1 as a flag
+          vcsStatusId = 1
+          // Store only non-sensitive data; the worker resolves the service token by host at processing time
+          gitlabCheckData = {
+            projectId: project.repoId,
+            commitSha,
+            gitlabHost,
+          }
+          logChild.info(`Created GitLab commit status for ${project.repoUrl}#${commitSha}`)
+        } catch (error) {
+          logChild.error(error, `Failed to create GitLab commit status`)
+          // Don't fail the upload if we can't create the commit status
+        }
+      } else if (!ENABLE_VCS_STATUS) {
+        logChild.info(`Skipping GitLab commit status creation (ENABLE_VCS_STATUS not set)`)
+      } else {
+        logChild.warn(
+          `No GitLab service token configured for host ${gitlabHost}, skipping commit status`,
+        )
+      }
     }
-  }
 
-  // Update the screenshot test with the VCS status ID
-  if (vcsStatusId != null) {
-    screenshotTest.vcsStatusId = vcsStatusId
-  }
-  const screenshotTestTable = db.getRepository(ScreenshotTest)
-  await screenshotTestTable.save(screenshotTest)
+    // Update the screenshot test with the VCS status ID
+    if (vcsStatusId != null) {
+      screenshotTest.vcsStatusId = vcsStatusId
+    }
+    const screenshotTestTable = db.getRepository(ScreenshotTest)
+    await screenshotTestTable.save(screenshotTest)
 
-  // Add a task to the queue to process this screenshot test
-  const task = new WorkTask()
-  task.screenshotTest = screenshotTest
-  task.taskType = "ingest_storybook"
-  task.data = {
-    projectId: project.id,
-    uploadId,
-    githubCheckData,
-    gitlabCheckData,
-  }
-  task.createdAt = new Date()
-  task.updatedAt = task.createdAt
+    // Add a task to the queue to process this screenshot test
+    const task = new WorkTask()
+    task.screenshotTest = screenshotTest
+    task.taskType = "ingest_storybook"
+    task.data = {
+      projectId: project.id,
+      uploadId,
+      githubCheckData,
+      gitlabCheckData,
+    }
+    task.createdAt = new Date()
+    task.updatedAt = task.createdAt
 
-  const tasks = db.getRepository(WorkTask)
-  await tasks.save(task)
-  // The worker is woken by the `task_queue` insert trigger (pg_notify), so no explicit NOTIFY here.
+    const tasks = db.getRepository(WorkTask)
+    await tasks.save(task)
+    // The worker is woken by the `task_queue` insert trigger (pg_notify), so no explicit NOTIFY here.
+  } catch (error) {
+    logChild.error(
+      error,
+      `Upload failed after creating screenshot test ${screenshotTest.id}; cleaning up`,
+    )
+
+    // Best-effort cleanup: remove the never-to-be-processed row (no WorkTask or test_results exist
+    // yet) and the orphaned tarball, then surface the original error.
+    try {
+      await db.getRepository(ScreenshotTest).delete({ id: screenshotTest.id })
+    } catch (cleanupError) {
+      logChild.warn(cleanupError, `Failed to delete orphaned screenshot test ${screenshotTest.id}`)
+    }
+    try {
+      // The full object key is used as the prefix, so only this upload's tarball is removed.
+      await deleteObjectsByPrefixes([Key])
+    } catch (cleanupError) {
+      logChild.warn(cleanupError, `Failed to delete orphaned upload ${Bucket}/${Key}`)
+    }
+
+    throw error
+  }
 
   res.json({ success: true, uploadId, testId: screenshotTest.id })
 }

@@ -14,7 +14,8 @@ configEnv({
 })
 
 export const IS_PRODUCTION = process.env.NODE_ENV === "production"
-export const IS_STAGING = process.env.NODE_ENV === "staging"
+// Only consumed by the ENABLE_VCS_STATUS default below; not exported (no other users remain).
+const IS_STAGING = process.env.NODE_ENV === "staging"
 export const IS_TEST = process.env.NODE_ENV === "test"
 
 // Product version, baked into the image by the release workflow (release.yml) via the
@@ -71,7 +72,7 @@ export const POSTGRES_DATABASE = process.env.POSTGRES_DATABASE ?? "vizdiff"
 export const POSTGRES_PASS = process.env.POSTGRES_PASS ?? "postgres"
 export const POSTGRES_PORT = parseInt(process.env.POSTGRES_PORT ?? "5432")
 
-export const S3_BUCKET_NAME = process.env.S3_BUCKET_NAME ?? "vizdiffio-testing"
+export const S3_BUCKET_NAME = process.env.S3_BUCKET_NAME ?? "vizdiff"
 
 // Optional custom S3 endpoint for non-AWS object stores (e.g. MinIO in standalone/air-gapped
 // mode). When unset, the AWS SDK uses the real S3 endpoint. Path-style addressing defaults on

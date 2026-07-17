@@ -43,7 +43,8 @@ const database = new DataSource({
   database: POSTGRES_DATABASE,
   logger: IS_PRODUCTION ? undefined : "formatted-console",
   // The API is the sole schema owner. In tests we synchronize to spin up a throwaway schema; in
-  // all other environments we use migrations (safer on managed RDS than `synchronize`).
+  // all other environments the schema evolves exclusively through migrations, so self-hosted
+  // databases upgrade predictably across releases (no silent `synchronize` drift).
   synchronize: IS_TEST,
   dropSchema: IS_TEST,
   logging: !IS_TEST,

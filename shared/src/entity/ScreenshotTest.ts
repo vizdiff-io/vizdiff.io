@@ -18,6 +18,7 @@ import type { WorkTask } from "./WorkTask"
 @Entity("screenshot_tests")
 @Index("IDX_project_id_commit_sha", ["project.id", "commitSha"])
 @Index("IDX_project_id_branch", ["project.id", "branch"])
+@Index("IDX_project_id_build_number", ["project.id", "buildNumber"], { unique: true })
 export class ScreenshotTest {
   @PrimaryGeneratedColumn()
   id!: number
