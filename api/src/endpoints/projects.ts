@@ -1,5 +1,5 @@
 import { randomBytes } from "crypto"
-import { Project } from "shared"
+import { Project, projectKeyPrefix } from "shared"
 import type { VCSProvider } from "shared"
 
 import type { ProjectResponse } from "../apiTypes"
@@ -8,7 +8,7 @@ import { Database } from "../database"
 import { GITLAB_HOST } from "../environment"
 import { getParamInt } from "../http"
 import { log } from "../log"
-import { deleteObjectsByPrefixes, projectKeyPrefix } from "../s3"
+import { deleteObjectsByPrefixes } from "../s3"
 import type { RequestHandler } from "../types"
 
 type ProjectWithStats = {

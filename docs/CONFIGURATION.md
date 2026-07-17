@@ -134,7 +134,8 @@ When `RETENTION_REAPER_ENABLED=true`, the worker periodically deletes screenshot
 activity is older than `RETENTION_DAYS`, **while always keeping the most recent
 `RETENTION_KEEP_LAST_N` builds per project** so a rarely-built project never loses its history. The
 keep-last-N guard is applied before the age filter. Deletion removes the build's S3 objects
-(`projects/<id>/screenshots/<uploadId>/`) first, then the `screenshot_tests` row (its `test_results`
+(screenshots prefix and uploaded tarball; key layout in `shared/src/s3Keys.ts`) first, then the
+`screenshot_tests` row (its `test_results`
 and `task_queue` rows cascade via foreign keys). In-flight builds (`pending`/`running`) are never
 reaped. The reaper runs on the worker's idle tick (throttled to `RETENTION_SWEEP_INTERVAL_MS`) and is
 idempotent, so partial failures are safely retried. It is disabled by default because it permanently

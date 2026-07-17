@@ -1,6 +1,6 @@
 import { Upload as S3Upload } from "@aws-sdk/lib-storage"
 import type { Logger } from "pino"
-import { createSummaryForBuild, ScreenshotTest, WorkTask } from "shared"
+import { createSummaryForBuild, ScreenshotTest, uploadTarballKey, WorkTask } from "shared"
 import { uuidv7 } from "uuidv7"
 
 import { getProjectByToken } from "../authenticate"
@@ -112,7 +112,7 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
   }
 
   const Bucket = S3_BUCKET_NAME
-  const Key = `projects/${project.id}/${uploadId}.tar.gz`
+  const Key = uploadTarballKey(project.id, uploadId)
   logChild.debug(`Uploading ${length} bytes to ${Bucket}/${Key}`)
 
   // Proxy the .tar.gz upload to S3 (reusing the shared lazy S3 client)

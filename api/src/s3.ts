@@ -31,7 +31,7 @@ export interface DeletePrefixResult {
 }
 
 /**
- * Delete every object under one or more key prefixes (e.g. `projects/<id>/`). Used to reclaim
+ * Delete every object under one or more key prefixes (see `shared/src/s3Keys.ts`). Used to reclaim
  * screenshot storage when a project's owning account is deleted (#132).
  *
  * Lists with {@link ListObjectsV2Command} and removes in batched {@link DeleteObjectsCommand} calls
@@ -92,11 +92,6 @@ export async function deleteObjectsByPrefixes(
   return result
 }
 
-/** Build the canonical S3 key prefix that holds all objects for a project (#132). */
-export function projectKeyPrefix(projectId: number | string): string {
-  return `projects/${projectId}/`
-}
-
 interface ImageRefs {
   newImageUrl: string | null
   baselineImageUrl: string | null
@@ -104,7 +99,7 @@ interface ImageRefs {
 }
 
 /**
- * TestResult image columns store an S3 object key (e.g. `projects/1/screenshots/<id>/x.png`).
+ * TestResult image columns store an S3 object key (see `shared/src/s3Keys.ts` for the layout).
  * Legacy rows may instead hold a full public S3 URL; extract the key from its path so presigning
  * keeps working against those rows too.
  */

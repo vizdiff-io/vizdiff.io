@@ -1,7 +1,7 @@
 import { S3Client, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3"
 import type { WriteStream } from "node:fs"
 import { PNG } from "pngjs"
-import { TestResult, ScreenshotTest } from "shared"
+import { TestResult, ScreenshotTest, screenshotKey } from "shared"
 import { Readable } from "stream"
 import type { Repository } from "typeorm"
 import { expect, describe, it, vi, beforeEach } from "vitest"
@@ -360,7 +360,7 @@ describe("processStory", () => {
       expect.objectContaining<S3CommandInput>({
         input: {
           Bucket: "test-bucket",
-          Key: "projects/test-project/screenshots/123/stories-components-teststory--mycomponent.png",
+          Key: screenshotKey("test-project", "123", "stories-components-teststory--mycomponent"),
           Body: expect.any(Buffer) as Buffer,
           ContentType: "image/png",
         },

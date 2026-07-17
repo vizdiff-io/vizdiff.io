@@ -25,7 +25,7 @@ export interface DeletePrefixResult {
 }
 
 /**
- * Delete every object under one or more key prefixes (e.g. `projects/<id>/screenshots/<uploadId>/`).
+ * Delete every object under one or more key prefixes (see `shared/src/s3Keys.ts` for the layout).
  * Used by the retention reaper to reclaim screenshot storage for expired builds (#79).
  *
  * Lists with {@link ListObjectsV2Command} and removes in batched {@link DeleteObjectsCommand} calls

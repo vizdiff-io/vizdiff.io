@@ -1,6 +1,7 @@
+import { projectKeyPrefix } from "shared"
 import { describe, expect, it, vi } from "vitest"
 
-import { deleteObjectsByPrefixes, projectKeyPrefix } from "./s3"
+import { deleteObjectsByPrefixes } from "./s3"
 
 // Constructable command mocks that capture their input so we can assert on the requests issued.
 vi.mock("@aws-sdk/client-s3", () => {
@@ -58,8 +59,9 @@ function fakeClient(
 }
 
 describe("projectKeyPrefix", () => {
-  it("builds the canonical project prefix", () => {
-    expect(projectKeyPrefix(42)).toBe("projects/42/")
+  it("builds the canonical project prefix with the /ab/cd/ hash fanout", () => {
+    // sha256("42") = 7347...; the first two byte-pairs form the fanout segments.
+    expect(projectKeyPrefix(42)).toBe("projects/73/47/42/")
   })
 })
 
