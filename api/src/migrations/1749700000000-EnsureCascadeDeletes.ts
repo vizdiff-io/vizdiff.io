@@ -13,11 +13,12 @@ import type { MigrationInterface, QueryRunner } from "typeorm"
  *     ├─ github_installations (creator_id)
  *     └─ user_github_installations (user_id, installation_id)   [ManyToMany join table]
  *
- * The original schema was created by `synchronize: true`, which derives the delete rule from the
- * entity `@ManyToOne({ onDelete: "CASCADE" })` decorators — so a freshly synchronized schema already
- * has these cascades. However, the DB schema is now migration-owned (`synchronize: false`), and no
- * migration ever *declared* these FKs. Any deployment whose FKs were created at a point when a
- * relation lacked `onDelete: "CASCADE"` (or by an external tool) could be left with NO ACTION /
+ * A fresh database gets these FKs from the rebaselined InitialSchema1700000000000 migration
+ * (nearly all already ON DELETE CASCADE; this migration upgrades the remaining
+ * user_github_installations.user_id FK). Test schemas get them from `synchronize: true`, which
+ * derives the delete rule from the entity `@ManyToOne({ onDelete: "CASCADE" })` decorators.
+ * However, databases created before the rebaseline — or whose FKs were created at a point when a
+ * relation lacked `onDelete: "CASCADE"`, or by an external tool — could be left with NO ACTION /
  * RESTRICT, which would either orphan child rows or abort the account-deletion transaction.
  *
  * This migration is defensive and idempotent: for each relationship it drops whatever FK currently
