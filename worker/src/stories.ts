@@ -168,7 +168,8 @@ export function getStoryViewport(story: Story): SetViewportOptions {
 
 /**
  * Navigates to a story, waits for it to stabilize, and saves a screenshot.
- * Uses a mutex to ensure only one browser operation happens at a time.
+ * Runs against a single browser-pool session, which the caller checks out for the full render of
+ * one story, so no additional locking is needed.
  * @param browser WebDriverIO browser instance
  * @param storyId The ID of the story to capture
  * @param port The port where the Storybook is being served locally

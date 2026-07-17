@@ -96,7 +96,8 @@ export async function selectReapableBuilds(
 }
 
 /**
- * Run one retention sweep: delete eligible builds' S3 screenshots, then delete the build rows
+ * Run one retention sweep: delete eligible builds' S3 objects (screenshots and the uploaded
+ * storybook tarball), then delete the build rows
  * (TestResults + WorkTasks cascade via FK). S3 deletion happens first and the row is only removed
  * after, so a crash mid-sweep leaves the row to be retried next sweep rather than orphaning S3
  * objects with no DB pointer. Deletion is idempotent.
@@ -129,10 +130,13 @@ export async function runRetentionSweep(options?: {
   const repo = db.getRepository(ScreenshotTest)
 
   for (const build of builds) {
-    // All objects for a build live under `projects/<projectId>/screenshots/<uploadId>/`.
-    const prefix = `projects/${build.project_id}/screenshots/${build.upload_id}/`
+    // A build's screenshots live under `projects/<projectId>/screenshots/<uploadId>/`, and its
+    // uploaded storybook tarball at `projects/<projectId>/<uploadId>.tar.gz` (written by the api
+    // upload endpoint, read once by ingest) — reap both so tarballs don't leak forever.
+    const screenshotsPrefix = `projects/${build.project_id}/screenshots/${build.upload_id}/`
+    const tarballKey = `projects/${build.project_id}/${build.upload_id}.tar.gz`
     try {
-      const { deleted, errors } = await deleteObjectsByPrefixes([prefix])
+      const { deleted, errors } = await deleteObjectsByPrefixes([screenshotsPrefix, tarballKey])
       result.objectsDeleted += deleted
       result.objectErrors += errors
 

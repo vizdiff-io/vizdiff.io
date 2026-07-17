@@ -15,9 +15,10 @@ import {
 import { log } from "./log"
 
 // Lazily constructed so importing this module has no side effects (presigning is a local signing
-// operation, so one shared client is fine).
+// operation, so one shared client is fine). Shared with the upload proxy so we don't build a new
+// client (and connection pool) per request.
 let s3ClientInstance: S3Client | undefined
-function s3Client(): S3Client {
+export function s3Client(): S3Client {
   return (s3ClientInstance ??= new S3Client(S3_CLIENT_CONFIG))
 }
 

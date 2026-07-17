@@ -26,6 +26,7 @@ let database: DataSource | undefined
 // Postgres connection pool, used for raw SQL queries such as acquiring locks
 const pool = new pg.Pool({
   host: POSTGRES_HOST,
+  port: POSTGRES_PORT,
   user: POSTGRES_USER,
   password: POSTGRES_PASS,
   database: POSTGRES_DATABASE,
@@ -68,4 +69,9 @@ export async function Database(): Promise<DataSource> {
 export async function DatabasePool(): Promise<PoolClient> {
   // eslint-disable-next-line @typescript-eslint/return-await
   return pool.connect()
+}
+
+/** Close the raw connection pool. Used during graceful shutdown. */
+export async function closeDatabasePool(): Promise<void> {
+  await pool.end()
 }

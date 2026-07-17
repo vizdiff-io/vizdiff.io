@@ -59,9 +59,6 @@ spec:
             - secretRef:
                 name: {{ .Values.gitlab.hostsSecret.name }}
             {{- end }}
-          env:
-            - name: DD_SERVICE
-              value: vizdiff-worker
           readinessProbe:
             httpGet:
               path: /health

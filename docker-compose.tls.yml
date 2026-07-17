@@ -1,4 +1,5 @@
-# Optional TLS overlay for docker-compose.yml.
+# Optional TLS overlay. Layer it over either base file: docker-compose.images.yml (published
+# GHCR images, recommended) or docker-compose.yml (build from source).
 #
 # Puts a Caddy reverse proxy (automatic Let's Encrypt HTTPS) in front of the frontend instead of
 # exposing the frontend's plain-HTTP port. Caddy owns 80/443; the frontend stays internal.
@@ -7,12 +8,13 @@
 # to this host.
 #
 # Usage:
-#   1. In .env set:  APP_URL=https://vizdiff.example.com   (and NEXT_PUBLIC_APP_URL to match)
+#   1. In .env set:  APP_URL=https://vizdiff.example.com
 #   2. Run:
 #        VIZDIFF_DOMAIN=vizdiff.example.com \
-#        docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d
+#        docker compose -f docker-compose.images.yml -f docker-compose.tls.yml up -d
+#      (or -f docker-compose.yml for from-source builds)
 #
-# Plain HTTP (no TLS) remains the default — just use docker-compose.yml on its own.
+# Plain HTTP (no TLS) remains the default — just use the base file on its own.
 services:
   frontend:
     # Caddy now owns the public ports; drop the frontend's direct host binding to avoid a clash on 80.

@@ -8,12 +8,17 @@ on:
     branches:
       - main
 
+# One CI run per ref at a time. Superseded PR pushes are cancelled; main pushes are never
+# cancelled (queued instead) so every main commit still gets its images/deploy.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 env:
   NEXT_PUBLIC_APP_URL: ${{ vars.NEXT_PUBLIC_APP_URL }}
   NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL }}
   NEXT_PUBLIC_GITHUB_APP_NAME: vizdiff-io
   NEXT_PUBLIC_GITHUB_CLIENT_ID: ${{ vars.NEXT_PUBLIC_GITHUB_CLIENT_ID }}
-  NEXT_PUBLIC_GA_ID: ${{ vars.NEXT_PUBLIC_GA_ID }}
   NEXT_TELEMETRY_DISABLED: 1
 
 jobs:
@@ -119,7 +124,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
         with:
-          fetch-depth: 0
           lfs: true
 
       - name: Set up Docker Buildx
@@ -150,7 +154,6 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.image }}-${{ matrix.platform }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}-${{ matrix.platform }}
           build-args: |
-            NODE_ENV=production
             NODE_VERSION=${{ steps.node.outputs.version }}
             GIT_HASH=${{ github.sha }}
 
@@ -176,6 +179,12 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       packages: write
+    # Serialize `:edge` retags per image across workflow runs (no cancel) so overlapping main
+    # pushes can't retag out of order. Scoped per matrix image: a shared group would make the
+    # three legs of one run queue against (and potentially supersede) each other.
+    concurrency:
+      group: docker-manifest-${{ matrix.image }}
+      cancel-in-progress: false
     strategy:
       fail-fast: false
       matrix:
@@ -280,6 +289,10 @@ jobs:
 
   storybook:
     runs-on: ubuntu-latest
+    # Exposed as job env (not step env) so the Chromatic step's `if:` can test it — secrets
+    # aren't directly usable in step-level `if:` expressions.
+    env:
+      CHROMATIC_PROJECT_TOKEN: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -320,8 +333,9 @@ jobs:
       #     project-token: ${{ secrets.VIZDIFF_PROJECT_TOKEN }}
       #     storybook-dir: "./frontend/storybook-static"
 
+      # Skipped on fork PRs, which don't receive secrets — the Storybook build above still
+      # validates the stories, so the required check can pass without the token.
       - name: Publish to Chromatic
+        if: env.CHROMATIC_PROJECT_TOKEN != ''
         working-directory: frontend
-        env:
-          CHROMATIC_PROJECT_TOKEN: ${{ secrets.CHROMATIC_PROJECT_TOKEN }}
         run: yarn chromatic --ci --exit-once-uploaded --exit-zero-on-changes --storybook-build-dir=storybook-static

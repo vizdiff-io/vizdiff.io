@@ -67,8 +67,11 @@ export function startHealthServer(): void {
     res.end(JSON.stringify(payload))
   })
 
+  // Listen on all interfaces: container healthchecks reach this endpoint from outside localhost.
   server.listen(WORKER_HEALTH_PORT, () => {
-    log.info(`Worker health endpoint listening on http://127.0.0.1:${WORKER_HEALTH_PORT}/health`)
+    log.info(
+      `Worker health endpoint listening on port ${WORKER_HEALTH_PORT} (all interfaces) at /health`,
+    )
   })
 
   // Record our version + liveness immediately, then refresh on every heartbeat.

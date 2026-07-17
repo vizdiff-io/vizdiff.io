@@ -10,8 +10,11 @@ updates:
     schedule:
       interval: "weekly"
 
+  # Single npm entry rooted at the workspace root: Dependabot resolves Yarn workspaces
+  # from the root yarn.lock, so per-workspace entries (e.g. /api) would bump a workspace
+  # package.json without regenerating the lockfile and fail `yarn install --immutable`.
   - package-ecosystem: "npm"
-    directory: "/api"
+    directory: "/"
     labels:
       - "dependencies"
     schedule:
@@ -19,31 +22,21 @@ updates:
 
   - package-ecosystem: "docker"
     directory: "/api"
+    labels:
+      - "dependencies"
     schedule:
       interval: "weekly"
 
-  - package-ecosystem: "npm"
+  - package-ecosystem: "docker"
     directory: "/frontend"
     labels:
       - "dependencies"
     schedule:
       interval: "weekly"
 
-  - package-ecosystem: "npm"
-    directory: "/shared"
-    labels:
-      - "dependencies"
-    schedule:
-      interval: "weekly"
-
-  - package-ecosystem: "npm"
-    directory: "/worker"
-    labels:
-      - "dependencies"
-    schedule:
-      interval: "weekly"
-
   - package-ecosystem: "docker"
     directory: "/worker"
+    labels:
+      - "dependencies"
     schedule:
       interval: "weekly"

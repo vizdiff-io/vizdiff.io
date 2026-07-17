@@ -4,10 +4,9 @@ import { createMarkdownForBuildApproval, Project, ScreenshotTest, TestResult } f
 import { Database } from "../database"
 import {
   APP_URL,
+  ENABLE_VCS_STATUS,
   GITHUB_WEBHOOK_SECRET,
   GITLAB_WEBHOOK_SECRET,
-  IS_PRODUCTION,
-  IS_STAGING,
 } from "../environment"
 import { getOctokitForInstallation } from "../github"
 import { getGitLabHostConfig } from "../gitlab"
@@ -338,7 +337,7 @@ async function githubCheckRunRequestedAction(
   test.githubCheckRunId ??= githubCheckRunId
   await screenshotTestRepository.save(test)
 
-  if (IS_PRODUCTION || IS_STAGING) {
+  if (ENABLE_VCS_STATUS) {
     // Update GitHub check run
     const resolveImageUrl = await buildImageUrlResolver(testResults)
     const { title, summary, text } = createMarkdownForBuildApproval(
@@ -463,12 +462,22 @@ export async function gitlabWebhook(req: RequestWithRawBody, res: DefaultRespons
     return
   }
 
+  // Every event type we handle carries a `project` object; reject payloads without one before
+  // dereferencing it (a malformed event must not produce a TypeError → 500).
+  const projectField = (body as { project?: { web_url?: unknown } }).project
+  if (!projectField || typeof projectField !== "object") {
+    log.error("GitLab webhook payload is missing the project object")
+    res.status(400).json({ error: "Missing project in payload" })
+    return
+  }
+
   const payload = body as GitLabWebhookPayload
   const eventType = payload.object_kind
 
   // Derive the GitLab host from the payload origin and resolve its (optional) per-host secret,
   // falling back to the global GITLAB_WEBHOOK_SECRET.
-  const gitlabHost = originFromWebUrl(payload.project.web_url)
+  const webUrl = typeof projectField.web_url === "string" ? projectField.web_url : undefined
+  const gitlabHost = originFromWebUrl(webUrl)
   const hostConfig = gitlabHost ? getGitLabHostConfig(gitlabHost) : undefined
   const expectedSecret = hostConfig?.webhookSecret ?? GITLAB_WEBHOOK_SECRET
 
