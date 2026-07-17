@@ -12,20 +12,28 @@ export async function downloadWithTimeout(
     writeStream.destroy()
   }
 
-  await Promise.race([
-    new Promise<void>((resolve, reject) => {
-      const stream = readable.pipe(writeStream)
-      stream.on("finish", () => resolve())
-      stream.on("error", (err: Error) => {
-        cleanup()
-        reject(err)
-      })
-    }),
-    new Promise<never>((_, reject) => {
-      setTimeout(() => {
-        cleanup()
-        reject(new Error(`Download timed out after ${timeoutMs}ms`))
-      }, timeoutMs)
-    }),
-  ])
+  let timer: NodeJS.Timeout | undefined
+  try {
+    await Promise.race([
+      new Promise<void>((resolve, reject) => {
+        const stream = readable.pipe(writeStream)
+        stream.on("finish", () => resolve())
+        stream.on("error", (err: Error) => {
+          cleanup()
+          reject(err)
+        })
+      }),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => {
+          cleanup()
+          reject(new Error(`Download timed out after ${timeoutMs}ms`))
+        }, timeoutMs)
+      }),
+    ])
+  } finally {
+    // Don't leave the timer pending after the download settles
+    if (timer) {
+      clearTimeout(timer)
+    }
+  }
 }

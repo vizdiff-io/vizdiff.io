@@ -326,6 +326,7 @@ describe("worker", () => {
     baseCommitSha: "abc123",
     createdAt: new Date(),
     uploadId: "test-upload",
+    project: { id: "test-project" },
   }
   const mockBaseTestResult = {
     id: 456,
@@ -375,6 +376,7 @@ describe("worker", () => {
                 innerJoin: vi.fn().mockReturnThis(),
                 leftJoinAndSelect: vi.fn().mockReturnThis(),
                 where: vi.fn().mockReturnThis(),
+                andWhere: vi.fn().mockReturnThis(),
                 getMany: vi.fn().mockResolvedValue([mockBaseTestResult]),
               }),
               save: mockTestResultSave.mockImplementation(async (result: unknown) => result),
@@ -687,8 +689,9 @@ describe("worker", () => {
       // Simulate a story stuck in a WebDriver op that only unsticks when the browser session is
       // force-closed by the timeout abort. processStory hangs until deleteSession() is called,
       // then rejects — mirroring how force-teardown makes the stuck command reject and the
-      // render's `finally` (browserMutex release) run. This verifies withTimeout waits for that
-      // unwind before surfacing BuildTimeoutError instead of freeing the worker eagerly.
+      // render's `finally` (returning the session to the browser pool) run. This verifies
+      // withTimeout waits for that unwind before surfacing BuildTimeoutError instead of freeing
+      // the worker eagerly.
       let rejectStuckStory: ((err: Error) => void) | undefined
       let storyRejected = false
       vi.mocked(processStory).mockImplementationOnce(

@@ -18,10 +18,8 @@ RUN apk add --no-cache \
     font-noto-extra && \
     ln -s /usr/bin/chromium-browser /usr/bin/google-chrome
 
-# Add Puppeteer/Chrome flags to make WebDriver work with Chromium
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
-    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser \
-    CHROME_BIN=/usr/bin/chromium-browser \
+# Point WebDriver tooling at the system Chromium
+ENV CHROME_BIN=/usr/bin/chromium-browser \
     CHROME_PATH=/usr/bin/chromium-browser
 
 # Create a non-root user and set up directories

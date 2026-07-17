@@ -6,7 +6,7 @@ const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
 const envPath = path.join(dirname, "..")
 
-// Load the `api/.env*` file into process.env
+// Load the `worker/.env*` file into process.env
 configEnv({
   path: envPath,
   default_node_env: "development",
@@ -137,11 +137,11 @@ export const MAX_STORY_IDENTIFIER_LENGTH = intEnv("MAX_STORY_IDENTIFIER_LENGTH",
 // non-retryable failure (see worker.ts). Default: 15 minutes.
 export const BUILD_TIMEOUT_MS = parseInt(process.env.BUILD_TIMEOUT_MS ?? `${15 * 60 * 1000}`, 10)
 
-// After a build timeout aborts the browser session, how long to wait for the in-flight render to
-// actually unwind (releasing the module-level browserMutex) before declaring it unrecoverable and
-// exiting the worker so the orchestrator restarts a clean process. Force-closing the session
-// should reject the stuck WebDriver command almost immediately, so this only needs to cover the
-// unwind. Default: 10 seconds.
+// After a build timeout aborts the browser sessions, how long to wait for the in-flight render to
+// actually unwind (running its `finally` blocks, which return each session to the browser pool)
+// before declaring it unrecoverable and exiting the worker so the orchestrator restarts a clean
+// process. Force-closing the sessions should reject the stuck WebDriver commands almost
+// immediately, so this only needs to cover the unwind. Default: 10 seconds.
 export const BUILD_ABORT_GRACE_MS = parseInt(process.env.BUILD_ABORT_GRACE_MS ?? `${10 * 1000}`, 10)
 
 // Resident set size (bytes) past which a build logs a memory-pressure warning. Purely
