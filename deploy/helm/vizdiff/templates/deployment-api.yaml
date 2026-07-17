@@ -48,8 +48,6 @@ spec:
           env:
             - name: PORT
               value: {{ .Values.service.api.port | quote }}
-            - name: DD_SERVICE
-              value: vizdiff-api
           # The api runs TypeORM migrations on boot (migrationsRun:true), so it
           # is the schema owner. Generous startup probe lets migrations finish.
           startupProbe:

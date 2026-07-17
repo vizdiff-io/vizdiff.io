@@ -33,7 +33,7 @@ Ordering guarantees in this chart:
      gating the worker behind migrations.
 
 ------------------------------------------------------------------------------
-FRONTEND RUNTIME CONFIG  (IMPORTANT — cross-PR follow-up)
+FRONTEND RUNTIME CONFIG
 ------------------------------------------------------------------------------
 Next.js static export bakes NEXT_PUBLIC_* values at BUILD time. To keep ONE
 frontend image usable across every environment, this chart mounts a runtime
@@ -42,13 +42,9 @@ config at /config.js exposing:
   window.__VIZDIFF_CONFIG__ = { API_URL, APP_URL, GITHUB_ENABLED }
 
 generated from .Values.appUrl and .Values.github.enabled (see the
-"{{ include "vizdiff.fullname" . }}-frontend-config" ConfigMap).
-
->>> CROSS-PR FOLLOW-UP (app-core repo): the frontend app must be updated to
-    (1) load <script src="/config.js"></script> in its document <head>, and
-    (2) read window.__VIZDIFF_CONFIG__ at runtime (falling back to the baked
-    NEXT_PUBLIC_* for local dev). Until that change ships, /config.js is mounted
-    but unused. Do NOT rebuild a per-environment frontend image as a workaround.
+"{{ include "vizdiff.fullname" . }}-frontend-config" ConfigMap). The frontend
+loads /config.js before the app bundle and falls back to the baked
+NEXT_PUBLIC_* values when it is absent (e.g. local dev).
 
 ------------------------------------------------------------------------------
 STANDALONE vs AWS

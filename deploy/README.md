@@ -88,20 +88,21 @@ migrations finish). An optional pre-install/pre-upgrade hook Job waits for
 Postgres readiness before the api starts (`dbWaitHook.enabled`, skipped in
 embedded mode). See `helm/vizdiff/templates/NOTES.txt`.
 
-## Frontend runtime config (cross-PR follow-up)
+## Frontend runtime config
 
 Next.js static export bakes `NEXT_PUBLIC_*` at build time. To keep one frontend
 image across environments, the chart mounts `/config.js` exposing
-`window.__VIZDIFF_CONFIG__` (`API_URL`, `APP_URL`, `GITHUB_ENABLED`). **The
-frontend app must be updated (separate app-core PR) to load `/config.js` and
-read `window.__VIZDIFF_CONFIG__`.** Until then the file is mounted but unused.
+`window.__VIZDIFF_CONFIG__` (`API_URL`, `APP_URL`, `GITHUB_ENABLED`), generated
+from `appUrl` and `github.enabled`. The frontend loads it before the app bundle
+(`frontend/src/pages/_document.tsx`) and falls back to the baked `NEXT_PUBLIC_*`
+values when the file is absent (e.g. local dev).
 
-## Private S3 (follow-up)
+## Private S3
 
 The Terragrunt `s3` module creates a **private** bucket with block-public-access
-enabled. The current app serves screenshots from public bucket URLs; the
-corporate deployment must serve them via API presigned URLs/proxy — a flagged
-behavior-change follow-up (see the plan's "Public→private S3" risk).
+enabled. Screenshots are served via presigned GET URLs generated at read time
+(`api/src/s3.ts` / `worker/src/s3.ts`); see "Private S3 / presigned URLs" in
+[docs/CONFIGURATION.md](../docs/CONFIGURATION.md) for TTLs and caveats.
 
 ## Validation
 
