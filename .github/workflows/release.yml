@@ -11,6 +11,9 @@ on:
 jobs:
   version:
     runs-on: ubuntu-latest
+    permissions:
+      checks: read
+      contents: read
     outputs:
       semver: ${{ steps.v.outputs.semver }}
       minor: ${{ steps.v.outputs.minor }}
@@ -29,6 +32,29 @@ jobs:
             echo "minor=${SEMVER%.*}"
             echo "major=${SEMVER%%.*}"
           } >> "$GITHUB_OUTPUT"
+
+      # Gate the release on CI: the tagged commit must have a successful `build-and-test`
+      # check run (from ci.yml on main). Otherwise tagging a broken/unbuilt commit would
+      # publish `:latest`. Reruns produce multiple check runs with the same name; any
+      # successful one counts.
+      - name: Verify CI passed on tagged commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          SHA="${{ github.sha }}"
+          CONCLUSIONS=$(gh api --paginate \
+            "repos/${{ github.repository }}/commits/$SHA/check-runs?per_page=100" \
+            --jq '.check_runs[] | select(.name == "build-and-test") | .conclusion // "in_progress"')
+          if [ -z "$CONCLUSIONS" ]; then
+            echo "::error::No 'build-and-test' check run found for $SHA. Push the commit to main and let CI finish before tagging a release."
+            exit 1
+          fi
+          if ! printf '%s\n' "$CONCLUSIONS" | grep -qx 'success'; then
+            echo "::error::'build-and-test' has not succeeded for $SHA (conclusions: $(printf '%s' "$CONCLUSIONS" | tr '\n' ' ')). Refusing to release an unverified commit."
+            exit 1
+          fi
+          echo "'build-and-test' succeeded for $SHA"
 
   # Rebuild each image per-arch on native runners with VIZDIFF_VERSION baked in (cache-from the main
   # build means only the final ENV layer rebuilds), pushing by digest. Mirrors ci.yml's docker-build.
@@ -58,7 +84,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
         with:
-          fetch-depth: 0
           lfs: true
 
       - name: Set up Docker Buildx
@@ -85,7 +110,6 @@ jobs:
           outputs: type=image,name=ghcr.io/vizdiff-io/vizdiff-${{ matrix.image }},push-by-digest=true,name-canonical=true,push=true
           cache-from: type=gha,scope=${{ matrix.image }}-${{ matrix.platform }}
           build-args: |
-            NODE_ENV=production
             NODE_VERSION=${{ steps.node.outputs.version }}
             GIT_HASH=${{ github.sha }}
             VIZDIFF_VERSION=${{ needs.version.outputs.semver }}

@@ -8,10 +8,14 @@ WORKDIR /app
 RUN npm install -g corepack && corepack enable
 COPY .yarn/releases/ ./.yarn/releases/
 COPY package.json yarn.lock .yarnrc.yml tsconfig.json tsconfig.options.json ./
+# Copy ALL workspace package.jsons (not just this image's) so the workspace set matches
+# yarn.lock — `--immutable` fails otherwise. Cheap and cache-friendly.
 COPY api/package.json ./api/
+COPY frontend/package.json ./frontend/
 COPY shared/package.json ./shared/
+COPY worker/package.json ./worker/
 
-RUN yarn install
+RUN yarn install --immutable
 
 # Build stage
 FROM deps AS builder
