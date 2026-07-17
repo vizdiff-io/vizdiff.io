@@ -11,7 +11,8 @@ export default function Document(): JSX.Element {
         <FallbackStyles />
         {/* Runtime deployment config (see lib/environment.ts). Loaded beforeInteractive so
             window.__VIZDIFF_CONFIG__ is set before the app bundle evaluates environment.ts.
-            Mounted by the Helm chart; a 404 in local dev is harmless (build-time fallback). */}
+            A default no-op config.js ships in public/; the Helm chart mounts a generated one
+            over it to inject per-environment settings. */}
         <Script src="/config.js" strategy="beforeInteractive" />
         <link rel="icon" href="/icon.png" type="image/png" sizes="1024x1024" />
         <link rel="icon" href="/favicon.ico" type="image/x-icon" />

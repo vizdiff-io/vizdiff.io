@@ -8,24 +8,42 @@ export default function useApiGet<T>(
   deps?: DependencyList,
 ): [T | null, boolean, AxiosError | null] {
   const [data, setData] = useState<T | null>(null)
-  const [isLoading, setIsLoading] = useState<boolean>(false)
+  // Start in the loading state whenever a fetch will run, so consumers don't flash their
+  // empty states ("no data yet") on first paint before the effect below kicks off.
+  const [isLoading, setIsLoading] = useState<boolean>(endpoint != undefined)
   const [error, setError] = useState<AxiosError | null>(null)
 
   useEffect(() => {
-    const fetchData = async (url: string) => {
-      setIsLoading(true)
-      const [fetchedData, err] = await apiGet<T>(url)
-      setData(fetchedData)
-      setError(err)
-      setIsLoading(false)
-    }
-
-    if (endpoint) {
-      fetchData(endpoint).catch(setError)
-    } else {
+    if (endpoint == undefined) {
       setIsLoading(false)
       setData(null)
       setError(null)
+      return
+    }
+
+    // Guard against out-of-order responses: if the endpoint (or deps) change while a
+    // request is in flight, a slow earlier response must not overwrite the newer one
+    let cancelled = false
+    setIsLoading(true)
+    apiGet<T>(endpoint)
+      .then(([fetchedData, err]) => {
+        if (cancelled) {
+          return
+        }
+        setData(fetchedData)
+        setError(err)
+        setIsLoading(false)
+      })
+      .catch((err: unknown) => {
+        if (cancelled) {
+          return
+        }
+        setError(err instanceof AxiosError ? err : new AxiosError(String(err)))
+        setIsLoading(false)
+      })
+
+    return () => {
+      cancelled = true
     }
   }, [endpoint, ...(deps ?? [])]) // eslint-disable-line react-hooks/exhaustive-deps
 

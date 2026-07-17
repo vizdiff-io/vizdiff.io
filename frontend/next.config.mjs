@@ -42,11 +42,6 @@ const nextConfigDeploy = {
     return gitHash.slice(0, 20)
   },
   output: "export",
-  exportPathMap: async function (defaultPathMap) {
-    return {
-      ...defaultPathMap,
-    }
-  },
 }
 
 export default isDev ? nextConfigDev : nextConfigDeploy

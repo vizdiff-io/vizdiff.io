@@ -27,16 +27,21 @@ import { formatTimeAgo } from "@/lib/time"
 
 export default function Projects(): JSX.Element {
   const [showModal, setShowModal] = useState(false)
+  // Bumped when the New Project dialog closes so the list picks up a just-created project.
+  // Intentionally not tied to the dialog opening: refetching on open used to flip the page
+  // into its loading state and unmount the freshly-opened dialog.
+  const [refreshKey, setRefreshKey] = useState(0)
   const [projectsResponse, loading, projectError] = useApiGet<ProjectResponse[]>("/api/projects", [
-    showModal,
+    refreshKey,
   ])
   const [activityResponse, activityLoading] = useApiGet<ScreenshotTestResponse[]>("/api/activity")
   const theme = useAppTheme()
   const projects = projectsResponse ?? []
   const activity = activityResponse ?? []
 
-  // Show loading state if the page is not yet ready
-  if (loading) {
+  // Show the full-page loading state only on the initial load; refetches keep showing the
+  // stale list (with the dialog still mounted) until fresh data arrives
+  if (loading && projectsResponse == undefined) {
     return (
       <>
         <Seo title="VizDiff: Projects" path="/projects"></Seo>
@@ -96,7 +101,7 @@ export default function Projects(): JSX.Element {
             ) : (
               <Box>
                 {projects.map((project) => (
-                  <a
+                  <Link
                     key={project.id}
                     href={`/project?id=${project.id}`}
                     style={{ textDecoration: "none" }}
@@ -129,7 +134,7 @@ export default function Projects(): JSX.Element {
                       </Box>
                       <Box>{/* Add any project actions here */}</Box>
                     </Paper>
-                  </a>
+                  </Link>
                 ))}
               </Box>
             )}
@@ -212,7 +217,15 @@ export default function Projects(): JSX.Element {
         </Box>
 
         {/* New Project Modal */}
-        {showModal && <NewProjectDialog onClose={() => setShowModal(false)} />}
+        {showModal && (
+          <NewProjectDialog
+            onClose={() => {
+              setShowModal(false)
+              // Refetch the project list after the dialog closes (a project may have been created)
+              setRefreshKey((key) => key + 1)
+            }}
+          />
+        )}
       </AppLayout>
     </>
   )
