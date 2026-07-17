@@ -148,7 +148,10 @@ export const approveOrDeny: RequestHandler = async (req, res) => {
         }
       }
     } catch (err) {
-      log.error({ user, test, status, err }, `Failed to update VCS status for ${test.toString()}`)
+      log.error(
+        { userId: user.id, testId: test.id, status, err },
+        `Failed to update VCS status for ${test.toString()}`,
+      )
       // Don't fail the API call if VCS update fails
     }
   }

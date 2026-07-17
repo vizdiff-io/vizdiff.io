@@ -42,7 +42,9 @@ export class User {
   @Column({ name: "github_profile", type: "jsonb", nullable: true })
   githubProfile!: object | null
 
-  @Column({ name: "github_access_token", type: "text", nullable: true })
+  // OAuth access token. `select: false` keeps it out of default entity loads (and therefore out of
+  // logged entities); the few call sites that need it must select it explicitly.
+  @Column({ name: "github_access_token", type: "text", nullable: true, select: false })
   githubAccessToken!: string | null
 
   @OneToMany("Project", "user")

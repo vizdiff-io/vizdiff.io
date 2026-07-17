@@ -94,4 +94,13 @@ export const VCS_IMAGE_URL_TTL_SECONDS = parseInt(
   10,
 )
 
-export const JWT_SECRET = process.env.JWT_SECRET ?? "secret"
+// Secret used to sign session JWTs and OAuth state tokens. The insecure fallback is for
+// development and test only: in production, refuse to start rather than mint forgeable sessions.
+const DEFAULT_JWT_SECRET = "secret"
+export const JWT_SECRET = process.env.JWT_SECRET ?? DEFAULT_JWT_SECRET
+if (IS_PRODUCTION && JWT_SECRET === DEFAULT_JWT_SECRET) {
+  throw new Error(
+    "JWT_SECRET must be set in production. Generate one with `openssl rand -hex 32` and set it " +
+      "in the api environment (e.g. .env for docker compose, or the vizdiff Helm secret).",
+  )
+}

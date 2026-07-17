@@ -57,7 +57,9 @@ if (!IS_TEST) {
 
 // Register middleware
 app.use((req: DefaultRequest, _res: DefaultResponse, next: Express.NextFunction) => {
-  req.realIp = (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0] ?? req.ip
+  // `req.ip` honors `x-forwarded-for` only from proxies matched by the "trust proxy" setting
+  // below, so clients cannot spoof the logged address with a forged header
+  req.realIp = req.ip
   next()
 })
 app.use(httpLogger)

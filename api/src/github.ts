@@ -48,7 +48,20 @@ export async function syncUserInstallations(
   specificInstallationId?: number,
 ): Promise<GitHubInstallation[]> {
   const db = await Database()
-  const octokit = new Octokit({ auth: user.githubAccessToken })
+
+  // The access token column is `select: false`, so a user loaded through the default selection
+  // (e.g. `requireUser`) does not carry it. Fetch it explicitly when absent.
+  let accessToken: string | null = user.githubAccessToken ?? null
+  if (accessToken == null) {
+    const userWithToken = await db
+      .createQueryBuilder(User, "user")
+      .addSelect("user.githubAccessToken")
+      .where("user.id = :id", { id: user.id })
+      .getOne()
+    accessToken = userWithToken?.githubAccessToken ?? null
+  }
+
+  const octokit = new Octokit({ auth: accessToken })
   const installations = await octokit.apps.listInstallationsForAuthenticatedUser()
 
   // Filter to just our app's installations

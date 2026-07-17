@@ -47,7 +47,7 @@ export const me: RequestHandler = async (_req, res) => {
 export const deleteAccount: RequestHandler = async (_req, res) => {
   const { user } = res.locals
 
-  log.warn({ user }, `Deleting account for user ${user.id} (${user.email})`)
+  log.warn({ userId: user.id }, `Deleting account for user ${user.id} (${user.email})`)
 
   let projectIds: number[] = []
   try {
@@ -92,7 +92,7 @@ export const deleteAccount: RequestHandler = async (_req, res) => {
   res.clearCookie("token")
   res.clearCookie("authenticated")
 
-  log.info({ user }, `Account deleted for user ${user.id} (${user.email})`)
+  log.info({ userId: user.id }, `Account deleted for user ${user.id} (${user.email})`)
 
   res.status(200).json({ success: true, message: "Account deleted successfully" })
 }

@@ -8,13 +8,42 @@ import { Seo } from "@/components/Seo"
 import useAuth from "@/hooks/useAuth"
 import { APP_URL } from "@/lib/environment"
 
+/**
+ * Restrict `?redirect=` to destinations we control: a same-origin relative path (must start with
+ * "/" but not "//", and contain no backslashes) or an absolute http(s) URL on our own origin.
+ * Anything else falls back to the projects page to prevent open redirects.
+ */
+function sanitizeRedirect(redirect: unknown): string {
+  const fallback = `${APP_URL}/projects`
+  if (typeof redirect !== "string" || redirect.length === 0 || redirect.includes("\\")) {
+    return fallback
+  }
+  if (redirect.startsWith("/")) {
+    return redirect.startsWith("//") ? fallback : redirect
+  }
+  try {
+    const url = new URL(redirect)
+    const appOrigin = new URL(APP_URL).origin
+    const pageOrigin = typeof window !== "undefined" ? window.location.origin : appOrigin
+    if (
+      (url.protocol === "http:" || url.protocol === "https:") &&
+      (url.origin === appOrigin || url.origin === pageOrigin)
+    ) {
+      return redirect
+    }
+  } catch {
+    // Not a parseable absolute URL; fall through to the fallback
+  }
+  return fallback
+}
+
 export default function Login(): JSX.Element {
   const router = useRouter()
   const { user, isLoading } = useAuth()
 
-  // Get the redirect URL from the query string
+  // Get the redirect URL from the query string, restricted to same-origin destinations
   const { redirect } = router.query
-  const redirectUri = redirect && typeof redirect === "string" ? redirect : `${APP_URL}/projects`
+  const redirectUri = sanitizeRedirect(redirect)
 
   // Redirect to the URL given in ?redirect=<URL> if the user is already logged in
   useEffect(() => {
