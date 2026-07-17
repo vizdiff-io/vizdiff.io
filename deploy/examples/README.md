@@ -40,7 +40,7 @@ In your downstream GitLab project, go to **Settings → CI/CD → Variables** an
 | Variable                | Value                                      | Flags             |
 | ----------------------- | ------------------------------------------ | ----------------- |
 | `VIZDIFF_PROJECT_TOKEN` | the project token from step 1              | **Masked**, Protected |
-| `VIZDIFF_API_URL`       | your vizdiff ingress, e.g. `https://vizdiff.corp.example.com` | (plain)           |
+| `VIZDIFF_API_URL`       | your vizdiff API base URL **including the `/api` suffix**, e.g. `https://vizdiff.corp.example.com/api` | (plain)           |
 
 Masking secrets:
 
@@ -49,7 +49,9 @@ Masking secrets:
   rules; project tokens already satisfy this.)
 - Consider also marking it **Protected** so it is only exposed to pipelines on
   protected branches/tags if your baseline lives on a protected branch.
-- `VIZDIFF_API_URL` is not a secret and can be left unmasked.
+- `VIZDIFF_API_URL` is not a secret and can be left unmasked. The CLI appends
+  endpoint paths (e.g. `/upload/storybook`) directly to it, so it must include
+  the `/api` suffix.
 
 ### 3. Add the job
 

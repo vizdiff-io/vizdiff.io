@@ -8,8 +8,9 @@
 # Prerequisites (see deploy/examples/README.md):
 #   - VIZDIFF_PROJECT_TOKEN : per-project upload token from the vizdiff UI
 #                             (set as a *masked* CI/CD variable).
-#   - VIZDIFF_API_URL       : base URL of your self-hosted vizdiff ingress,
-#                             e.g. https://vizdiff.corp.example.com
+#   - VIZDIFF_API_URL       : API base URL of your self-hosted vizdiff ingress,
+#                             including the /api suffix,
+#                             e.g. https://vizdiff.corp.example.com/api
 #
 # The vizdiff CLI auto-detects GitLab's predefined variables, so you do NOT
 # need to pass commit SHA / branch / MR info explicitly. It reads:
@@ -35,13 +36,10 @@ stages:
     # 1. Produce a static Storybook build. Adjust the output dir if needed.
     - yarn build-storybook -o storybook-static
     # 2. Upload it. The CLI auto-detects GitLab predefined vars for commit,
-    #    branch, MR number and target branch, so only the token + API URL
-    #    are required here.
-    - >
-      vizdiff upload
-      --token "$VIZDIFF_PROJECT_TOKEN"
-      --api-url "$VIZDIFF_API_URL"
-      --storybook-dir storybook-static
+    #    branch, MR number and target branch, and reads VIZDIFF_API_URL and
+    #    VIZDIFF_PROJECT_TOKEN from the environment, so only the storybook
+    #    directory is passed here.
+    - vizdiff upload storybook-static
 
 # Branch / push pipelines: establishes and updates the baseline on your
 # default branch and reports diffs on feature branches.

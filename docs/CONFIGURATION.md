@@ -119,7 +119,6 @@ Single-host fallback: when `GITLAB_HOSTS` is unset, a single host is derived fro
 | `NEXT_PUBLIC_GITHUB_ENABLED` | frontend | no | `false` | Shows the GitHub create-project UI (build-time). |
 | `NEXT_PUBLIC_GITHUB_APP_NAME` | frontend | no | — | GitHub App slug for the "Install App" link (build-time). |
 | `NEXT_PUBLIC_GITHUB_CLIENT_ID` | frontend | no | — | GitHub OAuth client ID (build-time, GitHub only). |
-| `DD_*` | api, worker | no | — | Optional Datadog APM (active only in prod/staging). |
 | `RETENTION_REAPER_ENABLED` | worker | no | `false` | Enables the screenshot retention reaper (see below). Destructive — opt-in. |
 | `RETENTION_DAYS` | worker | no | `90` | Builds older than this many days are eligible for deletion. |
 | `RETENTION_KEEP_LAST_N` | worker | no | `10` | Always retain at least this many most-recent builds per project, regardless of age. |

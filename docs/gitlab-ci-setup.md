@@ -12,60 +12,57 @@ VizDiff captures screenshots of your Storybook components on every commit and me
 
 ## Prerequisites
 
-- VizDiff instance (self-hosted or vizdiff.io)
+- A self-hosted VizDiff instance (see [self-contained-install.md](self-contained-install.md))
 - GitLab project with Storybook configured
 - GitLab CI/CD enabled for your project
 
-## Step 1: Create GitLab OAuth Application
+VizDiff's GitLab integration has two independent pieces:
 
-VizDiff needs OAuth access to post commit statuses and access your repositories.
+- **User login** is handled by the instance's pluggable auth provider (`AUTH_PROVIDER` — usually
+  `oidc` against your organization's IdP, or `dev` for non-production trials). It does not use
+  GitLab OAuth.
+- **GitLab API access** (listing groups/projects, posting commit statuses) uses a per-host
+  **service token** configured by the operator via `GITLAB_HOSTS` — never individual users'
+  tokens.
 
-1. Go to GitLab **User Settings > Applications**
-   - URL: https://gitlab.com/-/user_settings/applications
-   - For self-hosted: `https://YOUR_GITLAB_HOST/-/user_settings/applications`
+## Step 1: Create a GitLab Service Token
 
-2. Create a new application with these settings:
-   - **Name**: `VizDiff` (or your preferred name)
-   - **Redirect URI**: `https://YOUR_VIZDIFF_DOMAIN/api/auth/gitlab/callback`
-   - **Confidential**: Yes (checked)
-   - **Scopes**: Select these:
-     - `read_user` - Read user profile information
-     - `read_api` - Read API access for groups and projects
-     - `read_repository` - Read repository content
+VizDiff calls the GitLab API with one configured service token per GitLab host.
 
-3. Click **Save application**
-
-4. Copy and securely store:
-   - **Application ID** (this is your `GITLAB_CLIENT_ID`)
-   - **Secret** (this is your `GITLAB_CLIENT_SECRET`)
+1. Create a personal, group, or project access token on your GitLab host
+   (e.g. **Group > Settings > Access tokens**)
+2. Give it the `api` scope and the **Developer** role or higher (required to post commit
+   statuses and read projects)
+3. Copy the token (`glpat-...`) — it goes into the VizDiff environment in Step 2
 
 ## Step 2: Configure VizDiff Environment
 
-Add these environment variables to your VizDiff instance:
+Add the token to `GITLAB_HOSTS` (a JSON array of per-host configs) in your VizDiff instance's
+environment:
 
 ```bash
-# GitLab OAuth Configuration
-GITLAB_HOST=https://gitlab.com                    # Or your self-hosted GitLab URL
-GITLAB_CLIENT_ID=your_application_id              # From Step 1
-GITLAB_CLIENT_SECRET=your_application_secret      # From Step 1
-GITLAB_WEBHOOK_SECRET=generate_a_random_secret    # Any secure random string
+# One entry per GitLab host (gitlab.com and/or on-prem instances)
+GITLAB_HOSTS=[{"host":"https://gitlab.com","token":"glpat-...","rejectUnauthorized":true}]
 
-# For self-hosted GitLab with self-signed certificates (optional)
-GITLAB_REJECT_UNAUTHORIZED=false
-
-# Frontend environment variables
-NEXT_PUBLIC_GITLAB_CLIENT_ID=your_application_id
+# Optional: global webhook secret (a per-host "webhookSecret" in GITLAB_HOSTS takes precedence)
+GITLAB_WEBHOOK_SECRET=generate_a_random_secret
 ```
+
+For a self-hosted GitLab with self-signed certificates, set `"rejectUnauthorized": false` on that
+host's entry. See [CONFIGURATION.md](CONFIGURATION.md#gitlab-service-tokens-gitlab_hosts) for the
+full semantics (multi-host setups, per-host webhook secrets, and the single-host
+`GITLAB_HOST`/`GITLAB_TOKEN` fallback).
 
 After updating environment variables, restart your VizDiff services.
 
 ## Step 3: Sign In and Create a Project
 
-1. Visit your VizDiff instance and click **Sign in with GitLab**
-2. Authorize the OAuth application when prompted
-3. Navigate to **Projects** and click **New Project**
-4. Select your GitLab group and project from the list
-5. Copy the **Project Token** from the project settings (you'll need this for CI)
+1. Visit your VizDiff instance and click **Sign in** (you'll authenticate with the identity
+   provider configured for the instance)
+2. Navigate to **Projects** and click **New Project**
+3. Select your GitLab group and project from the list (VizDiff lists what the configured service
+   token can see)
+4. Copy the **Project Token** from the project settings (you'll need this for CI)
 
 ## Step 4: Configure GitLab CI
 
@@ -80,7 +77,7 @@ stages:
 
 variables:
   # These are configured in GitLab CI/CD Settings > Variables
-  # VIZDIFF_API_URL: https://your-vizdiff-instance.com
+  # VIZDIFF_API_URL: https://your-vizdiff-instance.com/api   (include the /api suffix)
   # VIZDIFF_PROJECT_TOKEN: your-project-token
 
 # Build Storybook
@@ -116,7 +113,7 @@ vizdiff:
       echo "Uploading Storybook to VizDiff..."
       
       RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
-        "${VIZDIFF_API_URL}/api/upload/storybook?token=${VIZDIFF_PROJECT_TOKEN}" \
+        "${VIZDIFF_API_URL}/upload/storybook?token=${VIZDIFF_PROJECT_TOKEN}" \
         -H "Content-Type: application/gzip" \
         -H "x-vizdiff-commit-sha: ${CI_COMMIT_SHA}" \
         -H "x-vizdiff-branch: ${CI_COMMIT_REF_NAME}" \
@@ -148,8 +145,11 @@ In your GitLab project, go to **Settings > CI/CD > Variables** and add:
 
 | Variable | Value | Protected | Masked |
 |----------|-------|-----------|--------|
-| `VIZDIFF_API_URL` | `https://your-vizdiff-instance.com` | Optional | No |
+| `VIZDIFF_API_URL` | `https://your-vizdiff-instance.com/api` | Optional | No |
 | `VIZDIFF_PROJECT_TOKEN` | Your project token from Step 3 | Yes | Yes |
+
+`VIZDIFF_API_URL` must include the `/api` suffix (the [`@vizdiff/cli`](https://www.npmjs.com/package/@vizdiff/cli)
+and the raw-`curl` example above both append endpoint paths like `/upload/storybook` directly to it).
 
 ## Step 6: Configure Webhook (Optional)
 
@@ -205,14 +205,16 @@ After a successful upload:
 
 ### Upload fails with 404 Not Found
 
-- Verify `VIZDIFF_API_URL` is correct and accessible
+- Verify `VIZDIFF_API_URL` is correct and accessible, and includes the `/api` suffix
+  (e.g. `https://your-vizdiff-instance.com/api`)
 - Check for typos in the URL
 
 ### No commit status appears on GitLab
 
-- Ensure the user who created the VizDiff project has permission to post commit statuses
+- Ensure the service token configured for this host in `GITLAB_HOSTS` has the `api` scope and
+  Developer role or higher on the project
 - Check VizDiff logs for GitLab API errors
-- Verify the OAuth token hasn't expired (re-authenticate if needed)
+- Verify the service token hasn't expired or been revoked (rotate it in `GITLAB_HOSTS` if needed)
 
 ### Storybook build fails
 
@@ -222,7 +224,8 @@ After a successful upload:
 
 ### Self-hosted GitLab connection issues
 
-- Set `GITLAB_REJECT_UNAUTHORIZED=false` for self-signed certificates
+- Set `"rejectUnauthorized": false` on that host's `GITLAB_HOSTS` entry for self-signed
+  certificates
 - Verify network connectivity between VizDiff and your GitLab instance
 - Check that the GitLab URL doesn't have a trailing slash
 
