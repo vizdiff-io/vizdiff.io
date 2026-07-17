@@ -122,7 +122,15 @@ export const list: RequestHandler = async (req, res) => {
                   "tr2.change_status as changeStatus",
                   "ROW_NUMBER() OVER (PARTITION BY tr2.screenshot_test_id, tr2.story_id ORDER BY tr2.id DESC) as rn",
                 ])
-                .from("test_results", "tr2"),
+                .from("test_results", "tr2")
+                // Constrain the window scan to this project's tests. screenshot_test_id is part of
+                // the PARTITION BY key, so dropping whole partitions cannot change row numbers, and
+                // the outer join only ever matches this project's tests anyway.
+                .where(
+                  "tr2.screenshot_test_id IN " +
+                    "(SELECT st2.id FROM screenshot_tests st2 WHERE st2.project_id = :projectId)",
+                  { projectId },
+                ),
             "tr",
           )
           .where("tr.rn = 1")
@@ -303,7 +311,15 @@ export const listActivity: RequestHandler = async (_req, res) => {
                   "tr2.story_id as story_id",
                   "ROW_NUMBER() OVER (PARTITION BY tr2.screenshot_test_id, tr2.story_id ORDER BY tr2.id DESC) as rn",
                 ])
-                .from("test_results", "tr2"),
+                .from("test_results", "tr2")
+                // Constrain the window scan to the accessible projects' tests. screenshot_test_id
+                // is part of the PARTITION BY key, so dropping whole partitions cannot change row
+                // numbers, and the outer join only ever matches these projects' tests anyway.
+                .where(
+                  "tr2.screenshot_test_id IN " +
+                    "(SELECT st2.id FROM screenshot_tests st2 WHERE st2.project_id IN (:...projectIds))",
+                  { projectIds },
+                ),
             "tr",
           )
           .where("tr.rn = 1")

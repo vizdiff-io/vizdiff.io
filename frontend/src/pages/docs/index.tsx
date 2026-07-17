@@ -83,7 +83,7 @@ The first run of any branch establishes a baseline—every screenshot shows "New
 
 ## 9. Troubleshooting
 
-- **403 Forbidden during upload** — \`VIZDIFF_PROJECT_TOKEN\` is missing or incorrect. Confirm the CI/CD variable exists and matches the project's token.
+- **401 Unauthorized during upload** — \`VIZDIFF_PROJECT_TOKEN\` is missing or incorrect. Confirm the CI/CD variable exists and matches the project's token.
 - **Cannot find \`storybook-static\`** — make sure your pipeline builds Storybook to that directory, or pass the correct path to \`vizdiff upload\`.
 - **Commit status never appears** — confirm \`VIZDIFF_API_URL\` points at your VizDiff ingress, and that the administrator configured a GitLab service token (with \`api\` scope and Developer or higher role) for your GitLab host.
 - **Self-signed GitLab certificate** — the administrator can disable TLS verification for your host via the \`GITLAB_HOSTS\` configuration.

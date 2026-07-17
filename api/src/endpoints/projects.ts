@@ -8,6 +8,7 @@ import { Database } from "../database"
 import { GITLAB_HOST } from "../environment"
 import { getParamInt } from "../http"
 import { log } from "../log"
+import { deleteObjectsByPrefixes, projectKeyPrefix } from "../s3"
 import type { RequestHandler } from "../types"
 
 type ProjectWithStats = {
@@ -49,7 +50,7 @@ function baseProjectStatsQuery(db: Awaited<ReturnType<typeof Database>>) {
             "MAX(st.id) as sid",
             "MAX(st.createdAt) as screatedAt",
             "MAX(tc.testcount) as tcount", // Use MAX instead of SUM to get only the latest test count
-            "(SELECT COUNT(DISTINCT st2.build_number) FROM screenshot_tests st2 WHERE st2.project_id = st.projectId AND st2.status IN ('completed', 'no_changes', 'unapproved', 'approved')) as buildcount",
+            "(SELECT COUNT(DISTINCT st2.build_number) FROM screenshot_tests st2 WHERE st2.project_id = st.projectId AND st2.status IN ('no_changes', 'unapproved', 'approved')) as buildcount",
           ])
           .from(
             (subQuery) =>
@@ -62,9 +63,7 @@ function baseProjectStatsQuery(db: Awaited<ReturnType<typeof Database>>) {
                   "ROW_NUMBER() OVER (PARTITION BY screenshot_tests.project_id ORDER BY screenshot_tests.created_at DESC) as rn",
                 ])
                 .from("screenshot_tests", "screenshot_tests")
-                .where(
-                  "screenshot_tests.status IN ('completed', 'no_changes', 'unapproved', 'approved')",
-                )
+                .where("screenshot_tests.status IN ('no_changes', 'unapproved', 'approved')")
                 .orderBy("screenshot_tests.created_at", "DESC"),
             "st",
           )
@@ -228,6 +227,19 @@ export const remove: RequestHandler = async (req, res) => {
   }
 
   await projectTable.remove(project)
+
+  // Best-effort S3 cleanup of the project's screenshots (mirrors account deletion, see user.ts).
+  // The DB rows are already gone, so an S3 failure must NOT fail the request; it is logged and left
+  // for a later manual sweep or retry. Deletion is idempotent, so a retry is always safe.
+  deleteObjectsByPrefixes([projectKeyPrefix(id)])
+    .then(({ deleted, errors }) => {
+      log.info(
+        `Deleted screenshots for project ${id}: ${deleted} objects removed, ${errors} errors`,
+      )
+    })
+    .catch((err: unknown) => {
+      log.warn(err, `Failed to delete S3 screenshots for project ${id}`)
+    })
 
   res.json({ success: true })
 }

@@ -131,13 +131,6 @@ s3:
     storage: 16Gi
     storageClassName: ""
 
-# Datadog APM (optional backend tracing). The images import dd-trace at boot;
-# tracing is inert unless enabled here.
-ddApm:
-  enabled: false
-  agentHost: "datadog-agent.datadog.svc.cluster.local"
-  env: "production"
-
 # -- ENABLE_VCS_STATUS: post commit/MR statuses to VCS. Defaults to "true" so
 # self-hosted prod posts statuses; set false to disable.
 enableVcsStatus: true

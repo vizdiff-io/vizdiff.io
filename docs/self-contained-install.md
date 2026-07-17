@@ -1,168 +1,114 @@
-# Self-Contained Installation (AWS Marketplace AMI)
+# Self-Hosted Installation (Docker Compose)
 
-This guide targets a single-tenant, self-contained deployment of VizDiff on a single EC2 instance
-using Docker Compose. It assumes no shared services are hosted by VizDiff.
+This is the canonical guide for running VizDiff on a single host with Docker Compose. For
+Kubernetes, use the Helm chart instead (see [`deploy/`](../deploy/)). For the full environment
+variable reference, see [CONFIGURATION.md](CONFIGURATION.md).
 
 ## Architecture
 
-- `frontend`: static Next.js export served by nginx
-- `api`: Express backend on port 3001
-- `worker`: background processor with Chromium/ChromeDriver
+Four containers on one Docker network:
+
+- `frontend`: static Next.js export served by nginx; proxies `/api` to the api container
+- `api`: Express backend on port 3001 (sole database schema owner; runs migrations on boot)
+- `worker`: background screenshot processor with Chromium/ChromeDriver
 - `postgres`: database and task queue (LISTEN/NOTIFY)
 
-External integrations still required:
+External requirements:
 
-- AWS S3 for storybook uploads and screenshots
-- GitHub App for OAuth + check runs (BYO app), **OR**
-- GitLab OAuth Application for OAuth + commit statuses (see [GitLab CI Setup](gitlab-ci-setup.md))
-- AWS SES for email sending (optional; no email will be sent if unset)
-- Stripe is disabled by default in self-contained mode (no billing or usage metering)
+- An S3-compatible bucket for Storybook tarballs and screenshots (AWS S3, MinIO, etc.)
+- A GitLab service token per host (`GITLAB_HOSTS`), and/or a GitHub App (`GITHUB_ENABLED=true`)
+- An OIDC identity provider for login (`AUTH_PROVIDER=oidc`, the production default), unless you
+  use GitHub login (`AUTH_PROVIDER=github`) or the non-production `dev` provider
 
 ## Prerequisites
 
-- An EC2 instance with Docker + Docker Compose installed
-- A public DNS name with TLS termination (nginx in container is HTTP only)
-- An S3 bucket for artifacts (storybook tarballs, screenshots, diff masks)
-- **One of the following for VCS integration:**
-  - A GitHub App created in your GitHub org, **OR**
-  - A GitLab OAuth Application (gitlab.com or self-hosted)
-- Optional: AWS SES domain or email identity verified
+- A host with Docker and Docker Compose v2 installed (v2.24+ if you use the TLS overlay)
+- An S3 bucket (or S3-compatible endpoint) and credentials that can read/write it
+- For HTTPS: a public DNS name pointing at this host, with ports 80 and 443 reachable
 
 ## Setup Steps
 
-1. Copy environment templates
+1. Copy the environment template and fill it in:
 
-   - Root: `.env.example` -> `.env`
-   - API: `api/.env.example` (reference only)
-   - Worker: `worker/.env.example` (reference only)
-   - Frontend: `frontend/.env.example` (reference only)
+   ```sh
+   cp .env.example .env
+   ```
 
-2. Configure environment values in `.env`
+   At minimum, set:
 
-   - `APP_URL` must match your public domain (e.g. `https://vizdiff.example.com`)
-   - `S3_BUCKET_NAME` and AWS credentials
-   - GitHub App credentials and webhook secret
-   - Stripe or Marketplace settings
-   - Optional SES settings
-   - Optional `SETUP_TOKEN` to protect setup endpoints
+   - `APP_URL` — the public URL of the deployment (e.g. `https://vizdiff.example.com`)
+   - `JWT_SECRET` — a unique random value (e.g. `openssl rand -hex 32`)
+   - `POSTGRES_PASS` — the Postgres password
+   - `S3_BUCKET_NAME` + AWS credentials/region (or `S3_ENDPOINT` for MinIO and friends)
+   - `AUTH_PROVIDER` and its settings (`OIDC_*` for `oidc`; `dev` is for non-production trials)
+   - `GITLAB_HOSTS` — per-host GitLab service tokens, and/or `GITHUB_ENABLED=true` + `GITHUB_*`
 
-3. Build and start services
+   Everything else is documented in [CONFIGURATION.md](CONFIGURATION.md). You can sanity-check the
+   file with `./scripts/validate-env.sh`.
 
-   - `./scripts/bootstrap-self-contained.sh`
+2. Start the stack from the published GHCR images (recommended):
 
-4. Configure GitHub App webhook
+   ```sh
+   VIZDIFF_VERSION=X.Y.Z docker compose -f docker-compose.images.yml up -d
+   ```
 
-   - Webhook URL: `https://your-domain/api/webhooks/github`
-   - Webhook secret: `GITHUB_WEBHOOK_SECRET`
+   Pick `X.Y.Z` from the [Releases page](https://github.com/vizdiff-io/vizdiff.io/releases).
+   Omitting `VIZDIFF_VERSION` uses `:latest` (the newest stable release). Images are
+   `ghcr.io/vizdiff-io/vizdiff-{api,worker,frontend}` (multi-arch amd64 + arm64); the `main`
+   branch publishes `:edge`.
 
-5. Optional: Stripe webhooks (if using Stripe billing)
-   - Webhook URL: `https://your-domain/api/stripe/webhook`
+   To build from source instead, use the default compose file:
+
+   ```sh
+   docker compose up -d --build
+   ```
+
+   (`./scripts/bootstrap-self-contained.sh` wraps this: copies `.env.example` if needed,
+   validates it, builds, starts, and health-checks.)
+
+3. Verify:
+
+   - `GET /api/health` returns 200
+   - `GET /api/version` returns `{ api, worker, workerOnline }` (also shown in the app footer)
+
+4. Configure webhooks (optional but recommended):
+
+   - GitLab (per project): `https://your-domain/api/webhooks/gitlab`, secret matching
+     `GITLAB_WEBHOOK_SECRET` (or the per-host `webhookSecret` in `GITLAB_HOSTS`)
+   - GitHub App (if `GITHUB_ENABLED=true`): `https://your-domain/api/webhooks/github`, secret
+     matching `GITHUB_WEBHOOK_SECRET`
 
 ## TLS / HTTPS
 
 The frontend container serves plain HTTP on port 80. You have two options for HTTPS:
 
-**Option A — built-in Caddy overlay (easiest).** An optional `docker-compose.tls.yml` overlay adds a
-Caddy reverse proxy that obtains and auto-renews a Let's Encrypt certificate. Point a DNS record at
-this host, open ports 80 and 443, then:
+**Option A — built-in Caddy overlay (easiest).** The `docker-compose.tls.yml` overlay adds a Caddy
+reverse proxy that obtains and auto-renews a Let's Encrypt certificate. Layer it over whichever
+base file you use — for the published images:
 
 ```sh
-# In .env: APP_URL=https://vizdiff.example.com   (and NEXT_PUBLIC_APP_URL to match)
+# In .env: APP_URL=https://vizdiff.example.com
 VIZDIFF_DOMAIN=vizdiff.example.com \
-  docker compose -f docker-compose.yml -f docker-compose.tls.yml up -d
+  docker compose -f docker-compose.images.yml -f docker-compose.tls.yml up -d
 ```
 
-Caddy terminates TLS and forwards to the frontend; nothing else changes. (Requires Docker Compose
-v2.24+.)
+(For from-source builds, substitute `-f docker-compose.yml`.) Caddy terminates TLS and forwards to
+the frontend; nothing else changes. Requires Docker Compose v2.24+.
 
-**Option B — your own terminator (ALB, CloudFront, external nginx, etc.).** Terminate TLS upstream
-and forward to the frontend's port 80. Make sure your proxy sets `X-Forwarded-Proto: https` — the
-frontend passes it through to the api, which uses it to set the `Secure` flag on the session cookie.
-Set `APP_URL` to your `https://` URL.
-
-## Setup Validation UI
-
-After the stack is running, visit:
-
-- `https://your-domain/setup`
-
-If `SETUP_TOKEN` is set, provide it in the Setup UI. The UI can validate:
-
-- GitHub App configuration
-- S3 bucket read/write
-- SES test email
-
-## GitHub App (BYO)
-
-Because this is self-contained, the GitHub App must be created and owned by the installer.
-Required permissions:
-
-- Checks: Read & Write
-- Contents: Read
-- Pull requests: Read
-- Statuses: Read & Write
-
-Required events:
-
-- `check_suite`
-- `check_run`
-
-## GitLab Integration (Alternative to GitHub)
-
-VizDiff also supports GitLab (gitlab.com or self-hosted). See [GitLab CI Setup](gitlab-ci-setup.md) for complete instructions.
-
-**Quick setup:**
-
-1. Create a GitLab OAuth Application at `https://gitlab.com/-/user_settings/applications`:
-
-   - Redirect URI: `https://your-domain/api/auth/gitlab/callback`
-   - Scopes: `read_user`, `read_api`, `read_repository`
-
-2. Add to your `.env`:
-
-   ```bash
-   GITLAB_HOST=https://gitlab.com
-   GITLAB_CLIENT_ID=your_application_id
-   GITLAB_CLIENT_SECRET=your_application_secret
-   GITLAB_WEBHOOK_SECRET=your_webhook_secret
-   NEXT_PUBLIC_GITLAB_CLIENT_ID=your_application_id
-   ```
-
-3. Configure GitLab webhook (per project):
-   - URL: `https://your-domain/api/webhooks/gitlab`
-   - Secret: same as `GITLAB_WEBHOOK_SECRET`
-
-For self-hosted GitLab with self-signed certificates, set `GITLAB_REJECT_UNAUTHORIZED=false`.
-
-## Email via SES
-
-Set `SES_REGION` and `SES_FROM_EMAIL`. If unset, VizDiff will not attempt to send email.
-
-## Billing Options
-
-- **Stripe**: disabled when `STRIPE_SECRET_KEY` is not set (default in self-contained)
-- **AWS Marketplace**: future option if you add Entitlement + Metering APIs
-
-## Notes for AMI Packaging
-
-- Pre-bake the AMI with Docker and repository artifacts
-- Provide a CloudFormation template that:
-  - Launches the AMI
-  - Opens ports 80/443 for HTTPS termination
-  - Optionally creates an S3 bucket and IAM role
-- Example template: `docs/cloudformation-self-contained.yml`
-
-## Troubleshooting
-
-- Check container logs: `docker compose logs -f api worker`
-- Ensure the instance can reach GitHub and AWS endpoints
-- Verify `S3_BUCKET_NAME` permissions for read/write
+**Option B — your own terminator (ALB, external nginx, etc.).** Terminate TLS upstream and forward
+to the frontend's port 80. Make sure your proxy sets `X-Forwarded-Proto: https` — the frontend
+passes it through to the api, which uses it to set the `Secure` flag on the session cookie. Set
+`APP_URL` to your `https://` URL.
 
 ## Health Checks
 
 - API: `GET /api/health`
 - API version: `GET /api/version` → `{ api, worker, workerOnline }` (the running api + worker versions)
-- Worker: `http://localhost:3003/health` (container‑internal)
+- Worker: `http://localhost:3003/health` (container-internal)
+
+Note: `docker-compose.images.yml` binds the Postgres (5432) and api (3001) debug ports to
+loopback only; from outside the host, all traffic goes through the frontend (port 80, or Caddy
+on 443 with the TLS overlay).
 
 ## Backups & Restore
 
@@ -171,18 +117,13 @@ Set `SES_REGION` and `SES_FROM_EMAIL`. If unset, VizDiff will not attempt to sen
 
 ## Upgrades
 
-How you upgrade depends on whether you run **published release images** or **build from source**.
-
-**Published images** (`docker-compose.images.yml`, recommended) — pin a version from the
+**Published images** (`docker-compose.images.yml`) — pin the new version from the
 [Releases page](https://github.com/vizdiff-io/vizdiff.io/releases):
 
 ```sh
 VIZDIFF_VERSION=X.Y.Z docker compose -f docker-compose.images.yml pull
 VIZDIFF_VERSION=X.Y.Z docker compose -f docker-compose.images.yml up -d
 ```
-
-Omit `VIZDIFF_VERSION` to track `:latest` (newest stable release). Images are
-`ghcr.io/vizdiff-io/vizdiff-{api,worker,frontend}` (multi-arch amd64 + arm64).
 
 **Build from source** (`docker-compose.yml`):
 
@@ -191,5 +132,14 @@ git pull
 docker compose up -d --build
 ```
 
-Then verify `GET /api/health` and confirm the new version at `GET /api/version` (also shown in the
-app's footer). The api applies any pending database migrations automatically on boot.
+Then verify `GET /api/health` and confirm the new version at `GET /api/version`. The api applies
+any pending database migrations automatically on boot.
+
+## Troubleshooting
+
+- Check container logs: `docker compose logs -f api worker`
+- Verify `S3_BUCKET_NAME` permissions for read/write; with `S3_ENDPOINT` (MinIO), the endpoint
+  must also be reachable from users' browsers for presigned image URLs to load
+- Ensure the host can reach your GitLab/GitHub instance and the S3 endpoint
+- CI integration issues: see [gitlab-ci-setup.md](gitlab-ci-setup.md) and the in-app guides at
+  `/docs` (GitLab) and `/docs/github` (GitHub)

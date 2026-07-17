@@ -103,9 +103,16 @@ describe("runRetentionSweep", () => {
 
     expect(result.buildsDeleted).toBe(2)
     expect(result.objectsDeleted).toBe(8)
-    // S3 prefix for a build is projects/<projectId>/screenshots/<uploadId>/
-    expect(mockDeleteObjectsByPrefixes).toHaveBeenCalledWith(["projects/1/screenshots/abc/"])
-    expect(mockDeleteObjectsByPrefixes).toHaveBeenCalledWith(["projects/2/screenshots/def/"])
+    // A build's screenshots live under projects/<projectId>/screenshots/<uploadId>/, and its
+    // uploaded tarball at projects/<projectId>/<uploadId>.tar.gz — both are reaped.
+    expect(mockDeleteObjectsByPrefixes).toHaveBeenCalledWith([
+      "projects/1/screenshots/abc/",
+      "projects/1/abc.tar.gz",
+    ])
+    expect(mockDeleteObjectsByPrefixes).toHaveBeenCalledWith([
+      "projects/2/screenshots/def/",
+      "projects/2/def.tar.gz",
+    ])
     // S3 first, then DB row, per build.
     expect(order).toEqual([
       "s3:projects/1/screenshots/abc/",
@@ -126,9 +133,15 @@ describe("runRetentionSweep", () => {
 
     expect(result.buildsDeleted).toBe(1)
     expect(mockDeleteObjectsByPrefixes).toHaveBeenCalledTimes(1)
-    expect(mockDeleteObjectsByPrefixes).toHaveBeenCalledWith(["projects/1/screenshots/old/"])
+    expect(mockDeleteObjectsByPrefixes).toHaveBeenCalledWith([
+      "projects/1/screenshots/old/",
+      "projects/1/old.tar.gz",
+    ])
     // The baseline build #10's prefix is never targeted, and its row is never deleted.
-    expect(mockDeleteObjectsByPrefixes).not.toHaveBeenCalledWith(["projects/1/screenshots/abc/"])
+    expect(mockDeleteObjectsByPrefixes).not.toHaveBeenCalledWith([
+      "projects/1/screenshots/abc/",
+      "projects/1/abc.tar.gz",
+    ])
     expect(mockDelete).toHaveBeenCalledTimes(1)
     expect(mockDelete).toHaveBeenCalledWith({ id: 9 })
   })

@@ -4,7 +4,7 @@ import jwt from "jsonwebtoken"
 import { Project, User } from "shared"
 
 import { Database } from "./database"
-import { JWT_SECRET, IS_PRODUCTION, S3_BUCKET_NAME } from "./environment"
+import { JWT_SECRET, IS_PRODUCTION } from "./environment"
 import { log } from "./log"
 import type { RequestLocals } from "./types"
 
@@ -150,11 +150,7 @@ export async function requireUser(_req: Request, res: Response, next: NextFuncti
     return
   }
 
-  // Count the number of projects owned by this user
-  const ownedProjectCount = await db.manager.count(Project, { where: { user: { id: user.id } } })
-
   locals.user = user
-  locals.ownedProjectCount = ownedProjectCount
   next()
 }
 
@@ -174,8 +170,4 @@ export async function getProjectByToken(token: string): Promise<Project | undefi
   }
 
   return project
-}
-
-export async function getS3BucketForProject(_project: Project): Promise<string> {
-  return S3_BUCKET_NAME
 }

@@ -11,7 +11,11 @@ import type { GithubUser } from "../schemas/GithubUser"
 import type { RequestHandler } from "../types"
 
 export const me: RequestHandler = async (_req, res) => {
-  const { user, ownedProjectCount } = res.locals
+  const { user } = res.locals
+
+  // Count the number of projects owned by this user (only surfaced by this endpoint)
+  const db = await Database()
+  const ownedProjectCount = await db.manager.count(Project, { where: { user: { id: user.id } } })
 
   // GitHub installations (only when GitHub support is enabled).
   let installationResponses: GitHubInstallationResponse[] = []

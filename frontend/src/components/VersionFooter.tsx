@@ -12,9 +12,10 @@ interface VersionInfo {
 
 /**
  * Small muted footer showing the running api, worker, and frontend versions. Versions are fetched
- * client-side (GET /api/version) and the frontend build id is read from Next's `__NEXT_DATA__`, so
- * the initial render is an empty placeholder (avoids a static-export hydration mismatch) and fills
- * in after mount. Degrades silently if the version endpoint is unavailable.
+ * client-side (GET /api/version) and the frontend version comes from NEXT_PUBLIC_VIZDIFF_VERSION
+ * (baked in by release image builds), falling back to the build id from Next's `__NEXT_DATA__`.
+ * Both are resolved after mount, so the initial render is an empty placeholder (avoids a
+ * static-export hydration mismatch). Degrades silently if the version endpoint is unavailable.
  */
 export const VersionFooter: React.FC = () => {
   const [info, setInfo] = useState<VersionInfo | null>(null)
@@ -26,7 +27,12 @@ export const VersionFooter: React.FC = () => {
       "__NEXT_DATA__"
     ]
     const buildId = nextData?.buildId
-    if (buildId) {
+    // Prefer the release version baked in at image build time; "dev" (the non-release default)
+    // is less informative than the build id, so fall back in that case.
+    const releaseVersion = process.env.NEXT_PUBLIC_VIZDIFF_VERSION
+    if (releaseVersion && releaseVersion !== "dev") {
+      setUiVersion(releaseVersion)
+    } else if (buildId) {
       setUiVersion(buildId)
     }
     void (async () => {

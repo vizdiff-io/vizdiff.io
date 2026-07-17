@@ -20,7 +20,7 @@ import * as Upload from "./endpoints/upload"
 import * as User from "./endpoints/user"
 import * as Version from "./endpoints/version"
 import * as Webhooks from "./endpoints/webhooks"
-import { GITHUB_ENABLED, IS_PRODUCTION, IS_TEST, PORT } from "./environment"
+import { APP_URL, GITHUB_ENABLED, IS_PRODUCTION, IS_TEST, PORT } from "./environment"
 import { log } from "./log"
 import type { DefaultRequest, DefaultResponse } from "./types"
 
@@ -76,10 +76,26 @@ const rawBodyAndJsonParser = bodyParser.json({
 })
 
 app.use(rawBodyAndJsonParser)
+
+/**
+ * Cross-origin allowlist derived from the deployed app URL. Self-hosted deployments serve the
+ * frontend and api behind a single origin (nginx), so browser requests are usually same-origin and
+ * carry no Origin header — those (and non-browser clients like the CLI uploader) are always allowed
+ * by the cors middleware. This only matters when APP_URL is a different origin than the api.
+ */
+function corsOrigin(): string | undefined {
+  try {
+    return new URL(APP_URL).origin
+  } catch {
+    log.warn(`APP_URL "${APP_URL}" is not a valid URL; cross-origin requests will be rejected`)
+    return undefined
+  }
+}
+
 // Configure CORS
 app.use(
   cors({
-    origin: IS_PRODUCTION ? ["https://vizdiff.io", /\.vizdiff\.io$/] : undefined,
+    origin: IS_PRODUCTION ? (corsOrigin() ?? []) : undefined,
     credentials: true,
   }),
 )
