@@ -21,6 +21,9 @@
     "test:all": "yarn workspaces foreach --all -p run test",
     "lint:all": "yarn workspaces foreach --all -p run lint"
   },
+  "resolutions": {
+    "prismjs": "^1.30.0"
+  },
   "packageExtensions": {
     "@storybook/nextjs": {
       "peerDependenciesMeta": {
