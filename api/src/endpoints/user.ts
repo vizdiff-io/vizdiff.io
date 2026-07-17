@@ -1,4 +1,4 @@
-import { Project } from "shared"
+import { Project, projectKeyPrefix } from "shared"
 
 import type { GitHubInstallationResponse, UserResponse } from "../apiTypes"
 import { toSeconds } from "../conversions"
@@ -6,7 +6,7 @@ import { Database } from "../database"
 import { GITHUB_ENABLED } from "../environment"
 import { getInstallationsForUserId } from "../github"
 import { log } from "../log"
-import { deleteObjectsByPrefixes, projectKeyPrefix } from "../s3"
+import { deleteObjectsByPrefixes } from "../s3"
 import type { GithubUser } from "../schemas/GithubUser"
 import type { RequestHandler } from "../types"
 
@@ -58,7 +58,7 @@ export const deleteAccount: RequestHandler = async (_req, res) => {
     const db = await Database()
 
     // Capture the owned project IDs *before* the delete: the DB cascade removes the project rows,
-    // so we must enumerate the S3 prefixes (`projects/<id>/`) to reap while they still exist (#132).
+    // so we must enumerate the per-project S3 prefixes to reap while they still exist (#132).
     const projects = await db
       .getRepository(Project)
       .find({ select: { id: true }, where: { user: { id: user.id } } })

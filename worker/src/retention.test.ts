@@ -1,3 +1,4 @@
+import { screenshotsKeyPrefix, uploadTarballKey } from "shared"
 import type { DataSource } from "typeorm"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -103,21 +104,21 @@ describe("runRetentionSweep", () => {
 
     expect(result.buildsDeleted).toBe(2)
     expect(result.objectsDeleted).toBe(8)
-    // A build's screenshots live under projects/<projectId>/screenshots/<uploadId>/, and its
-    // uploaded tarball at projects/<projectId>/<uploadId>.tar.gz — both are reaped.
+    // A build's screenshots prefix and its uploaded tarball are both reaped (layout in
+    // shared/src/s3Keys.ts).
     expect(mockDeleteObjectsByPrefixes).toHaveBeenCalledWith([
-      "projects/1/screenshots/abc/",
-      "projects/1/abc.tar.gz",
+      screenshotsKeyPrefix(1, "abc"),
+      uploadTarballKey(1, "abc"),
     ])
     expect(mockDeleteObjectsByPrefixes).toHaveBeenCalledWith([
-      "projects/2/screenshots/def/",
-      "projects/2/def.tar.gz",
+      screenshotsKeyPrefix(2, "def"),
+      uploadTarballKey(2, "def"),
     ])
     // S3 first, then DB row, per build.
     expect(order).toEqual([
-      "s3:projects/1/screenshots/abc/",
+      `s3:${screenshotsKeyPrefix(1, "abc")}`,
       "db:10",
-      "s3:projects/2/screenshots/def/",
+      `s3:${screenshotsKeyPrefix(2, "def")}`,
       "db:11",
     ])
   })
@@ -134,13 +135,13 @@ describe("runRetentionSweep", () => {
     expect(result.buildsDeleted).toBe(1)
     expect(mockDeleteObjectsByPrefixes).toHaveBeenCalledTimes(1)
     expect(mockDeleteObjectsByPrefixes).toHaveBeenCalledWith([
-      "projects/1/screenshots/old/",
-      "projects/1/old.tar.gz",
+      screenshotsKeyPrefix(1, "old"),
+      uploadTarballKey(1, "old"),
     ])
     // The baseline build #10's prefix is never targeted, and its row is never deleted.
     expect(mockDeleteObjectsByPrefixes).not.toHaveBeenCalledWith([
-      "projects/1/screenshots/abc/",
-      "projects/1/abc.tar.gz",
+      screenshotsKeyPrefix(1, "abc"),
+      uploadTarballKey(1, "abc"),
     ])
     expect(mockDelete).toHaveBeenCalledTimes(1)
     expect(mockDelete).toHaveBeenCalledWith({ id: 9 })
@@ -160,7 +161,7 @@ describe("runRetentionSweep", () => {
       { id: 11, project_id: 2, upload_id: "def" },
     ])
     mockDeleteObjectsByPrefixes.mockImplementation((prefixes: string[]) => {
-      if (prefixes[0] === "projects/1/screenshots/abc/") {
+      if (prefixes[0] === screenshotsKeyPrefix(1, "abc")) {
         return Promise.reject(new Error("S3 down"))
       }
       return Promise.resolve({ deleted: 2, errors: 0 })
@@ -190,7 +191,7 @@ describe("runRetentionSweep", () => {
       { id: 11, project_id: 2, upload_id: "def" },
     ])
     mockDeleteObjectsByPrefixes.mockImplementation((prefixes: string[]) => {
-      if (prefixes[0] === "projects/1/screenshots/abc/") {
+      if (prefixes[0] === screenshotsKeyPrefix(1, "abc")) {
         return Promise.resolve({ deleted: 1, errors: 1 })
       }
       return Promise.resolve({ deleted: 2, errors: 0 })

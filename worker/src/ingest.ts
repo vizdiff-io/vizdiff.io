@@ -11,6 +11,7 @@ import {
   createSummaryForBuild,
   createMarkdownForBuildResult,
   createSummaryForFailedBuild,
+  uploadTarballKey,
 } from "shared"
 import { Not, In } from "typeorm"
 import { remote } from "webdriverio"
@@ -196,7 +197,7 @@ export async function ingestStorybook(
   // Initialize S3 client
   const s3Client = new S3Client(S3_CLIENT_CONFIG)
   const bucket = await getS3BucketForProjectId(projectId)
-  const key = `projects/${projectId}/${uploadId}.tar.gz`
+  const key = uploadTarballKey(projectId, uploadId)
   log.debug(`Using S3 bucket: ${bucket}, key: ${key}`)
 
   // Create temp directory for extraction

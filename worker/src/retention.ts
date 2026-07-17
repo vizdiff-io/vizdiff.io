@@ -1,4 +1,4 @@
-import { ScreenshotTest } from "shared"
+import { ScreenshotTest, screenshotsKeyPrefix, uploadTarballKey } from "shared"
 import type { DataSource } from "typeorm"
 
 import { Database } from "./database"
@@ -130,11 +130,11 @@ export async function runRetentionSweep(options?: {
   const repo = db.getRepository(ScreenshotTest)
 
   for (const build of builds) {
-    // A build's screenshots live under `projects/<projectId>/screenshots/<uploadId>/`, and its
-    // uploaded storybook tarball at `projects/<projectId>/<uploadId>.tar.gz` (written by the api
-    // upload endpoint, read once by ingest) — reap both so tarballs don't leak forever.
-    const screenshotsPrefix = `projects/${build.project_id}/screenshots/${build.upload_id}/`
-    const tarballKey = `projects/${build.project_id}/${build.upload_id}.tar.gz`
+    // Reap both the build's screenshots prefix and its uploaded storybook tarball (written by the
+    // api upload endpoint, read once by ingest) so tarballs don't leak forever. Key layout lives
+    // in shared/src/s3Keys.ts.
+    const screenshotsPrefix = screenshotsKeyPrefix(build.project_id, build.upload_id)
+    const tarballKey = uploadTarballKey(build.project_id, build.upload_id)
     try {
       const { deleted, errors } = await deleteObjectsByPrefixes([screenshotsPrefix, tarballKey])
       result.objectsDeleted += deleted

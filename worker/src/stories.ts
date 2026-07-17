@@ -3,7 +3,13 @@ import fs, { promises as fsPromises } from "node:fs"
 import path from "node:path"
 import { Readable } from "node:stream"
 import { PNG } from "pngjs"
-import { ScreenshotTest, TestResult, type TestResultStatus } from "shared"
+import {
+  diffImageKey,
+  ScreenshotTest,
+  screenshotKey as buildScreenshotKey,
+  TestResult,
+  type TestResultStatus,
+} from "shared"
 import type { Repository } from "typeorm"
 import type { Browser } from "webdriverio"
 
@@ -425,7 +431,7 @@ export async function processStory({
   const screenshotBuffer = await fsPromises.readFile(localScreenshotPath)
 
   // Upload screenshot to S3
-  const screenshotKey = `projects/${projectId}/screenshots/${uploadId}/${storyId}.png`
+  const screenshotKey = buildScreenshotKey(projectId, uploadId, storyId)
   logChild.debug({ screenshotKey }, `Uploading screenshot to S3: ${screenshotKey}`)
   await s3Client.send(
     new PutObjectCommand({
@@ -454,7 +460,11 @@ export async function processStory({
       logChild.warn("Base test result has missing screenshotTest or uploadId reference")
       changeStatus = "new"
     } else {
-      const baselineKey = `projects/${projectId}/screenshots/${baseTestResult.screenshotTest.uploadId}/${storyId}.png`
+      const baselineKey = buildScreenshotKey(
+        projectId,
+        baseTestResult.screenshotTest.uploadId,
+        storyId,
+      )
       baselineImageUrl = baselineKey
       logChild = logChild.child({ baselineImageUrl })
       try {
@@ -488,7 +498,7 @@ export async function processStory({
           // Write and upload the diff image
           const diffPath = path.join(tmpDir, `${storyId}-diff.png`)
           await fsPromises.writeFile(diffPath, PNG.sync.write(diffRes.diffMask))
-          const diffKey = `projects/${projectId}/screenshots/${uploadId}/${storyId}-diff.png`
+          const diffKey = diffImageKey(projectId, uploadId, storyId)
           logChild.debug({ diffKey }, "Uploading diff image to S3")
           await s3Client.send(
             new PutObjectCommand({
