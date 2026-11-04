@@ -136,9 +136,16 @@ describe("OIDC auto-created project ownership", () => {
     )
     expect(next.user.id).toBe(owner.id)
     expect(await db.getRepository(Project).countBy({ repoId: 45 })).toBe(2)
-    await db
-      .getRepository(Project)
-      .save({ ...old, id: undefined, repoId: 46, token: "legacy-other-token" })
+    await db.getRepository(Project).save({
+      user: owner,
+      name: "other legacy",
+      key: "ui",
+      repoId: 46,
+      vcsProvider: "gitlab",
+      gitlabHost: null,
+      repoUrl: "https://gitlab.example.com/example/legacy",
+      token: "legacy-other-token",
+    })
     await expect(
       resolveOidcProject(db, 46, "example/legacy", "other", owners, "https://gitlab.example.com"),
     ).rejects.toThrow("GITLAB_OIDC_AUTO_CREATE")
