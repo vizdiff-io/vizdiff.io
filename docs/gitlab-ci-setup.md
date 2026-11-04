@@ -55,6 +55,52 @@ full semantics (multi-host setups, per-host webhook secrets, and the single-host
 
 After updating environment variables, restart your VizDiff services.
 
+## Upload with GitLab CI ID tokens (gitlab.com)
+
+Operators can replace per-project upload secrets with short-lived GitLab CI ID tokens. Set:
+
+```sh
+GITLAB_OIDC_AUTO_CREATE=example/website=owner@example.com,example/components=other@example.com
+```
+
+Each repository path must match exactly. Owners must be existing VizDiff users. A new key inherits
+its oldest sibling project's owner (creation time, then ID); the repository's first project uses
+its configured email. Missing mappings or unknown first-project owners return HTTP 403 naming
+`GITLAB_OIDC_AUTO_CREATE`. Configured repositories reject static project tokens.
+
+Helm exposes this as `gitlab.oidcAutoCreate`. Keep `APP_URL` identical to the token audience,
+including any path or trailing slash. JWKS verification requires outbound HTTPS to gitlab.com.
+Roll out the new API (which runs the `baseline_eligible` migration) and replace all old workers
+before enabling CI ID-token uploads. Old workers do not enforce baseline provenance.
+
+The GitLab service token is still needed for commit statuses and other GitLab API operations.
+
+Request an ID token in the upload job:
+
+```yaml
+id_tokens:
+  VIZDIFF_ID_TOKEN:
+    aud: https://vizdiff.example.com
+```
+
+Upload the gzipped Storybook using `Authorization: Bearer $VIZDIFF_ID_TOKEN` to
+`POST /api/upload/storybook?key=components`. Send the existing `x-vizdiff-commit-sha` and
+`x-vizdiff-branch` headers, matching GitLab's signed `sha` and `ref` claims. MR uploads also send
+`x-vizdiff-pr-number`, `x-vizdiff-base-commit-sha` and `x-vizdiff-base-branch`. The project is resolved
+from the signed `project_id`, fixed gitlab.com host, and query `key`; new keys are created on first
+upload. No per-key CI upload secret is needed. Existing CLI releases using only project tokens
+cannot use this flow; use an HTTP uploader with the bearer header.
+
+OIDC uploads record protected-ref provenance. Unprotected/MR uploads cannot supply baselines,
+even when they share a commit SHA with a protected branch. Pre-existing builds retain legacy
+baseline eligibility; re-upload trusted baselines when enabling this policy.
+
+Baseline uploads require `ref_type=branch`, `ref_protected=true`, and a non-MR pipeline. Protect
+your default branch in GitLab. Tags are refused. Unprotected uploads require MR and base metadata.
+Do not relabel a merged-result pipeline's synthetic commit as the source commit: the uploaded SHA
+must match the signed token. Tokens from other issuers, forks outside the allow-list, expired
+tokens and mismatched audiences are rejected. Never print the ID token or put it in a URL.
+
 ## Step 3: Sign In and Create a Project
 
 1. Visit your VizDiff instance and click **Sign in** (you'll authenticate with the identity
@@ -127,7 +173,7 @@ vizdiff:
     - tar -czf storybook.tar.gz -C storybook-static .
     - |
       echo "Uploading Storybook to VizDiff..."
-      
+
       RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
         "${VIZDIFF_API_URL}/upload/storybook?token=${VIZDIFF_PROJECT_TOKEN}" \
         -H "Content-Type: application/gzip" \
@@ -137,18 +183,18 @@ vizdiff:
         ${CI_MERGE_REQUEST_DIFF_BASE_SHA:+-H "x-vizdiff-base-commit-sha: ${CI_MERGE_REQUEST_DIFF_BASE_SHA}"} \
         ${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:+-H "x-vizdiff-base-branch: ${CI_MERGE_REQUEST_TARGET_BRANCH_NAME}"} \
         --data-binary @storybook.tar.gz)
-      
+
       HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
       BODY=$(echo "$RESPONSE" | sed '$d')
-      
+
       echo "Response: $BODY"
       echo "HTTP Status: $HTTP_CODE"
-      
+
       if [ "$HTTP_CODE" -ge 400 ]; then
         echo "ERROR: Upload failed with status $HTTP_CODE"
         exit 1
       fi
-      
+
       echo "Upload successful! VizDiff will process screenshots and update commit status."
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
@@ -159,10 +205,10 @@ vizdiff:
 
 In your GitLab project, go to **Settings > CI/CD > Variables** and add:
 
-| Variable | Value | Protected | Masked |
-|----------|-------|-----------|--------|
-| `VIZDIFF_API_URL` | `https://your-vizdiff-instance.com/api` | Optional | No |
-| `VIZDIFF_PROJECT_TOKEN` | Your project token from Step 3 | Yes | Yes |
+| Variable                | Value                                   | Protected | Masked |
+| ----------------------- | --------------------------------------- | --------- | ------ |
+| `VIZDIFF_API_URL`       | `https://your-vizdiff-instance.com/api` | Optional  | No     |
+| `VIZDIFF_PROJECT_TOKEN` | Your project token from Step 3          | Yes       | Yes    |
 
 `VIZDIFF_API_URL` must include the `/api` suffix (the [`@vizdiff/cli`](https://www.npmjs.com/package/@vizdiff/cli)
 and the raw-`curl` example above both append endpoint paths like `/upload/storybook` directly to it).
@@ -185,13 +231,13 @@ Webhooks enable real-time notifications when commits are pushed or merge request
 
 These GitLab CI predefined variables are used by VizDiff:
 
-| VizDiff Header | GitLab CI Variable | Description |
-|----------------|-------------------|-------------|
-| `x-vizdiff-commit-sha` | `CI_COMMIT_SHA` | The commit SHA being tested |
-| `x-vizdiff-branch` | `CI_COMMIT_REF_NAME` | Branch or tag name |
-| `x-vizdiff-pr-number` | `CI_MERGE_REQUEST_IID` | Merge request ID (MR pipelines only) |
-| `x-vizdiff-base-commit-sha` | `CI_MERGE_REQUEST_DIFF_BASE_SHA` | Base commit for comparison (MR pipelines only) |
-| `x-vizdiff-base-branch` | `CI_MERGE_REQUEST_TARGET_BRANCH_NAME` | Target branch (MR pipelines only) |
+| VizDiff Header              | GitLab CI Variable                    | Description                                    |
+| --------------------------- | ------------------------------------- | ---------------------------------------------- |
+| `x-vizdiff-commit-sha`      | `CI_COMMIT_SHA`                       | The commit SHA being tested                    |
+| `x-vizdiff-branch`          | `CI_COMMIT_REF_NAME`                  | Branch or tag name                             |
+| `x-vizdiff-pr-number`       | `CI_MERGE_REQUEST_IID`                | Merge request ID (MR pipelines only)           |
+| `x-vizdiff-base-commit-sha` | `CI_MERGE_REQUEST_DIFF_BASE_SHA`      | Base commit for comparison (MR pipelines only) |
+| `x-vizdiff-base-branch`     | `CI_MERGE_REQUEST_TARGET_BRANCH_NAME` | Target branch (MR pipelines only)              |
 
 ## Viewing Results
 
@@ -260,6 +306,7 @@ script:
 ### Yarn/pnpm Support
 
 For Yarn:
+
 ```yaml
 script:
   - yarn install --frozen-lockfile
@@ -267,6 +314,7 @@ script:
 ```
 
 For pnpm:
+
 ```yaml
 script:
   - pnpm install --frozen-lockfile

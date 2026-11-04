@@ -49,6 +49,10 @@ export class ScreenshotTest {
   @Column({ type: "text", nullable: false })
   branch!: string
 
+  // Signed CI provenance. Legacy uploads remain eligible for backward compatibility.
+  @Column({ name: "baseline_eligible", type: "boolean", nullable: false, default: true })
+  baselineEligible!: boolean
+
   @Column({ name: "base_commit_sha", type: "text", nullable: true })
   baseCommitSha!: string | null
 

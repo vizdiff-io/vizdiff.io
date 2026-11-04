@@ -20,7 +20,20 @@ import {
   S3_BUCKET_NAME,
 } from "../environment"
 import { getInstallationForOrg, getOctokitForInstallation, type GitHubCheckData } from "../github"
-import { getGitLabHostConfig, type GitLabCheckData, updateGitLabCommitStatus } from "../gitlab"
+import {
+  getGitLabClient,
+  getGitLabHostConfig,
+  type GitLabCheckData,
+  updateGitLabCommitStatus,
+} from "../gitlab"
+import {
+  authorizeGitLabUpload,
+  isProtectedBranchUpload,
+  parseAutoCreate,
+  UploadAuthError,
+  verifyGitLabIdToken,
+} from "../gitlabOidc"
+import { resolveOidcProject } from "../gitlabOidcProjects"
 import { getQueryString } from "../http"
 import { log } from "../log"
 import { deleteObjectsByPrefixes, s3Client } from "../s3"
@@ -42,8 +55,9 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
   }
 
   const token = getQueryString("token", req)
-  if (!token) {
-    res.status(400).json({ error: "Missing token" })
+  const authorization = req.header("authorization")
+  if (!token && !authorization) {
+    res.status(400).json({ error: "Missing upload credential" })
     return
   }
 
@@ -89,9 +103,59 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
   }
 
   const uploadId = uuidv7()
-  const project = await getProjectByToken(token)
-  if (!project) {
-    res.status(401).json({ error: "Invalid token" })
+  let project
+  let baselineEligible = true
+  try {
+    const owners = parseAutoCreate(process.env.GITLAB_OIDC_AUTO_CREATE ?? "")
+    if (authorization) {
+      if (token || !authorization.startsWith("Bearer ")) {
+        throw new UploadAuthError("Use one upload credential", 401)
+      }
+      let claims
+      try {
+        claims = await verifyGitLabIdToken(authorization.slice(7), APP_URL)
+      } catch {
+        throw new UploadAuthError("Invalid GitLab CI ID token", 401)
+      }
+      baselineEligible = isProtectedBranchUpload(claims)
+      authorizeGitLabUpload(claims, { commitSha, branch, baseCommitSha, baseBranch, prNumber })
+      project = await resolveOidcProject(
+        await Database(),
+        Number(claims.project_id),
+        String(claims.project_path),
+        getQueryString("key", req) ?? "",
+        owners,
+      )
+    } else {
+      project = await getProjectByToken(token!)
+      if (!project) {
+        throw new UploadAuthError("Invalid token", 401)
+      }
+      if (
+        project.vcsProvider === "gitlab" &&
+        (project.gitlabHost ?? GITLAB_HOST) === "https://gitlab.com"
+      ) {
+        if (owners.size) {
+          let canonical
+          try {
+            canonical = await getGitLabClient("https://gitlab.com").Projects.show(project.repoId)
+          } catch {
+            throw new UploadAuthError("Cannot verify repository upload policy", 503)
+          }
+          if (typeof canonical.path_with_namespace !== "string") {
+            throw new UploadAuthError("Cannot verify repository upload policy", 503)
+          }
+          if (owners.has(canonical.path_with_namespace)) {
+            throw new UploadAuthError("This repository requires a GitLab CI ID token")
+          }
+        }
+      }
+    }
+  } catch (error) {
+    if (!(error instanceof UploadAuthError)) {
+      throw error
+    }
+    res.status(error.status).json({ error: error.message })
     return
   }
 
@@ -157,6 +221,7 @@ export async function uploadStorybook(req: DefaultRequest, res: DefaultResponse)
     commitSha,
     branch,
     uploadId,
+    baselineEligible,
     baseCommitSha,
     baseBranch,
     prNumber,

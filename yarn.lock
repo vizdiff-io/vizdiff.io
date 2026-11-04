@@ -5732,6 +5732,7 @@ __metadata:
     eslint: "npm:9.39.5"
     express: "npm:5.2.1"
     express-promise-router: "npm:4.1.1"
+    jose: "npm:^6.2.3"
     jsonwebtoken: "npm:9.0.3"
     openid-client: "npm:^6.8.4"
     pg: "npm:8.22.0"
@@ -10210,10 +10211,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"jose@npm:^6.2.2":
-  version: 6.2.3
-  resolution: "jose@npm:6.2.3"
-  checksum: 10/876974613c5ee988d43b65a34c96ce440dbf7706a2f07f465b8874af16ee532102e224459a7068d2c6ef044affe49690667d23ca12770c279804baec95a09608
+"jose@npm:^6.2.2, jose@npm:^6.2.3":
+  version: 6.2.15
+  resolution: "jose@npm:6.2.15"
+  checksum: 10/57ea834a3aae6612b603dc04e5e068dabf1582934ffc759f004a0c654632bec06e6184aee73246157d03fb56179d50ac4e5c56ad02cf939086ef888ae8d8ebec
   languageName: node
   linkType: hard
 

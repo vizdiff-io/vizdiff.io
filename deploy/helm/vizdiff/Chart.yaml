@@ -9,12 +9,12 @@ description: |
 type: application
 
 # Chart and application versions follow the release tag; see RELEASING.md.
-version: 2.6.2
+version: 2.7.0
 
 # The default application version — also the default image tag (see values.yaml image.*.tag, which
 # fall back to this). Bump to the release version as a pre-tag step when cutting a release; see
 # RELEASING.md. Must correspond to published ghcr.io/vizdiff-io/vizdiff-*:<appVersion> images.
-appVersion: "2.6.2"
+appVersion: "2.7.0"
 
 home: https://vizdiff.io
 sources:
