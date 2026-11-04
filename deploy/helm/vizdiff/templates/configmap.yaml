@@ -23,6 +23,7 @@ data:
 
   # --- VCS ---
   GITHUB_ENABLED: {{ .Values.github.enabled | quote }}
+  GITLAB_OIDC_AUTO_CREATE: {{ .Values.gitlab.oidcAutoCreate | quote }}
   ENABLE_VCS_STATUS: {{ .Values.enableVcsStatus | quote }}
 
   # --- Postgres (non-secret connection details) ---

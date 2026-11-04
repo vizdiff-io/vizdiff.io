@@ -70,7 +70,7 @@ describe("account deletion cascade", () => {
         commitSha: "abc123",
         branch: "main",
         uploadId: `upload-${Date.now()}-${Math.random()}`,
-        status: "completed",
+        status: "no_changes",
       })
       await manager.save(screenshotTest)
 

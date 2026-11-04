@@ -10,6 +10,7 @@ export type CreateScreenshotTestData = {
   baseCommitSha?: string
   baseBranch?: string
   githubCheckRunId?: number
+  baselineEligible?: boolean
   prNumber?: number
 }
 
@@ -42,6 +43,7 @@ export async function createScreenshotTest({
   baseBranch,
   githubCheckRunId,
   prNumber,
+  baselineEligible = true,
 }: CreateScreenshotTestData): Promise<ScreenshotTest> {
   if (!commitSha || !branch || !uploadId) {
     throw new Error("Missing required parameters")
@@ -71,6 +73,7 @@ export async function createScreenshotTest({
         screenshotTest.branch = branch
         screenshotTest.baseCommitSha = baseCommitSha ?? null
         screenshotTest.baseBranch = baseBranch ?? null
+        screenshotTest.baselineEligible = baselineEligible
         screenshotTest.prNumber = prNumber ?? null
         screenshotTest.uploadId = uploadId
         screenshotTest.status = "pending"

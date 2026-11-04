@@ -72,6 +72,8 @@ github:
 #         rejectUnauthorized: false
 #         webhookSecret: shhh
 gitlab:
+  # Comma-separated repository=existing-owner-email pairs for gitlab.com CI uploads.
+  oidcAutoCreate: ""
   hosts: []
   # -- Optional: reference an existing Secret holding the GITLAB_HOSTS key
   # instead of rendering tokens into chart-managed Secrets. Takes precedence

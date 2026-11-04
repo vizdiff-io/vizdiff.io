@@ -87,6 +87,7 @@ export async function isBaselineBuildPending(screenshotTestId: number): Promise<
     .createQueryBuilder("test")
     .where("test.project_id = :projectId", { projectId })
     .andWhere("test.commit_sha = :baseCommitSha", { baseCommitSha })
+    .andWhere("test.baseline_eligible = true")
     .andWhere("test.status IN (:...statuses)", { statuses: ["pending", "running"] })
     // Exclude the current test itself defensively (it should never share the
     // base commit sha, but guard against self-blocking just in case).
@@ -94,6 +95,44 @@ export async function isBaselineBuildPending(screenshotTestId: number): Promise<
     .getCount()
 
   return inFlightCount > 0
+}
+
+/** Remove superseded results only within the same baseline trust class. */
+export async function deletePreviousTestResults(screenshotTest: ScreenshotTest): Promise<void> {
+  const db = await Database()
+  if (screenshotTest.commitSha && screenshotTest.branch) {
+    log.info(`Cleaning up previous test results for the same commit/branch if they exist`)
+
+    // Use a transaction to ensure atomicity
+    await db.transaction(async (transactionalEntityManager) => {
+      const testResultRepo = transactionalEntityManager.getRepository(TestResult)
+      const screenshotTestRepoTx = transactionalEntityManager.getRepository(ScreenshotTest)
+
+      // Find previous screenshot tests with the same commit and branch
+      const previousTests = await screenshotTestRepoTx.find({
+        where: {
+          commitSha: screenshotTest.commitSha,
+          branch: screenshotTest.branch,
+          // Keep trusted baseline results isolated from comparison-only uploads.
+          baselineEligible: screenshotTest.baselineEligible,
+          project: { id: screenshotTest.project.id },
+          id: Not(screenshotTest.id), // Exclude current test
+        },
+      })
+
+      // Delete test results for these previous tests
+      if (previousTests.length > 0) {
+        const previousTestIds = previousTests.map((test) => test.id)
+        const deleteResult = await testResultRepo.delete({
+          screenshotTest: { id: In(previousTestIds) },
+        })
+
+        log.info(
+          `Deleted ${deleteResult.affected ?? 0} test results from ${previousTests.length} previous test runs for the same commit`,
+        )
+      }
+    })
+  }
 }
 
 /**
@@ -199,38 +238,7 @@ export async function ingestStorybook(
     })
   }
 
-  // Clean up previous test results for the same commit/branch
-  if (screenshotTest.commitSha && screenshotTest.branch) {
-    log.info(`Cleaning up previous test results for the same commit/branch if they exist`)
-
-    // Use a transaction to ensure atomicity
-    await db.transaction(async (transactionalEntityManager) => {
-      const testResultRepo = transactionalEntityManager.getRepository(TestResult)
-      const screenshotTestRepoTx = transactionalEntityManager.getRepository(ScreenshotTest)
-
-      // Find previous screenshot tests with the same commit and branch
-      const previousTests = await screenshotTestRepoTx.find({
-        where: {
-          commitSha: screenshotTest.commitSha,
-          branch: screenshotTest.branch,
-          project: { id: screenshotTest.project.id },
-          id: Not(screenshotTest.id), // Exclude current test
-        },
-      })
-
-      // Delete test results for these previous tests
-      if (previousTests.length > 0) {
-        const previousTestIds = previousTests.map((test) => test.id)
-        const deleteResult = await testResultRepo.delete({
-          screenshotTest: { id: In(previousTestIds) },
-        })
-
-        log.info(
-          `Deleted ${deleteResult.affected ?? 0} test results from ${previousTests.length} previous test runs for the same commit`,
-        )
-      }
-    })
-  }
+  await deletePreviousTestResults(screenshotTest)
 
   // Initialize S3 client
   const s3Client = new S3Client(S3_CLIENT_CONFIG)

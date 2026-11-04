@@ -763,6 +763,7 @@ export async function fetchBaseTestResults(
     // (project_id, commit_sha) index.
     .where("test.project_id = :projectId", { projectId: screenshotTest.project.id })
     .andWhere("test.commit_sha = :commitSha", { commitSha: screenshotTest.baseCommitSha })
+    .andWhere("test.baseline_eligible = true")
   if (storyIds != undefined && storyIds.length > 0) {
     query = query.andWhere("result.story_id IN (:...storyIds)", { storyIds: [...storyIds] })
   }
