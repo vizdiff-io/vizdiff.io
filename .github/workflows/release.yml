@@ -170,8 +170,35 @@ jobs:
       - name: Inspect manifest
         run: docker buildx imagetools inspect ghcr.io/vizdiff-io/vizdiff-${{ matrix.image }}:${{ needs.version.outputs.semver }}
 
-  github-release:
+  release-chart:
     needs: [version, release-manifest]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Helm
+        uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4.3.1
+        with:
+          version: v4.3.1
+
+      - name: Package and publish Helm chart
+        env:
+          TAG: ${{ needs.version.outputs.semver }}
+          GHCR_USERNAME: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | helm registry login ghcr.io --username "$GHCR_USERNAME" --password-stdin
+          helm lint deploy/helm/vizdiff
+          helm package deploy/helm/vizdiff --version "$TAG" --app-version "$TAG"
+          helm push "vizdiff-$TAG.tgz" oci://ghcr.io/vizdiff-io/charts
+
+  github-release:
+    needs: [version, release-manifest, release-chart]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -194,8 +221,8 @@ jobs:
 
             ### Helm
             ```sh
-            helm upgrade --install vizdiff ./deploy/helm/vizdiff \
-              --set image.tag=${{ needs.version.outputs.semver }}
+            helm upgrade --install vizdiff oci://ghcr.io/vizdiff-io/charts/vizdiff \
+              --version ${{ needs.version.outputs.semver }}
             ```
 
             ### Images (`ghcr.io/vizdiff-io/`)

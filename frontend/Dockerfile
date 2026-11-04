@@ -7,6 +7,7 @@ RUN apk add --no-cache git
 # corepack is no longer bundled with Node >= 25, so install it explicitly before enabling
 RUN npm install -g corepack && corepack enable
 COPY .yarn/releases/ ./.yarn/releases/
+COPY .yarn/patches/ ./.yarn/patches/
 COPY package.json yarn.lock .yarnrc.yml tsconfig.json tsconfig.options.json ./
 # Copy ALL workspace package.jsons (not just this image's) so the workspace set matches
 # yarn.lock — `--immutable` fails otherwise. Cheap and cache-friendly.

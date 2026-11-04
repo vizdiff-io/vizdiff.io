@@ -18,11 +18,21 @@
     "frontend": "yarn workspace frontend",
     "worker": "yarn workspace worker",
     "build:all": "yarn workspace shared build && yarn workspaces foreach --all -p run build",
-    "test:all": "yarn workspaces foreach --all -p run test",
-    "lint:all": "yarn workspaces foreach --all -p run lint"
+    "test:all": "yarn test:security && yarn workspaces foreach --all -p run test",
+    "lint:all": "yarn workspaces foreach --all -p run lint",
+    "test:security": "node scripts/tests/deepmerge-security.cjs"
   },
   "resolutions": {
-    "prismjs": "^1.30.0"
+    "prismjs": "^1.30.0",
+    "postcss": "^8.5.23",
+    "basic-ftp": "^6.2.1",
+    "webpack-dev-middleware": "^7.4.6",
+    "@puppeteer/browsers": "^3.2.6",
+    "deepmerge@npm:^4.2.2": "patch:deepmerge@npm%3A4.3.1#~/.yarn/patches/deepmerge-npm-4.3.1-4f751a0844.patch",
+    "glob@npm:^10.2.2": "^14.0.3",
+    "glob@npm:^10.5.0": "^14.0.3",
+    "minimatch@npm:^9.0.4": "^11.0.4",
+    "minimatch@npm:^10.2.2": "^11.0.4"
   },
   "packageExtensions": {
     "@storybook/nextjs": {
