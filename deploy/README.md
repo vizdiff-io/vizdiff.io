@@ -9,13 +9,25 @@ Packaging for running vizdiff.io on your own Kubernetes cluster. Two layers:
 
 ## Architecture
 
-| Service  | Image                        | Port | Inbound Service | Health        |
-|----------|------------------------------|------|-----------------|---------------|
-| api      | `vizdiff-api` (Express)      | 3001 | yes             | `/api/health` |
-| worker   | `vizdiff-worker`             | 3003 | no (health only)| `:3003/health`|
-| frontend | `vizdiff-frontend` (nginx)   | 80   | yes             | `/`           |
+| Service  | Image                      | Port | Inbound Service  | Health         |
+| -------- | -------------------------- | ---- | ---------------- | -------------- |
+| api      | `vizdiff-api` (Express)    | 3001 | yes              | `/api/health`  |
+| worker   | `vizdiff-worker`           | 3003 | no (health only) | `:3003/health` |
+| frontend | `vizdiff-frontend` (nginx) | 80   | yes              | `/`            |
 
 Ingress routes `/api` → api and `/` → frontend on a single host.
+
+## Published chart
+
+Releases publish the chart to GHCR alongside the container images. Install a release without
+cloning this repository (add the configuration flags from the examples below):
+
+```sh
+helm upgrade --install vizdiff oci://ghcr.io/vizdiff-io/charts/vizdiff --version X.Y.Z
+```
+
+Both chart and application versions follow the release tag. For local development, use
+`./helm/vizdiff` as shown below.
 
 ## Standalone (no AWS) — quickest trial
 
