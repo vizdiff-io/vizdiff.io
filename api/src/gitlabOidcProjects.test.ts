@@ -99,4 +99,48 @@ describe("OIDC auto-created project ownership", () => {
     expect(existing.user.id).toBe(newer.id)
     expect(existing.token).toBe("second-secret")
   })
+  it("preserves null-host projects and oldest owners only for the configured default host", async () => {
+    const db = await Database()
+    const owner = await db
+      .getRepository(User)
+      .save({ authSubject: "legacy-owner", email: "legacy@example.com" })
+    const old = await db.getRepository(Project).save({
+      user: owner,
+      name: "legacy",
+      key: "ui",
+      repoId: 45,
+      vcsProvider: "gitlab",
+      gitlabHost: null,
+      repoUrl: "https://gitlab.com/example/legacy",
+      token: "legacy-token",
+      createdAt: new Date("2019-01-01"),
+    })
+    const owners = new Map([["example/legacy", "unknown@example.com"]])
+    const resolved = await resolveOidcProject(
+      db,
+      45,
+      "example/legacy",
+      "ui",
+      owners,
+      "https://gitlab.com",
+    )
+    expect(resolved.id).toBe(old.id)
+    expect(resolved.token).toBe("legacy-token")
+    const next = await resolveOidcProject(
+      db,
+      45,
+      "example/legacy",
+      "docs",
+      owners,
+      "https://gitlab.com",
+    )
+    expect(next.user.id).toBe(owner.id)
+    expect(await db.getRepository(Project).countBy({ repoId: 45 })).toBe(2)
+    await db
+      .getRepository(Project)
+      .save({ ...old, id: undefined, repoId: 46, token: "legacy-other-token" })
+    await expect(
+      resolveOidcProject(db, 46, "example/legacy", "other", owners, "https://gitlab.example.com"),
+    ).rejects.toThrow("GITLAB_OIDC_AUTO_CREATE")
+  })
 })
