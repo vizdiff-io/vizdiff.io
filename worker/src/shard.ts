@@ -9,6 +9,7 @@ import {
   TestResult,
   createMarkdownForBuildResult,
   gitlabStatusContext,
+  withGitLabStatusLock,
   uploadTarballKey,
   type TestResultErrorKind,
 } from "shared"
@@ -359,21 +360,28 @@ export async function completeBuild(
       )
       return
     }
-    if (changeCount === 0) {
-      // Only update status to success if no changes - otherwise stay in pending until approved
+    await withGitLabStatusLock(db, screenshotTest.id, async (manager) => {
+      const current = await manager
+        .getRepository(ScreenshotTest)
+        .findOneBy({ id: screenshotTest.id })
+      if (!current) {
+        return
+      }
+      const reviewed = current.status === "approved" || current.status === "denied"
       await updateGitLabCommitStatus({
         ...gitlabCheckData,
         gitlabHost,
-        state: "success",
+        state:
+          current.status === "approved" || (!reviewed && changeCount === 0) ? "success" : "failed",
         testId: screenshotTest.id,
         name: gitlabStatusContext(screenshotTest.project.key),
-        description: "No visual changes detected",
+        description: reviewed
+          ? `${changeCount} visual change${changeCount === 1 ? "" : "s"} ${current.status}`
+          : changeCount === 0
+            ? "No visual changes detected"
+            : `${changeCount} visual change${changeCount === 1 ? "" : "s"} awaiting review`,
       })
-    } else {
-      log.info(
-        `GitLab status staying in pending for ${changeCount} unapproved change(s) - approval will set success`,
-      )
-    }
+    })
   }
 }
 

@@ -23,7 +23,8 @@ env:
 
 jobs:
   build-and-test:
-    runs-on: ubuntu-latest
+    # The PostgreSQL setup action still uses apt-key, which Ubuntu 26.04 removed.
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Setup Postgres

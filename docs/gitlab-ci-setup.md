@@ -257,6 +257,31 @@ After a successful upload:
    - Approve or reject changes
    - Commit status updates automatically
 
+### Commit status lifecycle
+
+Each VizDiff project posts one commit status (`vizdiff/visual-tests` or
+`vizdiff/visual-tests/<key>`) and moves it through these states:
+
+| Event                              | GitLab state | Description                                    |
+| ---------------------------------- | ------------ | ---------------------------------------------- |
+| Upload accepted                    | `pending`    | Queued storybook upload for rendering          |
+| Worker starts rendering            | `running`    | Rendering storybook components…                |
+| Build finished, no visual changes  | `success`    | No visual changes detected                     |
+| Build finished, unapproved changes | `failed`     | `N visual change(s) awaiting review`           |
+| Build approved in VizDiff          | `success`    | `N visual change(s) approved`                  |
+| Build denied in VizDiff            | `failed`     | `N visual change(s) denied`                    |
+| Build could not render             | `failed`     | Failed to render storybook components          |
+| Build cancelled or timed out       | `canceled`   | Storybook rendering was cancelled or timed out |
+
+A build with unapproved changes reports `failed` so the pipeline reaches a final state instead
+of staying `pending` until someone reviews it. Auto-merge and other "pipeline finished"
+automation can then run. If the project requires pipelines to succeed, the MR stays blocked
+until the changes are approved.
+
+When you approve the build, VizDiff posts `success` under the same status name. GitLab replaces
+the failed status with the newer one and recomputes the pipeline status, so you do not need to
+retry the pipeline.
+
 ## Troubleshooting
 
 ### Upload fails with 401 Unauthorized

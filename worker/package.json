@@ -8,7 +8,7 @@
     "start": "yarn dev",
     "build": "node build.js",
     "test": "yarn run vitest --run",
-    "lint": "eslint src",
+    "lint": "eslint src test",
     "screenshot": "node dev.js src/dev/screenshot-local.ts --"
   },
   "dependencies": {
