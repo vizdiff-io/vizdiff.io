@@ -1,0 +1,14 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "composite": false,
+    "incremental": false,
+    "noEmit": true,
+    "rootDir": "../..",
+    "paths": {
+      "shared": ["../../shared/src"]
+    }
+  },
+  "include": ["*.test.ts"],
+  "references": [{ "path": "../../shared" }]
+}

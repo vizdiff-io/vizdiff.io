@@ -59,7 +59,7 @@ The CLI auto-detects GitLab's predefined variables (\`CI_COMMIT_SHA\`, \`CI_COMM
 
 ## 5. Trigger the pipeline & watch the commit status
 
-Open a merge request (or push to your default branch). When the upload step finishes, VizDiff posts a commit status named \`vizdiff/visual-tests\` on the pipeline commit. It stays in the "running" state while screenshots render, and if there are new or changed screenshots it remains pending until the build is approved or denied. (With no changes, it transitions to "success" automatically.)
+Open a merge request (or push to your default branch). When the upload step finishes, VizDiff posts a commit status named \`vizdiff/visual-tests\` on the pipeline commit. It stays in the "running" state while screenshots render. With no changes it transitions to "success" automatically. If there are new or changed screenshots it is set to "failed" with a description like "3 visual changes awaiting review", so the pipeline finishes instead of waiting for a review. Approving the build posts "success" under the same status name, which replaces the failed status and makes GitLab recompute the pipeline; denying it keeps the status "failed".
 
 Open the status's target link to jump to the VizDiff review page.
 

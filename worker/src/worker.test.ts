@@ -33,6 +33,7 @@ import { remote } from "webdriverio"
 
 import { Database, DatabasePool } from "./database"
 import { safeExtract } from "./extract"
+import { getGitLabHostConfig, updateGitLabCommitStatus } from "./gitlab"
 import { WORKER_ID } from "./identity"
 import {
   computeBuildTimeoutMs,
@@ -104,6 +105,17 @@ vi.mock("./vcsStatus", async (importOriginal) => {
   return {
     ...actual,
     postBuildFailedStatus: vi.fn().mockResolvedValue(undefined),
+  }
+})
+
+// GitLab client calls are stubbed so tests can assert the commit status sequence. With no host
+// config (the default here) ingest skips GitLab posting, matching an unconfigured host.
+vi.mock("./gitlab", async (importOriginal) => {
+  const actual: object = await importOriginal()
+  return {
+    ...actual,
+    getGitLabHostConfig: vi.fn(),
+    updateGitLabCommitStatus: vi.fn().mockResolvedValue(undefined),
   }
 })
 
@@ -827,6 +839,59 @@ describe("worker", () => {
           diffRatio: expect.any(Number),
         }),
       )
+    }, 10000)
+
+    it("posts GitLab running, then failed with the awaiting-review count for unapproved changes", async () => {
+      const gitlabHost = "https://gitlab.example.com"
+      const gitlabCheckData = { projectId: 42, commitSha: "c0ffee", gitlabHost }
+      // completeBuild reads the persisted TestResults back; the stories mock records one "new"
+      // story, so the inline build finishes as unapproved with a single change.
+      const baseDatabase = vi.mocked(Database).getMockImplementation()!
+      vi.mocked(Database).mockImplementation(async () => {
+        const db = await baseDatabase()
+        const baseGetRepository = db.getRepository.bind(db)
+        db.getRepository = ((entity: any) => {
+          const repository = baseGetRepository(entity)
+          if (entity === TestResult) {
+            Object.assign(repository, {
+              find: vi.fn().mockResolvedValue([{ storyId: "story1", changeStatus: "new" }]),
+            })
+          }
+          return repository
+        }) as typeof db.getRepository
+        db.transaction = vi.fn().mockImplementation(
+          async (publish: (manager: unknown) => Promise<void>) =>
+            await publish({
+              query: vi.fn().mockResolvedValue([]),
+              getRepository: db.getRepository.bind(db),
+            }),
+        )
+        return db
+      })
+      vi.mocked(getGitLabHostConfig).mockReturnValue({
+        host: gitlabHost,
+        token: "test-token",
+        rejectUnauthorized: true,
+      })
+
+      try {
+        await ingestStorybook("test-project", 123, "test-upload", undefined, gitlabCheckData)
+      } finally {
+        vi.mocked(getGitLabHostConfig).mockReset()
+      }
+
+      expect(mockScreenshotTestSave).toHaveBeenLastCalledWith(
+        expect.objectContaining({ status: "unapproved", totalChanges: 1 }),
+      )
+      const statusUpdates = vi.mocked(updateGitLabCommitStatus).mock.calls.map(([update]) => update)
+      expect(statusUpdates.map((update) => update.state)).toEqual(["running", "failed"])
+      expect(statusUpdates[1]).toEqual({
+        ...gitlabCheckData,
+        state: "failed",
+        testId: 123,
+        name: "vizdiff/visual-tests",
+        description: "1 visual change awaiting review",
+      })
     }, 10000)
 
     it("should handle missing base test results gracefully", async () => {
